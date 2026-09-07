@@ -1,0 +1,134 @@
+# =============================================================================
+# Dushan AI Native
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 本地 AI 工具与代理状态
+# 公共仓库不应提交本地维护技能或代理运行状态。
+# -----------------------------------------------------------------------------
+.docs/
+/Temp/
+
+# -----------------------------------------------------------------------------
+# 操作系统生成文件
+# -----------------------------------------------------------------------------
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100/
+.Trashes/
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# -----------------------------------------------------------------------------
+# IDE 与编辑器本地配置
+# 共享的 .vscode 配置和仓库工作区文件保持可跟踪。
+# -----------------------------------------------------------------------------
+.idea/
+*.iml
+*.ipr
+*.iws
+.fleet/
+.history/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.swp
+*.swo
+*~
+.vscode/*.local.json
+.vscode/*.user.json
+
+# -----------------------------------------------------------------------------
+# 本地环境配置与敏感信息
+# -----------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+!.env.*.example
+application-local.yaml
+application-local.yml
+application-*.local.yaml
+application-*.local.yml
+application-*-local.yaml
+application-*-local.yml
+*.pem
+*.key
+*.p12
+*.pfx
+*.secret
+*.secret.*
+
+# -----------------------------------------------------------------------------
+# Python 项目缓存与构建产物：dushan-admin-backend、dushan-test
+# -----------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.pytype/
+.hypothesis/
+.tox/
+.nox/
+*.egg-info/
+*.egg
+pip-wheel-metadata/
+*.whl
+
+# -----------------------------------------------------------------------------
+# 前端依赖与构建缓存：dushan-admin-frontend（Vue 3 / Vite / pnpm）
+# -----------------------------------------------------------------------------
+node_modules/
+.pnpm-store/
+.npm/
+.yarn/cache/
+.yarn/unplugged/
+.yarn/install-state.gz
+.yarn/build-state.yml
+.pnp.*
+.parcel-cache/
+*.tsbuildinfo
+.nyc_output/
+
+# -----------------------------------------------------------------------------
+# 通用构建、测试与运行产物
+# -----------------------------------------------------------------------------
+dist/
+build/
+out/
+coverage/
+logs/
+*.log
+test-results/
+playwright-report/
+storybook-static/
+*.pid
+*.sock
+
+# -----------------------------------------------------------------------------
+# dushan-admin-backend 本地数据与测试产物
+# -----------------------------------------------------------------------------
+/dushan-admin-backend/.coverage
+/dushan-admin-backend/.coverage.*
+/dushan-admin-backend/htmlcov/
+/dushan-admin-backend/**/*.db
+/dushan-admin-backend/**/*.sqlite
+/dushan-admin-backend/**/*.sqlite3
+/dushan-admin-backend/**/*.sqlite-journal
+
+# -----------------------------------------------------------------------------
+# dushan-admin-frontend 本地缓存
+# -----------------------------------------------------------------------------
+/dushan-admin-frontend/.turbo/
+/dushan-admin-frontend/**/.vite/
+/dushan-admin-frontend/**/.cache/
+/dushan-admin-frontend/**/.eslintcache
+/dushan-admin-frontend/**/.stylelintcache
