@@ -1,0 +1,39 @@
+name: Sync to Gitee
+
+on:
+  push:
+    branches: ['**']
+    tags: ['**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gitee-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.repository == 'dushanaicode/dushan-ai-native' && github.event.deleted != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Push branches and tags to Gitee
+        shell: bash
+        env:
+          GITEE_SSH_PRIVATE_KEY: ${{ secrets.GITEE_SSH_PRIVATE_KEY }}
+          GIT_TERMINAL_PROMPT: '0'
+        run: |
+          set -euo pipefail
+          umask 077
+          export TMPDIR="$PWD/Temp/gitee-sync"
+          export TEMP="$TMPDIR" TMP="$TMPDIR"
+          mkdir -p "$TMPDIR"
+          test -n "$GITEE_SSH_PRIVATE_KEY" || { echo '::error::Missing GITEE_SSH_PRIVATE_KEY'; exit 1; }
+          trap 'rm -f "$TMPDIR/key"' EXIT
+          printf '%s\n' "$GITEE_SSH_PRIVATE_KEY" > "$TMPDIR/key"
+          printf '%s\n' 'gitee.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEKxHSJ7084RmkJ4YdEi5tngynE8aZe2uEoVVsB/OvYN' > "$TMPDIR/known_hosts"
+          export GIT_SSH_COMMAND="ssh -i $TMPDIR/key -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$TMPDIR/known_hosts"
+          git clone --bare https://github.com/dushanaicode/dushan-ai-native.git "$TMPDIR/repository.git"
+          git -C "$TMPDIR/repository.git" push git@gitee.com:dushan-ai/dushan-ai-native.git 'refs/heads/*:refs/heads/*' 'refs/tags/*:refs/tags/*'
