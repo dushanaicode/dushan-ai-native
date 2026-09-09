@@ -1,0 +1,6 @@
+Temp/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage*
+application-local.yaml

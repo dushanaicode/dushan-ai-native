@@ -1,0 +1,33 @@
+[project]
+name = "dushan-admin-backend"
+version = "0.0.0"
+description = "渡山 AI Native 后端启动骨架"
+requires-python = ">=3.12,<3.13"
+license = "MIT"
+dependencies = [
+    "fastapi==0.137.1",
+    "starlette==1.3.1",
+    "pydantic==2.13.4",
+    "PyYAML==6.0.3",
+    "uvicorn[standard]==0.49.0",
+    "granian==2.7.6",
+]
+
+[tool.poetry]
+package-mode = false
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = ["Temp"]
+force-exclude = true
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "framework", "server"]
+
+[tool.ruff.lint.per-file-ignores]
+# 启动入口必须先禁用字节码写入，再导入项目模块；保留此执行顺序。
+"app.py" = ["E402"]

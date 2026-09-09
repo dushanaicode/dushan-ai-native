@@ -1,0 +1,5 @@
+# 生产模式禁止调试、热重载及交互式接口文档。
+# 默认只监听回环地址，对外发布时再配置反向代理与实际监听地址。
+SERVER_DEBUG: false
+SERVER_RELOAD: false
+SERVER_DOCS_ENABLED: false
