@@ -132,3 +132,8 @@ storybook-static/
 /dushan-admin-frontend/**/.cache/
 /dushan-admin-frontend/**/.eslintcache
 /dushan-admin-frontend/**/.stylelintcache
+
+# Vben upstream docs are tracked with the frontend baseline.
+
+# Local frontend build and verification artifacts
+/dushan-admin-frontend/Temp/
