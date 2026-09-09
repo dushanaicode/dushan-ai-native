@@ -1,15 +1,26 @@
-# 通用启动参数，环境覆盖文件与进程环境可以覆盖这些值。
-SERVER_NAME: 渡山 AI Native
-SERVER_VERSION: 0.0.0
-SERVER_ENV: dev
-SERVER_HOST: 127.0.0.1
-SERVER_PORT: 48080
-SERVER_DEBUG: false
-SERVER_RELOAD: false
-SERVER_DOCS_ENABLED: true
-SERVER_ROOT_PATH: ""
-SERVER_LOG_LEVEL: INFO
-GRANIAN_WORKERS: 1
-GRANIAN_THREADS: 1
-UVICORN_WORKERS: 1
-UVICORN_LOG_LEVEL: info
+# 公共默认配置；环境文件只写差异，同一分组按字段递归合并。
+# 覆盖顺序：本文件 → 所选环境文件 → 非生产个人覆盖 → 进程环境变量。
+
+# ==================== 应用服务配置 ====================
+server:
+  name: 渡山 AI Native # 应用名称，显示在启动日志和接口文档中
+  version: "0.0.0" # 应用版本，供健康检查和接口文档使用
+  env: dev # 默认环境；--env 优先于 SERVER_ENV，再采用此值
+  host: 127.0.0.1 # 默认监听回环地址；对外访问时按部署方式配置
+  port: 48080 # HTTP 端口，范围 1～65535；可通过 SERVER_PORT 覆盖
+  debug: false # 调试开关；生产环境禁止开启
+  reload: false # 热重载开关，由开发环境配置开启；生产环境禁止开启
+  docs_enabled: true # Swagger/ReDoc/OpenAPI 接口文档开关，与独立文档站无关
+  root_path: "" # 反向代理的挂载路径前缀，直接访问时留空
+  log_level: INFO # 应用控制台日志级别：DEBUG/INFO/WARNING/ERROR/CRITICAL
+
+# ==================== Granian 引擎配置 ====================
+# 默认使用 Granian；可通过 --server uvicorn 切换引擎。
+granian:
+  workers: 1 # 工作进程数，至少为 1；热重载时实际使用单进程
+  threads: 1 # 非热重载模式下的运行线程数，至少为 1
+
+# ==================== Uvicorn 引擎配置 ====================
+uvicorn:
+  workers: 1 # 工作进程数，至少为 1；热重载时实际使用单进程
+  log_level: info # 引擎日志级别：critical/error/warning/info/debug/trace

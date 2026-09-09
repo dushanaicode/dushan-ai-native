@@ -1,2 +1,6 @@
-# 本地开发启用热重载；需要私有覆盖时使用不提交的 application-local.yaml。
-SERVER_RELOAD: true
+# 开发环境只覆盖与公共配置不同的值，其他字段继承 application.yaml。
+# 个人端口等差异可写入 application-local.yaml；该文件不提交 Git。
+
+# ==================== 开发环境服务配置 ====================
+server:
+  reload: true # 修改代码后自动重载；不改变公共的服务名、端口和其他设置

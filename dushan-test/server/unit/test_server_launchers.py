@@ -42,7 +42,7 @@ def test_production_engine_parameters_are_explicit():
 
 
 def test_entry_sends_validated_configuration_to_child(config_dir, monkeypatch):
-    root = config_dir({"SERVER_PORT": 40123})
+    root = config_dir({"server": {"port": 40123}})
     monkeypatch.setenv("UVICORN_RELOAD", "true")
     monkeypatch.setenv("GRANIAN_WORKERS", "2")
     calls = []
@@ -65,7 +65,7 @@ def test_entry_sends_validated_configuration_to_child(config_dir, monkeypatch):
 
 
 def test_invalid_config_does_not_create_a_process(config_dir, monkeypatch):
-    root = config_dir({"SERVER_PORT": 0})
+    root = config_dir({"server": {"port": 0}})
     monkeypatch.setattr(
         entry.subprocess, "run", lambda *a, **k: pytest.fail("非法配置不应启动子进程")
     )

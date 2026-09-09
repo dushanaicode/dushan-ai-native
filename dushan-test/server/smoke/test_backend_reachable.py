@@ -23,7 +23,7 @@ def test_real_server_health(engine, config_dir, tmp_path):
     with socket.socket() as reservation:
         reservation.bind(("127.0.0.1", 0))
         port = reservation.getsockname()[1]
-    root = config_dir({"SERVER_PORT": port, "SERVER_RELOAD": False})
+    root = config_dir({"server": {"port": port, "reload": False}})
     env = dict(
         os.environ,
         SERVER_ENV="test",

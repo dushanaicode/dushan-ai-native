@@ -2,6 +2,7 @@
 
 import os
 from collections.abc import Mapping
+from copy import deepcopy
 from pathlib import Path
 from typing import TypeVar
 
@@ -44,7 +45,7 @@ class BootstrapConfigProvider:
     ) -> None:
         self.base_dir = base_dir
         self.environment = environment
-        self._values = dict(values)
+        self._values = deepcopy(values)
         self._environ = dict(environ)
 
     @classmethod
@@ -59,10 +60,13 @@ class BootstrapConfigProvider:
         root = Path(base_dir).resolve()
         process_env = dict(os.environ if environ is None else environ)
         values = cls._read_yaml(root / "application.yaml", required=True)
+        server = values.get("server", {})
+        if not isinstance(server, dict):
+            raise BootstrapConfigError("server 必须是配置分组")
         selected = (
             app_env
             if app_env is not None
-            else process_env.get("SERVER_ENV", values.get("SERVER_ENV", "dev"))
+            else process_env.get("SERVER_ENV", server.get("env", "dev"))
         )
         try:
             environment = ApplicationEnvironmentEnum(str(selected).strip().lower())
@@ -70,21 +74,36 @@ class BootstrapConfigProvider:
             raise BootstrapConfigError(
                 "SERVER_ENV 无效，可选值为 dev、test、staging、prod"
             ) from None
-        values.update(
+        values = cls._merge(
+            values,
             cls._read_yaml(
                 root / f"application-{environment.value}.yaml",
                 required=environment == ApplicationEnvironmentEnum.PRODUCTION,
-            )
+            ),
         )
         if environment != ApplicationEnvironmentEnum.PRODUCTION:
-            values.update(cls._read_yaml(root / "application-local.yaml"))
+            values = cls._merge(values, cls._read_yaml(root / "application-local.yaml"))
         # 已选择的环境不允许再被覆盖文件改写。
-        values["SERVER_ENV"] = environment.value
+        server = values.setdefault("server", {})
+        if not isinstance(server, dict):
+            raise BootstrapConfigError("server 必须是配置分组")
+        server["env"] = environment.value
         return cls(root, environment, values, process_env)
+
+    @classmethod
+    def _merge(cls, base: dict, override: dict) -> dict:
+        """配置分组递归合并，列表与普通值整体覆盖，不修改输入快照。"""
+        result = deepcopy(base)
+        for key, value in override.items():
+            if isinstance(value, dict) and isinstance(result.get(key), dict):
+                result[key] = cls._merge(result[key], value)
+            else:
+                result[key] = deepcopy(value)
+        return result
 
     @staticmethod
     def _read_yaml(path: Path, *, required: bool = False) -> dict[str, object]:
-        """读取平铺键值配置，错误信息不输出 YAML 原文。"""
+        """读取单文档嵌套配置，错误信息不输出 YAML 原文。"""
         if not path.exists():
             if required:
                 raise BootstrapConfigError(f"缺少配置文件：{path.name}")
@@ -104,22 +123,34 @@ class BootstrapConfigProvider:
             return {}
         if not isinstance(data, dict):
             raise BootstrapConfigError(f"配置文件顶层必须是键值映射：{path.name}")
+        if any(key.isupper() and "_" in key for key in data):
+            raise BootstrapConfigError(
+                f"{path.name} 不再接受大写平铺 YAML，请改为小写嵌套配置，例如 server.port；"
+                "进程环境变量名称保持不变"
+            )
         return data
 
-    def get_config(self, settings_type: type[Settings], *, prefix: str) -> Settings:
-        """读取强类型模型；进程环境可覆盖任何已声明字段，包括使用默认值的字段。"""
-        keys = {prefix + field.upper(): field for field in settings_type.model_fields}
-        unknown = [key for key in self._values if key.startswith(prefix) and key not in keys]
-        if unknown:
-            raise BootstrapConfigError(f"未知配置键：{', '.join(sorted(unknown))}")
-        values = {}
-        for key, field in keys.items():
+    def _apply_environment(self, model_type: type[BaseModel], values: object, prefix: str):
+        """沿模型层级覆盖环境变量，保留未知字段和错误结构交给模型报错。"""
+        if not isinstance(values, dict):
+            return values
+        result = deepcopy(values)
+        for field, info in model_type.model_fields.items():
+            key = prefix + field.upper()
             if key == "SERVER_ENV":
-                values[field] = self.environment.value
+                result[field] = self.environment.value
+            elif isinstance(info.annotation, type) and issubclass(info.annotation, BaseModel):
+                nested = self._apply_environment(info.annotation, result.get(field, {}), key + "_")
+                if field in result or nested:
+                    result[field] = nested
             elif key in self._environ:
-                values[field] = self._environ[key]
-            elif key in self._values:
-                values[field] = self._values[key]
+                result[field] = self._environ[key]
+        return result
+
+    def get_config(self, settings_type: type[Settings], *, prefix: str = "") -> Settings:
+        """校验完整配置；提供 prefix 时也可读取对应分组，环境变量命名不变。"""
+        values = self._values.get(prefix.rstrip("_").lower(), {}) if prefix else self._values
+        values = self._apply_environment(settings_type, values, prefix)
         try:
             return settings_type.model_validate(values)
         except ValidationError as error:
@@ -127,6 +158,8 @@ class BootstrapConfigProvider:
             for detail in error.errors(include_input=False, include_url=False):
                 location = ".".join(str(part) for part in detail["loc"]) or "整体配置"
                 reason = detail.get("ctx", {}).get("error")
+                if detail["type"] == "extra_forbidden":
+                    reason = "未声明的配置项"
                 fields.append(
                     f"{location}：{reason}" if reason else f"{location}：值的类型或范围不合法"
                 )

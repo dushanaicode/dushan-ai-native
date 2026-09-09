@@ -35,7 +35,7 @@ async def test_health_is_not_ready_without_lifespan(config_dir):
 
 def test_production_hides_all_documentation_routes(config_dir):
     app = create_app(
-        base_dir=config_dir(prod={"SERVER_DOCS_ENABLED": False}), app_env="prod", environ={}
+        base_dir=config_dir(prod={"server": {"docs_enabled": False}}), app_env="prod", environ={}
     )
     with TestClient(app) as client:
         assert client.get("/health").status_code == 200

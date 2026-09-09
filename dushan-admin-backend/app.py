@@ -12,9 +12,7 @@ from framework.starter_config.provider.bootstrap_config_provider import (
     BootstrapConfigError,
     BootstrapConfigProvider,
 )
-from server.config.granian.granian_settings import GranianSettings
-from server.config.server.server_settings import ServerSettings
-from server.config.uvicorn.uvicorn_settings import UvicornSettings
+from server.config.application_settings import ApplicationSettings
 from server.launcher.engine_parser import parse_server_arguments
 from server.launcher.granian_launcher import build_granian_cmd
 from server.launcher.uvicorn_launcher import build_uvicorn_cmd
@@ -27,15 +25,12 @@ def run_server(argv=None) -> int:
     args = parse_server_arguments(argv)
     try:
         provider = BootstrapConfigProvider.load(args.config_dir or BACKEND_ROOT, app_env=args.env)
-        settings = provider.get_config(ServerSettings, prefix="SERVER_")
+        configuration = provider.get_config(ApplicationSettings)
+        settings = configuration.server
         if args.server == "granian":
-            command = build_granian_cmd(
-                settings, provider.get_config(GranianSettings, prefix="GRANIAN_")
-            )
+            command = build_granian_cmd(settings, configuration.granian)
         else:
-            command = build_uvicorn_cmd(
-                settings, provider.get_config(UvicornSettings, prefix="UVICORN_")
-            )
+            command = build_uvicorn_cmd(settings, configuration.uvicorn)
     except BootstrapConfigError as error:
         print(f"启动配置错误：{error}", file=sys.stderr)
         return 2

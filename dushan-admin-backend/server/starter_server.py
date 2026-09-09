@@ -13,7 +13,7 @@ from framework.starter_config.provider.bootstrap_config_provider import (
 from server.bootstrap.bootstrapper import bootstrap_app
 from server.bootstrap.context import AppBootstrapContext
 from server.bootstrap.step_registry import BootstrapStepSpec
-from server.config.server.server_settings import ServerSettings
+from server.config.application_settings import ApplicationSettings
 from server.routing.health_router import router as health_router
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
@@ -32,7 +32,7 @@ def create_app(
         base_dir if base_dir is not None else process_env.get("DUSHAN_CONFIG_DIR", BACKEND_ROOT)
     )
     provider = BootstrapConfigProvider.load(config_root, app_env=app_env, environ=process_env)
-    settings = provider.get_config(ServerSettings, prefix="SERVER_")
+    settings = provider.get_config(ApplicationSettings).server
 
     @asynccontextmanager
     async def lifespan(application: FastAPI):

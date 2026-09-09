@@ -1,5 +1,9 @@
-# 生产模式禁止调试、热重载及交互式接口文档。
-# 默认只监听回环地址，对外发布时再配置反向代理与实际监听地址。
-SERVER_DEBUG: false
-SERVER_RELOAD: false
-SERVER_DOCS_ENABLED: false
+# 使用 --env prod 或 SERVER_ENV=prod 选择生产环境，本文件必须存在。
+# 生产环境不读取 application-local.yaml；真实部署参数通过环境变量覆盖。
+# 默认继承回环监听地址，对外发布时再配置实际监听地址与反向代理。
+
+# ==================== 生产环境服务配置 ====================
+server:
+  debug: false # 必须关闭调试
+  reload: false # 必须关闭热重载
+  docs_enabled: false # 必须关闭接口文档；不影响独立产品文档站

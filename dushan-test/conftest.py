@@ -12,14 +12,20 @@ def config_dir(tmp_path: Path):
 
     def create(base=None, *, dev=None, prod=None, local=None):
         values = {
-            "SERVER_ENV": "dev",
-            "SERVER_NAME": "渡山测试服务",
-            "SERVER_PORT": 48080,
-            "SERVER_DEBUG": False,
-            "SERVER_RELOAD": False,
-            "SERVER_DOCS_ENABLED": True,
+            "server": {
+                "env": "dev",
+                "name": "渡山测试服务",
+                "port": 48080,
+                "debug": False,
+                "reload": False,
+                "docs_enabled": True,
+            },
         }
-        values.update(base or {})
+        for key, value in (base or {}).items():
+            if key == "server" and isinstance(value, dict):
+                values["server"].update(value)
+            else:
+                values[key] = value
         layers = {
             "application.yaml": values,
             "application-dev.yaml": dev,

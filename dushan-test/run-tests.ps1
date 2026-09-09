@@ -1,5 +1,5 @@
 ﻿param(
-    [string]$Python = 'python',
+    [string]$Python = (Join-Path $PSScriptRoot '.venv/Scripts/python.exe'),
     [switch]$IncludeSmoke
 )
 
