@@ -1,5 +1,3 @@
-"""FastAPI 应用工厂与 ASGI 导出。"""
-
 import os
 from collections.abc import Mapping, Sequence
 from contextlib import asynccontextmanager
@@ -7,6 +5,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 
+from framework.common.exception.core.exception_handler import GlobalExceptionHandler
 from framework.starter_config.provider.bootstrap_config_provider import (
     BootstrapConfigProvider,
 )
@@ -26,17 +25,18 @@ def create_app(
     environ: Mapping[str, str] | None = None,
     steps: Sequence[BootstrapStepSpec] | None = None,
 ) -> FastAPI:
-    """只加载当前配置与基础路由，不扫描或初始化业务模块。"""
+    """创建应用并注册异常处理器、生命周期和健康检查路由。"""
     process_env = dict(os.environ if environ is None else environ)
     config_root = (
         base_dir if base_dir is not None else process_env.get("DUSHAN_CONFIG_DIR", BACKEND_ROOT)
     )
     provider = BootstrapConfigProvider.load(config_root, app_env=app_env, environ=process_env)
-    settings = provider.get_config(ApplicationSettings).server
+    configuration = provider.get_config(ApplicationSettings)
+    settings = configuration.server
 
     @asynccontextmanager
     async def lifespan(application: FastAPI):
-        """由启动管理器独占资源的进入与退出。"""
+        """通过启动管理器完成服务启动和退出清理。"""
         async with bootstrap_app(application.state.bootstrap, steps):
             yield
 
@@ -50,7 +50,16 @@ def create_app(
         redoc_url=settings.redoc_url if settings.docs_enabled else None,
         openapi_url=settings.openapi_url if settings.docs_enabled else None,
     )
-    application.state.bootstrap = AppBootstrapContext(application, provider.base_dir, settings)
+    exception_handler = GlobalExceptionHandler(debug=settings.debug)
+    exception_handler.register(application)
+    application.state.bootstrap = AppBootstrapContext(
+        application,
+        provider.base_dir,
+        settings,
+        log_settings=configuration.log,
+        i18n_options=configuration.i18n,
+        exception_handler=exception_handler,
+    )
     application.include_router(health_router)
     return application
 

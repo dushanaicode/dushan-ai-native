@@ -1,14 +1,10 @@
-"""HTTP 服务启动参数。"""
-
-from typing import Literal
-
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from framework.common.enums.application_environment_enum import ApplicationEnvironmentEnum
 
 
 class ServerSettings(BaseModel):
-    """只保存已校验的配置，不在模型内部再次读取进程环境。"""
+    """HTTP 服务的配置，包括端口、运行环境和接口文档开关。"""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -24,17 +20,14 @@ class ServerSettings(BaseModel):
     redoc_url: str = Field(default="/redoc", pattern=r"^/([^/?#][^?#]*)?$")
     openapi_url: str = Field(default="/openapi.json", pattern=r"^/([^/?#][^?#]*)?$")
     root_path: str = Field(default="", pattern=r"^(/([^/?#][^?#]*)?)?$")
-    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
-
-    @field_validator("log_level", mode="before")
-    @classmethod
-    def normalize_log_level(cls, value):
-        """允许环境配置使用小写日志级别。"""
-        return value.upper() if isinstance(value, str) else value
 
     @model_validator(mode="after")
     def validate_runtime_boundaries(self):
-        """检查生产模式和内置路由，避免启动配置绕过边界。"""
+        """检查生产环境的开关和接口文档路径。
+
+        生产环境必须关闭调试、热重载和接口文档；开启文档时，
+        各个文档路径不能重复，也不能占用 /health。
+        """
         if self.env == ApplicationEnvironmentEnum.PRODUCTION:
             if self.debug or self.reload or self.docs_enabled:
                 raise ValueError(

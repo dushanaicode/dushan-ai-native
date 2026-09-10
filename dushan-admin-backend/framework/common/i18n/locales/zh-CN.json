@@ -1,0 +1,23 @@
+{
+  "exception": {
+    "success": "成功",
+    "bad_request": "请求参数不正确",
+    "unauthorized": "账号未登录",
+    "forbidden": "没有该操作权限",
+    "not_found": "请求未找到",
+    "method_not_allowed": "请求方法不正确",
+    "conflict": "请求冲突/资源状态冲突",
+    "payload_too_large": "请求体过大",
+    "locked": "请求失败，请稍后重试",
+    "too_many_requests": "请求过于频繁，请稍后重试",
+    "validation_error": "请求参数不正确",
+    "internal_server_error": "系统异常",
+    "not_implemented": "功能未实现/未开启",
+    "error_configuration": "错误的配置项",
+    "bad_gateway": "网关异常",
+    "service_unavailable": "服务暂时不可用",
+    "repeated_requests": "重复请求，请稍后重试",
+    "demo_deny": "演示模式，禁止写操作",
+    "signature_mismatch": "签名不匹配"
+  }
+}

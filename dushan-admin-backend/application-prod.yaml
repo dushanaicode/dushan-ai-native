@@ -7,3 +7,7 @@ server:
   debug: false # 必须关闭调试
   reload: false # 必须关闭热重载
   docs_enabled: false # 必须关闭接口文档；不影响独立产品文档站
+
+# ==================== 生产环境国际化配置 ====================
+i18n:
+  hot_reload: false # 默认由发布流程更新语言资源，重启后加载

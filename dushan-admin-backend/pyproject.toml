@@ -4,14 +4,19 @@ version = "0.0.0"
 description = "渡山 AI Native 后端启动骨架"
 requires-python = ">=3.12,<3.13"
 license = "MIT"
-dependencies = [
-    "fastapi==0.137.1",
-    "starlette==1.3.1",
-    "pydantic==2.13.4",
-    "PyYAML==6.0.3",
-    "uvicorn[standard]==0.49.0",
-    "granian==2.7.6",
-]
+dynamic = ["dependencies"]
+
+[tool.poetry.dependencies]
+# 主项目只关联已经存在的模块；模块依赖由各自的 pyproject.toml 维护。
+framework = { path = "./framework", develop = true }
+
+[tool.poetry.group.core.dependencies]
+# 应用工厂、配置、日志上下文和 ASGI 引擎直接使用的依赖。
+fastapi = "==0.137.1"
+pydantic = "==2.13.4"
+loguru = "==0.7.3"
+uvicorn = { extras = ["standard"], version = "==0.49.0" }
+granian = "==2.7.6"
 
 [tool.poetry]
 package-mode = false

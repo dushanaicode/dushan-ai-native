@@ -1,5 +1,3 @@
-"""使用临时配置验证两个引擎的真实 HTTP 启动。"""
-
 import json
 import os
 import signal
@@ -19,7 +17,7 @@ BACKEND_ROOT = Path(__file__).resolve().parents[3] / "dushan-admin-backend"
 @pytest.mark.smoke
 @pytest.mark.parametrize("engine", ["uvicorn", "granian"])
 def test_real_server_health(engine, config_dir, tmp_path):
-    """不连接数据库或其他服务，测试进程与输出都独立管理。"""
+    """启动真实服务，检查 /health 是否返回就绪。"""
     with socket.socket() as reservation:
         reservation.bind(("127.0.0.1", 0))
         port = reservation.getsockname()[1]

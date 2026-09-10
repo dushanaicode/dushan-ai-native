@@ -1,5 +1,3 @@
-"""独立于数据库、容器和模块扫描的启动配置读取。"""
-
 import os
 from collections.abc import Mapping
 from copy import deepcopy
@@ -15,11 +13,11 @@ Settings = TypeVar("Settings", bound=BaseModel)
 
 
 class BootstrapConfigError(ValueError):
-    """向启动入口报告不包含配置原值的配置错误。"""
+    """启动配置错误，报错时不要附带配置中的敏感值。"""
 
 
 class _UniqueKeyLoader(yaml.SafeLoader):
-    """拒绝重复键，避免配置被无声覆盖。"""
+    """读取 YAML 时检查重复键，避免后一个值悄悄覆盖前一个值。"""
 
     def construct_mapping(self, node, deep=False):
         result = {}
@@ -34,7 +32,7 @@ class _UniqueKeyLoader(yaml.SafeLoader):
 
 
 class BootstrapConfigProvider:
-    """持有一次配置快照，应用之间不共享可变缓存。"""
+    """读取启动配置，每个实例保存自己的一份数据。"""
 
     def __init__(
         self,
@@ -56,7 +54,11 @@ class BootstrapConfigProvider:
         app_env: str | None = None,
         environ: Mapping[str, str] | None = None,
     ) -> "BootstrapConfigProvider":
-        """按基础、环境、本地覆盖顺序读取配置；生产环境不读本地覆盖。"""
+        """读取基础配置，再依次合并环境配置和本地覆盖。
+
+        生产环境跳过 application-local.yaml，避免把个人配置带到服务器上。
+        环境名只接受 dev、test、staging、prod，不能用它指定任意文件路径。
+        """
         root = Path(base_dir).resolve()
         process_env = dict(os.environ if environ is None else environ)
         values = cls._read_yaml(root / "application.yaml", required=True)
@@ -83,7 +85,7 @@ class BootstrapConfigProvider:
         )
         if environment != ApplicationEnvironmentEnum.PRODUCTION:
             values = cls._merge(values, cls._read_yaml(root / "application-local.yaml"))
-        # 已选择的环境不允许再被覆盖文件改写。
+        # 保留最初选定的环境，确保环境名与实际加载的文件一致。
         server = values.setdefault("server", {})
         if not isinstance(server, dict):
             raise BootstrapConfigError("server 必须是配置分组")
@@ -92,7 +94,10 @@ class BootstrapConfigProvider:
 
     @classmethod
     def _merge(cls, base: dict, override: dict) -> dict:
-        """配置分组递归合并，列表与普通值整体覆盖，不修改输入快照。"""
+        """合并配置字典，返回一份新结果。
+
+        字典逐层合并，列表直接替换；例如用 [] 可以清空原列表。
+        """
         result = deepcopy(base)
         for key, value in override.items():
             if isinstance(value, dict) and isinstance(result.get(key), dict):
@@ -103,7 +108,10 @@ class BootstrapConfigProvider:
 
     @staticmethod
     def _read_yaml(path: Path, *, required: bool = False) -> dict[str, object]:
-        """读取单文档嵌套配置，错误信息不输出 YAML 原文。"""
+        """读取一份 YAML 配置。
+
+        文件只能有一个文档，顶层必须是字典；报错时不附带 YAML 原文。
+        """
         if not path.exists():
             if required:
                 raise BootstrapConfigError(f"缺少配置文件：{path.name}")
@@ -131,7 +139,11 @@ class BootstrapConfigProvider:
         return data
 
     def _apply_environment(self, model_type: type[BaseModel], values: object, prefix: str):
-        """沿模型层级覆盖环境变量，保留未知字段和错误结构交给模型报错。"""
+        """把环境变量写入对应的配置字段。
+
+        例如 SERVER_PORT 对应 server.port。未知字段和错误分组原样保留，
+        交给 Pydantic 校验，避免把填错的配置当成默认值继续启动。
+        """
         if not isinstance(values, dict):
             return values
         result = deepcopy(values)
@@ -148,7 +160,11 @@ class BootstrapConfigProvider:
         return result
 
     def get_config(self, settings_type: type[Settings], *, prefix: str = "") -> Settings:
-        """校验完整配置；提供 prefix 时也可读取对应分组，环境变量命名不变。"""
+        """读取并校验配置，返回指定类型的配置对象。
+
+        默认读取完整配置；例如 get_config(ServerSettings, prefix="SERVER_")
+        只读取 server 分组，环境变量仍使用 SERVER_PORT 这样的名称。
+        """
         values = self._values.get(prefix.rstrip("_").lower(), {}) if prefix else self._values
         values = self._apply_environment(settings_type, values, prefix)
         try:

@@ -1,5 +1,3 @@
-"""构造 Uvicorn 命令，不自动信任代理请求头。"""
-
 import sys
 
 from server.config.server.server_settings import ServerSettings
@@ -8,7 +6,7 @@ from server.launcher.worker_count_guard import resolve_effective_worker_count
 
 
 def build_uvicorn_cmd(server: ServerSettings, engine: UvicornSettings) -> list[str]:
-    """通过显式 lifespan 确认启动成功后再处理请求。"""
+    """生成 Uvicorn 启动命令，要求启动步骤完成后再处理请求。"""
     command = [
         sys.executable,
         "-B",

@@ -1,5 +1,3 @@
-"""构造 Granian 命令，不经过 shell 拼接。"""
-
 import sys
 
 from server.config.granian.granian_settings import GranianSettings
@@ -8,7 +6,7 @@ from server.launcher.worker_count_guard import resolve_effective_worker_count
 
 
 def build_granian_cmd(server: ServerSettings, engine: GranianSettings) -> list[str]:
-    """使用显式参数启动 ASGI 应用。"""
+    """根据服务配置生成 Granian 启动命令。"""
     command = [
         sys.executable,
         "-B",

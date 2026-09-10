@@ -1,5 +1,3 @@
-"""只提供按需使用的临时配置，不自动登录或连接外部服务。"""
-
 from pathlib import Path
 
 import pytest
@@ -8,7 +6,7 @@ import yaml
 
 @pytest.fixture
 def config_dir(tmp_path: Path):
-    """每个用例在 pytest 的临时目录中生成独立配置。"""
+    """为每个测试生成一份临时配置。"""
 
     def create(base=None, *, dev=None, prod=None, local=None):
         values = {
@@ -20,6 +18,7 @@ def config_dir(tmp_path: Path):
                 "reload": False,
                 "docs_enabled": True,
             },
+            "log": {"enable_file_overall": False},
         }
         for key, value in (base or {}).items():
             if key == "server" and isinstance(value, dict):

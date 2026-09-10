@@ -1,0 +1,23 @@
+{
+  "exception": {
+    "success": "Success",
+    "bad_request": "Invalid request parameters",
+    "unauthorized": "Account not logged in",
+    "forbidden": "No permission for this operation",
+    "not_found": "Request not found",
+    "method_not_allowed": "Invalid request method",
+    "conflict": "Request conflict / resource state conflict",
+    "payload_too_large": "Request payload is too large",
+    "locked": "Request failed, please try again later",
+    "too_many_requests": "Too many requests, please try again later",
+    "validation_error": "Invalid request parameters",
+    "internal_server_error": "Internal server error",
+    "not_implemented": "Feature not implemented / disabled",
+    "error_configuration": "Invalid configuration",
+    "bad_gateway": "Bad gateway",
+    "service_unavailable": "Service temporarily unavailable",
+    "repeated_requests": "Repeated request, please try again later",
+    "demo_deny": "Demo mode: write operations are disabled",
+    "signature_mismatch": "Signature mismatch"
+  }
+}

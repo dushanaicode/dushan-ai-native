@@ -1,12 +1,10 @@
-"""命令行启动选项。"""
-
 import argparse
 from collections.abc import Sequence
 from pathlib import Path
 
 
 def parse_server_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
-    """选择服务器、运行环境与配置目录。"""
+    """解析命令行中的服务器类型、运行环境和配置目录。"""
     parser = argparse.ArgumentParser(description="启动渡山后端服务")
     parser.add_argument(
         "--server",

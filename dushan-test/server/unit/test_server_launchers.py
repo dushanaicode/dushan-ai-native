@@ -1,5 +1,3 @@
-"""启动参数、子进程边界和退出码验证。"""
-
 import subprocess
 
 import pytest

@@ -1,5 +1,3 @@
-"""不依赖数据库或登录状态的启动就绪检查。"""
-
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
@@ -8,7 +6,7 @@ router = APIRouter(tags=["服务状态"])
 
 @router.get("/health", summary="检查服务启动状态", response_class=JSONResponse)
 async def health(request: Request) -> JSONResponse:
-    """只在全部基础启动步骤完成后返回成功。"""
+    """检查服务是否已完成启动，尚未就绪时返回 503。"""
     ctx = request.app.state.bootstrap
     ready = ctx.ready
     return JSONResponse(

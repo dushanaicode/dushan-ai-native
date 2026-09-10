@@ -1,11 +1,9 @@
-"""渡山后端统一命令行启动入口。"""
-
 import os
 import subprocess
 import sys
 from pathlib import Path
 
-# 启动入口不在源码目录生成 Python 字节码。
+# 先关掉字节码写入，再导入项目模块，避免生成 __pycache__。
 sys.dont_write_bytecode = True
 
 from framework.starter_config.provider.bootstrap_config_provider import (
@@ -21,7 +19,7 @@ BACKEND_ROOT = Path(__file__).resolve().parent
 
 
 def run_server(argv=None) -> int:
-    """先完成配置校验，再以参数列表启动服务器进程。"""
+    """检查启动配置，启动服务器并返回退出码。"""
     args = parse_server_arguments(argv)
     try:
         provider = BootstrapConfigProvider.load(args.config_dir or BACKEND_ROOT, app_env=args.env)
@@ -35,7 +33,7 @@ def run_server(argv=None) -> int:
         print(f"启动配置错误：{error}", file=sys.stderr)
         return 2
 
-    # 引擎参数已经显式传入，清除引擎自身的环境覆盖，防止绕过已验证参数。
+    # 移除引擎自己读取的环境变量，保证子进程使用刚校验过的启动参数。
     child_env = {
         key: value
         for key, value in os.environ.items()

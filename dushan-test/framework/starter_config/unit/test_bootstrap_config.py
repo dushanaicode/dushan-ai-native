@@ -1,19 +1,22 @@
-"""配置优先级、输入边界与生产模式验证。"""
-
 import pytest
 from pydantic import BaseModel
 
-from framework.common.enums.application_environment_enum import ApplicationEnvironmentEnum
+from framework.common.enums.application_environment_enum import (
+    ApplicationEnvironmentEnum,
+)
 from framework.starter_config.provider.bootstrap_config_provider import (
     BootstrapConfigError,
     BootstrapConfigProvider,
 )
+from framework.starter_logging.config.log_config_builder import LogConfigBuilder
+from framework.starter_logging.enums.log_file_type_enum import LogFileTypeEnum
+from framework.starter_logging.enums.log_level_enum import LogLevelEnum
 from server.config.application_settings import ApplicationSettings
 from server.config.server.server_settings import ServerSettings
 
 
 def settings(path, **kwargs):
-    """使用显式环境快照，避免测试读取开发者本机配置。"""
+    """使用测试传入的环境变量，避免受本机配置影响。"""
     return BootstrapConfigProvider.load(path, **kwargs).get_config(ApplicationSettings).server
 
 
@@ -30,7 +33,55 @@ def test_environment_overrides_local_and_profile(config_dir):
 
 def test_environment_can_override_model_default(config_dir):
     root = config_dir()
-    assert settings(root, environ={"SERVER_LOG_LEVEL": "debug"}).log_level == "DEBUG"
+    configuration = BootstrapConfigProvider.load(
+        root, environ={"LOG_CONSOLE_LEVEL": "ERROR"}
+    ).get_config(ApplicationSettings)
+    assert configuration.log.console_level is LogLevelEnum.ERROR
+
+
+def test_log_settings_use_nested_yaml_and_environment(config_dir, monkeypatch):
+    """日志阈值只由 log 分组及对应环境变量决定。"""
+    root = config_dir({"log": {"console_level": "WARNING", "enable_file_overall": False}})
+    configuration = BootstrapConfigProvider.load(root, environ={}).get_config(ApplicationSettings)
+    assert configuration.log.console_level is LogLevelEnum.WARNING
+    configuration = BootstrapConfigProvider.load(
+        root,
+        environ={
+            "LOG_CONSOLE_LEVEL": "TRACE",
+            "LOG_FILE_ACTIVE_TYPES": '["info", "error"]',
+        },
+    ).get_config(ApplicationSettings)
+    assert configuration.log.console_level is LogLevelEnum.TRACE
+    assert configuration.log.file_active_types == {
+        LogFileTypeEnum.INFO,
+        LogFileTypeEnum.ERROR,
+    }
+    assert configuration.log.enable_file_overall is False
+    monkeypatch.setenv("LOG_CONSOLE_LEVEL", "SUCCESS")
+    assert (
+        LogConfigBuilder.get_config(base_dir=str(root), app_env="dev").console_level
+        is LogLevelEnum.SUCCESS
+    )
+
+
+def test_removed_server_log_level_is_rejected(config_dir):
+    """旧日志字段按未知配置拒绝，调用方必须迁移到 log.console_level。"""
+    root = config_dir({"server": {"log_level": "WARNING"}})
+    with pytest.raises(BootstrapConfigError, match=r"server\.log_level"):
+        BootstrapConfigProvider.load(root, environ={}).get_config(ApplicationSettings)
+
+
+def test_invalid_logging_configuration_fails_without_echoing_input(config_dir):
+    """错误的日志分组和环境数组在启动前拒绝，错误提示不包含原值。"""
+    root = config_dir()
+    with pytest.raises(BootstrapConfigError) as error:
+        BootstrapConfigProvider.load(
+            root, environ={"LOG_FILE_ACTIVE_TYPES": "private-invalid-json"}
+        ).get_config(ApplicationSettings)
+    assert "private-invalid-json" not in str(error.value)
+    root = config_dir({"log": {"unknown_setting": True}})
+    with pytest.raises(BootstrapConfigError, match="未声明的配置项"):
+        BootstrapConfigProvider.load(root, environ={}).get_config(ApplicationSettings)
 
 
 def test_explicit_environment_wins_over_process_environment(config_dir):
@@ -136,7 +187,7 @@ def test_docs_requires_local_path(config_dir, path):
 
 
 def test_deep_merge_preserves_siblings_and_replaces_lists(config_dir):
-    """验证递归覆盖、列表清空和读取结果隔离，而非只测顶层字段。"""
+    """检查嵌套合并、列表清空，以及修改结果是否会影响原配置。"""
 
     class FeatureSettings(BaseModel):
         limits: dict[str, int]
@@ -160,7 +211,11 @@ def test_deep_merge_preserves_siblings_and_replaces_lists(config_dir):
 def test_environment_uses_existing_names_for_each_group(config_dir):
     provider = BootstrapConfigProvider.load(
         config_dir(),
-        environ={"SERVER_PORT": "40111", "GRANIAN_THREADS": "3", "UVICORN_WORKERS": "2"},
+        environ={
+            "SERVER_PORT": "40111",
+            "GRANIAN_THREADS": "3",
+            "UVICORN_WORKERS": "2",
+        },
     )
     result = provider.get_config(ApplicationSettings)
     assert result.server.port == 40111

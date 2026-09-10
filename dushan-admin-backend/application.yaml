@@ -12,7 +12,49 @@ server:
   reload: false # 热重载开关，由开发环境配置开启；生产环境禁止开启
   docs_enabled: true # Swagger/ReDoc/OpenAPI 接口文档开关，与独立文档站无关
   root_path: "" # 反向代理的挂载路径前缀，直接访问时留空
-  log_level: INFO # 应用控制台日志级别：DEBUG/INFO/WARNING/ERROR/CRITICAL
+
+# ==================== Loguru 日志配置 ====================
+log:
+  root_dir: null # 文件日志根目录；为空时使用后端 server/logs，部署可通过 LOG_ROOT_DIR 指定
+  enable_file_overall: true # 文件日志总开关；关闭后不会创建日志目录
+  enable_json_format: false # 是否额外输出包含上下文字段的 JSONL 日志
+  loadtest_mode: false # 压测模式强制关闭文件日志，并将控制台阈值设为 WARNING
+  console_level: INFO # TRACE/DEBUG/INFO/SUCCESS/WARNING/ERROR/CRITICAL；NONE 关闭控制台
+  file_active_types: [warning, error] # 启用的文件类型：info、warning、error
+  rotation_size: "20 MB" # 单文件达到此大小后轮转
+  enqueue: true # 使用队列写入；应用退出时先排空队列
+  compression: zip # 轮转或关闭后压缩，null 表示不压缩
+  file_level_info: INFO # info 文件的最低日志级别
+  retention_info: "7 days" # info 文件保留时间
+  file_level_warning: WARNING # warning 文件的最低日志级别
+  retention_warn: "15 days" # warning 文件保留时间
+  file_level_error: ERROR # error 文件的最低日志级别
+  retention_error: "30 days" # error 文件保留时间
+
+# ==================== 国际化配置 ====================
+# 环境变量使用 I18N_ 前缀，如 I18N_DEFAULT_LOCALE=en-US。
+# supported_locales/resource_roots/scopes 的环境变量值使用 JSON 数组。
+i18n:
+  enabled: true # 启用翻译；关闭后不读取语言资源，使用调用方默认提示
+  default_locale: zh-CN # 默认语言，必须与下方一个标签完全一致
+  supported_locales: [zh-CN, en-US] # 新增语言只需增加标签并提供同名 JSON
+  match_mode: primary # exact 只匹配完整标签；primary 还允许匹配语言主标签
+  fallback_to_default: true # 请求语言缺少文案时尝试默认语言
+  missing_policy: fallback # 缺键策略：fallback 返回默认提示，key 返回键，error 抛配置异常
+  format_error_policy: fallback # 翻译模板格式失败：fallback 返回默认提示，error 抛配置异常
+  log_missing: true # 是否记录缺失翻译的警告
+  cache_size: 4096 # 翻译查找缓存条数，0 表示关闭
+  missing_cache_size: 1024 # 缺键去重记录条数；0 不保存，开启 log_missing 时每次缺失都会记录
+  validate_translations: true # 启动和热更新时检查应用要求的错误码文案
+  validation_policy: error # 缺少必需文案时：error 阻止启用，warning 仅警告
+  required_message_keys: [] # 额外必须具备双语/多语翻译的业务消息键，无需修改框架校验列表
+  hot_reload: false # 按请求触发资源变化检查；配置项变化仍需重启
+  reload_interval: 2.0 # 热更新检查间隔，单位秒，必须大于 0
+  include_builtin: true # 加载 framework scope 的框架内置语言资源
+  resource_roots: [] # 外部资源根列表；相对路径以应用配置目录为基准
+  # 示例：[{path: modules/account/i18n, scope: account, required: true}]
+  # 每个目录直接放 zh-CN.json 等文件；同 scope 后加载目录覆盖前目录的同名键。
+  scopes: null # null 加载全部；数组选择列出的 scope 及其子 scope，[] 表示全部不选
 
 # ==================== Granian 引擎配置 ====================
 # 默认使用 Granian；可通过 --server uvicorn 切换引擎。
