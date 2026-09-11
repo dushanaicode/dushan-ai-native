@@ -6,8 +6,10 @@ from types import MappingProxyType
 
 from fastapi import FastAPI
 
+from framework.common.datetime.core.date_utils import DateUtils
 from framework.common.exception.core.exception_handler import GlobalExceptionHandler
 from framework.common.response.core.middleware_result import MiddlewareResult
+from framework.common.utils.el.expression_utils import ExpressionUtils
 from framework.starter_config.provider.bootstrap_config_provider import (
     BootstrapConfigProvider,
 )
@@ -68,6 +70,8 @@ def create_app(
         page_settings=configuration.page,
         response_settings=configuration.response,
         middleware_result=MiddlewareResult(debug=settings.debug),
+        date_utils=DateUtils(configuration.datetime),
+        expression_utils=ExpressionUtils(configuration.expression),
     )
     application.include_router(health_router)
     return application

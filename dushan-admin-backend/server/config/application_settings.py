@@ -1,8 +1,10 @@
 from pydantic import BaseModel, ConfigDict
 
+from framework.common.datetime.core.datetime_options import DateTimeOptions
 from framework.common.i18n.core.i18n_options import I18nOptions
 from framework.common.page.config.page_settings import PageSettings
 from framework.common.response.config.response_settings import ResponseSettings
+from framework.common.utils.el.expression_options import ExpressionOptions
 from framework.starter_logging.config.log_settings import LogSettings
 from server.config.granian.granian_settings import GranianSettings
 from server.config.server.server_settings import ServerSettings
@@ -21,3 +23,5 @@ class ApplicationSettings(BaseModel):
     i18n: I18nOptions
     page: PageSettings
     response: ResponseSettings
+    datetime: DateTimeOptions
+    expression: ExpressionOptions

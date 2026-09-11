@@ -76,6 +76,24 @@ response:
   file_chunk_size: 65536 # 标准文件响应读取块大小，必须是正整数
   attachment: true # true 作为附件下载；false 内联展示须另行审查主动内容风险
 
+# ==================== 日期工具配置 ====================
+datetime:
+  timezone: Asia/Shanghai # 日期工具的本地时区；DATETIME_TIMEZONE 可覆盖，不决定数据库存储时区
+  format: "%Y-%m-%d %H:%M:%S" # 日期时间默认格式
+  date_format: "%Y-%m-%d" # 日期标签格式
+  time_format: "%H:%M:%S" # 每日时间窗口的输入格式
+  month_format: "%Y-%m" # 月份标签格式
+  year_format: "%Y" # 年份标签格式
+  max_range_segments: 10000 # 单次日期范围拆分的最大段数
+
+# ==================== 受限表达式配置 ====================
+expression:
+  enabled: false # 按需显式开启；仅支持受限表达式，不执行任意代码或模板语句
+  max_length: 2000 # 模板字符数上限
+  max_context_bytes: 65536 # 上下文 JSON 字节上限
+  max_output_bytes: 65536 # 输出字节上限；不能替代进程的 CPU/内存限制
+  max_depth: 20 # 语法和数据的最大嵌套深度
+
 # ==================== Granian 引擎配置 ====================
 # 由 server.engine 选择引擎；也可通过 --server uvicorn 显式覆盖。
 granian:

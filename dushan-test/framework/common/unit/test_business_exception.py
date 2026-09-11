@@ -73,25 +73,24 @@ def test_registry_keeps_query_conflict_checks_and_native_raising() -> None:
     class ExampleCodes:
         MISSING = ErrorCode(code=1000, description="资源 {} 不存在", message_key="resource.missing")
 
-    try:
-        ErrorCodeRegistry.register_all([GlobalErrorCodeConstants, ExampleCodes])
-        assert ErrorCodeRegistry.is_initialized()
-        assert ErrorCodeRegistry.get_by_code(1000) is ExampleCodes.MISSING
-        assert ErrorCodeRegistry.get_all()[1000] is ExampleCodes.MISSING
-        assert ErrorCodeRegistry.get_all_detail()[1000][:2] == ("ExampleCodes", "MISSING")
-        with pytest.raises(ConfigurationException):
-            ErrorCodeRegistry.register_class(ExampleCodes)
-        value = 0
-        if value is None:
+    registry = ErrorCodeRegistry([GlobalErrorCodeConstants, ExampleCodes])
+    assert registry.get_by_code(1000) is ExampleCodes.MISSING
+    assert registry.get_all()[1000] is ExampleCodes.MISSING
+    assert registry.get_all_detail()[1000][:2] == (
+        f"{ExampleCodes.__module__}.{ExampleCodes.__qualname__}",
+        "MISSING",
+    )
+    with pytest.raises(ConfigurationException):
+        ErrorCodeRegistry([GlobalErrorCodeConstants, ExampleCodes, ExampleCodes])
+    value = 0
+    if value is None:
+        raise ServiceException(ExampleCodes.MISSING, "示例")
+    assert value == 0
+    with pytest.raises(ServiceException) as captured:
+        missing = True
+        if missing:
             raise ServiceException(ExampleCodes.MISSING, "示例")
-        assert value == 0
-        with pytest.raises(ServiceException) as captured:
-            missing = True
-            if missing:
-                raise ServiceException(ExampleCodes.MISSING, "示例")
-        assert captured.value.msg == "资源 示例 不存在"
-    finally:
-        ErrorCodeRegistry.reset()
+    assert captured.value.msg == "资源 示例 不存在"
 
 
 def test_error_code_is_immutable_and_can_change_message_key() -> None:

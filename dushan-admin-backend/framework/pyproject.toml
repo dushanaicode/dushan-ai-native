@@ -17,6 +17,9 @@ dependencies = [
     "PyYAML==6.0.3",
     "loguru==0.7.3",
     "opentelemetry-api==1.21.0",
+    # 受限表达式渲染，以及 Windows 等无系统时区库环境的日期工具。
+    "Jinja2==3.1.6",
+    "tzdata==2026.3",
 ]
 
 [tool.poetry]

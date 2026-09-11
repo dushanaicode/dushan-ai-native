@@ -7,11 +7,13 @@ from uuid import uuid4
 from fastapi import FastAPI
 from loguru import logger as loguru_logger
 
+from framework.common.datetime.core.date_utils import DateUtils
 from framework.common.exception.core.exception_handler import GlobalExceptionHandler
 from framework.common.i18n.core.i18n_options import I18nOptions
 from framework.common.page.config.page_settings import PageSettings
 from framework.common.response.config.response_settings import ResponseSettings
 from framework.common.response.core.middleware_result import MiddlewareResult
+from framework.common.utils.el.expression_utils import ExpressionUtils
 from framework.starter_logging.config.log_settings import LogSettings
 from framework.starter_logging.starter.logging_starter import LoggingStarter
 from server.config.server.server_settings import ServerSettings
@@ -34,6 +36,8 @@ class AppBootstrapContext:
     response_settings: ResponseSettings
     exception_handler: GlobalExceptionHandler
     middleware_result: MiddlewareResult
+    date_utils: DateUtils
+    expression_utils: ExpressionUtils
     ready: bool = False
     logging_owner: str = field(default_factory=lambda: uuid4().hex)
     logger: "Logger" = field(init=False)

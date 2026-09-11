@@ -8,7 +8,6 @@ from framework.common.exception.constants.global_error_code_constants import (
     GlobalErrorCodeConstants,
 )
 from framework.common.exception.exceptions.configuration_exception import ConfigurationException
-from framework.common.exception.registry.error_code_registry import ErrorCodeRegistry
 from framework.starter_config.provider.bootstrap_config_error import BootstrapConfigError
 from server.bootstrap.bootstrapper import BootstrapError
 from server.starter_server import create_app
@@ -218,10 +217,8 @@ def test_invalid_i18n_configuration_fails_during_application_creation(config_dir
         create_app(base_dir=config_dir({"i18n": i18n}), environ={})
 
 
-def test_multiple_applications_keep_translations_isolated_and_registry_unchanged(config_dir):
+def test_multiple_applications_keep_translations_isolated(config_dir):
     root = config_dir()
-    initial_registry = ErrorCodeRegistry.get_all_detail()
-    initial_initialized = ErrorCodeRegistry.is_initialized()
     for name in ("first", "second"):
         resources = root / name
         resources.mkdir()
@@ -260,8 +257,6 @@ def test_multiple_applications_keep_translations_isolated_and_registry_unchanged
             == "Gateway for first"
         )
     assert first.state.bootstrap.exception_handler.translator is None
-    assert ErrorCodeRegistry.get_all_detail() == initial_registry
-    assert ErrorCodeRegistry.is_initialized() is initial_initialized
 
 
 @pytest.mark.parametrize("hot_reload", [False, True])
