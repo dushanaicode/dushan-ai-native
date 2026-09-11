@@ -6,11 +6,10 @@ from pathlib import Path
 # 先关掉字节码写入，再导入项目模块，避免生成 __pycache__。
 sys.dont_write_bytecode = True
 
-from framework.starter_config.provider.bootstrap_config_provider import (
-    BootstrapConfigError,
-    BootstrapConfigProvider,
-)
+from framework.starter_config.provider.bootstrap_config_error import BootstrapConfigError
+from framework.starter_config.provider.bootstrap_config_provider import BootstrapConfigProvider
 from server.config.application_settings import ApplicationSettings
+from server.enums.server_engine_enum import ServerEngineEnum
 from server.launcher.engine_parser import parse_server_arguments
 from server.launcher.granian_launcher import build_granian_cmd
 from server.launcher.uvicorn_launcher import build_uvicorn_cmd
@@ -22,10 +21,12 @@ def run_server(argv=None) -> int:
     """检查启动配置，启动服务器并返回退出码。"""
     args = parse_server_arguments(argv)
     try:
-        provider = BootstrapConfigProvider.load(args.config_dir or BACKEND_ROOT, app_env=args.env)
+        config_dir = args.config_dir if args.config_dir is not None else BACKEND_ROOT
+        provider = BootstrapConfigProvider.load(config_dir, app_env=args.env)
         configuration = provider.get_config(ApplicationSettings)
         settings = configuration.server
-        if args.server == "granian":
+        engine = args.server if args.server is not None else settings.engine
+        if engine is ServerEngineEnum.GRANIAN:
             command = build_granian_cmd(settings, configuration.granian)
         else:
             command = build_uvicorn_cmd(settings, configuration.uvicorn)
@@ -42,6 +43,7 @@ def run_server(argv=None) -> int:
     child_env.update(
         {
             "SERVER_ENV": settings.env.value,
+            "SERVER_ENGINE": engine.value,
             "DUSHAN_CONFIG_DIR": str(provider.base_dir),
             "PYTHONDONTWRITEBYTECODE": "1",
             "PYTHONUTF8": "1",
@@ -49,7 +51,7 @@ def run_server(argv=None) -> int:
         }
     )
     print(
-        f"启动 {settings.name}，引擎：{args.server}，环境：{settings.env.value}",
+        f"启动 {settings.name}，引擎：{engine.value}，环境：{settings.env.value}",
         flush=True,
     )
     print(f"监听地址：http://{settings.host}:{settings.port}", flush=True)

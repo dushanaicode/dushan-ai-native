@@ -1,6 +1,10 @@
+import process from 'node:process';
+
 import { defineConfig } from '@vben/vite-config';
 
-export default defineConfig(async () => {
+import { loadEnv } from 'vite';
+
+export default defineConfig(async ({ mode }) => {
   return {
     application: {},
     vite: {
@@ -9,8 +13,7 @@ export default defineConfig(async () => {
           '/api': {
             changeOrigin: true,
             rewrite: (path) => path.replace(/^\/api/, ''),
-            // mock代理目标地址
-            target: 'http://localhost:5320/api',
+            target: loadEnv(mode, process.cwd()).VITE_API_PROXY_TARGET,
             ws: true,
           },
         },

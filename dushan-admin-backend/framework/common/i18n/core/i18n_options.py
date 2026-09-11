@@ -19,24 +19,32 @@ class I18nOptions(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True, validate_default=True)
 
-    enabled: bool = True
-    default_locale: LocaleTag = "zh-CN"
-    supported_locales: tuple[LocaleTag, ...] = Field(default=("zh-CN", "en-US"), min_length=1)
-    match_mode: Literal["exact", "primary"] = "primary"
-    fallback_to_default: bool = True
-    missing_policy: Literal["fallback", "key", "error"] = "fallback"
-    format_error_policy: Literal["fallback", "error"] = "fallback"
-    log_missing: bool = True
-    cache_size: int = Field(default=4096, ge=0)
-    missing_cache_size: int = Field(default=1024, ge=0)
-    validate_translations: bool = True
-    validation_policy: Literal["warning", "error"] = "error"
-    hot_reload: bool = False
-    reload_interval: float = Field(default=2.0, gt=0, allow_inf_nan=False)
-    include_builtin: bool = True
-    resource_roots: tuple[I18nLocaleRoot, ...] = ()
-    scopes: tuple[str, ...] | None = None
-    required_message_keys: tuple[Annotated[str, Field(min_length=1)], ...] = ()
+    enabled: bool
+    default_locale: LocaleTag
+    supported_locales: tuple[LocaleTag, ...] = Field(min_length=1)
+    match_mode: Literal["exact", "primary"]
+    fallback_to_default: bool
+    missing_policy: Literal["fallback", "key", "error"]
+    format_error_policy: Literal["fallback", "error"]
+    log_missing: bool
+    cache_size: int = Field(ge=0)
+    missing_cache_size: int = Field(ge=0)
+    validate_translations: bool
+    validation_policy: Literal["warning", "error"]
+    hot_reload: bool
+    reload_interval: float = Field(gt=0, allow_inf_nan=False)
+    include_builtin: bool
+    resource_roots: tuple[I18nLocaleRoot, ...]
+    scopes: tuple[str, ...] | None
+    required_message_keys: tuple[Annotated[str, Field(min_length=1)], ...]
+
+    @field_validator("cache_size", "missing_cache_size", "reload_interval", mode="before")
+    @classmethod
+    def reject_boolean_limits(cls, value: object) -> object:
+        """缓存条数和检查间隔不接受布尔值。"""
+        if isinstance(value, bool):
+            raise ValueError("国际化数值配置不能是布尔值")
+        return value
 
     @field_validator(
         "supported_locales", "resource_roots", "scopes", "required_message_keys", mode="before"

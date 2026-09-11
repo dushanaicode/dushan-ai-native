@@ -2,43 +2,18 @@ import sys
 import traceback
 from pathlib import Path
 from threading import RLock
-from typing import ClassVar, Protocol
+from typing import ClassVar
 from uuid import uuid4
 
 from loguru import logger
 from opentelemetry import trace
 
 from framework.common.enums.application_environment_enum import ApplicationEnvironmentEnum
+from framework.common.enums.log_level_enum import LogLevelEnum
 from framework.common.security.sanitizer import Sanitizer
+from framework.starter_logging.config.logger_options import LoggerOptions
 from framework.starter_logging.context.log_context import LogContext
 from framework.starter_logging.enums.log_file_type_enum import LogFileTypeEnum
-from framework.starter_logging.enums.log_level_enum import LogLevelEnum
-
-
-class LoggerOptions(Protocol):
-    """声明配置器实际读取的日志选项，配置模型实现这些字段和方法即可使用。"""
-
-    root_dir: str | None
-    enable_json_format: bool
-    file_active_types: set[LogFileTypeEnum]
-    rotation_size: str
-    enqueue: bool
-    compression: str | None
-    file_level_info: LogLevelEnum
-    retention_info: str
-    file_level_warning: LogLevelEnum
-    retention_warn: str
-    file_level_error: LogLevelEnum
-    retention_error: str
-    loadtest_mode: bool
-
-    def get_effective_console_level(self) -> LogLevelEnum:
-        """返回最终生效的控制台日志级别。"""
-        ...
-
-    def get_effective_file_enabled(self) -> bool:
-        """返回文件日志是否启用。"""
-        ...
 
 
 class LoggerConfigurator:
@@ -50,9 +25,6 @@ class LoggerConfigurator:
     交给最早启动且仍活动的实例，避免多应用重复输出。不要复用活动实例的 owner_id。
     全局 patcher 补齐上下文并脱敏，每个受管输出在写入前再次清理。
     """
-
-    BACKEND_ROOT = Path(__file__).resolve().parents[3]
-    DEFAULT_LOG_DIR = BACKEND_ROOT / "server" / "logs"
 
     CONTEXT_EMPTY = "-"
     _active_configurators: ClassVar[list["LoggerConfigurator"]] = []
@@ -86,10 +58,10 @@ class LoggerConfigurator:
         "<cyan>{name}:{function}:{line}</cyan>{extra[exception_trace]}"
     )
 
-    def __init__(self, default_log_dir: Path | None = None, *, owner_id: str | None = None):
+    def __init__(self, base_dir: Path, *, owner_id: str | None = None):
         """保存日志目录与实例标识，尚不创建目录或日志输出。"""
-        self._default_log_dir = default_log_dir or self.DEFAULT_LOG_DIR
-        self._log_dir = self._default_log_dir
+        self._base_dir = base_dir.resolve()
+        self._log_dir = self._base_dir
         self.owner_id = owner_id if owner_id is not None else uuid4().hex
         self._sink_ids: set[int] = set()
         self._managed_sinks_active = False
@@ -205,10 +177,8 @@ class LoggerConfigurator:
         return ApplicationEnvironmentEnum(app_env.lower())
 
     def _resolve_log_dir(self, log_config: LoggerOptions) -> Path:
-        """优先采用显式日志目录，否则使用构造时指定的默认目录。"""
-        if log_config.root_dir:
-            return Path(log_config.root_dir)
-        return self._default_log_dir
+        """按配置目录解析日志路径，绝对路径由 Path 原样保留。"""
+        return self._base_dir / log_config.root_dir
 
     def _reset_handlers(self) -> None:
         """逐一移除本实例的日志输出，某个输出失败后仍尝试清理其余输出。"""

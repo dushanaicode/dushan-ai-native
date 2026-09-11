@@ -14,13 +14,12 @@ async def configure_logging(ctx: AppBootstrapContext) -> AsyncIterator[None]:
 
     日志清理失败作为原错误的附注保留，不能覆盖正在传播的启动错误或取消信号。
     """
-    starter = LoggingStarter(LoggerConfigurator(owner_id=ctx.logging_owner))
+    starter = LoggingStarter(LoggerConfigurator(ctx.base_dir, owner_id=ctx.logging_owner))
     ctx.logging_starter = starter
     original_error: BaseException | None = None
     try:
         starter.initialize(
             app_env=ctx.settings.env.value,
-            base_dir=ctx.base_dir,
             log_settings=ctx.log_settings,
         )
         yield

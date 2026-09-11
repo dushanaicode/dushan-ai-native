@@ -14,6 +14,7 @@ async def health(request: Request) -> JSONResponse:
         content={
             "code": 0 if ready else 503,
             "message": "服务就绪" if ready else "服务尚未就绪",
+            "error": None,
             "data": {
                 "status": "ready" if ready else "not_ready",
                 "version": ctx.settings.version,

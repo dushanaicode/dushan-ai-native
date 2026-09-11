@@ -124,9 +124,9 @@ const customConfig: Linter.Config[] = [
       ],
     },
   },
-  // 后端模拟代码，不需要太多规则
+  // 文档示例允许输出调试信息。
   {
-    files: ['apps/backend-mock/**/**', 'docs/**/**'],
+    files: ['docs/**/**'],
     rules: {
       'no-console': 'off',
     },

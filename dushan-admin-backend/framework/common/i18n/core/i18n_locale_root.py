@@ -13,5 +13,5 @@ class I18nLocaleRoot(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     path: Path
-    scope: str = Field(pattern=r"^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*$")
-    required: bool = True
+    scope: str = Field(pattern="^[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*$")
+    required: bool

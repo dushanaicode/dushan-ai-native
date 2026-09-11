@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 import yaml
+from config_factory import ConfigFactory
 
 
 @pytest.fixture
@@ -9,20 +10,12 @@ def config_dir(tmp_path: Path):
     """为每个测试生成一份临时配置。"""
 
     def create(base=None, *, dev=None, prod=None, local=None):
-        values = {
-            "server": {
-                "env": "dev",
-                "name": "渡山测试服务",
-                "port": 48080,
-                "debug": False,
-                "reload": False,
-                "docs_enabled": True,
-            },
-            "log": {"enable_file_overall": False},
-        }
+        values = ConfigFactory.values()
+        values["server"]["name"] = "渡山测试服务"
+        values["log"]["enable_file_overall"] = False
         for key, value in (base or {}).items():
-            if key == "server" and isinstance(value, dict):
-                values["server"].update(value)
+            if isinstance(value, dict) and isinstance(values.get(key), dict):
+                values[key].update(value)
             else:
                 values[key] = value
         layers = {

@@ -40,7 +40,10 @@ def test_production_hides_all_documentation_routes(config_dir):
     with TestClient(app) as client:
         assert client.get("/health").status_code == 200
         for path in ("/docs", "/redoc", "/openapi.json"):
-            assert client.get(path).status_code == 404
+            response = client.get(path)
+            assert response.status_code == 200
+            assert response.json()["code"] == 404
+            assert set(response.json()) == {"code", "message", "data", "error"}
 
 
 def test_resources_close_in_reverse_order(config_dir):

@@ -5,12 +5,13 @@ from framework.common.exception.constants.global_error_code_constants import (
     GlobalErrorCodeConstants,
 )
 from framework.common.exception.core.error_code import ErrorCode
+from framework.common.exception.utils.validation_error_mapper import ValidationErrorMapper
 from framework.common.i18n.starter.i18n_starter import I18nStarter
 from server.bootstrap.context import AppBootstrapContext
 
 
 class I18nStep:
-    """加载当前应用的翻译资源，并管理异常处理器的翻译依赖。"""
+    """加载当前应用的翻译资源，供异常处理器和中间件响应共用。"""
 
     @staticmethod
     @asynccontextmanager
@@ -21,11 +22,14 @@ class I18nStep:
             for value in vars(GlobalErrorCodeConstants).values()
             if isinstance(value, ErrorCode)
         )
+        message_keys += tuple(f"validation.{key}" for key in ValidationErrorMapper.messages)
         translator = I18nStarter.initialize(
             ctx.i18n_options, base_dir=ctx.base_dir, message_keys=message_keys
         )
         ctx.exception_handler.translator = translator
+        ctx.middleware_result.translator = translator
         try:
             yield
         finally:
             ctx.exception_handler.translator = None
+            ctx.middleware_result.translator = None

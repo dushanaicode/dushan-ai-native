@@ -2,10 +2,12 @@ import os
 from collections.abc import Mapping, Sequence
 from contextlib import asynccontextmanager
 from pathlib import Path
+from types import MappingProxyType
 
 from fastapi import FastAPI
 
 from framework.common.exception.core.exception_handler import GlobalExceptionHandler
+from framework.common.response.core.middleware_result import MiddlewareResult
 from framework.starter_config.provider.bootstrap_config_provider import (
     BootstrapConfigProvider,
 )
@@ -13,6 +15,7 @@ from server.bootstrap.bootstrapper import bootstrap_app
 from server.bootstrap.context import AppBootstrapContext
 from server.bootstrap.step_registry import BootstrapStepSpec
 from server.config.application_settings import ApplicationSettings
+from server.routing.business_openapi import BusinessOpenAPI
 from server.routing.health_router import router as health_router
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
@@ -43,7 +46,8 @@ def create_app(
     application = FastAPI(
         title=settings.name,
         version=settings.version,
-        debug=settings.debug,
+        # 调试详情统一经过安全响应构造器，避免框架直接返回裸堆栈。
+        debug=False,
         root_path=settings.root_path,
         lifespan=lifespan,
         docs_url=settings.docs_url if settings.docs_enabled else None,
@@ -52,13 +56,18 @@ def create_app(
     )
     exception_handler = GlobalExceptionHandler(debug=settings.debug)
     exception_handler.register(application)
+    application.openapi = BusinessOpenAPI(application).build
     application.state.bootstrap = AppBootstrapContext(
         application,
         provider.base_dir,
         settings,
+        config_sources=MappingProxyType(provider.get_sources(ApplicationSettings)),
         log_settings=configuration.log,
         i18n_options=configuration.i18n,
         exception_handler=exception_handler,
+        page_settings=configuration.page,
+        response_settings=configuration.response,
+        middleware_result=MiddlewareResult(debug=settings.debug),
     )
     application.include_router(health_router)
     return application

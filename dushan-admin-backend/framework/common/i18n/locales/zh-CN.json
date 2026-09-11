@@ -19,5 +19,19 @@
     "repeated_requests": "重复请求，请稍后重试",
     "demo_deny": "演示模式，禁止写操作",
     "signature_mismatch": "签名不匹配"
+  },
+  "validation": {
+    "required": "此项为必填项",
+    "invalid_type": "值的类型不正确",
+    "invalid_format": "格式不正确",
+    "invalid_choice": "请选择允许的值",
+    "extra_field": "不允许提交此字段",
+    "too_short": "长度至少为 {0}",
+    "too_long": "长度最多为 {0}",
+    "greater_than": "数值必须大于 {0}",
+    "greater_than_equal": "数值不能小于 {0}",
+    "less_than": "数值必须小于 {0}",
+    "less_than_equal": "数值不能大于 {0}",
+    "invalid_value": "输入值不符合要求"
   }
 }

@@ -1,9 +1,7 @@
 import asyncio
 from collections.abc import Awaitable, Callable
 from concurrent.futures import Future
-from dataclasses import dataclass
 from functools import partial
-from pathlib import Path
 from threading import Thread
 from typing import cast
 
@@ -11,9 +9,9 @@ from loguru import logger
 
 from framework.common.diagnostics.terminal_error_reporter import TerminalErrorReporter
 from framework.common.security.sanitizer import Sanitizer
-from framework.starter_logging.config.log_config_builder import LogConfigBuilder
 from framework.starter_logging.config.log_settings import LogSettings
 from framework.starter_logging.core.logger_configurator import LoggerConfigurator
+from framework.starter_logging.starter.terminal_shutdown_observer import TerminalShutdownObserver
 
 
 def _run_logger_action(result_future: Future[object], action: Callable[[], object]) -> None:
@@ -32,17 +30,10 @@ def _observe_completion_future(future: asyncio.Future[object]) -> None:
         future.exception()
 
 
-@dataclass(slots=True)
-class _TerminalShutdownObserver:
-    """记录调用方是否已停止等待后台日志清理。"""
-
-    detached: bool = False
-
-
 def _observe_terminal_task(
     future: asyncio.Future[object],
     *,
-    observer: _TerminalShutdownObserver,
+    observer: TerminalShutdownObserver,
 ) -> None:
     """观察后台清理的最终结果，调用方已离开时仍报告失败。"""
     if future.cancelled():
@@ -99,7 +90,7 @@ async def _terminate_logger(deadline: float, configurator: LoggerConfigurator) -
 class LoggingStarter:
     """在其他资源启动前配置日志，并在它们关闭后排空队列、释放本实例输出。
 
-    initialize(app_env="dev") 会读取配置；已有配置可用 log_settings 参数直接传入。
+    initialize 必须接收已校验的 log_settings，不再自行读取另一条配置链。
     同一实例初始化成功后重复调用会跳过，初始化失败后可以重试。
     无论初始化是否成功，拥有本实例的生命周期都应在 finally 中 await shutdown()。
     关闭有硬期限，超时或取消后后台仍继续移除输出；清理完成前不能重新初始化。
@@ -107,13 +98,13 @@ class LoggingStarter:
 
     SHUTDOWN_TIMEOUT_SECONDS = 30.0
 
-    def __init__(self, configurator: LoggerConfigurator | None = None):
+    def __init__(self, configurator: LoggerConfigurator):
         """保存配置器和当前实例的初始化、关闭状态。"""
-        self._configurator = configurator or LoggerConfigurator()
+        self._configurator = configurator
         self._initialized = False
         self._shutdown_task: asyncio.Task[None] | None = None
         self._shutdown_deadline: float | None = None
-        self._shutdown_observer: _TerminalShutdownObserver | None = None
+        self._shutdown_observer: TerminalShutdownObserver | None = None
 
     @property
     def initialized(self) -> bool:
@@ -124,10 +115,9 @@ class LoggingStarter:
         self,
         *,
         app_env: str,
-        base_dir: Path | str | None = None,
-        log_settings: LogSettings | None = None,
+        log_settings: LogSettings,
     ) -> None:
-        """从显式配置或配置目录初始化日志，保留失败原因以便上层回滚。"""
+        """使用调用方传入的配置初始化日志，保留失败原因以便上层回滚。"""
         if self._shutdown_task is not None and not self._shutdown_task.done():
             raise RuntimeError("日志仍在关闭，请等待输出清理完成后再初始化")
         if self._initialized:
@@ -138,9 +128,6 @@ class LoggingStarter:
         self._shutdown_deadline = None
         self._shutdown_observer = None
         try:
-            if log_settings is None:
-                base_dir_value = str(base_dir) if base_dir is not None else None
-                log_settings = LogConfigBuilder.get_config(base_dir=base_dir_value, app_env=app_env)
             self._configurator.configure_logging(log_settings, app_env=app_env)
             self._initialized = True
             logger.bind(logging_owner=self._configurator.owner_id).info("日志系统初始化完成")
@@ -160,7 +147,7 @@ class LoggingStarter:
         loop = asyncio.get_running_loop()
         if self._shutdown_task is None:
             self._shutdown_deadline = loop.time() + self.SHUTDOWN_TIMEOUT_SECONDS
-            self._shutdown_observer = _TerminalShutdownObserver()
+            self._shutdown_observer = TerminalShutdownObserver()
             self._shutdown_task = asyncio.create_task(
                 _terminate_logger(self._shutdown_deadline, self._configurator),
                 name="Loguru terminal shutdown",

@@ -1,6 +1,7 @@
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from framework.common.enums.application_environment_enum import ApplicationEnvironmentEnum
+from server.enums.server_engine_enum import ServerEngineEnum
 
 
 class ServerSettings(BaseModel):
@@ -8,18 +9,27 @@ class ServerSettings(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    name: str = Field(default="渡山 AI Native", min_length=1)
-    version: str = "0.0.0"
-    env: ApplicationEnvironmentEnum = ApplicationEnvironmentEnum.DEVELOPMENT
-    host: str = Field(default="127.0.0.1", min_length=1)
-    port: int = Field(default=48080, ge=1, le=65535)
-    debug: bool = False
-    reload: bool = False
-    docs_enabled: bool = True
-    docs_url: str = Field(default="/docs", pattern=r"^/([^/?#][^?#]*)?$")
-    redoc_url: str = Field(default="/redoc", pattern=r"^/([^/?#][^?#]*)?$")
-    openapi_url: str = Field(default="/openapi.json", pattern=r"^/([^/?#][^?#]*)?$")
-    root_path: str = Field(default="", pattern=r"^(/([^/?#][^?#]*)?)?$")
+    name: str = Field(min_length=1)
+    version: str
+    env: ApplicationEnvironmentEnum
+    engine: ServerEngineEnum
+    host: str = Field(min_length=1)
+    port: int = Field(ge=1, le=65535)
+    debug: bool
+    reload: bool
+    docs_enabled: bool
+    docs_url: str = Field(pattern="^/([^/?#][^?#]*)?$")
+    redoc_url: str = Field(pattern="^/([^/?#][^?#]*)?$")
+    openapi_url: str = Field(pattern="^/([^/?#][^?#]*)?$")
+    root_path: str = Field(pattern="^(/([^/?#][^?#]*)?)?$")
+
+    @field_validator("port", mode="before")
+    @classmethod
+    def reject_boolean_port(cls, value):
+        """端口不接受布尔值，环境变量数字字符串交给模型解析。"""
+        if isinstance(value, bool):
+            raise ValueError("端口不能是布尔值")
+        return value
 
     @model_validator(mode="after")
     def validate_runtime_boundaries(self):

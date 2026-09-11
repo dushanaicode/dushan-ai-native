@@ -3,9 +3,9 @@ import threading
 from pathlib import Path
 
 import pytest
+from config_factory import ConfigFactory
 from loguru import logger
 
-from framework.starter_logging.config.log_config_builder import LogConfigBuilder
 from framework.starter_logging.config.log_settings import LogSettings
 from framework.starter_logging.core.logger_configurator import LoggerConfigurator
 from framework.starter_logging.starter import logging_starter as logging_starter_module
@@ -16,6 +16,7 @@ pytestmark = pytest.mark.unit
 
 async def test_shutdown_awaits_loguru_completion(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     """关闭流程等待 Loguru 的异步完成阶段。"""
     completed = False
@@ -27,7 +28,7 @@ async def test_shutdown_awaits_loguru_completion(
 
     monkeypatch.setattr(logger, "complete", complete)
 
-    await LoggingStarter().shutdown()
+    await LoggingStarter(LoggerConfigurator(tmp_path)).shutdown()
 
     assert completed is True
 
@@ -35,7 +36,7 @@ async def test_shutdown_awaits_loguru_completion(
 async def test_shutdown_flushes_enqueued_file_sink(tmp_path: Path) -> None:
     """关闭时先排空受管文件队列，移除后不再写入新日志。"""
     log_file = tmp_path / "queued.log"
-    configurator = LoggerConfigurator(default_log_dir=tmp_path)
+    configurator = LoggerConfigurator(base_dir=tmp_path)
     configurator._sink_ids.add(logger.add(log_file, enqueue=True, format="{message}"))
     try:
         logger.info("queued event")
@@ -51,10 +52,10 @@ async def test_shutdown_flushes_enqueued_file_sink(tmp_path: Path) -> None:
     assert final_text == drained_text
 
 
-async def test_shutdown_awaits_coroutine_sink_before_removal() -> None:
+async def test_shutdown_awaits_coroutine_sink_before_removal(tmp_path) -> None:
     """异步日志输出完成后才移除本实例的输出处理器。"""
     sink_completed = False
-    configurator = LoggerConfigurator()
+    configurator = LoggerConfigurator(tmp_path)
 
     async def coroutine_sink(_message) -> None:
         """跨过一次事件循环后记录输出完成。"""
@@ -80,7 +81,9 @@ async def test_shutdown_times_out_when_sync_queue_barrier_blocks(
     barrier_started = threading.Event()
     barrier_release = threading.Event()
     terminal_remove_finished = threading.Event()
-    settings = LogSettings(
+    settings = ConfigFactory.build(
+        LogSettings,
+        "log",
         root_dir=str(tmp_path),
         enable_file_overall=True,
         console_level="NONE",
@@ -88,7 +91,7 @@ async def test_shutdown_times_out_when_sync_queue_barrier_blocks(
         enqueue=False,
         compression=None,
     )
-    configurator = LoggerConfigurator(default_log_dir=tmp_path)
+    configurator = LoggerConfigurator(base_dir=tmp_path)
     configurator.configure_logging(settings, app_env="test")
     original_remove = configurator.remove_owned_handlers
 
@@ -129,13 +132,14 @@ async def test_shutdown_times_out_when_sync_queue_barrier_blocks(
 
 
 async def test_shutdown_timeout_includes_blocking_handler_removal(
+    tmp_path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """输出处理器停止时同步阻塞也不能越过关闭硬时限。"""
     stop_started = threading.Event()
     stop_release = threading.Event()
     stop_finished = threading.Event()
-    configurator = LoggerConfigurator()
+    configurator = LoggerConfigurator(tmp_path)
 
     class BlockingStopSink:
         def write(self, _message) -> None:
@@ -162,6 +166,7 @@ async def test_shutdown_timeout_includes_blocking_handler_removal(
 
 
 async def test_shutdown_reports_remove_failure_arriving_after_timeout(
+    tmp_path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -170,7 +175,7 @@ async def test_shutdown_reports_remove_failure_arriving_after_timeout(
     remove_release = threading.Event()
     remove_finished = threading.Event()
     report_finished = threading.Event()
-    configurator = LoggerConfigurator()
+    configurator = LoggerConfigurator(tmp_path)
     original_report = logging_starter_module.TerminalErrorReporter.report
 
     class CompletedAwaitable:
@@ -230,11 +235,12 @@ def test_initialize_preserves_primary_error_when_failure_reporting_breaks(
         """模拟终端错误报告也不可用。"""
         raise OSError("stderr closed")
 
-    monkeypatch.setattr(LogConfigBuilder, "get_config", lambda **_kwargs: object())
     monkeypatch.setattr(logging_starter_module.TerminalErrorReporter, "report", broken_reporter)
 
     with pytest.raises(RuntimeError, match="file sink failed") as exc_info:
-        LoggingStarter(configurator=FailingConfigurator()).initialize(app_env="test")
+        LoggingStarter(configurator=FailingConfigurator()).initialize(
+            app_env="test", log_settings=ConfigFactory.build(LogSettings, "log")
+        )
 
     assert exc_info.value is primary_error
     assert "日志初始化失败报告未能输出：OSError" in primary_error.__notes__

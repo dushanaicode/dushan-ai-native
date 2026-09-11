@@ -1,27 +1,29 @@
+import process from 'node:process';
+
 import { defineConfig, viteCssLayerPlugin } from '@vben/vite-config';
 
 import ElementPlus from 'unplugin-element-plus/vite';
+import { loadEnv } from 'vite';
 
-export default defineConfig(async () => {
+export default defineConfig(async ({ mode }) => {
   return {
     application: {},
     vite: {
-      plugins: [
-        // element-plus 的 css 包进 @layer el，使 Tailwind 工具类可覆盖组件样式
-        viteCssLayerPlugin({ layerName: 'el', packageName: 'element-plus' }),
-        ElementPlus({ format: 'esm' }),
-      ],
       server: {
         proxy: {
           '/api': {
             changeOrigin: true,
             rewrite: (path) => path.replace(/^\/api/, ''),
-            // mock代理目标地址
-            target: 'http://localhost:5320/api',
+            target: loadEnv(mode, process.cwd()).VITE_API_PROXY_TARGET,
             ws: true,
           },
         },
       },
+      plugins: [
+        // element-plus 的 css 包进 @layer el，使 Tailwind 工具类可覆盖组件样式
+        viteCssLayerPlugin({ layerName: 'el', packageName: 'element-plus' }),
+        ElementPlus({ format: 'esm' }),
+      ],
     },
   };
 });

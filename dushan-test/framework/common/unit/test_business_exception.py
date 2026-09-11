@@ -7,6 +7,7 @@ from typing import Any
 import pytest
 from fastapi import HTTPException
 
+from framework.common.enums.log_level_enum import LogLevelEnum
 from framework.common.exception.constants.global_error_code_constants import (
     GlobalErrorCodeConstants,
 )
@@ -130,6 +131,27 @@ def test_base_business_exception_formats_explicit_message() -> None:
     assert exc.format_args == ["user"]
 
 
+@pytest.mark.parametrize("level", ["WARNING", "WARN", "error"])
+def test_business_exception_rejects_string_log_levels(level: str) -> None:
+    """异常类型只能声明枚举级别，字符串不再转换或回退为 WARNING。"""
+
+    class InvalidLogLevelException(BaseBusinessException):
+        log_level = level
+
+    with pytest.raises(TypeError, match="log_level 必须是 LogLevelEnum"):
+        InvalidLogLevelException(GlobalErrorCodeConstants.BAD_REQUEST)
+
+
+def test_business_exception_rejects_disabled_output_as_a_log_level() -> None:
+    """NONE 是输出开关，不用于让业务异常静默丢失日志。"""
+
+    class DisabledLogException(BaseBusinessException):
+        log_level = LogLevelEnum.NONE
+
+    with pytest.raises(ValueError, match="业务异常日志级别不能使用 NONE"):
+        DisabledLogException(GlobalErrorCodeConstants.BAD_REQUEST)
+
+
 def test_error_code_http_status_overrides_exception_class_default() -> None:
     """错误码指定的 HTTP 状态优先于异常类默认值。"""
     error_code = ErrorCode(
@@ -169,7 +191,7 @@ def test_rate_limit_exception_validates_retry_after_class_default() -> None:
     exc = ImmediateRateLimitException()
     assert exc.retry_after == 0
     response = ExceptionResponseBuilder.build(exc.error_code, exc.msg, exc=exc)
-    assert response["retry_after"] == 0
+    assert response["error"]["retryAfter"] == 0
 
 
 def test_base_business_exception_uses_default_when_format_args_mismatch() -> None:

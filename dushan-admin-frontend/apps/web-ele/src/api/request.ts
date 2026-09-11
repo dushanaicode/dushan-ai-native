@@ -3,11 +3,12 @@
  */
 import type { RequestClientOptions } from '@vben/request';
 
+import type { NativeRequestConfig } from './response';
+
 import { useAppConfig } from '@vben/hooks';
 import { preferences } from '@vben/preferences';
 import {
   authenticateResponseInterceptor,
-  defaultResponseInterceptor,
   errorMessageResponseInterceptor,
   RequestClient,
 } from '@vben/request';
@@ -17,7 +18,13 @@ import { ElMessage } from 'element-plus';
 
 import { useAuthStore } from '#/store';
 
+import { BusinessError } from './business-error';
 import { refreshTokenApi } from './core';
+import {
+  configureNativeStreaming,
+  isAuthenticationFailure,
+  nativeResponseInterceptor,
+} from './response';
 
 const { apiURL } = useAppConfig(import.meta.env, import.meta.env.PROD);
 
@@ -50,8 +57,7 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
    */
   async function doRefreshToken() {
     const accessStore = useAccessStore();
-    const resp = await refreshTokenApi();
-    const newToken = resp.data;
+    const newToken = await refreshTokenApi();
     accessStore.setAccessToken(newToken);
     return newToken;
   }
@@ -72,13 +78,8 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
   });
 
   // 处理返回的响应数据格式
-  client.addResponseInterceptor(
-    defaultResponseInterceptor({
-      codeField: 'code',
-      dataField: 'data',
-      successCode: 0,
-    }),
-  );
+  client.addResponseInterceptor(nativeResponseInterceptor());
+  configureNativeStreaming(client);
 
   // token过期的处理
   client.addResponseInterceptor(
@@ -88,18 +89,20 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
       doRefreshToken,
       enableRefreshToken: preferences.app.enableRefreshToken,
       formatToken,
+      isAuthError: isAuthenticationFailure,
     }),
   );
 
   // 通用的错误处理,如果没有进入上面的错误处理逻辑，就会进入这里
   client.addResponseInterceptor(
     errorMessageResponseInterceptor((msg: string, error) => {
-      // 这里可以根据业务进行定制,你可以拿到 error 内的信息进行定制化处理，根据不同的 code 做不同的提示，而不是直接使用 message.error 提示 msg
-      // 当前mock接口返回的错误字段是 error 或者 message
-      const responseData = error?.response?.data ?? {};
-      const errorMessage = responseData?.error ?? responseData?.message ?? '';
-      // 如果没有错误信息，则会根据状态码进行提示
-      ElMessage.error(errorMessage || msg);
+      if (error instanceof BusinessError) {
+        if ((error.config as NativeRequestConfig).errorMessageMode === 'form')
+          return;
+        ElMessage.error(error.message);
+      } else {
+        ElMessage.error(msg);
+      }
     }),
   );
 
@@ -110,4 +113,9 @@ export const requestClient = createRequestClient(apiURL, {
   responseReturn: 'data',
 });
 
-export const baseRequestClient = new RequestClient({ baseURL: apiURL });
+// 认证端点使用同一JSON协议，但不会进入自身的令牌刷新流程。
+export const authenticationClient = new RequestClient({
+  baseURL: apiURL,
+  responseReturn: 'data',
+});
+authenticationClient.addResponseInterceptor(nativeResponseInterceptor());

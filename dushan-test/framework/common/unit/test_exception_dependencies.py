@@ -6,6 +6,7 @@ import pytest
 from fastapi import FastAPI, HTTPException, Request
 from loguru import logger
 
+from framework.common.enums.log_level_enum import LogLevelEnum
 from framework.common.exception.constants.global_error_code_constants import (
     GlobalErrorCodeConstants,
 )
@@ -15,9 +16,65 @@ from framework.common.exception.exceptions.base_business_exception import BaseBu
 from framework.common.exception.exceptions.configuration_exception import ConfigurationException
 from framework.common.exception.exceptions.rate_limit_exception import RateLimitException
 from framework.common.exception.utils.error_log_recorder import ErrorLogRecorder
+from framework.common.exception.utils.exception_logger import ExceptionLogger
 from framework.common.exception.utils.response_builder import ExceptionResponseBuilder
 
 pytestmark = pytest.mark.unit
+
+
+@pytest.mark.parametrize(
+    "level", [level for level in LogLevelEnum if level is not LogLevelEnum.NONE]
+)
+def test_exception_enum_levels_reach_loguru_with_safe_trace_threshold(level: LogLevelEnum) -> None:
+    """七个有效级别正确进入 Loguru，只有 ERROR 及以上附带脱敏异常链。"""
+
+    class ClassifiedException(BaseBusinessException):
+        log_level = level
+
+    try:
+        raise RuntimeError("password=private-cause")
+    except RuntimeError as cause:
+        exc = ClassifiedException(
+            GlobalErrorCodeConstants.BAD_REQUEST,
+            msg="处理失败 token=private-message",
+            cause=cause,
+        )
+    messages = []
+    sink = logger.add(messages.append, level=LogLevelEnum.TRACE.value, format="{message}")
+    try:
+        ExceptionLogger.log(exc, exc.error_code, exc.msg, "/records")
+    finally:
+        logger.remove(sink)
+    assert len(messages) == 1
+    assert messages[0].record["level"].name == level.value
+    assert "业务异常" in messages[0]
+    assert "private-message" not in messages[0] and "private-cause" not in messages[0]
+    if level in (LogLevelEnum.ERROR, LogLevelEnum.CRITICAL):
+        assert "RuntimeError" in messages[0] and "password=***" in messages[0]
+        assert "\nTraceback (most recent call last):\n" in messages[0]
+        assert "\nRuntimeError: password=***\n" in messages[0]
+    else:
+        assert "RuntimeError" not in messages[0]
+
+
+def test_unclassified_system_exception_keeps_error_level_and_safe_trace() -> None:
+    """普通系统异常继续记录为 ERROR，不受业务异常默认级别影响。"""
+    messages = []
+    sink = logger.add(messages.append, level=LogLevelEnum.TRACE.value, format="{message}")
+    try:
+        ExceptionLogger.log(
+            RuntimeError("password=private-system"),
+            GlobalErrorCodeConstants.INTERNAL_SERVER_ERROR,
+            "服务异常",
+            "/records",
+        )
+    finally:
+        logger.remove(sink)
+    assert len(messages) == 1
+    assert messages[0].record["level"].name == LogLevelEnum.ERROR.value
+    assert "系统异常" in messages[0] and "RuntimeError" in messages[0]
+    assert "\nRuntimeError: password=***\n" in messages[0]
+    assert "private-system" not in messages[0]
 
 
 async def test_error_log_recorder_uses_injected_writer() -> None:
@@ -44,10 +101,11 @@ def test_exception_response_builder_sanitizes_debug_payload() -> None:
         cause=RuntimeError("password=secret"),
     )
     body = ExceptionResponseBuilder.build(exc.error_code, exc.msg, exc=exc, debug=True)
-    assert body["msg"] == "failed token=***"
-    assert body["debug"]["context"]["access_token"] == "***"
-    assert body["debug"]["context"]["safe"] == "value"
-    assert "password=***" in body["debug"]["cause"]
+    assert body["message"] == "failed token=***"
+    assert body["error"]["debug"]["context"]["access_token"] == "***"
+    assert body["error"]["debug"]["context"]["safe"] == "value"
+    assert "password=***" in body["error"]["debug"]["cause"]
+    assert isinstance(body["error"]["debug"]["stacktrace"], list)
     assert "debug" not in ExceptionResponseBuilder.build(exc.error_code, exc.msg, exc=exc)
 
 
@@ -60,8 +118,8 @@ def test_response_builder_hides_internal_context_outside_debug_mode() -> None:
 
     body = ExceptionResponseBuilder.build(definition, exc.msg, exc=exc)
 
-    assert set(body) == {"code", "msg", "data", "timestamp"}
-    assert body["msg"] == definition.description
+    assert set(body) == {"code", "message", "data", "error"}
+    assert body["message"] == definition.description
     assert body["data"] is None
     assert "internal" not in repr(body)
 
@@ -123,30 +181,33 @@ async def test_registered_exception_handlers_preserve_http_and_public_error_cont
     transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.get("/http-error")
-        assert response.status_code == 401
+        assert response.status_code == 200
         assert response.headers["www-authenticate"] == "Bearer"
         assert response.json()["code"] == 401
-        assert response.json()["msg"] == "token=***"
+        assert response.json()["message"] == "token=***"
 
         response = await client.get("/validated", params={"count": "raw-validation-secret"})
-        assert response.status_code == 422
+        assert response.status_code == 200
         assert response.json()["code"] == 422
-        assert response.json()["data"][0]["input"] == "***"
+        assert response.json()["data"] is None
+        assert response.json()["error"]["fields"] == [
+            {"field": "count", "message": "值的类型不正确"}
+        ]
         assert "raw-validation-secret" not in response.text
 
         response = await client.get("/rate-limit")
-        assert response.status_code == 429
+        assert response.status_code == 200
         assert response.headers["retry-after"] == "2"
         assert response.json()["code"] == 429
-        assert response.json()["retryable"] is True
-        assert response.json()["retry_after"] == 2
+        assert response.json()["error"]["retryable"] is True
+        assert response.json()["error"]["retryAfter"] == 2
 
         response = await client.get("/internal-error")
-        assert response.status_code == 500
+        assert response.status_code == 200
         body = response.json()
         assert body["code"] == 500
-        assert body["msg"] == GlobalErrorCodeConstants.INTERNAL_SERVER_ERROR.description
-        assert set(body) == {"code", "msg", "data", "timestamp"}
+        assert body["message"] == GlobalErrorCodeConstants.INTERNAL_SERVER_ERROR.description
+        assert set(body) == {"code", "message", "data", "error"}
         assert "private-internal-cause" not in response.text
 
 
@@ -180,12 +241,13 @@ async def test_translated_logs_are_redacted_and_format_fallback_is_not_retransla
             transport=httpx.ASGITransport(app=app), base_url="http://test"
         ) as client:
             translated_response = await client.get("/translated")
-            assert translated_response.status_code == 404
-            assert translated_response.json()["msg"] == "password=***"
+            assert translated_response.status_code == 200
+            assert translated_response.json()["message"] == "password=***"
             fallback_response = await client.get("/fallback")
-            assert fallback_response.status_code == 400
+            assert fallback_response.status_code == 200
             assert (
-                fallback_response.json()["msg"] == GlobalErrorCodeConstants.BAD_REQUEST.description
+                fallback_response.json()["message"]
+                == GlobalErrorCodeConstants.BAD_REQUEST.description
             )
     finally:
         logger.remove(handler_id)
@@ -268,37 +330,37 @@ async def test_error_persistence_policy_for_5xx_and_explicit_record_error() -> N
         transport=httpx.ASGITransport(app=app), base_url="http://test"
     ) as client:
         res = await client.get("/http-500")
-        assert res.status_code == 500
+        assert res.status_code == 200
         assert len(service.records) == 1
         assert service.records[-1]["result_code"] == 500
 
         res = await client.get("/http-503")
-        assert res.status_code == 503
+        assert res.status_code == 200
         assert len(service.records) == 2
         assert service.records[-1]["result_code"] == 503
 
         res = await client.get("/http-400")
-        assert res.status_code == 400
+        assert res.status_code == 200
         assert len(service.records) == 2
 
         res = await client.get("/biz-400-default")
-        assert res.status_code == 400
+        assert res.status_code == 200
         assert len(service.records) == 2
 
         res = await client.get("/biz-400-recorded")
-        assert res.status_code == 400
+        assert res.status_code == 200
         assert len(service.records) == 3
         assert service.records[-1]["result_code"] == 400
 
         res = await client.get("/biz-500-config")
-        assert res.status_code == 500
+        assert res.status_code == 200
         assert res.json()["code"] == 502
         assert len(service.records) == 4
         assert service.records[-1]["result_code"] == 502
         assert translated_keys[-1] == "exception.error_configuration"
 
         res = await client.get("/http-502")
-        assert res.status_code == 502
+        assert res.status_code == 200
         assert res.json()["code"] == 903
         assert len(service.records) == 5
         assert service.records[-1]["result_code"] == 903
@@ -401,12 +463,14 @@ async def test_apps_keep_debug_translation_recording_and_tracing_independent(fir
             transport=httpx.ASGITransport(app=apps[name]), base_url="http://test"
         ) as client:
             response = await client.get("/failure", headers={"Accept-Language": "en-US"})
-        assert response.status_code == 500
+        assert response.status_code == 200
         body = response.json()
-        assert body["msg"] == f"{name}:{GlobalErrorCodeConstants.ERROR_CONFIGURATION.description}"
-        assert ("debug" in body) is (name == "a")
+        assert (
+            body["message"] == f"{name}:{GlobalErrorCodeConstants.ERROR_CONFIGURATION.description}"
+        )
+        assert (body["error"] is not None and "debug" in body["error"]) is (name == "a")
         if name == "a":
-            assert body["debug"]["context"] == {"safe": "a", "password": "***"}
+            assert body["error"]["debug"]["context"] == {"safe": "a", "password": "***"}
         assert "private-context" not in response.text
         assert "private-cause" not in response.text
 
@@ -446,7 +510,7 @@ async def test_405_logs_route_template_without_secret_path_segments() -> None:
             response = await client.post("/protected/private-capability")
     finally:
         logger.remove(handler_id)
-    assert response.status_code == 405
+    assert response.status_code == 200
     assert "GET" in response.headers["allow"]
     text = "".join(messages)
     assert messages
@@ -490,12 +554,16 @@ async def test_dependency_failures_preserve_the_business_response() -> None:
             response = await client.get("/failure")
     finally:
         logger.remove(handler_id)
-    assert response.status_code == 500
+    assert response.status_code == 200
     assert response.json()["code"] == GlobalErrorCodeConstants.ERROR_CONFIGURATION.code
-    assert response.json()["msg"] == GlobalErrorCodeConstants.ERROR_CONFIGURATION.description
+    assert response.json()["message"] == GlobalErrorCodeConstants.ERROR_CONFIGURATION.description
     log_text = "".join(messages)
     assert messages
     assert "password=***" in log_text
     assert "private-translation" not in log_text
     assert "private-trace" not in log_text
     assert "private-recorder" not in log_text
+    for prefix in ("异常链路追踪记录失败", "异常文案翻译失败"):
+        record = next(message for message in messages if prefix in message)
+        assert "Traceback (most recent call last):\n" in record
+        assert "password=***\n" in record

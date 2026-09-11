@@ -1,6 +1,8 @@
+from collections.abc import Sequence
 from typing import Any
 
 from framework.common.exception.core.error_code import ErrorCode
+from framework.common.exception.core.field_error import FieldError
 from framework.common.exception.exceptions.base_business_exception import BaseBusinessException
 
 
@@ -23,6 +25,7 @@ class ServiceException(BaseBusinessException):
         http_status: int | None = None,
         retry_after: int | None = None,
         record_error: bool | None = None,
+        field_errors: Sequence[FieldError] = (),
     ) -> None:
         """初始化业务服务异常并整理消息格式化参数。"""
         super().__init__(
@@ -35,4 +38,5 @@ class ServiceException(BaseBusinessException):
             http_status=http_status,
             retry_after=retry_after,
             record_error=record_error,
+            field_errors=field_errors,
         )

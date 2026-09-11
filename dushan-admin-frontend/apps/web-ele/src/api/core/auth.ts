@@ -1,4 +1,4 @@
-import { baseRequestClient, requestClient } from '#/api/request';
+import { authenticationClient, requestClient } from '#/api/request';
 
 export namespace AuthApi {
   /** 登录接口参数 */
@@ -10,11 +10,6 @@ export namespace AuthApi {
   /** 登录接口返回值 */
   export interface LoginResult {
     accessToken: string;
-  }
-
-  export interface RefreshTokenResult {
-    data: string;
-    status: number;
   }
 }
 
@@ -29,20 +24,16 @@ export async function loginApi(data: AuthApi.LoginParams) {
  * 刷新accessToken
  */
 export async function refreshTokenApi() {
-  return baseRequestClient.post<AuthApi.RefreshTokenResult>(
-    '/auth/refresh',
-    undefined,
-    {
-      withCredentials: true,
-    },
-  );
+  return authenticationClient.post<string>('/auth/refresh', undefined, {
+    withCredentials: true,
+  });
 }
 
 /**
  * 退出登录
  */
 export async function logoutApi() {
-  return baseRequestClient.post('/auth/logout', undefined, {
+  return authenticationClient.post('/auth/logout', undefined, {
     withCredentials: true,
   });
 }

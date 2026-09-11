@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 
 import pytest
+from config_factory import ConfigFactory
 from loguru import logger
 from pydantic import ValidationError
 
@@ -11,6 +12,7 @@ from framework.common.exception.constants.global_error_code_constants import (
 )
 from framework.common.exception.core.error_code import ErrorCode
 from framework.common.exception.exceptions.configuration_exception import ConfigurationException
+from framework.common.exception.utils.validation_error_mapper import ValidationErrorMapper
 from framework.common.i18n.core.catalog import I18nCatalog
 from framework.common.i18n.core.i18n_locale_root import I18nLocaleRoot
 from framework.common.i18n.core.i18n_options import I18nOptions
@@ -28,17 +30,20 @@ pytestmark = pytest.mark.unit
 def test_builtin_resources_match_public_error_contract_and_exclude_unmigrated_modules(
     tmp_path, locale
 ):
-    """内置资源恰好覆盖公共错误定义，模块文案由独立资源根提供。"""
+    """内置资源只覆盖公共错误和已接入的字段校验，业务模块文案独立提供。"""
     message_keys = tuple(
         value.message_key
         for value in vars(GlobalErrorCodeConstants).values()
         if isinstance(value, ErrorCode)
     )
-    translator = I18nStarter.initialize(I18nOptions(), base_dir=tmp_path, message_keys=message_keys)
+    translator = I18nStarter.initialize(
+        ConfigFactory.build(I18nOptions, "i18n"), base_dir=tmp_path, message_keys=message_keys
+    )
     catalog = translator.catalog
     assert set(catalog.bundles) == {"zh-CN", "en-US"}
     assert set(catalog.bundles[locale]) == {"framework"}
-    assert set(catalog.bundles[locale]["framework"]) == set(message_keys)
+    validation_keys = {f"validation.{key}" for key in ValidationErrorMapper.messages}
+    assert set(catalog.bundles[locale]["framework"]) == set(message_keys) | validation_keys
     for message_key in message_keys:
         translated = translator.translate_any_scope(message_key, locale)
         assert translated and translated != message_key
@@ -70,8 +75,8 @@ def write_bundle(root: Path, locale: str, data: dict) -> Path:
 def make_loader(root: Path, **options) -> I18nLoader:
     """创建只读取测试资源目录的加载器。"""
     return I18nLoader(
-        options=I18nOptions(include_builtin=False, **options),
-        locale_roots=(I18nLocaleRoot(path=root, scope="test"),),
+        options=ConfigFactory.build(I18nOptions, "i18n", include_builtin=False, **options),
+        locale_roots=(I18nLocaleRoot(path=root, scope="test", required=True),),
     )
 
 
@@ -82,7 +87,7 @@ def make_catalog(**options) -> I18nCatalog:
             "zh-CN": {"test": {"hello": "你好", "only.default": "默认语言"}},
             "en-US": {"test": {"hello": "Hello", "template": "Hello {}"}},
         },
-        options=I18nOptions(**options),
+        options=ConfigFactory.build(I18nOptions, "i18n", **options),
     )
 
 
@@ -112,14 +117,16 @@ def make_catalog(**options) -> I18nCatalog:
 )
 def test_options_reject_unknown_and_invalid_configuration(values):
     with pytest.raises(ValidationError):
-        I18nOptions(**values)
+        ConfigFactory.build(I18nOptions, "i18n", **values)
 
 
 def test_options_parse_environment_arrays_and_are_immutable(tmp_path):
-    values = I18nOptions(
+    values = ConfigFactory.build(
+        I18nOptions,
+        "i18n",
         supported_locales='["zh-CN", "en-US", "fr-FR"]',
         scopes='["test"]',
-        resource_roots=json.dumps([{"path": str(tmp_path), "scope": "test"}]),
+        resource_roots=json.dumps([{"path": str(tmp_path), "scope": "test", "required": True}]),
     )
     assert values.supported_locales == ("zh-CN", "en-US", "fr-FR")
     assert values.resource_roots[0].path == tmp_path
@@ -131,7 +138,7 @@ def test_options_parse_environment_arrays_and_are_immutable(tmp_path):
 @pytest.mark.parametrize("scope", ["", "../other", "test/other", " test"])
 def test_locale_roots_reject_invalid_scope(tmp_path, scope):
     with pytest.raises(ValidationError):
-        I18nLocaleRoot(path=tmp_path, scope=scope)
+        I18nLocaleRoot(path=tmp_path, scope=scope, required=True)
 
 
 def test_loader_flattens_and_allows_configured_new_language(tmp_path):
@@ -147,8 +154,10 @@ def test_loader_merges_same_scope_in_root_order(tmp_path):
     write_bundle(first, "en-US", {"account": {"name": "Before", "retained": "Keep"}})
     write_bundle(second, "en-US", {"account.name": "After"})
     loader = I18nLoader(
-        options=I18nOptions(),
-        locale_roots=tuple(I18nLocaleRoot(path=root, scope="account") for root in (first, second)),
+        options=ConfigFactory.build(I18nOptions, "i18n"),
+        locale_roots=tuple(
+            I18nLocaleRoot(path=root, scope="account", required=True) for root in (first, second)
+        ),
     )
     catalog = loader.load()
     assert catalog.resolve("account.name", "en-US", scope="account") == "After"
@@ -199,10 +208,10 @@ def test_loader_rejects_repeated_physical_resource_roots(tmp_path):
     write_bundle(tmp_path, "en-US", {"message": "Value"})
     with pytest.raises(ConfigurationException):
         I18nLoader(
-            options=I18nOptions(),
+            options=ConfigFactory.build(I18nOptions, "i18n"),
             locale_roots=(
-                I18nLocaleRoot(path=tmp_path, scope="first"),
-                I18nLocaleRoot(path=tmp_path / ".", scope="second"),
+                I18nLocaleRoot(path=tmp_path, scope="first", required=True),
+                I18nLocaleRoot(path=tmp_path / ".", scope="second", required=True),
             ),
         ).load()
 
@@ -229,7 +238,7 @@ def test_loader_required_optional_disabled_and_scope_filters(tmp_path):
     with pytest.raises(ConfigurationException):
         make_loader(absent).load()
     optional = I18nLoader(
-        options=I18nOptions(),
+        options=ConfigFactory.build(I18nOptions, "i18n"),
         locale_roots=(I18nLocaleRoot(path=absent, scope="optional", required=False),),
     )
     assert not optional.load().bundles
@@ -245,10 +254,10 @@ def test_loader_rejects_cross_scope_duplicate_keys_even_between_languages(tmp_pa
     write_bundle(first, "zh-CN", {"collision": "中文"})
     write_bundle(second, "en-US", {"collision": "English"})
     loader = I18nLoader(
-        options=I18nOptions(),
+        options=ConfigFactory.build(I18nOptions, "i18n"),
         locale_roots=(
-            I18nLocaleRoot(path=first, scope="first"),
-            I18nLocaleRoot(path=second, scope="second"),
+            I18nLocaleRoot(path=first, scope="first", required=True),
+            I18nLocaleRoot(path=second, scope="second", required=True),
         ),
     )
     with pytest.raises(ConfigurationException, match="collision"):
@@ -273,7 +282,7 @@ def test_snapshot_uses_content_hash_and_tracks_additions_and_deletions(tmp_path)
 
 def test_catalog_fallback_policy_and_resource_ownership():
     bundles = {"en-US": {"test": {"message": "Original"}}}
-    catalog = I18nCatalog(bundles=bundles, options=I18nOptions())
+    catalog = I18nCatalog(bundles=bundles, options=ConfigFactory.build(I18nOptions, "i18n"))
     bundles["en-US"]["test"]["message"] = "External mutation"
     assert catalog.resolve("message", "en-US") == "Original"
     with pytest.raises(TypeError):
@@ -358,17 +367,31 @@ def test_missing_diagnostics_are_bounded_deduplicated_and_optional(messages):
     ],
 )
 def test_accept_language_quality_matching_and_fallback(header, expected):
-    parser = AcceptLanguageParser(I18nOptions(supported_locales=("zh-CN", "en-US", "fr-FR")))
+    parser = AcceptLanguageParser(
+        ConfigFactory.build(I18nOptions, "i18n", supported_locales=("zh-CN", "en-US", "fr-FR"))
+    )
     assert parser.detect_lang(header) == expected
 
 
 def test_language_matching_mode_is_configurable():
-    assert AcceptLanguageParser(I18nOptions(match_mode="exact")).detect_lang("en") == "zh-CN"
-    assert AcceptLanguageParser(I18nOptions(match_mode="primary")).detect_lang("en") == "en-US"
+    assert (
+        AcceptLanguageParser(
+            ConfigFactory.build(I18nOptions, "i18n", match_mode="exact")
+        ).detect_lang("en")
+        == "zh-CN"
+    )
+    assert (
+        AcceptLanguageParser(
+            ConfigFactory.build(I18nOptions, "i18n", match_mode="primary")
+        ).detect_lang("en")
+        == "en-US"
+    )
 
 
 def test_translator_only_formats_resolved_templates():
-    translator = I18nTranslator(make_catalog(), AcceptLanguageParser(I18nOptions()))
+    translator = I18nTranslator(
+        make_catalog(), AcceptLanguageParser(ConfigFactory.build(I18nOptions, "i18n"))
+    )
     assert translator.translate("template", "en-US", scope="test", args=("Ada",)) == "Hello Ada"
     assert translator.translate_any_scope("template", "en-US", args=("Ada",)) == "Hello Ada"
     assert (
@@ -390,7 +413,7 @@ def test_translator_only_formats_resolved_templates():
 @pytest.mark.parametrize("template", ["broken {", "number {:d}", "{missing}", "{1}", "{0.absent}"])
 def test_translator_format_errors_preserve_final_default_or_raise_with_cause(template):
     bundles = {"en-US": {"test": {"broken": template}}}
-    fallback = I18nOptions()
+    fallback = ConfigFactory.build(I18nOptions, "i18n")
     translator = I18nTranslator(
         I18nCatalog(bundles=bundles, options=fallback), AcceptLanguageParser(fallback)
     )
@@ -401,7 +424,7 @@ def test_translator_format_errors_preserve_final_default_or_raise_with_cause(tem
         == "Final {unchanged}"
     )
     assert translator.translate_any_scope("broken", "en-US", args=("text",)) == "broken"
-    strict = I18nOptions(format_error_policy="error")
+    strict = ConfigFactory.build(I18nOptions, "i18n", format_error_policy="error")
     translator = I18nTranslator(
         I18nCatalog(bundles=bundles, options=strict), AcceptLanguageParser(strict)
     )
@@ -413,14 +436,16 @@ def test_translator_format_errors_preserve_final_default_or_raise_with_cause(tem
 def test_validator_checks_configured_languages_without_fallback(messages):
     catalog = I18nCatalog(
         bundles={"zh-CN": {"test": {"required": "存在"}}},
-        options=I18nOptions(validation_policy="warning"),
+        options=ConfigFactory.build(I18nOptions, "i18n", validation_policy="warning"),
     )
     assert I18nValidator.validate(catalog, ("required",)) == [("required", "en-US")]
     assert any(event["level"].name == "WARNING" for event in messages)
-    strict = I18nCatalog(bundles=catalog.bundles, options=I18nOptions())
+    strict = I18nCatalog(bundles=catalog.bundles, options=ConfigFactory.build(I18nOptions, "i18n"))
     with pytest.raises(ConfigurationException):
         I18nValidator.validate(strict, ("required",))
-    disabled = I18nCatalog(bundles={}, options=I18nOptions(validate_translations=False))
+    disabled = I18nCatalog(
+        bundles={}, options=ConfigFactory.build(I18nOptions, "i18n", validate_translations=False)
+    )
     assert I18nValidator.validate(disabled, ("required",)) == []
     messages.clear()
     assert I18nValidator.validate(strict, ()) == []

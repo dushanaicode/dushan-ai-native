@@ -8,31 +8,19 @@ import yaml
 from pydantic import BaseModel, ValidationError
 
 from framework.common.enums.application_environment_enum import ApplicationEnvironmentEnum
+from framework.starter_config.provider.bootstrap_config_error import BootstrapConfigError
+from framework.starter_config.provider.unique_key_loader import UniqueKeyLoader
 
 Settings = TypeVar("Settings", bound=BaseModel)
 
 
-class BootstrapConfigError(ValueError):
-    """启动配置错误，报错时不要附带配置中的敏感值。"""
-
-
-class _UniqueKeyLoader(yaml.SafeLoader):
-    """读取 YAML 时检查重复键，避免后一个值悄悄覆盖前一个值。"""
-
-    def construct_mapping(self, node, deep=False):
-        result = {}
-        for key_node, value_node in node.value:
-            key = self.construct_object(key_node, deep=deep)
-            if not isinstance(key, str):
-                raise BootstrapConfigError("配置键必须是字符串")
-            if key in result:
-                raise BootstrapConfigError(f"配置键重复：{key}")
-            result[key] = self.construct_object(value_node, deep=deep)
-        return result
-
-
 class BootstrapConfigProvider:
-    """读取启动配置，每个实例保存自己的一份数据。"""
+    """读取显式配置并保留字段来源，配置模型不补运行默认值。
+
+    公共 YAML 提供默认值，环境文件、非生产个人文件、环境变量依次覆盖。
+    get_config 返回校验后的模型，get_sources 返回来源名称而不暴露配置值。
+    例如 get_sources(ApplicationSettings)["log.console_level"] 可定位最后生效的来源。
+    """
 
     def __init__(
         self,
@@ -40,11 +28,16 @@ class BootstrapConfigProvider:
         environment: ApplicationEnvironmentEnum,
         values: dict[str, object],
         environ: Mapping[str, str],
+        sources: dict[str, str],
+        loaded_files: tuple[str, ...],
     ) -> None:
+        """保存当前加载快照，不与其他应用共享配置或来源状态。"""
         self.base_dir = base_dir
         self.environment = environment
         self._values = deepcopy(values)
         self._environ = dict(environ)
+        self._sources = dict(sources)
+        self._loaded_files = loaded_files
 
     @classmethod
     def load(
@@ -54,50 +47,58 @@ class BootstrapConfigProvider:
         app_env: str | None = None,
         environ: Mapping[str, str] | None = None,
     ) -> "BootstrapConfigProvider":
-        """读取基础配置，再依次合并环境配置和本地覆盖。
-
-        生产环境跳过 application-local.yaml，避免把个人配置带到服务器上。
-        环境名只接受 dev、test、staging、prod，不能用它指定任意文件路径。
-        """
+        """合并显式文件并选定运行环境，生产环境不读取个人覆盖文件。"""
+        if isinstance(base_dir, str) and not base_dir.strip():
+            raise BootstrapConfigError("配置目录不能为空")
         root = Path(base_dir).resolve()
         process_env = dict(os.environ if environ is None else environ)
         values = cls._read_yaml(root / "application.yaml", required=True)
+        sources = cls._collect_sources(values, "application.yaml")
+        loaded_files = ["application.yaml"]
         server = values.get("server", {})
         if not isinstance(server, dict):
-            raise BootstrapConfigError("server 必须是配置分组")
-        selected = (
-            app_env
-            if app_env is not None
-            else process_env.get("SERVER_ENV", server.get("env", "dev"))
-        )
+            raise BootstrapConfigError("server 必须是配置分组（来源：application.yaml）")
+        if app_env is not None:
+            selected, environment_source = app_env, "启动参数 app_env/--env"
+        elif "SERVER_ENV" in process_env:
+            selected, environment_source = process_env["SERVER_ENV"], "环境变量 SERVER_ENV"
+        elif "env" in server:
+            selected, environment_source = server["env"], sources["server.env"]
+        else:
+            raise BootstrapConfigError(
+                "缺少运行环境 server.env：请在 application.yaml、SERVER_ENV 或 --env 中明确提供"
+            )
         try:
             environment = ApplicationEnvironmentEnum(str(selected).strip().lower())
         except ValueError:
             raise BootstrapConfigError(
-                "SERVER_ENV 无效，可选值为 dev、test、staging、prod"
+                f"SERVER_ENV 无效（来源：{environment_source}），可选值为 dev、test、staging、prod"
             ) from None
-        values = cls._merge(
-            values,
-            cls._read_yaml(
-                root / f"application-{environment.value}.yaml",
-                required=environment == ApplicationEnvironmentEnum.PRODUCTION,
-            ),
-        )
+        profile = f"application-{environment.value}.yaml"
+        file_names = [profile]
         if environment != ApplicationEnvironmentEnum.PRODUCTION:
-            values = cls._merge(values, cls._read_yaml(root / "application-local.yaml"))
-        # 保留最初选定的环境，确保环境名与实际加载的文件一致。
+            file_names.append("application-local.yaml")
+        for name in file_names:
+            path = root / name
+            override = cls._read_yaml(
+                path,
+                required=name == profile and environment == ApplicationEnvironmentEnum.PRODUCTION,
+            )
+            if path.exists():
+                loaded_files.append(name)
+            values = cls._merge(values, override)
+            sources.update(cls._collect_sources(override, name))
         server = values.setdefault("server", {})
         if not isinstance(server, dict):
-            raise BootstrapConfigError("server 必须是配置分组")
+            raise BootstrapConfigError(f"server 必须是配置分组（来源：{sources['server']}）")
+        # 环境选择先于文件合并，后续文件不能切换已选定的环境。
         server["env"] = environment.value
-        return cls(root, environment, values, process_env)
+        sources["server.env"] = environment_source
+        return cls(root, environment, values, process_env, sources, tuple(loaded_files))
 
     @classmethod
     def _merge(cls, base: dict, override: dict) -> dict:
-        """合并配置字典，返回一份新结果。
-
-        字典逐层合并，列表直接替换；例如用 [] 可以清空原列表。
-        """
+        """递归合并字典，列表、零值、False、空串和 None 均按显式值覆盖。"""
         result = deepcopy(base)
         for key, value in override.items():
             if isinstance(value, dict) and isinstance(result.get(key), dict):
@@ -106,21 +107,28 @@ class BootstrapConfigProvider:
                 result[key] = deepcopy(value)
         return result
 
+    @classmethod
+    def _collect_sources(cls, values: object, source: str, path: str = "") -> dict[str, str]:
+        """记录分组和字段来源，列表作为一次整体覆盖处理。"""
+        result = {path: source} if path else {}
+        if isinstance(values, dict):
+            for name, value in values.items():
+                field_path = f"{path}.{name}" if path else name
+                result.update(cls._collect_sources(value, source, field_path))
+        return result
+
     @staticmethod
     def _read_yaml(path: Path, *, required: bool = False) -> dict[str, object]:
-        """读取一份 YAML 配置。
-
-        文件只能有一个文档，顶层必须是字典；报错时不附带 YAML 原文。
-        """
+        """读取单文档 YAML，报告文件与位置但不回显配置原值。"""
         if not path.exists():
             if required:
                 raise BootstrapConfigError(f"缺少配置文件：{path.name}")
             return {}
         try:
             with path.open(encoding="utf-8-sig") as stream:
-                data = yaml.load(stream, Loader=_UniqueKeyLoader)
-        except BootstrapConfigError:
-            raise
+                data = yaml.load(stream, Loader=UniqueKeyLoader)
+        except BootstrapConfigError as error:
+            raise BootstrapConfigError(f"{path.name}：{error}") from None
         except yaml.YAMLError as error:
             mark = getattr(error, "problem_mark", None)
             location = f"，第 {mark.line + 1} 行" if mark else ""
@@ -132,51 +140,106 @@ class BootstrapConfigProvider:
         if not isinstance(data, dict):
             raise BootstrapConfigError(f"配置文件顶层必须是键值映射：{path.name}")
         if any(key.isupper() and "_" in key for key in data):
-            raise BootstrapConfigError(
-                f"{path.name} 不再接受大写平铺 YAML，请改为小写嵌套配置，例如 server.port；"
-                "进程环境变量名称保持不变"
-            )
+            raise BootstrapConfigError(f"{path.name} 不再接受大写平铺 YAML，请使用小写嵌套配置")
         return data
 
-    def _apply_environment(self, model_type: type[BaseModel], values: object, prefix: str):
-        """把环境变量写入对应的配置字段。
+    @classmethod
+    def _environment_keys(cls, model_type: type[BaseModel], prefix: str) -> set[str]:
+        """按模型声明列出有效环境变量名，不接受拼错的受管配置变量。"""
+        result = set()
+        for name, info in model_type.model_fields.items():
+            key = prefix + name.upper()
+            if isinstance(info.annotation, type) and issubclass(info.annotation, BaseModel):
+                result.update(cls._environment_keys(info.annotation, key + "_"))
+            else:
+                result.add(key)
+        return result
 
-        例如 SERVER_PORT 对应 server.port。未知字段和错误分组原样保留，
-        交给 Pydantic 校验，避免把填错的配置当成默认值继续启动。
-        """
+    def _apply_environment(
+        self,
+        model_type: type[BaseModel],
+        values: object,
+        prefix: str,
+        sources: dict[str, str],
+        path: str,
+    ):
+        """仅用实际提供的环境变量覆盖字段，保留无效分组供模型明确报错。"""
         if not isinstance(values, dict):
             return values
         result = deepcopy(values)
         for field, info in model_type.model_fields.items():
             key = prefix + field.upper()
+            field_path = f"{path}.{field}" if path else field
             if key == "SERVER_ENV":
                 result[field] = self.environment.value
             elif isinstance(info.annotation, type) and issubclass(info.annotation, BaseModel):
-                nested = self._apply_environment(info.annotation, result.get(field, {}), key + "_")
+                nested = self._apply_environment(
+                    info.annotation, result.get(field, {}), key + "_", sources, field_path
+                )
                 if field in result or nested:
                     result[field] = nested
             elif key in self._environ:
                 result[field] = self._environ[key]
+                sources[field_path] = f"环境变量 {key}"
         return result
 
-    def get_config(self, settings_type: type[Settings], *, prefix: str = "") -> Settings:
-        """读取并校验配置，返回指定类型的配置对象。
+    def _resolve_input(self, settings_type: type[BaseModel], prefix: str):
+        """准备同一份校验输入与来源快照，不写回原配置。"""
+        group = prefix.rstrip("_").lower()
+        values = self._values.get(group, {}) if prefix else self._values
+        prefixes = (
+            (prefix,)
+            if prefix
+            else tuple(name.upper() + "_" for name in settings_type.model_fields)
+        )
+        allowed = self._environment_keys(settings_type, prefix)
+        unknown = sorted(
+            key for key in self._environ if key.startswith(prefixes) and key not in allowed
+        )
+        if unknown:
+            raise BootstrapConfigError("未声明的环境配置项：" + "、".join(unknown))
+        sources = dict(self._sources)
+        values = self._apply_environment(settings_type, values, prefix, sources, group)
+        active_paths = self._collect_sources(values, "", group)
+        return values, {key: sources[key] for key in active_paths if key in sources}
 
-        默认读取完整配置；例如 get_config(ServerSettings, prefix="SERVER_")
-        只读取 server 分组，环境变量仍使用 SERVER_PORT 这样的名称。
-        """
-        values = self._values.get(prefix.rstrip("_").lower(), {}) if prefix else self._values
-        values = self._apply_environment(settings_type, values, prefix)
+    def get_sources(self, settings_type: type[BaseModel], *, prefix: str = "") -> dict[str, str]:
+        """返回字段最后生效的来源名称，不返回配置值或共享可变字典。"""
+        _, sources = self._resolve_input(settings_type, prefix)
+        return sources
+
+    def get_config(self, settings_type: type[Settings], *, prefix: str = "") -> Settings:
+        """返回校验后的配置；缺项或无效值报告字段及来源，不补代码默认值。"""
+        values, sources = self._resolve_input(settings_type, prefix)
         try:
             return settings_type.model_validate(values)
         except ValidationError as error:
             fields = []
             for detail in error.errors(include_input=False, include_url=False):
-                location = ".".join(str(part) for part in detail["loc"]) or "整体配置"
+                parts = [prefix.rstrip("_").lower()] if prefix else []
+                parts.extend(str(part) for part in detail["loc"])
+                path = ".".join(parts)
                 reason = detail.get("ctx", {}).get("error")
-                if detail["type"] == "extra_forbidden":
+                if detail["type"] == "missing":
+                    reason = "缺少必填配置项"
+                elif detail["type"] == "extra_forbidden":
                     reason = "未声明的配置项"
-                fields.append(
-                    f"{location}：{reason}" if reason else f"{location}：值的类型或范围不合法"
+                if reason is None:
+                    reason = "值的类型或范围不合法"
+                candidates = {
+                    value
+                    for key, value in sources.items()
+                    if not path or key == path or key.startswith(path + ".")
+                }
+                parent = path
+                while not candidates and "." in parent:
+                    parent = parent.rsplit(".", 1)[0]
+                    if parent in sources:
+                        candidates.add(sources[parent])
+                origin = (
+                    "、".join(sorted(candidates))
+                    if candidates
+                    else "未提供；已读取 " + "、".join(self._loaded_files)
                 )
+                fields.append(f"{path or '整体配置'}（来源：{origin}）：{reason}")
             raise BootstrapConfigError("配置校验失败：" + "；".join(fields)) from None

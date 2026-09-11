@@ -45,6 +45,8 @@ type RequestClientOptions = CreateAxiosDefaults & ExtendOptions;
  * SSE 请求选项
  */
 interface SseRequestOptions extends RequestInit {
+  /** 在读取事件流前校验应用响应协议。 */
+  onResponse?: (response: Response) => Promise<void> | void;
   onMessage?: (message: string) => void;
   onEnd?: () => void;
 }

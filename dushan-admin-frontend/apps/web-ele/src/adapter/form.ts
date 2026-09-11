@@ -4,10 +4,15 @@ import type {
   FormValues,
 } from '@vben/common-ui';
 
+import type { NativeRequestConfig } from '../api/response';
 import type { ComponentPropsMap, ComponentType } from './component';
 
 import { setupVbenForm, useVbenForm as useForm, z } from '@vben/common-ui';
 import { $t } from '@vben/locales';
+
+import { ElMessage } from 'element-plus';
+
+import { FormSubmission } from './form-submission';
 
 async function initSetupVbenForm() {
   setupVbenForm<ComponentType>({
@@ -45,9 +50,24 @@ function useVbenForm<
     TSubmitValues
   >,
 ) {
-  return useForm<TFormValues, ComponentType, ComponentPropsMap, TSubmitValues>(
-    options,
-  );
+  const [Form, formApi] = useForm<
+    TFormValues,
+    ComponentType,
+    ComponentPropsMap,
+    TSubmitValues
+  >(options);
+  const submission = new FormSubmission(formApi, (message) => {
+    ElMessage.error(message);
+  });
+  return [
+    Form,
+    Object.assign(formApi, {
+      submitRequest: <T>(
+        request: (config: NativeRequestConfig) => Promise<T>,
+        settings?: { showSummary?: boolean },
+      ) => submission.submit(request, settings),
+    }),
+  ] as const;
 }
 
 export { initSetupVbenForm, useVbenForm, z };

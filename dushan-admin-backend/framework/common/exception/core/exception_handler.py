@@ -2,9 +2,8 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from fastapi import FastAPI, Request, status
-from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from loguru import logger
 from starlette.exceptions import HTTPException
 
@@ -22,6 +21,8 @@ from framework.common.exception.utils.error_log_recorder import ErrorLogRecorder
 from framework.common.exception.utils.exception_logger import ExceptionLogger
 from framework.common.exception.utils.exception_util import ExceptionUtil
 from framework.common.exception.utils.response_builder import ExceptionResponseBuilder
+from framework.common.exception.utils.validation_error_mapper import ValidationErrorMapper
+from framework.common.response.core.response_headers import ResponseHeaders
 from framework.common.security.sanitizer import Sanitizer
 
 
@@ -54,8 +55,10 @@ class GlobalExceptionHandler:
         app.add_exception_handler(BaseBusinessException, self.handle_business_exception)
         app.add_exception_handler(Exception, self.handle_internal_server_error)
 
-    async def handle_http_exception(self, request: Request, exc: HTTPException) -> JSONResponse:
+    async def handle_http_exception(self, request: Request, exc: HTTPException) -> Response:
         """处理 FastAPI/Starlette HTTPException 并返回统一响应。"""
+        if 300 <= exc.status_code < 400:
+            return Response(status_code=exc.status_code, headers=exc.headers)
         self._record_to_span(exc)
         error_code = ExceptionUtil.get_error_code(exc)
         msg = self._translate_message(
@@ -79,7 +82,7 @@ class GlobalExceptionHandler:
             )
         await self._record_error(request, exc, exc.status_code, error_code, msg)
         return JSONResponse(
-            status_code=exc.status_code,
+            status_code=200,
             content=ExceptionResponseBuilder.build(error_code, msg, exc=exc, debug=self.debug),
             headers=self._response_headers(exc.headers),
         )
@@ -91,20 +94,23 @@ class GlobalExceptionHandler:
         self._record_to_span(exc)
         error_code = GlobalErrorCodeConstants.VALIDATION_ERROR
         msg = self._translate_message(request, error_code.message_key, error_code.description)
-        validation_errors = self._safe_validation_errors(exc)
+        details = ValidationErrorMapper.map(
+            exc.errors(),
+            lambda key, default, args: self._translate_message(request, key, default, args=args),
+        )
         logger.warning(
             "参数校验异常：{}，路径：{}，detail：{}",
             msg,
             self._request_route_path(request),
-            validation_errors,
+            details.fields,
         )
         await self._record_error(
             request, exc, status.HTTP_422_UNPROCESSABLE_CONTENT, error_code, msg
         )
         return JSONResponse(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            status_code=200,
             content=ExceptionResponseBuilder.build(
-                error_code, msg, data=validation_errors, exc=exc, debug=self.debug
+                error_code, msg, error=details, exc=exc, debug=self.debug
             ),
             headers=self._response_headers(),
         )
@@ -117,8 +123,8 @@ class GlobalExceptionHandler:
         error_code = exc.error_code
         msg = Sanitizer.sanitize_text(exc.msg)
         message_key = exc.message_key
-        # 格式失败时保留已选定的默认提示，不能再次交给翻译模板覆盖。
-        if not exc._message_format_failed:
+        # 显式提示或格式失败后的默认提示，不能再被错误码的通用翻译覆盖。
+        if exc._message_translation_enabled and not exc._message_format_failed:
             msg = self._translate_message(request, message_key, msg, args=exc.format_args)
         ExceptionLogger.log(exc, error_code, msg, self._request_route_path(request))
         await self._record_error(request, exc, exc.http_status, error_code, msg)
@@ -130,7 +136,7 @@ class GlobalExceptionHandler:
         ):
             headers = {"Retry-After": str(exc.retry_after)}
         return JSONResponse(
-            status_code=exc.http_status,
+            status_code=200,
             content=ExceptionResponseBuilder.build(error_code, msg, exc=exc, debug=self.debug),
             headers=self._response_headers(headers),
         )
@@ -145,20 +151,15 @@ class GlobalExceptionHandler:
             request, exc, status.HTTP_500_INTERNAL_SERVER_ERROR, error_code, msg
         )
         return JSONResponse(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=200,
             content=ExceptionResponseBuilder.build(error_code, msg, exc=exc, debug=self.debug),
             headers=self._response_headers(),
         )
 
     def _response_headers(self, headers: Mapping[str, str] | None = None) -> dict[str, str]:
         """声明响应随请求语言变化，并保留认证、重试和已有 Vary 约定。"""
-        result = dict(headers or {})
-        if self.translator is not None:
-            vary = next((key for key in result if key.lower() == "vary"), "Vary")
-            fields = [part.strip() for part in result.get(vary, "").split(",") if part.strip()]
-            if not any(field == "*" or field.lower() == "accept-language" for field in fields):
-                fields.append("Accept-Language")
-            result[vary] = ", ".join(fields)
+        result = ResponseHeaders.with_language(headers, translated=self.translator is not None)
+        result["cache-control"] = "no-store"
         return result
 
     def _record_to_span(self, exc: Exception) -> None:
@@ -168,7 +169,7 @@ class GlobalExceptionHandler:
         try:
             self.trace_reporter.on_error(exc)
         except Exception as e:
-            logger.debug("异常链路追踪记录失败：{}", ExceptionTraceFormatter.format(e))
+            logger.debug("异常链路追踪记录失败：{}", "".join(ExceptionTraceFormatter.format(e)))
 
     def _translate_message(
         self,
@@ -193,19 +194,9 @@ class GlobalExceptionHandler:
             logger.warning(
                 "异常文案翻译失败：{}，{}",
                 Sanitizer.sanitize_text(message_key),
-                ExceptionTraceFormatter.format(e),
+                "".join(ExceptionTraceFormatter.format(e)),
             )
             return Sanitizer.sanitize_text(default or message_key)
-
-    def _safe_validation_errors(self, exc: RequestValidationError) -> Any:
-        """安全编码并脱敏请求参数校验错误详情。"""
-        try:
-            return Sanitizer.sanitize_sensitive_data(
-                jsonable_encoder(exc.errors()), redact_input=True
-            )
-        except Exception as e:
-            logger.warning("参数校验详情编码失败：{}", ExceptionTraceFormatter.format(e))
-            return []
 
     async def _record_error(
         self,

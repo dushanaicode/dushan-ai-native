@@ -2,12 +2,12 @@ import json
 from pathlib import Path
 
 import pytest
+from config_factory import ConfigFactory
 from loguru import logger
 
 from framework.common.enums.application_environment_enum import (
     ApplicationEnvironmentEnum,
 )
-from framework.starter_logging.config.log_config_builder import LogConfigBuilder
 from framework.starter_logging.config.log_settings import LogSettings
 from framework.starter_logging.context.log_context import LogContext
 from framework.starter_logging.core.logger_configurator import LoggerConfigurator
@@ -27,22 +27,24 @@ def clear_log_context() -> None:
 def test_log_settings_reject_invalid_file_type() -> None:
     """未定义的日志文件类型不能进入配置。"""
     with pytest.raises(ValueError):
-        LogSettings(file_active_types={"audit"})
+        ConfigFactory.build(LogSettings, "log", file_active_types={"audit"})
 
 
 def test_log_settings_reject_invalid_level() -> None:
     """未定义的日志级别不能进入配置。"""
     with pytest.raises(ValueError):
-        LogSettings(console_level="verbose")
+        ConfigFactory.build(LogSettings, "log", console_level="verbose")
 
 
 def test_configurator_redacts_message_and_injects_request_context(
     tmp_path: Path,
 ) -> None:
     """配置器清理凭据并补入请求、追踪和身份上下文。"""
-    configurator = LoggerConfigurator()
+    configurator = LoggerConfigurator(tmp_path)
     handler_id = None
-    settings = LogSettings(root_dir=str(tmp_path), enable_file_overall=False, console_level="INFO")
+    settings = ConfigFactory.build(
+        LogSettings, "log", root_dir=str(tmp_path), enable_file_overall=False, console_level="INFO"
+    )
     messages: list[str] = []
     request_token = LogContext.begin_request("request-1")
     trace_token = LogContext.bind_trace("trace-1", "span-1")
@@ -111,8 +113,10 @@ def test_configurator_uses_protocol_neutral_client_ip_context() -> None:
 
 def test_warning_file_sink_uses_minimum_level(tmp_path: Path) -> None:
     """警告文件也记录级别更高的错误日志。"""
-    configurator = LoggerConfigurator()
-    settings = LogSettings(
+    configurator = LoggerConfigurator(tmp_path)
+    settings = ConfigFactory.build(
+        LogSettings,
+        "log",
         root_dir=str(tmp_path),
         enable_file_overall=True,
         console_level="NONE",
@@ -137,9 +141,11 @@ def test_warning_file_sink_uses_minimum_level(tmp_path: Path) -> None:
 
 def test_configurator_redacts_exception_trace(tmp_path: Path) -> None:
     """异常堆栈保留诊断类型，同时清理敏感内容。"""
-    configurator = LoggerConfigurator()
+    configurator = LoggerConfigurator(tmp_path)
     handler_id = None
-    settings = LogSettings(root_dir=str(tmp_path), enable_file_overall=False, console_level="INFO")
+    settings = ConfigFactory.build(
+        LogSettings, "log", root_dir=str(tmp_path), enable_file_overall=False, console_level="INFO"
+    )
     messages: list[str] = []
 
     try:
@@ -178,11 +184,15 @@ def test_configurator_redacts_bound_exception_in_serialized_output() -> None:
     assert "super-secret" not in messages[0]
 
 
-def test_configurator_redacts_sensitive_keyword_argument_already_formatted_into_message() -> None:
+def test_configurator_redacts_sensitive_keyword_argument_already_formatted_into_message(
+    tmp_path,
+) -> None:
     """敏感关键字已被格式化进消息时仍会被清理。"""
-    configurator = LoggerConfigurator()
+    configurator = LoggerConfigurator(tmp_path)
     handler_id = None
-    settings = LogSettings(enable_file_overall=False, console_level="NONE")
+    settings = ConfigFactory.build(
+        LogSettings, "log", enable_file_overall=False, console_level="NONE"
+    )
     messages: list[str] = []
 
     try:
@@ -197,9 +207,9 @@ def test_configurator_redacts_sensitive_keyword_argument_already_formatted_into_
     assert messages == ["verification result=***|***\n"]
 
 
-def test_configurator_redacts_non_string_sensitive_arguments_from_message() -> None:
+def test_configurator_redacts_non_string_sensitive_arguments_from_message(tmp_path) -> None:
     """字节串和自定义对象形式的凭据不能绕过脱敏。"""
-    configurator = LoggerConfigurator()
+    configurator = LoggerConfigurator(tmp_path)
     handler_id = None
 
     class CredentialValue:
@@ -207,7 +217,9 @@ def test_configurator_redacts_non_string_sensitive_arguments_from_message() -> N
             """返回用于验证脱敏的对象文本。"""
             return "object-credential-secret"
 
-    settings = LogSettings(enable_file_overall=False, console_level="NONE")
+    settings = ConfigFactory.build(
+        LogSettings, "log", enable_file_overall=False, console_level="NONE"
+    )
     messages: list[str] = []
 
     try:
@@ -232,9 +244,9 @@ def test_configurator_redacts_non_string_sensitive_arguments_from_message() -> N
     assert messages == ["***|***|***\n"]
 
 
-def test_configurator_redacts_sensitive_object_custom_format_and_repr() -> None:
+def test_configurator_redacts_sensitive_object_custom_format_and_repr(tmp_path) -> None:
     """自定义格式化和 repr 不会泄露绑定的敏感对象。"""
-    configurator = LoggerConfigurator()
+    configurator = LoggerConfigurator(tmp_path)
     handler_id = None
 
     class CredentialValue:
@@ -250,7 +262,9 @@ def test_configurator_redacts_sensitive_object_custom_format_and_repr() -> None:
             """返回用于验证脱敏的自定义格式文本。"""
             return "format-credential-secret"
 
-    settings = LogSettings(enable_file_overall=False, console_level="NONE")
+    settings = ConfigFactory.build(
+        LogSettings, "log", enable_file_overall=False, console_level="NONE"
+    )
     messages: list[str] = []
     credential = CredentialValue()
 
@@ -270,8 +284,10 @@ def test_managed_json_sink_redacts_values_added_by_later_patcher(
     tmp_path: Path,
 ) -> None:
     """受管 JSON 输出在后置补丁注入敏感信息后再次脱敏。"""
-    configurator = LoggerConfigurator()
-    settings = LogSettings(
+    configurator = LoggerConfigurator(tmp_path)
+    settings = ConfigFactory.build(
+        LogSettings,
+        "log",
         root_dir=str(tmp_path),
         enable_file_overall=True,
         enable_json_format=True,
@@ -303,7 +319,7 @@ def test_log_directory_creation_failure_is_not_swallowed(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     """日志目录创建失败时明确报错。"""
-    configurator = LoggerConfigurator(default_log_dir=tmp_path)
+    configurator = LoggerConfigurator(base_dir=tmp_path)
 
     def fail_mkdir(*args, **kwargs) -> None:
         """模拟日志目录创建失败。"""
@@ -317,9 +333,11 @@ def test_log_directory_creation_failure_is_not_swallowed(
 
 def test_disabled_file_output_does_not_create_directory(tmp_path: Path) -> None:
     """关闭文件日志后不创建日志目录。"""
-    configurator = LoggerConfigurator()
+    configurator = LoggerConfigurator(tmp_path)
     log_dir = tmp_path / "disabled" / "logs"
-    settings = LogSettings(
+    settings = ConfigFactory.build(
+        LogSettings,
+        "log",
         root_dir=str(log_dir),
         enable_file_overall=False,
         enable_json_format=True,
@@ -336,9 +354,11 @@ def test_disabled_file_output_does_not_create_directory(tmp_path: Path) -> None:
 
 def test_loadtest_mode_disables_text_and_json_files(tmp_path: Path) -> None:
     """压力测试模式同时禁用文本和 JSON 文件日志。"""
-    configurator = LoggerConfigurator()
+    configurator = LoggerConfigurator(tmp_path)
     log_dir = tmp_path / "loadtest" / "logs"
-    settings = LogSettings(
+    settings = ConfigFactory.build(
+        LogSettings,
+        "log",
         root_dir=str(log_dir),
         enable_file_overall=True,
         enable_json_format=True,
@@ -356,8 +376,10 @@ def test_loadtest_mode_disables_text_and_json_files(tmp_path: Path) -> None:
 
 def test_json_file_sink_is_created_when_file_output_is_enabled(tmp_path: Path) -> None:
     """启用结构化文件日志后能够写出 JSON 行。"""
-    configurator = LoggerConfigurator()
-    settings = LogSettings(
+    configurator = LoggerConfigurator(tmp_path)
+    settings = ConfigFactory.build(
+        LogSettings,
+        "log",
         root_dir=str(tmp_path),
         enable_file_overall=True,
         enable_json_format=True,
@@ -384,8 +406,10 @@ def test_failed_file_sink_keeps_stderr_fallback(
     tmp_path: Path,
 ) -> None:
     """文件输出初始化失败时仍能在终端看到脱敏的错误原因。"""
-    configurator = LoggerConfigurator()
-    settings = LogSettings(
+    configurator = LoggerConfigurator(tmp_path)
+    settings = ConfigFactory.build(
+        LogSettings,
+        "log",
         root_dir=str(tmp_path),
         enable_file_overall=True,
         console_level="NONE",
@@ -402,10 +426,11 @@ def test_failed_file_sink_keeps_stderr_fallback(
         return original_add(sink, *args, **kwargs)
 
     monkeypatch.setattr(logger, "add", fail_file_sink)
-    monkeypatch.setattr(LogConfigBuilder, "get_config", lambda **_kwargs: settings)
     try:
         with pytest.raises(OSError, match="file sink unavailable"):
-            LoggingStarter(configurator=configurator).initialize(app_env="test")
+            LoggingStarter(configurator=configurator).initialize(
+                app_env="test", log_settings=settings
+            )
     finally:
         configurator.remove_owned_handlers()
 
@@ -422,11 +447,13 @@ def test_log_directory_preflight_keeps_existing_handler(
     tmp_path: Path,
 ) -> None:
     """目录预检失败不会移除其他调用者的日志输出。"""
-    configurator = LoggerConfigurator()
+    configurator = LoggerConfigurator(tmp_path)
     handler_id = None
     messages: list[str] = []
     handler_id = logger.add(messages.append, format="{message}")
-    settings = LogSettings(
+    settings = ConfigFactory.build(
+        LogSettings,
+        "log",
         root_dir=str(tmp_path),
         enable_file_overall=True,
         console_level="NONE",
@@ -463,8 +490,10 @@ def test_directory_preflight_failure_uses_sanitized_fallback(
     tmp_path: Path,
 ) -> None:
     """目录预检失败的终端提示和堆栈均不暴露凭据。"""
-    configurator = LoggerConfigurator()
-    settings = LogSettings(
+    configurator = LoggerConfigurator(tmp_path)
+    settings = ConfigFactory.build(
+        LogSettings,
+        "log",
         root_dir=str(tmp_path / "logs"),
         enable_file_overall=True,
         console_level="NONE",
@@ -476,10 +505,11 @@ def test_directory_preflight_failure_uses_sanitized_fallback(
         raise PermissionError("password=preflight-secret")
 
     monkeypatch.setattr(Path, "mkdir", fail_mkdir)
-    monkeypatch.setattr(LogConfigBuilder, "get_config", lambda **_kwargs: settings)
     try:
         with pytest.raises(PermissionError, match="preflight-secret"):
-            LoggingStarter(configurator=configurator).initialize(app_env="prod")
+            LoggingStarter(configurator=configurator).initialize(
+                app_env="prod", log_settings=settings
+            )
     finally:
         configurator.remove_owned_handlers()
 
@@ -494,8 +524,10 @@ def test_logging_starter_retries_cleanly_after_sink_installation_failure(
     tmp_path: Path,
 ) -> None:
     """首次文件输出安装失败后可以重新初始化并记录日志。"""
-    configurator = LoggerConfigurator()
-    settings = LogSettings(
+    configurator = LoggerConfigurator(tmp_path)
+    settings = ConfigFactory.build(
+        LogSettings,
+        "log",
         root_dir=str(tmp_path),
         enable_file_overall=True,
         console_level="NONE",
@@ -515,12 +547,11 @@ def test_logging_starter_retries_cleanly_after_sink_installation_failure(
         return original_add(sink, *args, **kwargs)
 
     monkeypatch.setattr(logger, "add", fail_first_file_sink)
-    monkeypatch.setattr(LogConfigBuilder, "get_config", lambda **_kwargs: settings)
     starter = LoggingStarter(configurator=configurator)
     try:
         with pytest.raises(OSError, match="first file sink failed"):
-            starter.initialize(app_env="test")
-        starter.initialize(app_env="test")
+            starter.initialize(app_env="test", log_settings=settings)
+        starter.initialize(app_env="test", log_settings=settings)
         logger.error("retry event")
     finally:
         configurator.remove_owned_handlers()

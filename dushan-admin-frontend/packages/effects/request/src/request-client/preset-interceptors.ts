@@ -50,18 +50,21 @@ export const authenticateResponseInterceptor = ({
   doRefreshToken,
   enableRefreshToken,
   formatToken,
+  isAuthError = (error: any) => error?.response?.status === 401,
 }: {
   client: RequestClient;
   doReAuthenticate: () => Promise<void>;
   doRefreshToken: () => Promise<string>;
   enableRefreshToken: boolean;
   formatToken: (token: string) => null | string;
+  /** 应用可按自己的业务响应协议判断登录失效。 */
+  isAuthError?: (error: any) => boolean;
 }): ResponseInterceptorConfig => {
   return {
     rejected: async (error) => {
-      const { config, response } = error;
-      // 如果不是 401 错误，直接抛出异常
-      if (response?.status !== 401) {
+      const { config } = error;
+      // 由应用协议识别登录失效，其他错误继续交给后续处理器。
+      if (!isAuthError(error)) {
         throw error;
       }
       // 判断是否启用了 refreshToken 功能
@@ -70,6 +73,8 @@ export const authenticateResponseInterceptor = ({
         await doReAuthenticate();
         throw error;
       }
+      // 排队等待刷新的请求也只能重试一次。
+      config.__isRetryRequest = true;
       // 如果正在刷新 token，则将请求加入队列，等待刷新完成
       if (client.isRefreshing) {
         return new Promise((resolve) => {
@@ -82,11 +87,10 @@ export const authenticateResponseInterceptor = ({
 
       // 标记开始刷新 token
       client.isRefreshing = true;
-      // 标记当前请求为重试请求，避免无限循环
-      config.__isRetryRequest = true;
 
       try {
         const newToken = await doRefreshToken();
+        config.headers.Authorization = formatToken(newToken);
 
         // 处理队列中的请求
         client.refreshTokenQueue.forEach((callback) => callback(newToken));

@@ -19,5 +19,19 @@
     "repeated_requests": "Repeated request, please try again later",
     "demo_deny": "Demo mode: write operations are disabled",
     "signature_mismatch": "Signature mismatch"
+  },
+  "validation": {
+    "required": "This field is required",
+    "invalid_type": "The value has an invalid type",
+    "invalid_format": "The format is invalid",
+    "invalid_choice": "Select an allowed value",
+    "extra_field": "This field is not allowed",
+    "too_short": "The minimum length is {0}",
+    "too_long": "The maximum length is {0}",
+    "greater_than": "The value must be greater than {0}",
+    "greater_than_equal": "The value must be at least {0}",
+    "less_than": "The value must be less than {0}",
+    "less_than_equal": "The value must be at most {0}",
+    "invalid_value": "The value is invalid"
   }
 }

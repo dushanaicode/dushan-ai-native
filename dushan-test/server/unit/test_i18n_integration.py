@@ -9,7 +9,7 @@ from framework.common.exception.constants.global_error_code_constants import (
 )
 from framework.common.exception.exceptions.configuration_exception import ConfigurationException
 from framework.common.exception.registry.error_code_registry import ErrorCodeRegistry
-from framework.starter_config.provider.bootstrap_config_provider import BootstrapConfigError
+from framework.starter_config.provider.bootstrap_config_error import BootstrapConfigError
 from server.bootstrap.bootstrapper import BootstrapError
 from server.starter_server import create_app
 
@@ -40,18 +40,18 @@ def test_application_lifespan_injects_translator_and_translates_http_errors(conf
     with TestClient(app, raise_server_exceptions=False) as client:
         assert handler.translator is not None
         gateway = client.get("/gateway-failure", headers={"Accept-Language": "en-US"})
-        assert gateway.status_code == 502
+        assert gateway.status_code == 200
         assert gateway.json()["code"] == GlobalErrorCodeConstants.BAD_GATEWAY.code
-        assert gateway.json()["msg"] == "Bad gateway"
+        assert gateway.json()["message"] == "Bad gateway"
         request = client.get("/bad-request", headers={"Accept-Language": "en-US"})
-        assert request.status_code == 400
-        assert request.json()["msg"] == "Invalid request parameters"
+        assert request.status_code == 200
+        assert request.json()["message"] == "Invalid request parameters"
         forbidden = client.get("/forbidden", headers={"Accept-Language": "en-US"})
-        assert forbidden.status_code == 403
-        assert forbidden.json()["msg"] == "No permission for this operation"
+        assert forbidden.status_code == 200
+        assert forbidden.json()["message"] == "No permission for this operation"
         missing = client.get("/no-such-route", headers={"Accept-Language": "en-US"})
-        assert missing.status_code == 404
-        assert missing.json()["msg"] == "Request not found"
+        assert missing.status_code == 200
+        assert missing.json()["message"] == "Request not found"
         assert client.get("/health").status_code == 200
     assert handler.translator is None
 
@@ -70,8 +70,8 @@ def test_disabled_i18n_preserves_final_http_detail_without_loading_resources(con
     add_error_routes(app)
     with TestClient(app, raise_server_exceptions=False) as client:
         response = client.get("/bad-request", headers={"Accept-Language": "en-US"})
-        assert response.status_code == 400
-        assert response.json()["msg"] == "请求不正确"
+        assert response.status_code == 200
+        assert response.json()["message"] == "请求不正确"
 
 
 @pytest.mark.parametrize("vary", [None, "Accept-Encoding", "accept-language", "*"])
@@ -88,7 +88,7 @@ def test_localized_errors_preserve_headers_and_declare_language_variation(config
 
     with TestClient(app) as client:
         response = client.get("/challenge", headers={"Accept-Language": "en-US"})
-        assert response.status_code == 401
+        assert response.status_code == 200
         assert response.headers["www-authenticate"] == "Bearer"
         assert response.headers["retry-after"] == "3"
         tokens = [value.strip().lower() for value in response.headers["vary"].split(",")]
@@ -109,7 +109,7 @@ def test_configuration_alone_adds_french_with_relative_resource_root(config_dir)
                 "supported_locales": ["fr-FR"],
                 "include_builtin": False,
                 "validate_translations": False,
-                "resource_roots": [{"path": "custom", "scope": "framework"}],
+                "resource_roots": [{"path": "custom", "scope": "framework", "required": True}],
             }
         }
     )
@@ -122,15 +122,17 @@ def test_configuration_alone_adds_french_with_relative_resource_root(config_dir)
     add_error_routes(app)
     with TestClient(app, raise_server_exceptions=False) as client:
         response = client.get("/gateway-failure", headers={"Accept-Language": "fr"})
-        assert response.status_code == 502
-        assert response.json()["msg"] == "Passerelle indisponible"
+        assert response.status_code == 200
+        assert response.json()["message"] == "Passerelle indisponible"
         catalog = app.state.bootstrap.exception_handler.translator.catalog
         assert set(catalog.bundles) == {"fr-FR"}
 
 
 def test_configuration_can_require_business_translations(config_dir):
     """业务模块通过配置声明必需键，缺语言阻止启动，补资源后无需改框架。"""
-    root = config_dir({"i18n": {"resource_roots": [{"path": "account", "scope": "account"}]}})
+    root = config_dir(
+        {"i18n": {"resource_roots": [{"path": "account", "scope": "account", "required": True}]}}
+    )
     resources = root / "account"
     resources.mkdir()
     (resources / "en-US.json").write_text('{"account.greeting":"Welcome"}', encoding="utf-8")
@@ -169,7 +171,7 @@ def test_i18n_environment_configuration_overrides_yaml(config_dir):
         assert options.cache_size == 0
         assert options.log_missing is False
         response = client.get("/gateway-failure")
-        assert response.json()["msg"] == "Bad gateway"
+        assert response.json()["message"] == "Bad gateway"
 
 
 @pytest.mark.parametrize(
@@ -177,7 +179,7 @@ def test_i18n_environment_configuration_overrides_yaml(config_dir):
     [
         {"supported_locales": ["zh-CN", "en-US", "fr-FR"]},
         {"include_builtin": False},
-        {"resource_roots": [{"path": "absent", "scope": "custom"}]},
+        {"resource_roots": [{"path": "absent", "scope": "custom", "required": True}]},
     ],
 )
 def test_strict_i18n_failure_prevents_startup_and_releases_previous_resources(config_dir, i18n):
@@ -207,7 +209,7 @@ def test_validation_warning_allows_incomplete_additional_language(config_dir):
     with TestClient(app, raise_server_exceptions=False) as client:
         assert client.get("/health").status_code == 200
         response = client.get("/bad-request", headers={"Accept-Language": "fr-FR"})
-        assert response.json()["msg"] == "请求参数不正确"
+        assert response.json()["message"] == "请求参数不正确"
 
 
 @pytest.mark.parametrize("i18n", [{"unknown_option": True}, {"reload_interval": 0}])
@@ -230,7 +232,11 @@ def test_multiple_applications_keep_translations_isolated_and_registry_unchanged
     def create(name):
         return create_app(
             base_dir=root,
-            environ={"I18N_RESOURCE_ROOTS": json.dumps([{"path": name, "scope": "framework"}])},
+            environ={
+                "I18N_RESOURCE_ROOTS": json.dumps(
+                    [{"path": name, "scope": "framework", "required": True}]
+                )
+            },
         )
 
     first, second = create("first"), create("second")
@@ -241,16 +247,16 @@ def test_multiple_applications_keep_translations_isolated_and_registry_unchanged
         with TestClient(second, raise_server_exceptions=False) as b:
             assert first_translator is not second.state.bootstrap.exception_handler.translator
             assert (
-                a.get("/gateway-failure", headers={"Accept-Language": "en-US"}).json()["msg"]
+                a.get("/gateway-failure", headers={"Accept-Language": "en-US"}).json()["message"]
                 == "Gateway for first"
             )
             assert (
-                b.get("/gateway-failure", headers={"Accept-Language": "en-US"}).json()["msg"]
+                b.get("/gateway-failure", headers={"Accept-Language": "en-US"}).json()["message"]
                 == "Gateway for second"
             )
         assert second.state.bootstrap.exception_handler.translator is None
         assert (
-            a.get("/gateway-failure", headers={"Accept-Language": "en-US"}).json()["msg"]
+            a.get("/gateway-failure", headers={"Accept-Language": "en-US"}).json()["message"]
             == "Gateway for first"
         )
     assert first.state.bootstrap.exception_handler.translator is None
@@ -269,7 +275,7 @@ def test_configured_http_hot_reload_retains_last_valid_translation(
             "i18n": {
                 "hot_reload": hot_reload,
                 "reload_interval": 1,
-                "resource_roots": [{"path": "custom", "scope": "framework"}],
+                "resource_roots": [{"path": "custom", "scope": "framework", "required": True}],
             }
         }
     )
@@ -281,16 +287,16 @@ def test_configured_http_hot_reload_retains_last_valid_translation(
     add_error_routes(app)
     with TestClient(app, raise_server_exceptions=False) as client:
         headers = {"Accept-Language": "en-US"}
-        assert client.get("/gateway-failure", headers=headers).json()["msg"] == "Before"
+        assert client.get("/gateway-failure", headers=headers).json()["message"] == "Before"
         resource.write_text('{"exception.bad_gateway":"After"}', encoding="utf-8")
         clock[0] += 2
         expected = "After" if hot_reload else "Before"
-        assert client.get("/gateway-failure", headers=headers).json()["msg"] == expected
+        assert client.get("/gateway-failure", headers=headers).json()["message"] == expected
         resource.write_text("{", encoding="utf-8")
         clock[0] += 2
-        assert client.get("/gateway-failure", headers=headers).json()["msg"] == expected
+        assert client.get("/gateway-failure", headers=headers).json()["message"] == expected
         resource.unlink()
         clock[0] += 2
-        assert client.get("/gateway-failure", headers=headers).json()["msg"] == (
+        assert client.get("/gateway-failure", headers=headers).json()["message"] == (
             "Bad gateway" if hot_reload else "Before"
         )

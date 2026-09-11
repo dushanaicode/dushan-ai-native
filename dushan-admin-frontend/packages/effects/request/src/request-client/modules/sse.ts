@@ -91,6 +91,16 @@ class SSE {
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
+    try {
+      await requestOptions?.onResponse?.(response);
+    } catch (error) {
+      try {
+        if (!response.bodyUsed) await response.body?.cancel();
+      } catch {
+        console.warn('SSE响应拒绝后未能关闭流');
+      }
+      throw error;
+    }
 
     const reader = response.body?.getReader();
     const decoder = new TextDecoder();
@@ -98,17 +108,39 @@ class SSE {
     if (!reader) {
       throw new Error('No reader');
     }
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) {
-        decoder.decode(new Uint8Array(0), { stream: false });
-        requestOptions?.onEnd?.();
-        reader.releaseLock?.();
-        break;
+    let ended = false;
+    let failed = false;
+    let failure: unknown;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          ended = true;
+          const tail = decoder.decode();
+          if (tail) requestOptions?.onMessage?.(tail);
+          requestOptions?.onEnd?.();
+          break;
+        }
+        const content = decoder.decode(value, { stream: true });
+        requestOptions?.onMessage?.(content);
       }
-      const content = decoder.decode(value, { stream: true });
-      requestOptions?.onMessage?.(content);
+    } catch (error) {
+      failed = true;
+      failure = error;
     }
+    try {
+      if (!ended) await reader.cancel();
+    } catch (error) {
+      if (failed) {
+        console.warn('SSE读取失败后未能关闭流');
+      } else {
+        failed = true;
+        failure = error;
+      }
+    } finally {
+      reader.releaseLock();
+    }
+    if (failed) throw failure;
   }
 }
 
@@ -122,12 +154,7 @@ function safeJoinUrl(baseUrl: string | undefined, url: string): string {
     return url;
   }
 
-  // 如果 baseUrl 是完整 URL，就用 new URL
-  if (/^https?:\/\//i.test(baseUrl)) {
-    return new URL(url, baseUrl).toString();
-  }
-
-  // 否则，当作路径拼接
+  // 与普通请求一致，保留baseURL中的API路径前缀。
   return `${baseUrl.replace(/\/+$/, '')}/${url.replace(/^\/+/, '')}`;
 }
 

@@ -2,13 +2,8 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from framework.common.enums.log_level_enum import LogLevelEnum
 from framework.starter_logging.enums.log_file_type_enum import LogFileTypeEnum
-from framework.starter_logging.enums.log_level_enum import LogLevelEnum
-
-DEFAULT_LOG_ROTATION_SIZE = "20 MB"
-DEFAULT_INFO_RETENTION = "7 days"
-DEFAULT_WARNING_RETENTION = "15 days"
-DEFAULT_ERROR_RETENTION = "30 days"
 
 
 class LogSettings(BaseModel):
@@ -19,45 +14,25 @@ class LogSettings(BaseModel):
     root_dir 是实际日志目录；测试必须关闭文件输出或显式使用 Temp 内的路径。
     """
 
-    root_dir: str | None = Field(default=None, description="日志输出根目录。为空时使用 server/logs")
+    root_dir: str = Field(
+        min_length=1, pattern=r"\S", description="日志目录；相对路径以配置目录为基准"
+    )
     enable_file_overall: bool = Field(
-        default=True, description="是否启用文件日志总开关。如果为False，所有文件日志都不会写入。"
+        description="是否启用文件日志总开关。如果为False，所有文件日志都不会写入。"
     )
-    enable_json_format: bool = Field(default=False, description="是否启用 JSON 结构化日志")
-    loadtest_mode: bool = Field(
-        default=False,
-        description="压力测试模式：关闭文件日志写入并提升控制台日志级别。",
-    )
-    console_level: LogLevelEnum = Field(
-        default=LogLevelEnum.DEBUG, description="控制台输出的最低级别"
-    )
-    file_active_types: set[LogFileTypeEnum] = Field(
-        default_factory=lambda: {LogFileTypeEnum.WARNING, LogFileTypeEnum.ERROR},
-        description="激活的文件日志类型集合。",
-    )
-    rotation_size: str = Field(
-        default=DEFAULT_LOG_ROTATION_SIZE, min_length=1, description="日志轮转大小"
-    )
-    enqueue: bool = Field(default=True, description="是否启用异步写入")
-    compression: str | None = Field(default="zip", description="日志压缩格式，None 表示不压缩")
-    file_level_info: LogLevelEnum = Field(
-        default=LogLevelEnum.INFO, description="Info 日志文件的最低记录级别"
-    )
-    retention_info: str = Field(
-        default=DEFAULT_INFO_RETENTION, min_length=1, description="Info 日志保留时间"
-    )
-    file_level_warning: LogLevelEnum = Field(
-        default=LogLevelEnum.WARNING, description="Warning 日志文件的最低记录级别"
-    )
-    retention_warn: str = Field(
-        default=DEFAULT_WARNING_RETENTION, min_length=1, description="Warning 日志保留时间"
-    )
-    file_level_error: LogLevelEnum = Field(
-        default=LogLevelEnum.ERROR, description="Error 日志文件的最低记录级别"
-    )
-    retention_error: str = Field(
-        default=DEFAULT_ERROR_RETENTION, min_length=1, description="Error 日志保留时间"
-    )
+    enable_json_format: bool = Field(description="是否启用 JSON 结构化日志")
+    loadtest_mode: bool = Field(description="压力测试模式：关闭文件日志写入并提升控制台日志级别。")
+    console_level: LogLevelEnum = Field(description="控制台输出的最低级别")
+    file_active_types: set[LogFileTypeEnum] = Field(description="激活的文件日志类型集合。")
+    rotation_size: str = Field(min_length=1, description="日志轮转大小")
+    enqueue: bool = Field(description="是否启用异步写入")
+    compression: str | None = Field(description="日志压缩格式，None 表示不压缩")
+    file_level_info: LogLevelEnum = Field(description="Info 日志文件的最低记录级别")
+    retention_info: str = Field(min_length=1, description="Info 日志保留时间")
+    file_level_warning: LogLevelEnum = Field(description="Warning 日志文件的最低记录级别")
+    retention_warn: str = Field(min_length=1, description="Warning 日志保留时间")
+    file_level_error: LogLevelEnum = Field(description="Error 日志文件的最低记录级别")
+    retention_error: str = Field(min_length=1, description="Error 日志保留时间")
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
