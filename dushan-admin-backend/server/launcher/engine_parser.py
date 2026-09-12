@@ -7,7 +7,7 @@ from server.enums.server_engine_enum import ServerEngineEnum
 
 def parse_server_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
     """解析命令行中的服务器类型、运行环境和配置目录。"""
-    parser = argparse.ArgumentParser(description="启动渡山后端服务")
+    parser = argparse.ArgumentParser(description="启动 dushan-ai-native 后端服务")
     parser.add_argument(
         "--server",
         type=ServerEngineEnum,

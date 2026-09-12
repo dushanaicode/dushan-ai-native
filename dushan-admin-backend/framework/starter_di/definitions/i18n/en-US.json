@@ -1,0 +1,18 @@
+{
+  "di.error": "Dependency injection failed",
+  "di.not_ready": "Dependency container is not ready or has closed",
+  "di.duplicate_binding": "Conflicting dependency bindings",
+  "di.circular_dependency": "Circular dependency detected",
+  "di.missing_binding": "An explicit dependency binding is missing",
+  "di.invalid_provider": "Component does not implement its provider interface",
+  "di.invalid_definition": "Invalid dependency component definition",
+  "di.state_not_found": "Required runtime state is not registered",
+  "di.invalid_state": "Runtime state has an invalid type",
+  "di.invalid_lifecycle": "Component resources have no valid disposal scope",
+  "di.context_missing": "The current execution has no application context",
+  "di.context_expired": "The execution context has expired",
+  "di.context_mismatch": "The service and execution belong to different applications",
+  "di.lookup_disabled": "External service lookup is disabled for this application",
+  "di.drain_timeout": "Application execution drain exceeded its cooperative deadline",
+  "di.task_failed": "An application background task failed"
+}

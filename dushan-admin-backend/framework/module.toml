@@ -1,0 +1,16 @@
+name = "framework"
+package = "framework"
+scan_roots = ["common.exception.constants", "starter_scanner.exception", "starter_di.exception"]
+definitions = []
+requires = []
+required_message_keys = []
+
+[[resource_roots]]
+path = "starter_scanner/definitions/i18n"
+scope = "scanner"
+required = true
+
+[[resource_roots]]
+path = "starter_di/definitions/i18n"
+scope = "di"
+required = true

@@ -3,6 +3,7 @@ from contextlib import AsyncExitStack, asynccontextmanager
 
 from server.bootstrap.context import AppBootstrapContext
 from server.bootstrap.step_registry import APP_BOOTSTRAP_STEPS, BootstrapStepSpec
+from server.bootstrap.step_runner import BootstrapStepRunner
 
 
 class BootstrapError(RuntimeError):
@@ -20,19 +21,22 @@ async def bootstrap_app(
     """
     selected = APP_BOOTSTRAP_STEPS if steps is None else steps
     try:
-        # ponytail: 已接配置、日志和 i18n；加入数据库等资源时再补清理超时与重复取消处理。
         async with AsyncExitStack() as resources:
             for step in selected:
                 try:
-                    await resources.enter_async_context(step.handler(ctx))
+                    await resources.enter_async_context(BootstrapStepRunner.run(ctx, step))
                 except Exception as error:
                     raise BootstrapError(f"启动步骤「{step.name}」失败") from error
+            if ctx.definitions is not None and ctx.definitions.application_context is not None:
+                ctx.definitions.application_context.mark_ready()
             ctx.ready = True
-            ctx.logger.info("服务已就绪：{}，环境：{}", ctx.settings.name, ctx.settings.env.value)
+            ctx.logger.info("服务已就绪")
             try:
                 yield
             finally:
                 ctx.ready = False
                 ctx.logger.info("服务正在关闭")
+                if ctx.definitions is not None and ctx.definitions.application_context is not None:
+                    await ctx.definitions.application_context.drain()
     finally:
         ctx.ready = False

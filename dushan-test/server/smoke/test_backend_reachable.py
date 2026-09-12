@@ -10,6 +10,7 @@ from urllib.error import URLError
 from urllib.request import urlopen
 
 import pytest
+from config_factory import ConfigFactory
 
 BACKEND_ROOT = Path(__file__).resolve().parents[3] / "dushan-admin-backend"
 
@@ -17,11 +18,14 @@ BACKEND_ROOT = Path(__file__).resolve().parents[3] / "dushan-admin-backend"
 @pytest.mark.smoke
 @pytest.mark.parametrize("engine", ["uvicorn", "granian"])
 def test_real_server_health(engine, config_dir, tmp_path):
-    """启动真实服务，检查 /health 是否返回就绪。"""
+    """按双 worker 配置启动，验证就绪、实际输出顺序及横幅不重复。"""
     with socket.socket() as reservation:
         reservation.bind(("127.0.0.1", 0))
         port = reservation.getsockname()[1]
-    root = config_dir({"server": {"port": port, "reload": False}})
+    name = ConfigFactory.values()["server"]["name"]
+    root = config_dir(
+        {"server": {"name": name, "port": port, "reload": False}, engine: {"workers": 2}}
+    )
     env = dict(
         os.environ,
         SERVER_ENV="test",
@@ -82,3 +86,27 @@ def test_real_server_health(engine, config_dir, tmp_path):
                 else:
                     os.killpg(process.pid, signal.SIGTERM)
                 process.wait(timeout=10)
+
+    text = log_path.read_text(encoding="utf-8")
+    logo = (
+        (BACKEND_ROOT / "framework/starter_web/banner/assets/logo.txt")
+        .read_text(encoding="utf-8")
+        .strip()
+    )
+    assert text.startswith(logo + "\n")
+    assert text.count(logo) == 1
+    worship = (
+        (BACKEND_ROOT / "framework/starter_web/banner/assets/worship.txt")
+        .read_text(encoding="utf-8")
+        .strip()
+    )
+    assert text.count(worship) == 1
+    engine_message = "Starting granian" if engine == "granian" else "Started parent process"
+    assert text.index(worship) < text.index(engine_message)
+    before_engine = text[: text.index(engine_message)]
+    assert all(label not in before_engine for label in ("引擎：", "环境：", "监听地址："))
+    assert "应用初始化完成：dushan-ai-native" in text
+    assert text.index("服务已就绪") < text.index("应用初始化完成：dushan-ai-native")
+    for segment in text.split("应用初始化完成：")[1:]:
+        summary = segment.split("监听地址：", 1)[0]
+        assert summary.count("引擎：") == 1 and summary.count("环境：") == 1

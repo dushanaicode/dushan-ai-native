@@ -3,7 +3,7 @@
 
 # ==================== 应用服务配置 ====================
 server:
-  name: 渡山 AI Native # 应用名称，显示在启动日志和接口文档中
+  name: dushan-ai-native # 应用名称，显示在启动摘要和接口文档中
   version: "0.0.0" # 应用版本，供健康检查和接口文档使用
   env: dev # 默认环境；--env 优先于 SERVER_ENV，再采用此值
   engine: granian # 默认 HTTP 引擎；--server 优先于 SERVER_ENGINE，再采用此值
@@ -34,6 +34,48 @@ log:
   retention_warn: "15 days" # warning 文件保留时间
   file_level_error: ERROR # error 文件的最低日志级别
   retention_error: "30 days" # error 文件保留时间
+
+# ==================== 启动横幅配置 ====================
+banner:
+  enabled: true # 展示总开关；常规生命周期日志仍由 log 配置控制
+  show_logo: true # 显示完整 DUSHAN / AI ADMIN / NO BUG 字符横幅
+  show_worship: true # 显示参考实现中的完整祈福图案，可按需关闭
+  show_startup_info: true # 显示应用版本、环境、监听地址及已开启的接口文档入口
+  author: DUSHAN # 展示作者，空字符串表示不显示
+  documentation_url: "" # 可选项目文档站地址；空字符串表示不显示，不内置外部站点链接
+
+# ==================== 配置模型与运行覆盖 ====================
+config:
+  models: {} # 模块默认值：{account: {enabled: true}}；模型通过自身环境前缀覆盖字段
+  source_order: [environment, memory, external, file, yaml] # 优先级从高到低；模型/字段可显式收紧
+  files: [] # [{path: config-overrides.yaml, required: true}]；后列文件覆盖先列同名键
+  reload_enabled: false # 显式内存/文件/外部快照刷新；不启动后台监听线程
+  max_source_bytes: 1048576 # 单个附加文件读取上限，单位字节
+  max_source_items: 10000 # 每份展开配置的最大键数，防止循环或过大输入
+
+# ==================== 依赖注入容器 ====================
+di:
+  enabled: true # false 不评估 DI 条件、不创建组件；配置模型与错误码仍独立可用
+  default_scope: singleton # 未在装饰器显式指定时使用；可选 singleton、transient
+  hook_timeout_seconds: 30.0 # 异步生命周期协作取消期限，不能强制终止阻塞用户代码
+  lookup_enabled: true # 开放 get_bean；关闭后构造/字段/HTTP 参数注入仍可使用
+  automatic_context_binding: true # HTTP/WebSocket 入口自动绑定上下文；关闭后须显式建立执行边界
+  drain_timeout_seconds: 30.0 # 超时后协作取消受管任务，仍等实际执行结束再释放依赖
+  metrics_enabled: true # 关闭可选解析计时和计数，不关闭必要错误与资源检查
+
+# ==================== 模块声明配置 ====================
+modules:
+  packages: [framework] # 允许定位的已安装普通包，各自提供 module.toml；不会执行声明包
+  enabled: [framework] # 按声明 name 启用，[] 表示不启用模块；必要依赖必须同时显式启用
+
+# ==================== Python 定义扫描 ====================
+scanner:
+  enabled: true # 仅控制自动遍历；模块声明、语言资源与 module.toml 的显式 definitions 独立加载
+  component_types: null # null 全部；[] 不导入候选；可选 component、error_code、config_model
+  include_packages: null # null 全部；[] 不扫描；完整包前缀，例如 module_account.definitions
+  exclude_packages: [] # 优先于 include，排除包及其全部子模块；环境列表使用 JSON 数组
+  diagnostics_enabled: true # 开启分阶段耗时、跳过原因与慢导入统计；不改变来源校验
+  diagnostic_limit: 10 # 跳过样例和慢模块各自最多保留多少项（1–100）
 
 # ==================== 国际化配置 ====================
 # 环境变量使用 I18N_ 前缀，如 I18N_DEFAULT_LOCALE=en-US。

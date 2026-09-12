@@ -8,6 +8,7 @@ sys.dont_write_bytecode = True
 
 from framework.starter_config.provider.bootstrap_config_error import BootstrapConfigError
 from framework.starter_config.provider.bootstrap_config_provider import BootstrapConfigProvider
+from framework.starter_web.banner.banner_application_runner import BannerApplicationRunner
 from server.config.application_settings import ApplicationSettings
 from server.enums.server_engine_enum import ServerEngineEnum
 from server.launcher.engine_parser import parse_server_arguments
@@ -26,6 +27,7 @@ def run_server(argv=None) -> int:
         configuration = provider.get_config(ApplicationSettings)
         settings = configuration.server
         engine = args.server if args.server is not None else settings.engine
+        BannerApplicationRunner(configuration.banner).print_startup_banner()
         if engine is ServerEngineEnum.GRANIAN:
             command = build_granian_cmd(settings, configuration.granian)
         else:
@@ -50,11 +52,6 @@ def run_server(argv=None) -> int:
             "PYTHONIOENCODING": "utf-8",
         }
     )
-    print(
-        f"启动 {settings.name}，引擎：{engine.value}，环境：{settings.env.value}",
-        flush=True,
-    )
-    print(f"监听地址：http://{settings.host}:{settings.port}", flush=True)
     try:
         result = subprocess.run(command, cwd=BACKEND_ROOT, env=child_env, check=False)
         if result.returncode:

@@ -1,0 +1,7 @@
+{
+  "scanner.error": "Component scanning failed",
+  "scanner.config_error": "Invalid scanner configuration",
+  "scanner.missing_metadata": "Invalid component metadata",
+  "scanner.module_import_error": "Module import failed",
+  "scanner.security_error": "Scan source does not match its declaration"
+}

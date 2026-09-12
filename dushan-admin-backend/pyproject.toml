@@ -1,7 +1,7 @@
 [project]
 name = "dushan-admin-backend"
 version = "0.0.0"
-description = "渡山 AI Native 后端启动骨架"
+description = "dushan-ai-native 后端启动骨架"
 requires-python = ">=3.12,<3.13"
 license = "MIT"
 dynamic = ["dependencies"]

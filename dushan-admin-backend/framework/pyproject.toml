@@ -1,7 +1,7 @@
 [project]
 name = "framework"
 version = "0.0.0"
-description = "渡山 AI Native 公共框架与基础组件"
+description = "dushan-ai-native 公共框架与基础组件"
 requires-python = ">=3.12,<3.13"
 license = "MIT"
 dependencies = [
@@ -20,6 +20,8 @@ dependencies = [
     # 受限表达式渲染，以及 Windows 等无系统时区库环境的日期工具。
     "Jinja2==3.1.6",
     "tzdata==2026.3",
+    # 显式依赖绑定、作用域及多实现集合；容器按应用独立创建。
+    "injector==0.24.0",
 ]
 
 [tool.poetry]

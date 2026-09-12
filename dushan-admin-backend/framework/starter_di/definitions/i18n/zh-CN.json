@@ -1,0 +1,18 @@
+{
+  "di.error": "依赖注入失败",
+  "di.not_ready": "依赖容器尚未就绪或已关闭",
+  "di.duplicate_binding": "依赖接口绑定冲突",
+  "di.circular_dependency": "依赖关系存在循环",
+  "di.missing_binding": "缺少显式依赖绑定",
+  "di.invalid_provider": "组件未实现声明的 Provider 接口",
+  "di.invalid_definition": "依赖组件声明无效",
+  "di.state_not_found": "必需运行状态未注册",
+  "di.invalid_state": "运行状态值类型不匹配",
+  "di.invalid_lifecycle": "组件生命周期缺少有效释放边界",
+  "di.context_missing": "当前执行未绑定应用上下文",
+  "di.context_expired": "执行上下文已过期",
+  "di.context_mismatch": "服务与当前执行属于不同应用",
+  "di.lookup_disabled": "应用已关闭外部服务获取入口",
+  "di.drain_timeout": "业务执行排空超过协作期限",
+  "di.task_failed": "应用后台任务执行失败"
+}

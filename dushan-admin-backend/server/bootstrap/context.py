@@ -14,8 +14,14 @@ from framework.common.page.config.page_settings import PageSettings
 from framework.common.response.config.response_settings import ResponseSettings
 from framework.common.response.core.middleware_result import MiddlewareResult
 from framework.common.utils.el.expression_utils import ExpressionUtils
+from framework.starter_config.provider.bootstrap_config_provider import BootstrapConfigProvider
+from framework.starter_di.config.di_settings import DiSettings
 from framework.starter_logging.config.log_settings import LogSettings
 from framework.starter_logging.starter.logging_starter import LoggingStarter
+from framework.starter_module.module_settings import ModuleSettings
+from framework.starter_scanner.config.scanner_config import ScannerConfig
+from framework.starter_web.config.banner_settings import BannerSettings
+from server.bootstrap.application_definitions import ApplicationDefinitions
 from server.config.server.server_settings import ServerSettings
 
 if TYPE_CHECKING:
@@ -38,6 +44,12 @@ class AppBootstrapContext:
     middleware_result: MiddlewareResult
     date_utils: DateUtils
     expression_utils: ExpressionUtils
+    banner_settings: BannerSettings
+    module_settings: ModuleSettings
+    scanner_config: ScannerConfig
+    bootstrap_config: BootstrapConfigProvider
+    di_settings: DiSettings
+    definitions: ApplicationDefinitions | None = None
     ready: bool = False
     logging_owner: str = field(default_factory=lambda: uuid4().hex)
     logger: "Logger" = field(init=False)

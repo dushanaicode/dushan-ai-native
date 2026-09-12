@@ -1,0 +1,7 @@
+{
+  "scanner.error": "扫描器异常",
+  "scanner.config_error": "扫描器配置错误",
+  "scanner.missing_metadata": "组件元数据非法",
+  "scanner.module_import_error": "模块导入失败",
+  "scanner.security_error": "扫描来源不符合声明"
+}

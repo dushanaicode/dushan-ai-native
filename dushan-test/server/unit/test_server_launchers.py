@@ -1,4 +1,5 @@
 import subprocess
+from importlib.resources import files
 
 import pytest
 from config_factory import ConfigFactory
@@ -16,6 +17,7 @@ from server.launcher.uvicorn_launcher import build_uvicorn_cmd
 def test_default_engine_is_granian():
     assert parse_server_arguments([]).server is None
     assert ConfigFactory.build(ServerSettings, "server").engine is ServerEngineEnum.GRANIAN
+    assert ConfigFactory.build(ServerSettings, "server").name == "dushan-ai-native"
 
 
 @pytest.mark.parametrize(
@@ -73,6 +75,40 @@ def test_invalid_config_does_not_create_a_process(config_dir, monkeypatch):
         entry.subprocess, "run", lambda *a, **k: pytest.fail("非法配置不应启动子进程")
     )
     assert entry.run_server(["--config-dir", str(root)]) == 2
+
+
+@pytest.mark.parametrize("engine", ["granian", "uvicorn"])
+@pytest.mark.parametrize("enabled", [False, True])
+def test_launcher_prints_full_banner_without_early_runtime_details(
+    config_dir, monkeypatch, capsys, engine, enabled
+):
+    """引擎启动前只输出完整图案，运行信息留到成功初始化后。"""
+    root = config_dir({"banner": {"enabled": enabled}, "log": {"console_level": "NONE"}})
+    logo = (
+        files("framework.starter_web.banner")
+        .joinpath("assets/logo.txt")
+        .read_text(encoding="utf-8")
+        .strip()
+    )
+    calls = []
+
+    def run(command, **kwargs):
+        output = capsys.readouterr().out
+        assert all(
+            label not in output for label in ("引擎：", "环境：", "监听地址：", "应用初始化完成")
+        )
+        if enabled:
+            assert output.startswith(logo + "\n")
+            assert output.count(logo) == 1
+            assert "_ooOoo_" in output
+        else:
+            assert output == ""
+        calls.append(command)
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(entry.subprocess, "run", run)
+    assert entry.run_server(["--server", engine, "--config-dir", str(root)]) == 0
+    assert len(calls) == 1
 
 
 def test_child_failure_is_not_reported_as_success(config_dir, monkeypatch):

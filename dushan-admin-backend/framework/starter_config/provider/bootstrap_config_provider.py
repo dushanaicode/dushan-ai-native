@@ -10,6 +10,7 @@ from pydantic import BaseModel, ValidationError
 from framework.common.enums.application_environment_enum import ApplicationEnvironmentEnum
 from framework.starter_config.provider.bootstrap_config_error import BootstrapConfigError
 from framework.starter_config.provider.unique_key_loader import UniqueKeyLoader
+from framework.starter_config.source.config_values import ConfigValues
 
 Settings = TypeVar("Settings", bound=BaseModel)
 
@@ -53,7 +54,7 @@ class BootstrapConfigProvider:
         root = Path(base_dir).resolve()
         process_env = dict(os.environ if environ is None else environ)
         values = cls._read_yaml(root / "application.yaml", required=True)
-        sources = cls._collect_sources(values, "application.yaml")
+        sources = ConfigValues.sources(values, "application.yaml")
         loaded_files = ["application.yaml"]
         server = values.get("server", {})
         if not isinstance(server, dict):
@@ -86,8 +87,9 @@ class BootstrapConfigProvider:
             )
             if path.exists():
                 loaded_files.append(name)
-            values = cls._merge(values, override)
-            sources.update(cls._collect_sources(override, name))
+            override_sources = ConfigValues.sources(override, name)
+            values = ConfigValues.merge(values, override)
+            sources.update(override_sources)
         server = values.setdefault("server", {})
         if not isinstance(server, dict):
             raise BootstrapConfigError(f"server 必须是配置分组（来源：{sources['server']}）")
@@ -95,27 +97,6 @@ class BootstrapConfigProvider:
         server["env"] = environment.value
         sources["server.env"] = environment_source
         return cls(root, environment, values, process_env, sources, tuple(loaded_files))
-
-    @classmethod
-    def _merge(cls, base: dict, override: dict) -> dict:
-        """递归合并字典，列表、零值、False、空串和 None 均按显式值覆盖。"""
-        result = deepcopy(base)
-        for key, value in override.items():
-            if isinstance(value, dict) and isinstance(result.get(key), dict):
-                result[key] = cls._merge(result[key], value)
-            else:
-                result[key] = deepcopy(value)
-        return result
-
-    @classmethod
-    def _collect_sources(cls, values: object, source: str, path: str = "") -> dict[str, str]:
-        """记录分组和字段来源，列表作为一次整体覆盖处理。"""
-        result = {path: source} if path else {}
-        if isinstance(values, dict):
-            for name, value in values.items():
-                field_path = f"{path}.{name}" if path else name
-                result.update(cls._collect_sources(value, source, field_path))
-        return result
 
     @staticmethod
     def _read_yaml(path: Path, *, required: bool = False) -> dict[str, object]:
@@ -200,13 +181,31 @@ class BootstrapConfigProvider:
             raise BootstrapConfigError("未声明的环境配置项：" + "、".join(unknown))
         sources = dict(self._sources)
         values = self._apply_environment(settings_type, values, prefix, sources, group)
-        active_paths = self._collect_sources(values, "", group)
+        active_paths = ConfigValues.sources(values, "", group)
         return values, {key: sources[key] for key in active_paths if key in sources}
 
     def get_sources(self, settings_type: type[BaseModel], *, prefix: str = "") -> dict[str, str]:
         """返回字段最后生效的来源名称，不返回配置值或共享可变字典。"""
         _, sources = self._resolve_input(settings_type, prefix)
         return sources
+
+    def get_yaml_snapshot(self) -> tuple[dict[str, object], dict[str, str]]:
+        """为模型配置提供启动 YAML 的独立值/来源快照，不再次读取磁盘。"""
+        return deepcopy(self._values), dict(self._sources)
+
+    def get_model_environment(
+        self, model: type[BaseModel], *, prefix: str
+    ) -> tuple[dict[str, object], dict[str, str]]:
+        """只提取指定模型的环境值，拒绝该前缀下的拼写错误。"""
+        allowed = self._environment_keys(model, prefix)
+        unknown = sorted(
+            key for key in self._environ if key.startswith(prefix) and key not in allowed
+        )
+        if unknown:
+            raise BootstrapConfigError("未声明的模型环境配置项：" + "、".join(unknown))
+        sources: dict[str, str] = {}
+        values = self._apply_environment(model, {}, prefix, sources, "")
+        return values, sources
 
     def get_config(self, settings_type: type[Settings], *, prefix: str = "") -> Settings:
         """返回校验后的配置；缺项或无效值报告字段及来源，不补代码默认值。"""
