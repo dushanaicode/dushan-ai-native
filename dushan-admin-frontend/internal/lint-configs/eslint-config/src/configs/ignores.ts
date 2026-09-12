@@ -19,6 +19,7 @@ export async function ignores(): Promise<Linter.Config[]> {
         '**/output',
         '**/coverage',
         '**/temp',
+        '**/Temp',
         '**/.temp',
         '**/tmp',
         '**/.tmp',

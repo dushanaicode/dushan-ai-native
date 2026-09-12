@@ -1,37 +1,40 @@
 import type { CAC } from 'cac';
 
-import { access, mkdtemp, readFile, rm } from 'node:fs/promises';
-import { createRequire } from 'node:module';
-import { tmpdir } from 'node:os';
-import { extname, join } from 'node:path';
+import { extname, resolve } from 'node:path';
 
-import { execa, getStagedFiles } from '@vben/node-utils';
+import { getStagedFiles } from '@vben/node-utils';
 
-const require = createRequire(import.meta.url);
-const circularScannerCli =
-  require.resolve('circular-dependency-scanner/dist/cli.js');
+import { circularDepsDetect } from 'circular-dependency-scanner';
 
-// 默认配置
+import { CheckError } from '../check-error';
+
 const DEFAULT_CONFIG = {
-  allowedExtensions: ['.cjs', '.js', '.jsx', '.mjs', '.ts', '.tsx', '.vue'],
+  includeTypes: false,
+  allowedExtensions: [
+    '.cjs',
+    '.cts',
+    '.js',
+    '.jsx',
+    '.mjs',
+    '.mts',
+    '.ts',
+    '.tsx',
+    '.vue',
+  ],
   ignoreDirs: [
+    '.git',
+    'node_modules',
     'dist',
+    'Temp',
     '.turbo',
     'output',
     '.cache',
-    'scripts',
-    'internal',
-    'packages/effects/request/src/',
-    'packages/@core/ui-kit/menu-ui/src/',
-    'packages/@core/ui-kit/popup-ui/src/',
   ],
-  threshold: 0, // 循环依赖的阈值
-} as const;
-
-// 类型定义
-type CircularDependencyResult = string[];
+  threshold: 0,
+};
 
 interface CheckCircularConfig {
+  includeTypes?: boolean;
   allowedExtensions?: string[];
   ignoreDirs?: string[];
   threshold?: number;
@@ -43,175 +46,91 @@ interface CommandOptions {
   verbose: boolean;
 }
 
-// 缓存机制
-const cache = new Map<string, CircularDependencyResult[]>();
-
-async function detectCircularDependencies({
-  cwd,
-  ignorePattern,
-  staged,
-}: {
-  cwd: string;
-  ignorePattern: string;
-  staged: boolean;
-}): Promise<CircularDependencyResult[]> {
-  const tempDir = await mkdtemp(join(tmpdir(), 'vsh-check-circular-'));
-  const outputFile = join(tempDir, 'circles.json');
-
-  try {
-    const args = [circularScannerCli, cwd, '--output', outputFile];
-
-    if (staged) {
-      args.push('--absolute');
-    }
-
-    args.push('--ignore', ignorePattern);
-
-    await execa(process.execPath, args, {
-      cwd,
-    });
-
-    await access(outputFile);
-    const output = await readFile(outputFile, 'utf8');
-    return JSON.parse(output) as CircularDependencyResult[];
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') {
-      return [];
-    }
-    throw error;
-  } finally {
-    await rm(tempDir, { force: true, recursive: true });
-  }
-}
-
-/**
- * 格式化循环依赖的输出
- * @param circles - 循环依赖结果
- */
-function formatCircles(circles: CircularDependencyResult[]): void {
-  if (circles.length === 0) {
-    console.log('✅ No circular dependencies found');
-    return;
+/** 按实际参与本次检查的循环数量判定，不缓存跨调用的扫描结果。 */
+async function checkCircular({ config = {}, staged, verbose }: CommandOptions) {
+  const { allowedExtensions, ignoreDirs, includeTypes, threshold } = {
+    ...DEFAULT_CONFIG,
+    ...config,
+  };
+  if (!Number.isSafeInteger(threshold) || threshold < 0) {
+    throw new CheckError(
+      'Circular dependency threshold must be a non-negative integer.',
+    );
   }
 
-  console.log('⚠️ Circular dependencies found:');
-  circles.forEach((circle, index) => {
-    console.log(`\nCircular dependency #${index + 1}:`);
-    circle.forEach((file) => console.log(`  → ${file}`));
+  const cwd = process.cwd();
+  const stagedPaths = staged ? await getStagedFiles() : undefined;
+  const stagedFiles = stagedPaths
+    ? new Set(
+        stagedPaths.filter((file) => allowedExtensions.includes(extname(file))),
+      )
+    : undefined;
+
+  // 公开 API 对无循环直接返回 []，不再依赖 CLI 是否生成结果文件。
+  // scanner 的 Windows absolute 模式混用路径分隔符；本层统一转换暂存路径。
+  const cycles = await circularDepsDetect({
+    absolute: false,
+    cwd,
+    excludeTypes: !includeTypes,
+    ignore: ignoreDirs.map(
+      (directory) =>
+        `**/${directory.replaceAll('\\', '/').replace(/\/+$/, '')}/**`,
+    ),
   });
-}
+  const selected = stagedFiles
+    ? cycles.filter((cycle) =>
+        cycle.some((file) => stagedFiles.has(resolve(cwd, file))),
+      )
+    : cycles;
 
-/**
- * 检查项目中的循环依赖
- * @param options - 检查选项
- * @param options.staged - 是否只检查暂存区文件
- * @param options.verbose - 是否显示详细信息
- * @param options.config - 自定义配置
- * @returns Promise<void>
- */
-async function checkCircular({
-  config = {},
-  staged,
-  verbose,
-}: CommandOptions): Promise<void> {
-  try {
-    // 合并配置
-    const finalConfig = {
-      ...DEFAULT_CONFIG,
-      ...config,
-    };
-
-    // 生成忽略模式
-    const ignorePattern = `**/{${finalConfig.ignoreDirs.join(',')}}/**`;
-
-    // 检查缓存
-    const cacheKey = `${staged}-${process.cwd()}-${ignorePattern}`;
-    if (cache.has(cacheKey)) {
-      const cachedResults = cache.get(cacheKey);
-      if (cachedResults && verbose) {
-        formatCircles(cachedResults);
-      }
-      return;
+  if (verbose) {
+    for (const [index, cycle] of selected.entries()) {
+      console.log(`\nCircular dependency #${index + 1}:`);
+      for (const file of cycle) console.log(`  → ${file}`);
     }
-
-    // 检测循环依赖
-    const results = await detectCircularDependencies({
-      cwd: process.cwd(),
-      ignorePattern,
-      staged,
-    });
-
-    if (staged) {
-      let files = await getStagedFiles();
-      const allowedExtensions = new Set(finalConfig.allowedExtensions);
-
-      // 过滤文件列表
-      files = files.filter((file) => allowedExtensions.has(extname(file)));
-
-      const circularFiles: CircularDependencyResult[] = [];
-
-      for (const file of files) {
-        for (const result of results) {
-          const resultFiles = result.flat();
-          if (resultFiles.includes(file)) {
-            circularFiles.push(result);
-          }
-        }
-      }
-
-      // 更新缓存
-      cache.set(cacheKey, circularFiles);
-      if (verbose) {
-        formatCircles(circularFiles);
-      }
-    } else {
-      // 更新缓存
-      cache.set(cacheKey, results);
-      if (verbose) {
-        formatCircles(results);
-      }
-    }
-
-    // 如果发现循环依赖，只输出警告信息
-    if (results.length > 0) {
-      console.log(
-        '\n⚠️ Warning: Circular dependencies found, please check and fix',
-      );
-    }
-  } catch (error) {
-    console.error(
-      '❌ Error checking circular dependencies:',
-      error instanceof Error ? error.message : error,
+    console.log(
+      `Circular dependencies (${includeTypes ? 'all imports' : 'runtime'}): ${selected.length}; threshold: ${threshold}`,
+    );
+  }
+  if (selected.length > threshold) {
+    throw new CheckError(
+      `Found ${selected.length} circular dependencies; allowed threshold is ${threshold}.`,
     );
   }
 }
 
-/**
- * 定义检查循环依赖的命令
- * @param cac - CAC实例
- */
 function defineCheckCircularCommand(cac: CAC): void {
   cac
     .command('check-circular')
-    .option('--staged', 'Only check staged files')
+    .option(
+      '--include-types',
+      'Include type-only imports in the dependency graph',
+    )
+    .option('--staged', 'Only check cycles involving staged files')
     .option('--verbose', 'Show detailed information')
-    .option('--threshold <number>', 'Threshold for circular dependencies', {
+    .option('--threshold <number>', 'Maximum allowed circular dependencies', {
       default: 0,
     })
     .option('--ignore-dirs <dirs>', 'Directories to ignore, comma separated')
     .usage('Analyze project circular dependencies')
-    .action(async ({ ignoreDirs, staged, threshold, verbose }) => {
-      const config: CheckCircularConfig = {
-        threshold: Number(threshold),
-        ...(ignoreDirs && { ignoreDirs: ignoreDirs.split(',') }),
-      };
-
-      await checkCircular({
-        config,
-        staged,
-        verbose: verbose ?? true,
-      });
-    });
+    .action(
+      async ({ ignoreDirs, includeTypes, staged, threshold, verbose }) => {
+        await checkCircular({
+          config: {
+            includeTypes: includeTypes ?? false,
+            threshold: Number(threshold),
+            ...(ignoreDirs && {
+              ignoreDirs: String(ignoreDirs)
+                .split(',')
+                .map((value) => value.trim())
+                .filter(Boolean),
+            }),
+          },
+          staged: staged ?? false,
+          verbose: verbose ?? true,
+        });
+      },
+    );
 }
 
 export { type CheckCircularConfig, defineCheckCircularCommand };

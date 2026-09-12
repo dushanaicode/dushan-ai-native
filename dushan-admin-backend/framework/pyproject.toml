@@ -12,6 +12,11 @@ dependencies = [
     "anyio==4.15.1",
     # SQL分页直接使用异步Session和查询表达式。
     "SQLAlchemy[asyncio]==2.0.52",
+    # 仅由独立迁移命令显式执行，应用启动不运行迁移。
+    "alembic==1.18.5",
+    # MySQL 主线与 PostgreSQL 辅线；rsa 支持 MySQL 8 的完整认证交换。
+    "aiomysql[rsa]==0.3.2",
+    "asyncpg==0.31.0",
     # 配置加载、校验与日志组件。
     "pydantic==2.13.4",
     "PyYAML==6.0.3",
@@ -23,6 +28,15 @@ dependencies = [
     # 显式依赖绑定、作用域及多实现集合；容器按应用独立创建。
     "injector==0.24.0",
 ]
+
+[project.optional-dependencies]
+opengauss = ["opengauss-sqlalchemy==2.4.0"]
+dameng = ["dmSQLAlchemy==2.0.17", "dmAsync==1.0.0", "dmPython==2.5.38", "async-timeout==5.0.1"]
+
+[project.entry-points."sqlalchemy.dialects"]
+"kingbase.asyncpg" = "framework.starter_database.dialects.kingbase_asyncpg:KingbaseAsyncpgDialect"
+"dm.dushan_async" = "framework.starter_database.dialects.dm_async_dialect:DmAsyncDialect"
+"oceanbase.aiomysql" = "framework.starter_database.dialects.oceanbase_aiomysql:OceanBaseAiomysqlDialect"
 
 [tool.poetry]
 packages = [{ include = "framework", from = ".." }]

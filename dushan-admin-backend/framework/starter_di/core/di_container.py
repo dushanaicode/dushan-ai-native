@@ -8,14 +8,17 @@ from time import perf_counter
 from typing import TYPE_CHECKING, TypeVar, cast
 
 from injector import Injector, InstanceProvider, singleton
+from loguru import logger
 
+from framework.common.diagnostics.exception_trace_formatter import ExceptionTraceFormatter
 from framework.common.enums.base_enum import BaseEnum
-from framework.common.utils.asyncio.asyncio_utils import AsyncioUtils
 from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
 from framework.starter_config.provider.config_provider import ConfigProvider
 from framework.starter_di.config.di_settings import DiSettings
 from framework.starter_di.core.binding_contract import BindingContract
+from framework.starter_di.core.binding_diagnostic import BindingDiagnostic
 from framework.starter_di.core.binding_plan import BindingPlan
+from framework.starter_di.core.candidate_selection import CandidateSelection
 from framework.starter_di.core.component_binding import ComponentBinding
 from framework.starter_di.core.component_provider import ComponentProvider
 from framework.starter_di.core.config_model_provider import ConfigModelProvider
@@ -23,6 +26,7 @@ from framework.starter_di.core.execution_frame import ExecutionFrame
 from framework.starter_di.core.lifecycle_hooks import LifecycleHooks
 from framework.starter_di.core.list_binding_provider import ListBindingProvider
 from framework.starter_di.core.state.state_manager import StateManager
+from framework.starter_di.enums.binding_outcome_enum import BindingOutcomeEnum
 from framework.starter_di.enums.component_scope_enum import ComponentScopeEnum
 from framework.starter_di.enums.container_state_enum import ContainerStateEnum
 from framework.starter_di.enums.lifecycle_phase_enum import LifecyclePhaseEnum
@@ -73,6 +77,7 @@ class DiContainer:
         self._condition = Condition(RLock())
         self._state = ContainerStateEnum.NEW
         self._active_gets = 0
+        self._selection: CandidateSelection | None = None
         self._plan: BindingPlan | None = None
         self._injector: Injector | None = None
         self._created: list[tuple[ComponentBinding, object]] = []
@@ -114,13 +119,13 @@ class DiContainer:
         frame = ExecutionFrame(LifecyclePhaseEnum.INITIALIZE)
         token = self._lifecycle_context.set(frame)
         try:
-            self._plan = BindingPlan(
-                self._components,
-                self.configuration,
-                self.settings,
-                self._enabled_modules,
-                self._instances,
+            selection = CandidateSelection(
+                self.configuration.snapshot(), self.settings, self._enabled_modules
             )
+            self._selection = selection
+            selection.select(self._components)
+            self._plan = BindingPlan(selection, self.configuration, self._instances)
+            self._log_selection(selection)
             injector = Injector(auto_bind=False)
             self._injector = injector
             for key, instance in self._instances.items():
@@ -217,6 +222,36 @@ class DiContainer:
                 ),
             }
 
+    def get_binding_diagnostics(self) -> tuple[BindingDiagnostic, ...]:
+        """返回启动装配时每个候选的选择结果与原因；启动失败后仍可查询，不重新求值条件。"""
+        with self._condition:
+            selection = self._selection
+        return () if selection is None else selection.diagnostics
+
+    @staticmethod
+    def _log_selection(selection: CandidateSelection) -> None:
+        skipped = [
+            item
+            for item in selection.diagnostics
+            if item.outcome is not BindingOutcomeEnum.SELECTED
+        ]
+        if not skipped:
+            return
+        logger.info(
+            "DI 候选 {} 个，选中 {} 个，未绑定 {} 个；详情见 DiContainer.get_binding_diagnostics()",
+            len(selection.diagnostics),
+            len(selection.bindings),
+            len(skipped),
+        )
+        for item in skipped:
+            logger.debug(
+                "DI 候选未绑定：{} -> {}（{}：{}）",
+                item.component,
+                item.key,
+                item.outcome.label,
+                item.reason,
+            )
+
     def create_component(self, binding: ComponentBinding) -> object:
         """供原生 Injector Provider 调用，在关闭后禁止新建对象。"""
         if self.state not in {ContainerStateEnum.STARTING, ContainerStateEnum.READY}:
@@ -263,7 +298,13 @@ class DiContainer:
         elif key in self._plan.providers:
             bindings = self._plan.providers[key]
         else:
-            raise DiException(error_code=DiErrorCodes.MISSING_BINDING, msg=f"未显式绑定依赖：{key}")
+            raise DiException(
+                error_code=DiErrorCodes.MISSING_BINDING,
+                msg=(
+                    f"未显式绑定依赖：{CandidateSelection.describe_key(key)}；"
+                    f"{self._selection.explain(key)}"
+                ),
+            )
         for binding in bindings:
             if (
                 binding.scope is ComponentScopeEnum.SINGLETON
@@ -280,7 +321,7 @@ class DiContainer:
                 raise DiException(error_code=DiErrorCodes.NOT_READY, msg="关闭期间禁止创建瞬态依赖")
 
     async def shutdown(self) -> None:
-        """共享一次关闭任务，调用方取消不遗留无人等待的清理。"""
+        """等待唯一关闭任务；调用方取消或限时只放弃等待，销毁由容器持有的任务继续完成。"""
         if self._has_lifecycle_access() or any(
             frame.is_current for frame in self._resolution_path.get()
         ):
@@ -298,13 +339,26 @@ class DiContainer:
             if self._shutdown_task is None:
                 self._state = ContainerStateEnum.STOPPING
                 self._shutdown_task = asyncio.create_task(self._close(), name="DI shutdown")
-        await AsyncioUtils.run_cancellation_shielded(self._shutdown_task)
+                self._shutdown_task.add_done_callback(self._shutdown_finished)
+        await asyncio.shield(self._shutdown_task)
+
+    def _shutdown_finished(self, task: asyncio.Task) -> None:
+        """消费关闭任务终态；独立使用的容器在此记录失败，有应用所有者时由应用汇总报告。"""
+        if task.cancelled():
+            return
+        error = task.exception()
+        if error is not None and self._application is None:
+            logger.error(
+                "DI 容器关闭发生错误：\n{}", "".join(ExceptionTraceFormatter.format(error))
+            )
 
     async def _close(self) -> None:
         frame = ExecutionFrame(LifecyclePhaseEnum.DESTROY)
         token = self._lifecycle_context.set(frame)
         errors = []
+        completed = False
         try:
+            # 已开始的解析在工作线程内按 Condition 等待归零；线程内用户代码没有硬终止保证。
             if self._active_gets:
                 await asyncio.to_thread(self._wait_for_resolutions)
             for binding, instance in reversed(self._created):
@@ -322,16 +376,19 @@ class DiContainer:
                     if cancellation is not None:
                         errors.append(cancellation)
                 self._ready_types.discard(binding.implementation)
+            completed = True
             if errors:
                 raise BaseExceptionGroup("DI 资源清理失败", errors)
         finally:
-            self._created.clear()
-            self._ready_types.clear()
-            self.state_manager.clear()
-            self._instances.clear()
-            self._injector = None
-            with self._condition:
-                self._state = ContainerStateEnum.CLOSED
+            # 只有事件循环拆除会取消关闭任务本身；销毁未跑完时保持 STOPPING，不宣称 CLOSED。
+            if completed:
+                self._created.clear()
+                self._ready_types.clear()
+                self.state_manager.clear()
+                self._instances.clear()
+                self._injector = None
+                with self._condition:
+                    self._state = ContainerStateEnum.CLOSED
             frame.active = False
             self._lifecycle_context.reset(token)
 

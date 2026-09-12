@@ -1,6 +1,7 @@
 from collections.abc import AsyncIterator, Sequence
 from contextlib import AsyncExitStack, asynccontextmanager
 
+from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
 from server.bootstrap.context import AppBootstrapContext
 from server.bootstrap.step_registry import APP_BOOTSTRAP_STEPS, BootstrapStepSpec
 from server.bootstrap.step_runner import BootstrapStepRunner
@@ -17,7 +18,8 @@ async def bootstrap_app(
     """按顺序启动服务，退出时倒序清理。
 
     中途启动失败时，只清理已成功进入的步骤；某一步清理报错后，
-    仍会继续清理剩余步骤。
+    仍会继续清理剩余步骤。退出先受保护地等待业务排空完成，宿主取消
+    在排空后再传播，资源步骤不会在业务仍使用时被释放。
     """
     selected = APP_BOOTSTRAP_STEPS if steps is None else steps
     try:
@@ -37,6 +39,14 @@ async def bootstrap_app(
                 ctx.ready = False
                 ctx.logger.info("服务正在关闭")
                 if ctx.definitions is not None and ctx.definitions.application_context is not None:
-                    await ctx.definitions.application_context.drain()
+                    # 公开 drain 允许调用方取消；这里是资源所有者，必须等到排空终态。
+                    error, cancellation = await CleanupUtils.run_cancellation_safe_cleanup(
+                        ctx.definitions.application_context.drain, "应用业务排空"
+                    )
+                    CleanupUtils.raise_collected_cleanup_errors(
+                        "应用业务排空失败",
+                        [] if error is None else [error],
+                        caller_cancellation=cancellation,
+                    )
     finally:
         ctx.ready = False

@@ -6,8 +6,8 @@ import pytest
 from config_factory import ConfigFactory
 
 from framework.common.exception.exceptions.configuration_exception import ConfigurationException
-from framework.starter_module.module_loader import ModuleLoader
-from framework.starter_module.module_settings import ModuleSettings
+from framework.starter_module.config.module_settings import ModuleSettings
+from framework.starter_module.core.module_loader import ModuleLoader
 
 pytestmark = pytest.mark.unit
 

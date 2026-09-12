@@ -57,9 +57,10 @@ class ConfigFileReader:
                 raise ValueError("配置文件顶层必须是映射")
             return values
         except (OSError, ValueError, yaml.YAMLError, configparser.Error) as error:
+            # YAML/INI 解析错误会带出出错行的内容，不进入正常异常链；只保留错误类型名。
             raise BootstrapConfigError(
                 f"配置文件读取失败：{path}（{type(error).__name__}）"
-            ) from error
+            ) from None
 
     @staticmethod
     def _unique_pairs(pairs: list[tuple[str, object]]) -> dict[str, object]:

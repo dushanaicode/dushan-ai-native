@@ -1,10 +1,15 @@
 import type { OxlintConfig } from 'oxlint';
 
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+
 const comments: OxlintConfig = {
   jsPlugins: [
     {
       name: 'eslint-comments',
-      specifier: '@eslint-community/eslint-plugin-eslint-comments',
+      specifier:
+        require.resolve('@eslint-community/eslint-plugin-eslint-comments'),
     },
   ],
   rules: {

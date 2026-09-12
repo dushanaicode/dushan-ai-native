@@ -291,3 +291,21 @@ def test_multiple_yaml_documents_are_rejected(config_dir):
     )
     with pytest.raises(BootstrapConfigError, match="配置文件格式错误"):
         settings(root, environ={})
+
+
+def test_ambiguous_environment_names_are_a_declaration_error(config_dir):
+    class Child(BaseModel):
+        b: int
+
+    class Ambiguous(BaseModel):
+        a_b: int
+        a: Child
+
+    provider = BootstrapConfigProvider.load(config_dir(), environ={})
+    with pytest.raises(BootstrapConfigError, match="X_A_B") as caught:
+        provider.get_config(Ambiguous, prefix="X_")
+    assert "a_b" in str(caught.value) and "a.b" in str(caught.value)
+    # 启动配置的顶层分组就是自举占用的环境命名空间，与 ApplicationSettings 字段一一对应。
+    assert {prefix[:-1].lower() for prefix in provider.get_group_prefixes()} == set(
+        ApplicationSettings.model_fields
+    )

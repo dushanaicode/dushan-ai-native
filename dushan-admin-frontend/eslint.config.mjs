@@ -1,3 +1,7 @@
-import { defineConfig } from '@vben/eslint-config';
+import { fileURLToPath } from 'node:url';
 
-export default defineConfig();
+import { defineConfig, defineRuntimeBoundaries } from '@vben/eslint-config';
+
+const root = fileURLToPath(new URL('.', import.meta.url));
+
+export default defineConfig([defineRuntimeBoundaries(root)]);

@@ -3,14 +3,9 @@ import type { VueWrapper } from '@vue/test-utils';
 import { flushPromises, mount } from '@vue/test-utils';
 import { defineComponent, h, nextTick } from 'vue';
 
+import { ElInput, ElTreeSelect } from 'element-plus';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
-// form-ui 是独立包，element-plus 是应用层依赖；测试直接解析 .pnpm 虚拟存储中的真实实现
-// @ts-expect-error - 深路径 import 绕过包解析，类型声明缺失可预期
-import {
-  ElInput,
-  ElTreeSelect,
-} from '../../../../../node_modules/.pnpm/element-plus@2.14.5_vue@3.5.41_typescript@6.0.3_/node_modules/element-plus/es/index.mjs';
 import { COMPONENT_MAP, setupVbenForm } from '../src/config';
 import { useVbenForm } from '../src/use-vben-form';
 

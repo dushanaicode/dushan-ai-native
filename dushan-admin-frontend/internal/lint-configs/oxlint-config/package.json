@@ -12,7 +12,8 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "stub": "pnpm exec tsdown"
+    "stub": "pnpm exec tsdown",
+    "typecheck": "tsc --noEmit --project tsconfig.json"
   },
   "files": [
     "dist"
@@ -28,6 +29,7 @@
   },
   "dependencies": {
     "@eslint-community/eslint-plugin-eslint-comments": "catalog:",
+    "@vben/tailwind-config": "workspace:*",
     "eslint-plugin-better-tailwindcss": "catalog:",
     "eslint-plugin-command": "catalog:",
     "oxlint": "catalog:"

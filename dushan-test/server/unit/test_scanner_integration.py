@@ -1,5 +1,6 @@
 import asyncio
 import sys
+from dataclasses import replace
 
 import pytest
 from fastapi.testclient import TestClient
@@ -22,6 +23,22 @@ def application(config_dir, *packages, enabled=None, environ=None):
         }
     }
     return create_app(base_dir=config_dir(values), environ={} if environ is None else environ)
+
+
+def explicit_only(definitions):
+    """扫描结果完整且仅含启用模块显式列出的类，同时拒绝缺失与多余定义。"""
+    declared = set()
+    for module in definitions.modules:
+        package = module.definition.package
+        for reference in module.definition.definitions:
+            relative, name = reference.split(":")
+            source = package if relative == "." else f"{package}.{relative}"
+            declared.add((module.definition.name, source, name))
+    actual = {
+        (item.module, item.component.__module__, item.component.__qualname__)
+        for item in definitions.scan_result.definitions
+    }
+    return actual == declared
 
 
 def test_new_module_is_discovered_registered_and_translated_without_core_changes(
@@ -49,6 +66,7 @@ def test_new_module_is_discovered_registered_and_translated_without_core_changes
         definitions = app.state.bootstrap.definitions
         assert definitions.error_codes.get_by_code(8101).message_key == "account.failure"
         assert any(item.module == "scan_account" for item in definitions.scan_result.definitions)
+        assert not explicit_only(definitions)
         response = client.get("/failure", headers={"Accept-Language": "en-US"})
         assert response.status_code == 200
         assert response.json()["code"] == 8101 and response.json()["message"] == "Account failed"
@@ -95,7 +113,8 @@ def test_scanner_disabled_still_loads_declarations_and_resources_without_travers
             "framework",
             "scan_declared",
         ]
-        assert definitions.scan_result.definitions == ()
+        assert explicit_only(definitions)
+        assert definitions.scan_result.get_components(module="scan_declared") == ()
         assert (
             definitions.translator.translate_any_scope("resource.available", "en-US") == "Available"
         )
@@ -117,7 +136,21 @@ def test_explicit_error_definition_is_loaded_without_automatic_scan(module_packa
     with TestClient(app):
         result = app.state.bootstrap.definitions
         assert result.error_codes.get_by_code(8450).message_key == "explicit.failure"
-        assert len(result.scan_result.definitions) == len(result.scan_result.files) == 1
+        assert len(result.scan_result.get_components(module="scan_explicit")) == 1
+        assert explicit_only(result)
+        missing = replace(
+            result.scan_result,
+            definitions=tuple(
+                item for item in result.scan_result.definitions if item.module != "scan_explicit"
+            ),
+        )
+        assert not explicit_only(replace(result, scan_result=missing))
+        assert not explicit_only(
+            replace(result, scan_result=replace(result.scan_result, definitions=()))
+        )
+        assert [
+            path.name for path in result.scan_result.files if path.parent.name == "scan_explicit"
+        ] == ["codes.py"]
         assert "scan_explicit.unused" not in sys.modules
 
 
@@ -287,15 +320,20 @@ def test_declaration_errors_and_dependency_cycles_precede_import(
     assert "module.toml" in str(caught.value.__cause__)
 
 
-def test_configuration_sources_and_null_empty_values_remain_distinct(config_dir):
+def test_configuration_sources_and_null_empty_values_remain_distinct(config_dir, module_package):
+    module_package("scan_filtered", files={"danger.py": "raise AssertionError('不应自动导入')"})
     app = application(
-        config_dir, environ={"SCANNER_INCLUDE_PACKAGES": "[]", "SCANNER_COMPONENT_TYPES": "null"}
+        config_dir,
+        "scan_filtered",
+        environ={"SCANNER_INCLUDE_PACKAGES": "[]", "SCANNER_COMPONENT_TYPES": "null"},
     )
     ctx = app.state.bootstrap
     assert ctx.scanner_config.include_packages == () and ctx.scanner_config.component_types is None
     assert ctx.config_sources["scanner.include_packages"] == "环境变量 SCANNER_INCLUDE_PACKAGES"
     with TestClient(app):
-        assert ctx.definitions.scan_result.definitions == ()
+        assert explicit_only(ctx.definitions)
+        assert ctx.definitions.scan_result.get_components(module="scan_filtered") == ()
+        assert "scan_filtered.danger" not in sys.modules
 
 
 def test_module_language_link_cannot_escape_its_declared_package(

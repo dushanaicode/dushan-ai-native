@@ -1,5 +1,6 @@
 import traceback
 
+from framework.common.diagnostics.safe_exception_diagnostics import SafeExceptionDiagnostics
 from framework.common.security.sanitizer import Sanitizer
 
 
@@ -14,6 +15,7 @@ class ExceptionTraceFormatter:
     def format(exc: BaseException) -> list[str]:
         """保留异常链和堆栈并脱敏，格式化失败时仅返回异常类型。"""
         try:
+            exc = SafeExceptionDiagnostics.snapshot(exc)
             trace = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
             return Sanitizer.sanitize_text(trace).splitlines(keepends=True)
         except Exception as formatting_error:

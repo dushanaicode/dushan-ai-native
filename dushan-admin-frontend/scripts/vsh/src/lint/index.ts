@@ -93,9 +93,9 @@ async function runParallel(commands: Command[]) {
 
   // 汇总所有失败的命令，与串行模式保持一致的错误输出
   const failed: Command[] = [];
-  results.forEach((result, index) => {
-    if (result.status === 'rejected') {
-      failed.push(commands[index]);
+  commands.forEach((command, index) => {
+    if (results[index]?.status === 'rejected') {
+      failed.push(command);
     }
   });
 

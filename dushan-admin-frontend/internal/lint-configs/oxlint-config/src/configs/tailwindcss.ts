@@ -1,10 +1,13 @@
 import type { OxlintConfig } from 'oxlint';
 
-import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+import { dirname } from 'node:path';
 
 import eslintPluginBetterTailwindcss from 'eslint-plugin-better-tailwindcss';
 import { getDefaultSelectors } from 'eslint-plugin-better-tailwindcss/defaults';
 import { SelectorKind } from 'eslint-plugin-better-tailwindcss/types';
+
+const require = createRequire(import.meta.url);
 
 const selectors = [
   ...getDefaultSelectors(),
@@ -15,11 +18,10 @@ const selectors = [
   },
 ];
 
-const entryPoint = fileURLToPath(
-  new URL('../../../../tailwind-config/src/theme.css', import.meta.url),
-);
+const entryPoint = require.resolve('@vben/tailwind-config/theme');
 
 const settings = {
+  cwd: dirname(entryPoint),
   entryPoint,
   selectors,
 };
@@ -30,7 +32,7 @@ const tailwindcss: OxlintConfig = {
   jsPlugins: [
     {
       name: 'better-tailwindcss',
-      specifier: 'eslint-plugin-better-tailwindcss',
+      specifier: require.resolve('eslint-plugin-better-tailwindcss'),
     },
   ],
   rules: {

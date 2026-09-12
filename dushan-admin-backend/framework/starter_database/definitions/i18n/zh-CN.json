@@ -1,0 +1,22 @@
+{
+  "database.error": "数据库操作失败",
+  "database.not_ready": "数据库尚未就绪或正在关闭",
+  "database.transaction_required": "操作要求活动事务",
+  "database.operation_forbidden": "数据库操作不符合受管契约",
+  "database.context_mismatch": "数据库上下文不属于当前任务",
+  "database.rollback_only": "嵌套操作失败，事务已回滚",
+  "database.after_commit_failed": "数据已提交，但后续处理失败",
+  "database.connection_failed": "数据库连接检查失败",
+  "database.unique_violation": "数据库唯一约束冲突",
+  "database.foreign_key_violation": "数据库外键约束冲突",
+  "database.not_null_violation": "数据库必填字段缺失",
+  "database.check_violation": "数据库检查约束冲突",
+  "database.integrity_violation": "数据库完整性约束冲突",
+  "database.programming_error": "数据库语句或编程错误",
+  "database.pool_timeout": "数据库连接池等待超时",
+  "database.statement_timeout": "数据库语句执行超时",
+  "database.deadlock": "数据库事务发生死锁",
+  "database.serialization_failure": "数据库事务序列化冲突",
+  "database.statement_cancelled": "数据库语句已取消",
+  "database.data_error": "数据库字段数据无效"
+}

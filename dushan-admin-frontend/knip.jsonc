@@ -1,0 +1,31 @@
+{
+  "$schema": "https://unpkg.com/knip/schema.json",
+  // Iconify 构建插件按图标集合名动态读取 JSON 数据，不存在普通源码 import。
+  "ignoreDependencies": ["@iconify/json"],
+  "ignore": ["**/dist/**", "**/Temp/**", "docs/**", "public/**"],
+  "workspaces": {
+    ".": {
+      "entry": ["oxlint.config.ts"],
+      // 根配置复用共享 Oxlint 配置。其插件由配置包的 require.resolve 静态引用负责；
+      // Knip 的 Oxlint 插件会把已解析的 node_modules 路径再次归为根依赖。
+      "oxlint": false
+    },
+    "internal/*": {
+      "entry": ["src/index.ts", "scripts/*.mjs"]
+    },
+    "internal/lint-configs/*": {
+      "entry": ["src/index.ts", "index.mjs", "index.d.ts"]
+    },
+    "internal/lint-configs/commitlint-config": {
+      "entry": ["index.mjs", "index.d.ts"],
+      "commitlint": { "config": ["index.mjs"] }
+    },
+    "internal/lint-configs/stylelint-config": {
+      "entry": ["index.mjs"],
+      "stylelint": { "config": ["index.mjs"] }
+    },
+    "scripts/*": {
+      "entry": ["src/index.ts"]
+    }
+  }
+}

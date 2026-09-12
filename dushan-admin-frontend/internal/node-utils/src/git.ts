@@ -5,11 +5,12 @@ import { execa } from 'execa';
 export * from '@changesets/git';
 
 /**
- * 获取暂存区文件
+ * 返回当前工作区范围内的暂存文件绝对路径，支持前端嵌套在父 Git 仓库中。
  */
-async function getStagedFiles(): Promise<string[]> {
-  try {
-    const { stdout } = await execa('git', [
+async function getStagedFiles(cwd = process.cwd()): Promise<string[]> {
+  const { stdout } = await execa(
+    'git',
+    [
       '-c',
       'submodule.recurse=false',
       'diff',
@@ -17,24 +18,22 @@ async function getStagedFiles(): Promise<string[]> {
       '--diff-filter=ACMR',
       '--name-only',
       '--ignore-submodules',
+      '--relative',
       '-z',
-    ]);
+      '--',
+      '.',
+    ],
+    { cwd },
+  );
 
-    const nullSeparator = '\u0000';
-    const normalizedStdout = stdout.endsWith(nullSeparator)
-      ? stdout.slice(0, -1)
-      : stdout;
-    let changedList = normalizedStdout
-      ? normalizedStdout.split(nullSeparator)
-      : [];
-    changedList = changedList.map((item) => path.resolve(process.cwd(), item));
-    const changedSet = new Set(changedList);
-    changedSet.delete('');
-    return [...changedSet];
-  } catch (error) {
-    console.error('Failed to get staged files:', error);
-    return [];
-  }
+  return [
+    ...new Set(
+      stdout
+        .split('\u0000')
+        .filter(Boolean)
+        .map((file) => path.resolve(cwd, file)),
+    ),
+  ];
 }
 
 export { getStagedFiles };

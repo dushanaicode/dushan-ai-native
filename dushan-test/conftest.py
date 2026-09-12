@@ -14,11 +14,7 @@ def config_dir(tmp_path: Path):
         values = ConfigFactory.values()
         values["server"]["name"] = "渡山测试服务"
         values["log"]["enable_file_overall"] = False
-        for key, value in (base or {}).items():
-            if isinstance(value, dict) and isinstance(values.get(key), dict):
-                values[key].update(value)
-            else:
-                values[key] = value
+        ConfigFactory.merge(values, base or {})
         layers = {
             "application.yaml": values,
             "application-dev.yaml": dev,

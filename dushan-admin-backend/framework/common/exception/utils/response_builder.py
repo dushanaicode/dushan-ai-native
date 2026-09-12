@@ -3,6 +3,7 @@ from typing import Any
 from fastapi.encoders import jsonable_encoder
 
 from framework.common.diagnostics.exception_trace_formatter import ExceptionTraceFormatter
+from framework.common.diagnostics.safe_exception_diagnostics import SafeExceptionDiagnostics
 from framework.common.exception.core.error_code import ErrorCode
 from framework.common.exception.core.error_details import ErrorDetails
 from framework.common.exception.exceptions.base_business_exception import (
@@ -41,6 +42,8 @@ class ExceptionResponseBuilder:
         debug: bool = False,
     ) -> dict[str, Any]:
         """构建脱敏的错误响应，并按异常声明保留重试信息。"""
+        if exc is not None:
+            exc = SafeExceptionDiagnostics.snapshot(exc)
         # 先编码再脱敏，避免对象转换后的敏感文本绕过清理。
         safe_data = Sanitizer.sanitize_sensitive_data(ExceptionResponseBuilder._json_safe(data))
         details = (

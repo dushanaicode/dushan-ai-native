@@ -5,6 +5,7 @@ import { cac } from 'cac';
 import { version } from '../package.json';
 import { defineCheckCircularCommand } from './check-circular';
 import { defineCheckDepCommand } from './check-dep';
+import { CheckError } from './check-error';
 import { defineCodeWorkspaceCommand } from './code-workspace';
 import { defineLintCommand, LintError } from './lint';
 import { definePubLintCommand } from './publint';
@@ -57,9 +58,8 @@ async function main(): Promise<void> {
 
     await vsh.runMatchedCommand();
   } catch (error) {
-    // lint 检查失败是预期内的结果（格式/规范不达标），
-    // 直接展示可操作的错误信息，而非笼统的 "unexpected error"
-    if (error instanceof LintError) {
+    // 检查未通过时直接展示诊断，统一在命令入口返回失败。
+    if (error instanceof LintError || error instanceof CheckError) {
       consola.error(error.message);
       process.exit(1);
     }

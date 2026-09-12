@@ -13,6 +13,7 @@ from framework.common.utils.el.expression_utils import ExpressionUtils
 from framework.starter_config.provider.bootstrap_config_provider import (
     BootstrapConfigProvider,
 )
+from framework.starter_database.context.database_middleware import DatabaseMiddleware
 from framework.starter_di.context.di_context_middleware import DiContextMiddleware
 from server.bootstrap.bootstrapper import bootstrap_app
 from server.bootstrap.context import AppBootstrapContext
@@ -63,6 +64,8 @@ def create_app(
     )
     exception_handler = GlobalExceptionHandler(debug=settings.debug)
     application.state.application_context = None
+    application.state.database = None
+    application.add_middleware(DatabaseMiddleware)
     application.add_middleware(DiContextMiddleware)
     exception_handler.register(application)
     application.openapi = BusinessOpenAPI(application).build

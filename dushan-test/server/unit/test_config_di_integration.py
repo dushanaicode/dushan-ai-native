@@ -84,7 +84,9 @@ def test_real_declaration_scan_config_di_http_and_cleanup_chain(module_package, 
     assert app.state.bootstrap.definitions is None
     with TestClient(app) as client:
         snapshot = app.state.bootstrap.definitions
-        models = snapshot.scan_result.get_components(component_type=ComponentTypeEnum.CONFIG_MODEL)
+        models = snapshot.scan_result.get_components(
+            module="feature", component_type=ComponentTypeEnum.CONFIG_MODEL
+        )
         services = snapshot.scan_result.get_components(
             module="feature", component_type=ComponentTypeEnum.COMPONENT
         )
@@ -177,8 +179,16 @@ def test_di_disabled_still_loads_config_models_and_does_not_construct_services(
         cls = importlib.import_module("foundation_feature.services.feature_service").FeatureService
         add_route(app, cls)
         snapshot = app.state.bootstrap.definitions
+        assert snapshot.application_context is None
         assert (
-            snapshot.application_context is None and len(snapshot.configuration.model_classes) == 1
+            len(
+                [
+                    model
+                    for model in snapshot.configuration.model_classes
+                    if model.__module__.startswith("foundation_feature.")
+                ]
+            )
+            == 1
         )
         assert cls.events == []
         assert client.get("/feature").json()["code"] == DiErrorCodes.NOT_READY.code

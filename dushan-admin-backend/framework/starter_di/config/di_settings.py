@@ -15,10 +15,13 @@ class DiSettings(BaseModel):
     automatic_context_binding: bool
     drain_timeout_seconds: float = Field(gt=0, allow_inf_nan=False)
     metrics_enabled: bool
+    task_error_limit: int = Field(gt=0, le=10_000)
 
-    @field_validator("hook_timeout_seconds", "drain_timeout_seconds", mode="before")
+    @field_validator(
+        "hook_timeout_seconds", "drain_timeout_seconds", "task_error_limit", mode="before"
+    )
     @classmethod
-    def reject_boolean_timeout(cls, value: object) -> object:
+    def reject_boolean_number(cls, value: object) -> object:
         if isinstance(value, bool):
-            raise ValueError("生命周期超时不能是布尔值")
+            raise ValueError("生命周期超时和保留上限不能是布尔值")
         return value

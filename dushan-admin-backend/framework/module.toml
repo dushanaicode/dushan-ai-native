@@ -1,7 +1,12 @@
 name = "framework"
 package = "framework"
 scan_roots = ["common.exception.constants", "starter_scanner.exception", "starter_di.exception"]
-definitions = []
+definitions = [
+  "starter_database.config.database_settings:DatabaseSettings",
+  "starter_database.exception.database_error_codes:DatabaseErrorCodes",
+  "starter_database.session.session_provider:SessionProvider",
+  "starter_database.starter.database_starter:DatabaseStarter",
+]
 requires = []
 required_message_keys = []
 
@@ -13,4 +18,9 @@ required = true
 [[resource_roots]]
 path = "starter_di/definitions/i18n"
 scope = "di"
+required = true
+
+[[resource_roots]]
+path = "starter_database/definitions/i18n"
+scope = "database"
 required = true

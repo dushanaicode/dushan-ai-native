@@ -10,12 +10,13 @@ from framework.common.exception.registry.error_code_registry import ErrorCodeReg
 from framework.common.exception.utils.validation_error_mapper import ValidationErrorMapper
 from framework.common.i18n.core.i18n_locale_root import I18nLocaleRoot
 from framework.common.i18n.starter.i18n_starter import I18nStarter
+from framework.common.page.core.data_paginator import DataPaginator
 from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
 from framework.starter_config.provider.config_provider import ConfigProvider
 from framework.starter_di.context.application_context import ApplicationContext
 from framework.starter_di.core.di_container import DiContainer
-from framework.starter_module.definition_loader import DefinitionLoader
-from framework.starter_module.module_loader import ModuleLoader
+from framework.starter_module.core.definition_loader import DefinitionLoader
+from framework.starter_module.core.module_loader import ModuleLoader
 from framework.starter_scanner.core.scan_root import ScanRoot
 from framework.starter_scanner.core.scanner_engine import ScannerEngine
 from server.bootstrap.application_definitions import ApplicationDefinitions
@@ -89,6 +90,8 @@ class DefinitionsStep:
                     type(ctx.settings): ctx.settings,
                     type(ctx.date_utils): ctx.date_utils,
                     type(ctx.expression_utils): ctx.expression_utils,
+                    type(ctx.page_settings): ctx.page_settings,
+                    DataPaginator: DataPaginator(ctx.page_settings),
                     type(ctx.bootstrap_config): ctx.bootstrap_config,
                     ErrorCodeRegistry: registry,
                     type(translator): translator,

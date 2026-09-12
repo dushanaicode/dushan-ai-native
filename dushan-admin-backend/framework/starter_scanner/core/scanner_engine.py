@@ -24,9 +24,13 @@ class ScannerEngine:
         self.config = config
         self._filter = PathFilter(config)
         self._collector = ComponentCollector(config)
+        self._ignored = frozenset(name.casefold() for name in config.ignored_directories)
 
     def scan(self, roots: tuple[ScanRoot, ...]) -> ScanResult:
-        """禁用或明确全不选时不定位扫描根；合法空结果正常返回。"""
+        """禁用或明确全不选时不定位扫描根；合法空结果正常返回。
+
+        忽略目录规则只作用于扫描根内部的子目录，显式声明的扫描根本身不受影响。
+        """
         started = perf_counter()
         recorder = (
             ScanRecorder(self.config.diagnostic_limit) if self.config.diagnostics_enabled else None
@@ -46,7 +50,7 @@ class ScannerEngine:
                 if recorder is not None:
                     recorder.skip(reason, root.package)
                 continue
-            path = root.path.resolve(strict=True)
+            path = self._resolve_root(root)
             if PackageLocator.locate(root.package, package=True) != path / "__init__.py":
                 raise ScannerException(
                     error_code=ScannerErrorCodes.SCANNER_SECURITY_ERROR,
@@ -98,6 +102,28 @@ class ScannerEngine:
             None if recorder is None else recorder.snapshot(),
         )
 
+    @staticmethod
+    def _resolve_root(root: ScanRoot) -> Path:
+        """扫描根不存在、不可访问或不是目录时，报告模块、包、路径与原始原因。"""
+        try:
+            path = root.path.resolve(strict=True)
+            directory = path.is_dir()
+        except (OSError, RuntimeError) as error:
+            raise ScannerException(
+                error_code=ScannerErrorCodes.SCANNER_CONFIG_ERROR,
+                msg=(
+                    f"扫描根目录不存在或无法访问: {root.package} ({root.path})；"
+                    f"模块 {root.module}；原因类型 {type(error).__name__}"
+                ),
+                cause=error,
+            ) from error
+        if not directory:
+            raise ScannerException(
+                error_code=ScannerErrorCodes.SCANNER_CONFIG_ERROR,
+                msg=f"扫描根不是目录: {root.package} ({path})；模块 {root.module}",
+            )
+        return path
+
     def _collect_files(
         self,
         owner: str,
@@ -107,17 +133,25 @@ class ScannerEngine:
         files: dict[str, tuple[str, Path]],
         recorder: ScanRecorder | None,
     ) -> None:
-        """只遍历普通包，拒绝包内链接/联接，过滤先于子包枚举与导入。"""
+        """只遍历普通包，拒绝包内链接/联接，过滤先于子包枚举与导入。
+
+        以点开头的条目不是合法 Python 名称，始终跳过；配置的忽略目录按目录名
+        不区分大小写匹配，在任何来源校验和导入之前剪枝，不影响 .py 文件。
+        """
         if self._filter.accepts(package):
             self._add_file(files, package, owner, directory / "__init__.py")
-        for path in sorted(directory.iterdir()):
+        for path in self._entries(package, directory):
             if path.name == "__init__.py":
                 continue
-            if path.name.startswith(".") or path.name.casefold() in {"temp", "__pycache__"}:
-                if recorder is not None:
-                    recorder.skip("ignored_path", path.name)
-                continue
             name = f"{package}.{path.stem if path.suffix == '.py' else path.name}"
+            if path.name.startswith("."):
+                if recorder is not None:
+                    recorder.skip("hidden_path", str(path))
+                continue
+            if path.name.casefold() in self._ignored and path.is_dir():
+                if recorder is not None:
+                    recorder.skip("ignored_directory", name)
+                continue
             reason = self._filter.reason(name, traverse=True)
             if reason is not None:
                 if recorder is not None:
@@ -144,6 +178,18 @@ class ScannerEngine:
                 recorder.skip("not_selected_python_file", name)
 
     @staticmethod
+    def _entries(package: str, directory: Path) -> list[Path]:
+        """目录无法读取时给出包名、路径与原始原因，而不是泄漏底层 OSError。"""
+        try:
+            return sorted(directory.iterdir())
+        except OSError as error:
+            raise ScannerException(
+                error_code=ScannerErrorCodes.SCANNER_CONFIG_ERROR,
+                msg=f"扫描目录无法读取: {package} ({directory})；原因类型 {type(error).__name__}",
+                cause=error,
+            ) from error
+
+    @staticmethod
     def _add_file(files: dict[str, tuple[str, Path]], name: str, owner: str, path: Path) -> None:
         """重叠扫描根可去重，跨模块归属冲突不能静默覆盖。"""
         if path.is_symlink() or not path.resolve().is_relative_to(path.parent):
@@ -151,7 +197,14 @@ class ScannerEngine:
                 error_code=ScannerErrorCodes.SCANNER_SECURITY_ERROR,
                 msg=f"扫描文件存在链接或越界: {path}",
             )
-        entry = (owner, path.resolve(strict=True))
+        try:
+            entry = (owner, path.resolve(strict=True))
+        except OSError as error:
+            raise ScannerException(
+                error_code=ScannerErrorCodes.SCANNER_CONFIG_ERROR,
+                msg=f"扫描文件不存在或无法访问: {name} ({path})；原因类型 {type(error).__name__}",
+                cause=error,
+            ) from error
         if name in files and files[name] != entry:
             raise ScannerException(
                 error_code=ScannerErrorCodes.SCANNER_CONFIG_ERROR,

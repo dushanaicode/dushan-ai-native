@@ -42,3 +42,4 @@ async function defineConfig(config: FlatConfig[] = []) {
 }
 
 export { defineConfig };
+export { defineRuntimeBoundaries } from './runtime-boundaries';

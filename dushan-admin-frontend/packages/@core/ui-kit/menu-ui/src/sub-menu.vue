@@ -4,7 +4,6 @@ import type { MenuRecordRaw } from '@vben-core/typings';
 import { computed } from 'vue';
 
 import { MenuBadge, MenuItem, SubMenu as SubMenuComp } from './components';
-import SubMenu from './sub-menu.vue';
 
 interface Props {
   /**

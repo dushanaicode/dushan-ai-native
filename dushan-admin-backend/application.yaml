@@ -46,7 +46,38 @@ banner:
 
 # ==================== 配置模型与运行覆盖 ====================
 config:
-  models: {} # 模块默认值：{account: {enabled: true}}；模型通过自身环境前缀覆盖字段
+  models: # 模型通过自身环境前缀覆盖字段，例如 DATABASE_ENABLED
+    database:
+      enabled: false # 填写来源后开启；关闭时不导入驱动或连接数据库
+      sources: [] # 每项明确 name/url/role/weight/pool/tls；role=primary/replica/named，pool=null 继承下方池配置
+      # tls=null 不启用 TLS；启用时填写 ca_file/certificate_file/private_key_file（可为 null），始终校验证书和主机名。
+      pool:
+        size: 10 # 每个端点、每个应用进程的常驻连接数
+        max_overflow: 20 # 高峰期临时连接上限；0 禁止溢出
+        timeout_seconds: 30.0 # 连接池借用等待秒数
+        recycle_seconds: 3600 # 回收连接年龄秒数；-1 不按年龄回收
+        pre_ping: true # 借出前探活，失效连接由 SQLAlchemy 丢弃
+      connect_timeout_seconds: 10.0 # 启动和健康探测的总超时秒数
+      replica_strategy: round_robin # round_robin/random/weighted/least_connections
+      health_check_enabled: true # 后台探活；启动时主库探活始终执行
+      health_check_interval_seconds: 30.0
+      replication_check_enabled: false # 开启后要求 MySQL/PG 复制状态查询权限
+      max_replication_lag_seconds: 10.0 # 副本最大容许复制延迟
+      slow_query_enabled: true # 输出安全观测字段，绝不输出原始 SQL 或参数
+      slow_query_threshold_ms: 500.0
+      query_observation_enabled: true # 同步安全查询事件；关闭后不调用 observer
+      query_template_enabled: false # 模板仅保留白名单 SQL 结构，标识符和字面值均脱敏
+      query_fingerprint_enabled: true # 安全模板的 SHA-256，不对原始 SQL 或参数计算摘要
+      query_sample_rate: 1.0 # 查询事件采样率；慢查询诊断独立启用
+      query_max_statement_length: 65536 # 超限不解析模板/指纹，避免无界观测开销
+      query_max_template_length: 1024 # 模板输出字符上限
+      dynamic_enabled: false # 按 named 角色显式替换动态源
+      dynamic_refresh_interval_seconds: 5.0 # 绑定上层配置提供器后的轮询秒数
+      soft_delete_enabled: true # 默认过滤 BaseDO 已删除记录
+      audit_enabled: true # 自动填充当前作用域账户；UTC 时间始终由模型策略填写
+      id_strategy: database # database 使用数据库自增；snowflake 使用已有 SnowflakeUtils
+      snowflake_machine_id: null # snowflake 必须显式分配 0～1023；同机器号不能被多进程同时使用
+      after_commit_result_limit: 100 # 最近提交后动作结果的最大条数
   source_order: [environment, memory, external, file, yaml] # 优先级从高到低；模型/字段可显式收紧
   files: [] # [{path: config-overrides.yaml, required: true}]；后列文件覆盖先列同名键
   reload_enabled: false # 显式内存/文件/外部快照刷新；不启动后台监听线程
@@ -62,6 +93,7 @@ di:
   automatic_context_binding: true # HTTP/WebSocket 入口自动绑定上下文；关闭后须显式建立执行边界
   drain_timeout_seconds: 30.0 # 超时后协作取消受管任务，仍等实际执行结束再释放依赖
   metrics_enabled: true # 关闭可选解析计时和计数，不关闭必要错误与资源检查
+  task_error_limit: 100 # 保留最近 N 项后台任务失败供关闭汇总；每次失败仍即时记录日志，累计计数不受截断影响
 
 # ==================== 模块声明配置 ====================
 modules:
@@ -74,6 +106,7 @@ scanner:
   component_types: null # null 全部；[] 不导入候选；可选 component、error_code、config_model
   include_packages: null # null 全部；[] 不扫描；完整包前缀，例如 module_account.definitions
   exclude_packages: [] # 优先于 include，排除包及其全部子模块；环境列表使用 JSON 数组
+  ignored_directories: [__pycache__, temp] # 扫描根内按目录名（不区分大小写）跳过的子目录，不校验不导入；[] 只跳过点开头的隐藏目录
   diagnostics_enabled: true # 开启分阶段耗时、跳过原因与慢导入统计；不改变来源校验
   diagnostic_limit: 10 # 跳过样例和慢模块各自最多保留多少项（1–100）
 

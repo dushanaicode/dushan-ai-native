@@ -8,7 +8,7 @@ from framework.common.utils.el.expression_options import ExpressionOptions
 from framework.starter_config.config.config_settings import ConfigSettings
 from framework.starter_di.config.di_settings import DiSettings
 from framework.starter_logging.config.log_settings import LogSettings
-from framework.starter_module.module_settings import ModuleSettings
+from framework.starter_module.config.module_settings import ModuleSettings
 from framework.starter_scanner.config.scanner_config import ScannerConfig
 from framework.starter_web.config.banner_settings import BannerSettings
 from server.config.granian.granian_settings import GranianSettings

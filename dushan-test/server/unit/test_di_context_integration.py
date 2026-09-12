@@ -8,10 +8,12 @@ from fastapi import Depends, WebSocket
 from fastapi.responses import StreamingResponse
 from fastapi.testclient import TestClient
 
+from framework.starter_config.provider.bootstrap_config_error import BootstrapConfigError
 from framework.starter_di.context.application_context import ApplicationContext
 from framework.starter_di.context.application_state_enum import ApplicationStateEnum
 from framework.starter_di.context.get_bean import get_bean
 from framework.starter_di.decorators.di_dependency import DiDependency
+from framework.starter_di.enums.container_state_enum import ContainerStateEnum
 from framework.starter_di.exception.di_error_codes import DiErrorCodes
 from server.bootstrap.bootstrapper import BootstrapError
 from server.bootstrap.step_registry import APP_BOOTSTRAP_STEPS, BootstrapStepSpec
@@ -178,3 +180,55 @@ def test_required_resource_step_rejects_disabled_di_before_running(module_packag
     with pytest.raises(BootstrapError), TestClient(app):
         pass
     assert not app.state.bootstrap.ready and app.state.application_context is None
+
+
+async def test_host_cancellation_during_lifespan_exit_keeps_drain_resource_and_config_order(
+    module_package, config_dir
+):
+    """宿主取消 lifespan 退出：先排空，再资源步骤、DI 销毁、配置关闭，最后传播取消。"""
+    events = []
+    started, stop = asyncio.Event(), asyncio.Event()
+
+    @asynccontextmanager
+    async def resource_step(ctx):
+        events.append("resource started")
+        try:
+            yield
+        finally:
+            current = ctx.definitions.application_context
+            assert current.state is ApplicationStateEnum.DRAINING
+            assert current.get_statistics()["executions"] == 0
+            events.append("resource stopped")
+
+    steps = (*APP_BOOTSTRAP_STEPS, BootstrapStepSpec("资源", resource_step, requires_di=True))
+    app, _ = setup_app(module_package, config_dir, steps=steps)
+
+    async def host():
+        async with app.router.lifespan_context(app):
+            started.set()
+            await stop.wait()
+
+    hosting = asyncio.create_task(host())
+    await started.wait()
+    current = app.state.application_context
+    configuration = app.state.bootstrap.definitions.configuration
+    binding = current.reserve_execution()
+    stop.set()
+    for _ in range(200):
+        if current.state is ApplicationStateEnum.DRAINING:
+            break
+        await asyncio.sleep(0.01)
+    assert current.state is ApplicationStateEnum.DRAINING and events == ["resource started"]
+    hosting.cancel("宿主要求退出")
+    await asyncio.sleep(0.05)
+    # 资源所有者受保护等待：取消不会提前释放资源步骤、容器或配置。
+    assert not hosting.done() and events == ["resource started"]
+    assert current.container.state is ContainerStateEnum.READY and configuration.revision >= 0
+    current.release_execution(binding)
+    with pytest.raises(asyncio.CancelledError):
+        await hosting
+    assert events == ["resource started", "resource stopped"]
+    assert current.state is ApplicationStateEnum.CLOSED
+    assert current.container.state is ContainerStateEnum.CLOSED
+    with pytest.raises(BootstrapConfigError):
+        _ = configuration.revision

@@ -8,7 +8,8 @@ router = APIRouter(tags=["服务状态"])
 async def health(request: Request) -> JSONResponse:
     """检查服务是否已完成启动，尚未就绪时返回 503。"""
     ctx = request.app.state.bootstrap
-    ready = ctx.ready
+    database = request.app.state.database
+    ready = ctx.ready and (database is None or database.is_ready)
     return JSONResponse(
         status_code=200 if ready else 503,
         content={

@@ -1,0 +1,22 @@
+{
+  "database.error": "Database operation failed",
+  "database.not_ready": "Database is not ready or is closing",
+  "database.transaction_required": "An active transaction is required",
+  "database.operation_forbidden": "Database operation violates the managed contract",
+  "database.context_mismatch": "Database context belongs to another task",
+  "database.rollback_only": "A nested operation failed; the transaction was rolled back",
+  "database.after_commit_failed": "Data was committed, but subsequent processing failed",
+  "database.connection_failed": "Database connection check failed",
+  "database.unique_violation": "Database unique constraint violated",
+  "database.foreign_key_violation": "Database foreign key constraint violated",
+  "database.not_null_violation": "A required database field is missing",
+  "database.check_violation": "Database check constraint violated",
+  "database.integrity_violation": "Database integrity constraint violated",
+  "database.programming_error": "Database statement or programming error",
+  "database.pool_timeout": "Database connection pool wait timed out",
+  "database.statement_timeout": "Database statement timed out",
+  "database.deadlock": "Database transaction deadlock",
+  "database.serialization_failure": "Database transaction serialization conflict",
+  "database.statement_cancelled": "Database statement was cancelled",
+  "database.data_error": "Invalid database field data"
+}

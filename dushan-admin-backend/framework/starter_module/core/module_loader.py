@@ -6,9 +6,9 @@ from pydantic import ValidationError
 
 from framework.common.exception.exceptions.configuration_exception import ConfigurationException
 from framework.common.importing.package_locator import PackageLocator
-from framework.starter_module.module_definition import ModuleDefinition
-from framework.starter_module.module_settings import ModuleSettings
-from framework.starter_module.resolved_module import ResolvedModule
+from framework.starter_module.config.module_definition import ModuleDefinition
+from framework.starter_module.config.module_settings import ModuleSettings
+from framework.starter_module.core.resolved_module import ResolvedModule
 
 
 class ModuleLoader:

@@ -8,6 +8,7 @@ from uuid import uuid4
 from loguru import logger
 from opentelemetry import trace
 
+from framework.common.diagnostics.safe_exception_diagnostics import SafeExceptionDiagnostics
 from framework.common.enums.application_environment_enum import ApplicationEnvironmentEnum
 from framework.common.enums.log_level_enum import LogLevelEnum
 from framework.common.security.sanitizer import Sanitizer
@@ -257,8 +258,13 @@ class LoggerConfigurator:
             return ""
         record["exception"] = None
         try:
+            safe = SafeExceptionDiagnostics.snapshot(exception.value)
             formatted = "".join(
-                traceback.format_exception(exception.type, exception.value, exception.traceback)
+                traceback.format_exception(
+                    exception.type if safe is exception.value else type(safe),
+                    safe,
+                    exception.traceback if safe is exception.value else safe.__traceback__,
+                )
             )
         except Exception:
             formatted = f"{getattr(exception.type, '__name__', 'Exception')}：堆栈格式化失败"

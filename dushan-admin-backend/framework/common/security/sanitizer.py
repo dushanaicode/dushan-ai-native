@@ -1,6 +1,7 @@
 import re
 from typing import Any
 
+from framework.common.diagnostics.safe_exception_diagnostics import SafeExceptionDiagnostics
 from framework.common.security.serialized_sensitive_value_sanitizer import (
     SerializedSensitiveValueSanitizer,
 )
@@ -264,7 +265,7 @@ class Sanitizer:
             return cls.sanitize_text(value)
         if isinstance(value, BaseException):
             try:
-                return cls.sanitize_text(str(value))
+                return cls.sanitize_text(str(SafeExceptionDiagnostics.snapshot(value)))
             except Exception:
                 return f"<{type(value).__name__}>"
         if value is None or isinstance(value, (bool, int, float)):

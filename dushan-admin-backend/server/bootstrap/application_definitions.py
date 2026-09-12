@@ -4,7 +4,7 @@ from framework.common.exception.registry.error_code_registry import ErrorCodeReg
 from framework.common.i18n.core.translator import I18nTranslator
 from framework.starter_config.provider.config_provider import ConfigProvider
 from framework.starter_di.context.application_context import ApplicationContext
-from framework.starter_module.resolved_module import ResolvedModule
+from framework.starter_module.core.resolved_module import ResolvedModule
 from framework.starter_scanner.core.scan_result import ScanResult
 
 

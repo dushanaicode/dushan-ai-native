@@ -12,7 +12,8 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "stub": "pnpm exec tsdown"
+    "stub": "pnpm exec tsdown",
+    "typecheck": "tsc --noEmit --project tsconfig.json"
   },
   "files": [
     "dist"
@@ -29,7 +30,6 @@
   "dependencies": {
     "@eslint/js": "catalog:",
     "@typescript-eslint/parser": "catalog:",
-    "@vben/oxlint-config": "workspace:*",
     "eslint": "catalog:",
     "eslint-plugin-jsonc": "catalog:",
     "eslint-plugin-n": "catalog:",

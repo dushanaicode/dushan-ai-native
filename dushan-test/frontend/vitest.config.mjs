@@ -6,7 +6,7 @@ import { defineConfig } from '../../dushan-admin-frontend/node_modules/vitest/di
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const frontend = resolve(root, 'dushan-admin-frontend');
-const temporary = resolve(root, 'Temp/page-response-final-20260910/frontend');
+const temporary = resolve(frontend, 'Temp/frontend-foundation');
 
 export default defineConfig({
   root: frontend,
@@ -35,6 +35,7 @@ export default defineConfig({
     ],
     watch: false,
     maxWorkers: 1,
+    testTimeout: 60_000,
     reporters: ['default', 'junit'],
     outputFile: { junit: resolve(temporary, 'results.xml') },
   },

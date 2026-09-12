@@ -125,15 +125,29 @@ class BootstrapConfigProvider:
         return data
 
     @classmethod
-    def _environment_keys(cls, model_type: type[BaseModel], prefix: str) -> set[str]:
-        """按模型声明列出有效环境变量名，不接受拼错的受管配置变量。"""
-        result = set()
+    def _environment_keys(
+        cls, model_type: type[BaseModel], prefix: str, path: str = ""
+    ) -> dict[str, str]:
+        """按模型声明列出环境变量名到字段路径的映射，不接受拼错的受管配置变量。
+
+        字段 a_b 与嵌套字段 a.b 都会映射到 X_A_B；这种歧义是模型声明错误，
+        无论环境里是否真的设置了该变量都直接拒绝，消息只含变量名和字段路径。
+        """
+        result: dict[str, str] = {}
         for name, info in model_type.model_fields.items():
             key = prefix + name.upper()
+            field_path = f"{path}.{name}" if path else name
             if isinstance(info.annotation, type) and issubclass(info.annotation, BaseModel):
-                result.update(cls._environment_keys(info.annotation, key + "_"))
+                nested = cls._environment_keys(info.annotation, key + "_", field_path)
             else:
-                result.add(key)
+                nested = {key: field_path}
+            for variable, owner in nested.items():
+                if variable in result:
+                    raise BootstrapConfigError(
+                        f"环境变量名歧义：{variable} 同时对应字段 {result[variable]} 与 {owner}"
+                        f"（模型 {model_type.__qualname__}）"
+                    )
+                result[variable] = owner
         return result
 
     def _apply_environment(
@@ -192,6 +206,10 @@ class BootstrapConfigProvider:
     def get_yaml_snapshot(self) -> tuple[dict[str, object], dict[str, str]]:
         """为模型配置提供启动 YAML 的独立值/来源快照，不再次读取磁盘。"""
         return deepcopy(self._values), dict(self._sources)
+
+    def get_group_prefixes(self) -> dict[str, str]:
+        """启动配置各顶层分组占用的环境前缀，例如 log → LOG_；模型前缀不得与之重叠。"""
+        return {f"{group.upper()}_": group for group in self._values}
 
     def get_model_environment(
         self, model: type[BaseModel], *, prefix: str

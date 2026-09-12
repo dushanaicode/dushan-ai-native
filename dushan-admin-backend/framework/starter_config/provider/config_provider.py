@@ -52,7 +52,8 @@ class ConfigProvider:
         self._notifying = ContextVar(f"config_notify_{id(self)}", default=None)
         self._metadata: dict[type[BaseModel], ConfigModelMetadata] = {}
         names: set[str] = set()
-        prefixes: set[str] = set()
+        prefixes: dict[str, str] = {}
+        groups = bootstrap.get_group_prefixes()
         for model in dict.fromkeys(source_classes):
             metadata = vars(model).get(ConfigModelMetadata.ATTRIBUTE)
             if not isinstance(metadata, ConfigModelMetadata):
@@ -60,8 +61,10 @@ class ConfigProvider:
                     f"配置模型缺少自身声明：{model.__module__}.{model.__qualname__}"
                 )
             self._validate_model(model, set())
-            if metadata.name in names or metadata.env_prefix in prefixes:
-                raise BootstrapConfigError(f"配置模型名称或环境前缀冲突：{metadata.name}")
+            if metadata.name in names:
+                raise BootstrapConfigError(f"配置模型名称重复：{metadata.name}")
+            self._check_prefix(metadata, groups, "启动配置分组")
+            self._check_prefix(metadata, prefixes, "配置模型")
             unknown = (
                 metadata.field_keys.keys() | metadata.field_sources.keys()
             ) - model.model_fields.keys()
@@ -73,7 +76,7 @@ class ConfigProvider:
                 if order is not None and set(order) - set(self._options.source_order):
                     raise BootstrapConfigError(f"配置模型引用了未启用的配置源：{metadata.name}")
             names.add(metadata.name)
-            prefixes.add(metadata.env_prefix)
+            prefixes[metadata.env_prefix] = metadata.name
             self._metadata[model] = metadata
         yaml_values, yaml_sources = bootstrap.get_yaml_snapshot()
         self._layers = {source: ({}, {}) for source in ConfigSourceEnum}
@@ -305,7 +308,8 @@ class ConfigProvider:
                     fields.append(
                         f"{prefix}.{field}（来源：{self._origin(origins, field, '未提供')}，{detail['type']}）"
                     )
-                raise BootstrapConfigError("配置模型校验失败：" + "；".join(fields)) from error
+                # 原始校验异常携带输入值，不进入正常异常链；消息只保留字段、来源和错误类型。
+                raise BootstrapConfigError("配置模型校验失败：" + "；".join(fields)) from None
             all_origins[model] = origins
         return configs, all_origins
 
@@ -415,6 +419,16 @@ class ConfigProvider:
                     cls._validate_model(annotation, seen)
                 else:
                     pending.extend(get_args(annotation))
+
+    @staticmethod
+    def _check_prefix(metadata: ConfigModelMetadata, owners: Mapping[str, str], kind: str) -> None:
+        """前缀相同或互为前缀时，同一个环境变量会落入两个归属，声明期直接拒绝。"""
+        for prefix, owner in owners.items():
+            if metadata.env_prefix.startswith(prefix) or prefix.startswith(metadata.env_prefix):
+                raise BootstrapConfigError(
+                    f"配置模型环境前缀重叠：{metadata.name} ({metadata.env_prefix}) "
+                    f"与{kind} {owner} ({prefix})"
+                )
 
     @staticmethod
     def _check_extra_fields(

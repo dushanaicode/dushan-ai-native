@@ -291,28 +291,28 @@ async def test_cleanup_failures_do_not_prevent_remaining_cleanup(configuration):
     assert events == ["b", "a"] and current.state is ContainerStateEnum.CLOSED
 
 
-async def test_cancellation_waits_for_shutdown_terminal_state(configuration):
-    entered, release, finished = asyncio.Event(), asyncio.Event(), asyncio.Event()
+async def test_cancelled_shutdown_wait_returns_promptly_and_destroy_completes_once(configuration):
+    entered, release, finished = asyncio.Event(), asyncio.Event(), []
 
     @service
     class Resource:
         async def pre_destroy(self):
             entered.set()
             await release.wait()
-            finished.set()
+            finished.append(True)
 
     current = container([Resource], configuration)
     await current.startup()
     closing = asyncio.create_task(current.shutdown())
     await entered.wait()
-    closing.cancel("first")
-    await asyncio.sleep(0)
-    closing.cancel("second")
-    assert not finished.is_set()
-    release.set()
+    closing.cancel("调用方放弃等待")
     with pytest.raises(asyncio.CancelledError):
         await closing
-    assert finished.is_set() and current.state is ContainerStateEnum.CLOSED
+    # 取消的只是等待：销毁钩子仍在运行，容器保持 STOPPING。
+    assert not finished and current.state is ContainerStateEnum.STOPPING
+    release.set()
+    await current.shutdown()
+    assert finished == [True] and current.state is ContainerStateEnum.CLOSED
 
 
 async def test_startup_cancellation_rolls_back_and_hook_timeout_preserves_cause(configuration):
@@ -526,3 +526,36 @@ async def test_generator_lifecycle_is_rejected_before_construction(configuration
     with pytest.raises(DiException) as caught:
         await current.startup()
     assert caught.value.error_code == DiErrorCodes.INVALID_LIFECYCLE
+
+
+async def test_cancelled_shutdown_wait_keeps_thread_resolution_and_executor_exits(configuration):
+    entered, release, destroyed = threading.Event(), threading.Event(), []
+
+    @service
+    class Resource:
+        def pre_destroy(self):
+            destroyed.append(True)
+
+    @service(scope=ComponentScopeEnum.TRANSIENT)
+    class Slow:
+        def __init__(self):
+            entered.set()
+            assert release.wait(timeout=2)
+
+    current = container([Resource, Slow], configuration)
+    await current.startup()
+    get_task = asyncio.create_task(asyncio.to_thread(current.get, Slow))
+    assert await asyncio.to_thread(entered.wait, 1)
+    closing = asyncio.create_task(current.shutdown())
+    await asyncio.sleep(0.02)
+    closing.cancel("调用方超时")
+    with pytest.raises(asyncio.CancelledError):
+        await closing
+    # 取消的只是等待：线程内解析继续，容器停在 STOPPING，资源未销毁。
+    assert current.state is ContainerStateEnum.STOPPING and not destroyed
+    release.set()
+    assert isinstance(await get_task, Slow)
+    await current.shutdown()
+    assert destroyed == [True] and current.state is ContainerStateEnum.CLOSED
+    # Condition 等待的工作线程已返回，默认 executor 能在限时内关闭。
+    await asyncio.wait_for(asyncio.get_running_loop().shutdown_default_executor(), timeout=2)

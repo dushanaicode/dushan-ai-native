@@ -1,8 +1,10 @@
 import asyncio
 import threading
+from contextlib import contextmanager
 from contextvars import ContextVar
 
 import pytest
+from loguru import logger
 
 from framework.starter_di.context.application_context import ApplicationContext
 from framework.starter_di.context.application_state_enum import ApplicationStateEnum
@@ -16,6 +18,16 @@ from framework.starter_di.exception.di_error_codes import DiErrorCodes
 from framework.starter_di.exception.di_exception import DiException
 
 pytestmark = pytest.mark.unit
+
+
+@contextmanager
+def captured_logs(level):
+    records = []
+    handler = logger.add(lambda message: records.append(message.record), level=level)
+    try:
+        yield records
+    finally:
+        logger.remove(handler)
 
 
 async def test_inject_and_lookup_share_app_singletons_and_restore_nested_context(contexts):
@@ -94,7 +106,9 @@ async def test_unmanaged_child_cannot_use_an_expired_parent_execution(contexts):
     await current.shutdown()
 
 
-async def test_shutdown_waits_for_business_after_lookup_and_preserves_cancellation(contexts):
+async def test_cancelled_shutdown_wait_returns_promptly_and_keeps_resources_until_business_ends(
+    contexts,
+):
     started, release, closed = asyncio.Event(), asyncio.Event(), []
 
     @service
@@ -120,13 +134,15 @@ async def test_shutdown_waits_for_business_after_lookup_and_preserves_cancellati
     with pytest.raises(DiException):
         with current.execution():
             pass
-    closing.cancel("first")
-    await asyncio.sleep(0)
-    closing.cancel("second")
-    release.set()
-    await task
+    closing.cancel("调用方放弃等待")
+    # 业务仍在进行：取消的只是等待，排空任务、状态和资源都保持原状。
     with pytest.raises(asyncio.CancelledError):
         await closing
+    assert not closed and current.state is ApplicationStateEnum.DRAINING
+    assert current.container.state is ContainerStateEnum.READY
+    release.set()
+    await task
+    await current.shutdown()
     assert closed == [True] and current.state is ApplicationStateEnum.CLOSED
 
 
@@ -296,13 +312,171 @@ async def test_draining_allows_nested_continuation_but_rejects_new_background_wo
         await current.tasks.run(continuation)
         with pytest.raises(DiException):
             current.tasks.create_task(continuation)
+        await current.tasks.create_task(continuation, continuation=True)
 
     task = current.tasks.create_task(business)
     await entered.wait()
     closing = asyncio.create_task(current.shutdown())
     await asyncio.sleep(0.01)
     assert current.state is ApplicationStateEnum.DRAINING
+    with pytest.raises(DiException):
+        current.tasks.create_task(continuation, continuation=True)
     release.set()
     await task
     await closing
     assert current.get_statistics()["executions"] == 0
+
+
+async def test_public_shutdown_wait_can_be_bounded_while_unmanaged_execution_is_held(contexts):
+    """普通 with execution 持有未释放工作时，外层期限能中止等待；资源与状态保持。"""
+    closed = []
+
+    @service
+    class Resource:
+        async def pre_destroy(self):
+            closed.append(True)
+
+    current = contexts([Resource], drain_timeout_seconds=0.02)
+    await current.startup()
+    current.mark_ready()
+    binding = current.reserve_execution()
+    with captured_logs("WARNING") as records:
+        with pytest.raises(TimeoutError):
+            async with asyncio.timeout(0.3):
+                await current.shutdown()
+    assert any("活动执行 1" in record["message"] for record in records)
+    statistics = current.get_statistics()
+    assert statistics["state"] == ApplicationStateEnum.DRAINING.value
+    assert statistics["executions"] == 1 and statistics["shutdown_errors"] == 1
+    assert not closed and current.container.state is ContainerStateEnum.READY
+    current.release_execution(binding)
+    with pytest.raises(BaseExceptionGroup) as error:
+        await current.shutdown()
+    assert [item.error_code for item in error.value.exceptions] == [DiErrorCodes.DRAIN_TIMEOUT]
+    assert closed == [True] and current.state is ApplicationStateEnum.CLOSED
+
+
+async def test_concurrent_shutdown_waiters_share_one_close_and_cancel_is_isolated(contexts):
+    entered, release, closed = asyncio.Event(), asyncio.Event(), []
+
+    @service
+    class Resource:
+        async def pre_destroy(self):
+            entered.set()
+            await release.wait()
+            closed.append(True)
+
+    current = contexts([Resource])
+    await current.startup()
+    current.mark_ready()
+    first = asyncio.create_task(current.shutdown())
+    second = asyncio.create_task(current.shutdown())
+    await entered.wait()
+    assert current.state is ApplicationStateEnum.STOPPING
+    first.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await first
+    assert not second.done() and not closed
+    release.set()
+    await second
+    assert closed == [True] and current.state is ApplicationStateEnum.CLOSED
+    await current.shutdown()
+    assert closed == [True]
+
+
+async def test_shutdown_failure_is_logged_when_no_waiter_remains(contexts):
+    entered, release = asyncio.Event(), asyncio.Event()
+
+    @service
+    class Broken:
+        async def pre_destroy(self):
+            entered.set()
+            await release.wait()
+            raise RuntimeError("destroy failed")
+
+    current = contexts([Broken])
+    await current.startup()
+    current.mark_ready()
+    with captured_logs("ERROR") as records:
+        closing = asyncio.create_task(current.shutdown())
+        await entered.wait()
+        closing.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await closing
+        release.set()
+        for _ in range(200):
+            if records:
+                break
+            await asyncio.sleep(0.005)
+    assert current.state is ApplicationStateEnum.CLOSED
+    assert any("应用 DI 关闭发生错误" in record["message"] for record in records)
+    with pytest.raises(BaseExceptionGroup):
+        await current.shutdown()
+
+
+async def test_task_failures_are_logged_immediately_bounded_and_counted(contexts):
+    current = contexts(task_error_limit=2)
+    await current.startup()
+    current.mark_ready()
+
+    async def broken(index):
+        raise ValueError(f"failure {index}")
+
+    async def pending():
+        await asyncio.Event().wait()
+
+    with captured_logs("ERROR") as records:
+        for index in range(5):
+            task = current.tasks.create_task(broken, index, name=f"broken-{index}")
+            with pytest.raises(ValueError, match=f"failure {index}"):
+                await task
+        waiting = current.tasks.create_task(pending, name="pending")
+        await asyncio.sleep(0)
+        waiting.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await waiting
+        assert await current.tasks.create_task(lambda: "ok") == "ok"
+    assert [record["message"].split("\n")[0] for record in records] == [
+        f"应用后台任务失败：broken-{index}" for index in range(5)
+    ]
+    statistics = current.get_statistics()
+    assert statistics["task_failures"] == 5 and statistics["task_errors_retained"] == 2
+    assert statistics["shutdown_errors"] == 0
+    with pytest.raises(BaseExceptionGroup) as caught:
+        await current.shutdown()
+    samples = [item for item in caught.value.exceptions if item.__cause__ is not None]
+    assert [str(item.__cause__) for item in samples] == ["failure 3", "failure 4"]
+    summary = [item for item in caught.value.exceptions if item.__cause__ is None]
+    assert len(summary) == 1 and "另有 3 项" in str(summary[0])
+    assert summary[0].error_code == DiErrorCodes.TASK_FAILED
+
+
+async def test_shutdown_errors_survive_task_error_eviction(contexts):
+    """后台样本淘汰不覆盖排空超时；两类错误分开保存并一起报告。"""
+    current = contexts(task_error_limit=1, drain_timeout_seconds=0.02)
+    await current.startup()
+    current.mark_ready()
+
+    async def broken(index):
+        raise ValueError(f"failure {index}")
+
+    for index in range(3):
+        with pytest.raises(ValueError):
+            await current.tasks.create_task(broken, index)
+    binding = current.reserve_execution()
+    closing = asyncio.create_task(current.shutdown())
+    for _ in range(200):
+        if current.get_statistics()["shutdown_errors"]:
+            break
+        await asyncio.sleep(0.01)
+    assert current.get_statistics()["shutdown_errors"] == 1
+    current.release_execution(binding)
+    with pytest.raises(BaseExceptionGroup) as caught:
+        await closing
+    assert [item.error_code for item in caught.value.exceptions] == [
+        DiErrorCodes.DRAIN_TIMEOUT,
+        DiErrorCodes.TASK_FAILED,
+        DiErrorCodes.TASK_FAILED,
+    ]
+    assert str(caught.value.exceptions[1].__cause__) == "failure 2"
+    assert caught.value.exceptions[2].__cause__ is None

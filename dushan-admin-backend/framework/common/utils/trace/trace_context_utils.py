@@ -9,6 +9,7 @@ from opentelemetry.trace import Span, Status, StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 from framework.common.diagnostics.exception_trace_formatter import ExceptionTraceFormatter
+from framework.common.diagnostics.safe_exception_diagnostics import SafeExceptionDiagnostics
 from framework.common.security.sanitizer import Sanitizer
 from framework.common.utils.trace.trace_info import TraceInfo
 
@@ -85,6 +86,7 @@ class TraceContextUtils:
         """写入经过统一脱敏的异常事件，不让 SDK 重新序列化原始异常。"""
         if not span.is_recording():
             return
+        exception = SafeExceptionDiagnostics.snapshot(exception)
         safe = Sanitizer.sanitize_sensitive_data(dict(attributes) if attributes is not None else {})
         safe.update(
             {

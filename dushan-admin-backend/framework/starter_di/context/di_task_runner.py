@@ -37,11 +37,18 @@ class DiTaskRunner:
             return result
 
     def create_task(
-        self, callback: Callable, *args, name: str | None = None, **kwargs
+        self,
+        callback: Callable,
+        *args,
+        name: str | None = None,
+        continuation: bool = False,
+        **kwargs,
     ) -> asyncio.Task:
-        """预先登记任务；启动阶段创建的任务等应用就绪后才调用业务函数。"""
+        """预先登记任务；continuation 仅允许有效业务上下文在排空时登记必要续作。"""
         self._application.require_owner_loop()
-        binding = self._application.reserve_execution(allow_starting=True)
+        binding = self._application.reserve_execution(
+            allow_starting=True, allow_nested=continuation
+        )
         task = asyncio.create_task(
             self._run_reserved(binding, callback, args, kwargs), name=name, context=Context()
         )
@@ -65,7 +72,7 @@ class DiTaskRunner:
         if not task.cancelled():
             error = task.exception()
             if error is not None:
-                self._application.record_task_error(error)
+                self._application.record_task_error(error, task)
 
     def cancel_pending(self) -> None:
         for task in tuple(self._tasks):

@@ -9,8 +9,8 @@ import { isHttpUrl } from '@vben-core/shared/utils';
 
 import qs from 'qs';
 
-import { MenuBadge } from '../components';
 import { useMenu, useMenuContext, useSubMenuContext } from '../hooks';
+import MenuBadge from './menu-badge.vue';
 
 interface Props extends MenuItemProps {}
 

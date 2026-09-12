@@ -1,11 +1,13 @@
 import asyncio
 import json
 import threading
+import traceback
+import uuid
 
 import pytest
 import yaml
 from config_factory import ConfigFactory
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from framework.starter_config.config.config_model import ConfigModel
 from framework.starter_config.decorator.config_decorator import config_model
@@ -550,3 +552,115 @@ def test_file_reload_rejects_a_snapshot_if_another_update_was_published(config_d
     with pytest.raises(BootstrapConfigError, match="迟到快照"):
         current.reload_files()
     assert current.get_config(SampleSettings).count == 6
+
+
+def test_environment_name_ambiguity_inside_a_model_fails_at_declaration(config_dir):
+    class Child(ConfigModel):
+        b: int
+
+    @config_model("ambiguous", env_prefix="AMBIGUOUS_")
+    class Ambiguous(ConfigModel):
+        a_b: int
+        a: Child
+
+    root = config_dir({"config": {"models": {"ambiguous": {"a_b": 1, "a": {"b": 2}}}}})
+    with pytest.raises(BootstrapConfigError, match="AMBIGUOUS_A_B") as caught:
+        ConfigProvider(BootstrapConfigProvider.load(root, environ={}), [Ambiguous])
+    assert "a_b" in str(caught.value) and "a.b" in str(caught.value)
+
+
+def test_model_prefixes_must_not_repeat_or_nest_each_other(config_dir):
+    @config_model("outer", env_prefix="X_")
+    class Outer(ConfigModel):
+        a: int
+
+    @config_model("inner", env_prefix="X_A_")
+    class Inner(ConfigModel):
+        b: int
+
+    @config_model("twin", env_prefix="X_")
+    class Twin(ConfigModel):
+        c: int
+
+    @config_model("apart", env_prefix="XA_")
+    class Apart(ConfigModel):
+        d: int
+
+    models = {"outer": {"a": 1}, "inner": {"b": 2}, "twin": {"c": 3}, "apart": {"d": 4}}
+    bootstrap = BootstrapConfigProvider.load(
+        config_dir({"config": {"models": models}}), environ={"X_A": "5"}
+    )
+    for classes, names in (
+        ([Outer, Inner], ("outer", "inner")),
+        ([Inner, Outer], ("inner", "outer")),
+        ([Outer, Twin], ("outer", "twin")),
+    ):
+        with pytest.raises(BootstrapConfigError, match="配置模型环境前缀重叠") as caught:
+            ConfigProvider(bootstrap, classes)
+        assert all(name in str(caught.value) for name in names)
+    current = ConfigProvider(bootstrap, [Outer, Apart])
+    assert (current.get_config(Outer).a, current.get_config(Apart).d) == (5, 4)
+    current.close()
+
+
+@pytest.mark.parametrize("prefix", ["LOG_", "LOG_FILE_"])
+def test_model_prefix_cannot_overlap_a_bootstrap_group(config_dir, prefix):
+    @config_model("log_extra", env_prefix=prefix)
+    class Extra(ConfigModel):
+        value: int
+
+    root = config_dir({"config": {"models": {"log_extra": {"value": 1}}}})
+    with pytest.raises(BootstrapConfigError, match=r"启动配置分组 log \(LOG_\)") as caught:
+        ConfigProvider(BootstrapConfigProvider.load(root, environ={}), [Extra])
+    assert prefix in str(caught.value)
+
+
+def test_validation_failure_keeps_values_out_of_message_and_traceback(config_dir):
+    marker = f"marker-{uuid.uuid4().hex}"
+    current = provider(config_dir)
+    events = []
+    current.add_listener(events.append)
+    before = current.read(SampleSettings)
+    with pytest.raises(BootstrapConfigError) as caught:
+        current.replace_memory({"config": {"models": {"sample": {"count": marker}}}})
+    rendered = "".join(traceback.format_exception(caught.value))
+    assert marker not in rendered
+    assert "config.models.sample.count" in str(caught.value) and "int_parsing" in str(caught.value)
+    assert "内存配置覆盖" in str(caught.value)
+    assert current.read(SampleSettings) == before and events == []
+    current.close()
+
+
+def test_custom_validator_text_with_input_stays_out_of_normal_output(config_dir):
+    marker = f"marker-{uuid.uuid4().hex}"
+
+    @config_model("guarded", env_prefix="GUARDED_")
+    class Guarded(ConfigModel):
+        token: str
+
+        @field_validator("token")
+        @classmethod
+        def reject_marked_token(cls, value: str) -> str:
+            if value.startswith("marker-"):
+                raise ValueError(f"不允许的令牌 {value}")
+            return value
+
+    root = config_dir({"config": {"models": {"guarded": {"token": marker}}}})
+    with pytest.raises(BootstrapConfigError) as caught:
+        ConfigProvider(BootstrapConfigProvider.load(root, environ={}), [Guarded])
+    rendered = "".join(traceback.format_exception(caught.value))
+    assert marker not in rendered
+    assert "config.models.guarded.token" in str(caught.value) and "value_error" in str(caught.value)
+
+
+@pytest.mark.parametrize("suffix", [".ini", ".yaml"])
+def test_broken_additional_file_does_not_echo_its_content(config_dir, tmp_path, suffix):
+    # YAML 的错误片段只展示出错位置附近的内容，标记保持较短才能证明片段确实会被带出。
+    marker = f"marker-{uuid.uuid4().hex[:12]}"
+    path = tmp_path / f"broken{suffix}"
+    content = f"[config]\n{marker}\n" if suffix == ".ini" else f'count: "{marker}\nnext: 1\n'
+    path.write_text(content, encoding="utf-8")
+    root = config_dir({"config": {"files": [{"path": str(path), "required": True}]}})
+    with pytest.raises(BootstrapConfigError, match="配置文件读取失败") as caught:
+        ConfigProvider(BootstrapConfigProvider.load(root, environ={}), [])
+    assert marker not in "".join(traceback.format_exception(caught.value))

@@ -8,6 +8,7 @@ from loguru import logger
 from starlette.exceptions import HTTPException
 
 from framework.common.diagnostics.exception_trace_formatter import ExceptionTraceFormatter
+from framework.common.diagnostics.safe_exception_diagnostics import SafeExceptionDiagnostics
 from framework.common.exception.constants.global_error_code_constants import (
     GlobalErrorCodeConstants,
 )
@@ -167,7 +168,7 @@ class GlobalExceptionHandler:
         if self.trace_reporter is None:
             return
         try:
-            self.trace_reporter.on_error(exc)
+            self.trace_reporter.on_error(SafeExceptionDiagnostics.snapshot(exc))
         except Exception as e:
             logger.debug("异常链路追踪记录失败：{}", "".join(ExceptionTraceFormatter.format(e)))
 

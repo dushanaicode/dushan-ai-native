@@ -21,6 +21,13 @@ granian = "==2.7.6"
 [tool.poetry]
 package-mode = false
 
+[tool.poetry.group.database-domestic]
+optional = true
+
+[tool.poetry.group.database-domestic.dependencies]
+# 国产专用驱动按组选择，默认 MySQL/PG 安装不强制引入厂商二进制。
+framework = { path = "./framework", develop = true, extras = ["opengauss", "dameng"] }
+
 [tool.ruff]
 target-version = "py312"
 line-length = 100

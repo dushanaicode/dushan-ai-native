@@ -1,6 +1,7 @@
 import sys
 import traceback
 
+from framework.common.diagnostics.safe_exception_diagnostics import SafeExceptionDiagnostics
 from framework.common.security.sanitizer import Sanitizer
 
 
@@ -19,6 +20,7 @@ class TerminalErrorReporter:
     ) -> None:
         """在日志基础设施不可用时，同步输出脱敏后的最终错误。"""
         try:
+            error = SafeExceptionDiagnostics.snapshot(error)
             error_trace = "".join(
                 traceback.format_exception(type(error), error, error.__traceback__)
             )
