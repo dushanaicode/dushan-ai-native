@@ -3,11 +3,11 @@ from datetime import datetime
 from uuid import uuid4
 
 import pytest
-from conftest import TARGETS
 from sqlalchemy import MetaData, String, bindparam, insert, update
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.orm import mapped_column
 
+from fixtures.database_fixtures import TARGETS
 from framework.starter_database.exception.database_error_codes import DatabaseErrorCodes
 from framework.starter_database.exception.database_exception import DatabaseException
 from framework.starter_database.model.base_do import BaseDO

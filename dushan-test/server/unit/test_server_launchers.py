@@ -2,9 +2,9 @@ import subprocess
 from importlib.resources import files
 
 import pytest
-from config_factory import ConfigFactory
 
 import app as entry
+from fixtures.config_factory import ConfigFactory
 from server.config.granian.granian_settings import GranianSettings
 from server.config.server.server_settings import ServerSettings
 from server.config.uvicorn.uvicorn_settings import UvicornSettings

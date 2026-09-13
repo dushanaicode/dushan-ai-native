@@ -2,13 +2,50 @@ name = "framework"
 package = "framework"
 scan_roots = ["common.exception.constants", "starter_scanner.exception", "starter_di.exception"]
 definitions = [
+  "starter_captcha.config.captcha_settings:CaptchaSettings",
+  "starter_captcha.definitions.captcha_cache_keys:CaptchaCacheKeys",
+  "starter_captcha.exception.captcha_error_codes:CaptchaErrorCodes",
+  "starter_captcha.core.captcha_service:CaptchaService",
+  "starter_cache.config.cache_settings:CacheSettings",
+  "starter_cache.exception.cache_error_codes:CacheErrorCodes",
+  "starter_cache.core.cache_handler:CacheHandler",
+  "starter_cache.core.cache_generation_coordinator:CacheGenerationCoordinator",
+  "starter_cache.core.cache_generation_publisher:CacheGenerationPublisher",
+  "starter_cache.core.cache_invalidation_dispatcher:CacheInvalidationDispatcher",
+  "starter_cache.core.cache_key_deleter:CacheKeyDeleter",
+  "starter_cache.core.cache_key_registry:CacheKeyRegistry",
+  "starter_cache.core.cache_load_through_coordinator:CacheLoadThroughCoordinator",
+  "starter_cache.core.cache_manager:CacheManager",
+  "starter_cache.core.cache_serializer:CacheSerializer",
+  "starter_cache.core.redis_client_factory:RedisClientFactory",
+  "starter_cache.lock.distributed_lock:DistributedLock",
+  "starter_cache.starter.cache_starter:CacheStarter",
   "starter_database.config.database_settings:DatabaseSettings",
   "starter_database.exception.database_error_codes:DatabaseErrorCodes",
   "starter_database.session.session_provider:SessionProvider",
   "starter_database.starter.database_starter:DatabaseStarter",
+  "starter_excel.config.excel_settings:ExcelSettings",
+  "starter_excel.exception.excel_error_codes:ExcelErrorCodes",
+  "starter_excel.reader.excel_reader:ExcelReader",
+  "starter_excel.writer.excel_writer:ExcelWriter",
+  "starter_ip.config.ip_settings:IpSettings",
+  "starter_ip.exception.ip_error_code_constants:IpErrorCodeConstants",
+  "starter_ip.service.area_service:AreaService",
+  "starter_ip.core.ip2region_database:Ip2RegionDatabase",
+  "starter_ip.client.ip_location_http_client:IpLocationHttpClient",
+  "starter_ip.provider.ip2region_ip_location_provider:Ip2RegionIpLocationProvider",
+  "starter_ip.provider.pconline_ip_location_provider:PconlineIpLocationProvider",
+  "starter_ip.provider.vore_ip_location_provider:VoreIpLocationProvider",
+  "starter_ip.service.ip_location_service:IpLocationService",
+  "starter_ip.starter.ip_starter:IpStarter",
 ]
 requires = []
 required_message_keys = []
+
+[[resource_roots]]
+path = "starter_captcha/definitions/i18n"
+scope = "captcha"
+required = true
 
 [[resource_roots]]
 path = "starter_scanner/definitions/i18n"
@@ -23,4 +60,19 @@ required = true
 [[resource_roots]]
 path = "starter_database/definitions/i18n"
 scope = "database"
+required = true
+
+[[resource_roots]]
+path = "starter_cache/definitions/i18n"
+scope = "cache"
+required = true
+
+[[resource_roots]]
+path = "starter_excel/definitions/i18n"
+scope = "excel"
+required = true
+
+[[resource_roots]]
+path = "starter_ip/definitions/i18n"
+scope = "ip"
 required = true

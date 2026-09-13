@@ -1,9 +1,9 @@
 from pathlib import Path
 
 import pytest
-from config_factory import ConfigFactory
 from pydantic import ValidationError
 
+from fixtures.config_factory import ConfigFactory
 from framework.starter_scanner.config.scanner_config import ScannerConfig
 from framework.starter_scanner.core.scan_root import ScanRoot
 from framework.starter_scanner.core.scanner_engine import ScannerEngine

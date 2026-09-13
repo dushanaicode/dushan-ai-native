@@ -1,0 +1,14 @@
+{
+  "cache.error": "缓存模块异常",
+  "cache.not_initialized": "缓存尚未就绪或正在关闭",
+  "cache.init_failed": "缓存初始化失败",
+  "cache.client_not_found": "无法获取缓存客户端",
+  "cache.connection_failed": "缓存连接失败",
+  "cache.serialization_failed": "缓存对象序列化失败",
+  "cache.deserialization_failed": "缓存数据反序列化失败",
+  "cache.config_error": "缓存配置错误",
+  "cache.invalid_cache_key": "缓存键声明无效",
+  "cache.lock_acquire_failed": "无法获取分布式锁",
+  "cache.lock_release_failed": "释放分布式锁失败",
+  "cache.operation_failed": "缓存操作失败"
+}

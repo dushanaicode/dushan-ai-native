@@ -4,8 +4,8 @@ from dataclasses import replace
 
 import pytest
 from fastapi.testclient import TestClient
-from scanner_fixtures import error_source
 
+from fixtures.scanner_fixtures import error_source
 from framework.common.exception.exceptions.configuration_exception import ConfigurationException
 from framework.common.exception.exceptions.service_exception import ServiceException
 from framework.starter_config.provider.bootstrap_config_error import BootstrapConfigError

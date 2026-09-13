@@ -1,6 +1,6 @@
 import pytest
-from config_factory import ConfigFactory
 
+from fixtures.config_factory import ConfigFactory
 from framework.starter_config.provider.bootstrap_config_provider import BootstrapConfigProvider
 from framework.starter_config.provider.config_provider import ConfigProvider
 from framework.starter_di.config.di_settings import DiSettings

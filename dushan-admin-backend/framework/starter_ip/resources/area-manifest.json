@@ -1,0 +1,15 @@
+{
+  "source_repository": "https://github.com/YunaiV/ruoyi-vue-pro",
+  "source_commit": "088871d083cd03f25682e02cc2aedebefa0998d1",
+  "source_url": "https://raw.githubusercontent.com/YunaiV/ruoyi-vue-pro/088871d083cd03f25682e02cc2aedebefa0998d1/yudao-framework/yudao-spring-boot-starter-biz-ip/src/main/resources/area.csv",
+  "source_sha256": "68bed13186d4baec42a93a050d7bfe051383bbe138810927ff50eb1ba3d105e5",
+  "source_date": "2024-06-15T10:00:46Z",
+  "local_sha256": "71cfd5527c91e9d9f478ed9702253e37d538f77bea21efae93aee81c2e3fb534",
+  "sha256": "71cfd5527c91e9d9f478ed9702253e37d538f77bea21efae93aee81c2e3fb534",
+  "normalization": "UTF-8 BOM/newline normalization only; parsed lines are identical",
+  "license": "MIT",
+  "license_file": "AREA-LICENSE.txt",
+  "license_url": "https://raw.githubusercontent.com/YunaiV/ruoyi-vue-pro/088871d083cd03f25682e02cc2aedebefa0998d1/LICENSE",
+  "license_sha256": "772daf1f82a50025a74e4066050490d875feba62a49cf0ecefa1b4cc824e9a07",
+  "reference_commit": "bc8650da6f6ce7bda86c925561a76160aaec80dc"
+}

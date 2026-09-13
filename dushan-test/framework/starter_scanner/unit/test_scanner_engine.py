@@ -4,9 +4,9 @@ import sys
 from pathlib import Path
 
 import pytest
-from config_factory import ConfigFactory
-from scanner_fixtures import error_source
 
+from fixtures.config_factory import ConfigFactory
+from fixtures.scanner_fixtures import error_source
 from framework.common.component.component_metadata import ComponentMetadata
 from framework.common.enums.component_type_enum import ComponentTypeEnum
 from framework.common.exception.exceptions.configuration_exception import ConfigurationException

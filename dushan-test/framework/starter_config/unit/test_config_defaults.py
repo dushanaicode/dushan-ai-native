@@ -1,8 +1,8 @@
 import pytest
 import yaml
-from config_factory import ConfigFactory
 from pydantic import ValidationError
 
+from fixtures.config_factory import ConfigFactory
 from framework.common.i18n.core.i18n_options import I18nOptions
 from framework.common.page.config.page_settings import PageSettings
 from framework.common.page.core.data_paginator import DataPaginator

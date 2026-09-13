@@ -1,7 +1,7 @@
 import pytest
-from config_factory import ConfigFactory
 from fastapi.testclient import TestClient
 
+from fixtures.config_factory import ConfigFactory
 from framework.starter_web.banner.banner_application_runner import BannerApplicationRunner
 from server.bootstrap.bootstrapper import BootstrapError
 from server.bootstrap.step_registry import APP_BOOTSTRAP_STEPS

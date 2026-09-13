@@ -1,0 +1,8 @@
+{
+  "ip.error": "IP module failure",
+  "ip.area_data_load_error": "Failed to load area data",
+  "ip.not_initialized": "IP resources are not initialized or have been closed",
+  "ip.xdb_load_error": "ip2region data validation failed",
+  "ip.query_failed": "IP location query failed",
+  "ip.family_not_enabled": "Local IP address family is not enabled"
+}

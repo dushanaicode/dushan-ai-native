@@ -3,9 +3,9 @@ from dataclasses import FrozenInstanceError
 from types import SimpleNamespace
 
 import pytest
-from config_factory import ConfigFactory
 from sqlalchemy import bindparam, literal_column, select
 
+from fixtures.config_factory import ConfigFactory
 from framework.starter_database.config.database_settings import DatabaseSettings
 from framework.starter_database.connection.connection_factory import ConnectionFactory
 from framework.starter_database.connection.replication_status import ReplicationStatus

@@ -1,8 +1,8 @@
 import pytest
-from config_factory import ConfigFactory
 from jinja2 import UndefinedError
 from jinja2.exceptions import SecurityError
 
+from fixtures.config_factory import ConfigFactory
 from framework.common.utils.el.expression_options import ExpressionOptions
 from framework.common.utils.el.expression_utils import ExpressionUtils
 

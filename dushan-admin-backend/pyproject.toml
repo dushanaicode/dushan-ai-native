@@ -38,7 +38,7 @@ force-exclude = true
 select = ["E4", "E7", "E9", "F", "I"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["app", "framework", "server"]
+known-first-party = ["app", "framework", "fixtures", "server"]
 
 [tool.ruff.lint.per-file-ignores]
 # 启动入口必须先禁用字节码写入，再导入项目模块；保留此执行顺序。

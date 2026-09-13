@@ -4,10 +4,10 @@ from collections import deque
 from copy import deepcopy
 
 import pytest
-from config_factory import ConfigFactory
 from pydantic import ValidationError
 from sqlalchemy import text
 
+from fixtures.config_factory import ConfigFactory
 from framework.starter_config.provider.bootstrap_config_error import BootstrapConfigError
 from framework.starter_database.config.database_settings import DatabaseSettings
 from framework.starter_database.config.database_tls_settings import DatabaseTlsSettings

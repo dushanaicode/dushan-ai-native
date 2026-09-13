@@ -2,8 +2,9 @@ from pathlib import Path
 
 import pytest
 import yaml
-from config_factory import ConfigFactory
-from scanner_fixtures import module_package as module_package
+
+from fixtures.config_factory import ConfigFactory
+from fixtures.scanner_fixtures import module_package as module_package
 
 
 @pytest.fixture

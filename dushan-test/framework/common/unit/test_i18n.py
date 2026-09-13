@@ -3,10 +3,10 @@ import json
 from pathlib import Path
 
 import pytest
-from config_factory import ConfigFactory
 from loguru import logger
 from pydantic import ValidationError
 
+from fixtures.config_factory import ConfigFactory
 from framework.common.exception.constants.global_error_code_constants import (
     GlobalErrorCodeConstants,
 )

@@ -3,8 +3,8 @@ import subprocess
 import sys
 
 import pytest
-from config_factory import ConfigFactory
 
+from fixtures.config_factory import ConfigFactory
 from framework.common.exception.exceptions.configuration_exception import ConfigurationException
 from framework.starter_module.config.module_settings import ModuleSettings
 from framework.starter_module.core.module_loader import ModuleLoader

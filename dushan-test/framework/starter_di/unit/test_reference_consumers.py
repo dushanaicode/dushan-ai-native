@@ -7,9 +7,9 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
-from di_reference_cases import SOURCES
 from pydantic import BaseModel
 
+from fixtures.di_reference_cases import SOURCES
 from framework.starter_di.context.application_context import ApplicationContext
 from framework.starter_di.context.get_bean import get_bean
 from framework.starter_di.decorators.components import service

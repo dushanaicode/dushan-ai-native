@@ -1,0 +1,43 @@
+{
+  // 1. 默认 Python 解释器（默认指向后端环境，VS Code 会跨平台自动解析 bin/python 或 Scripts/python.exe）
+  "python.defaultInterpreterPath": "${workspaceFolder}/dushan-admin-backend/.venv",
+  // 2. 注册虚拟环境发现目录，开发者可在 VS Code 状态栏点击解释器进行一键切换
+  "python.venvFolders": [
+    "dushan-admin-backend/.venv",
+    "dushan-test/.venv",
+    ".venv"
+  ],
+  // 3. 语言服务跨目录模块导入路径（消除 Pylance 跨目录引用红线）
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/dushan-admin-backend",
+    "${workspaceFolder}/dushan-test"
+  ],
+  "python.analysis.autoSearchPaths": true,
+  "python.analysis.typeCheckingMode": "basic",
+  // 4. 原生测试资源管理器集成（绑定 dushan-test 及其 pytest.ini）
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": false,
+  "python.testing.cwd": "${workspaceFolder}/dushan-test",
+  "python.testing.pytestArgs": [
+    "-c",
+    "${workspaceFolder}/dushan-test/pytest.ini",
+    "${workspaceFolder}/dushan-test/server",
+    "${workspaceFolder}/dushan-test/framework"
+  ],
+  // 5. 跨平台终端激活与缓存排除
+  "python.terminal.activateEnvironment": true,
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/.pytest_cache": true,
+    "**/.ruff_cache": true
+  },
+  // 6. 代码规范与格式化（推荐配合 ruff）
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll": "explicit",
+      "source.organizeImports": "explicit"
+    }
+  }
+}

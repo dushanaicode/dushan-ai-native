@@ -1,12 +1,12 @@
 import pytest
 import pytest_asyncio
-from config_factory import ConfigFactory
 from sqlalchemy import String, event, func, select, text
 from sqlalchemy.dialects import mysql, postgresql
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+from fixtures.config_factory import ConfigFactory
 from framework.common.exception.exceptions.illegal_argument_exception import (
     IllegalArgumentException,
 )

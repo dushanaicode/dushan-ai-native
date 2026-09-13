@@ -1,0 +1,16 @@
+{
+  "captcha.invalid_input": "验证码输入无效",
+  "captcha.wrong_answer": "验证码答案错误",
+  "captcha.expired": "验证码已过期或已使用",
+  "captcha.exhausted": "验证码尝试次数已耗尽",
+  "captcha.invalid_verification": "验证码凭证无效、过期或已使用",
+  "captcha.disabled": "验证码未启用",
+  "captcha.unavailable": "验证码资源尚未就绪",
+  "captcha.cache_unavailable": "验证码缓存不可用",
+  "captcha.corrupt": "验证码缓存数据损坏",
+  "captcha.provider_timeout": "验证码供应商请求超时",
+  "captcha.provider_failure": "验证码供应商服务失败",
+  "captcha.provider_response": "验证码供应商响应无效",
+  "captcha.capacity": "验证码生成资源已达上限",
+  "captcha.resource": "验证码字体资源无效"
+}

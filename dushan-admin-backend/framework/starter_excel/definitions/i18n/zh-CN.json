@@ -1,0 +1,9 @@
+{
+  "excel.error": "Excel 操作失败",
+  "excel.read_failed": "读取 XLSX 失败",
+  "excel.write_failed": "写入 XLSX 失败",
+  "excel.validation_failed": "Excel 数据校验失败",
+  "excel.config_failed": "Excel 列定义无效",
+  "excel.limit_exceeded": "Excel 资源超过限制",
+  "excel.conversion_failed": "Excel 字段转换失败"
+}

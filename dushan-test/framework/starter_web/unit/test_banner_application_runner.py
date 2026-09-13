@@ -2,9 +2,9 @@ from dataclasses import replace
 from importlib.resources import files
 
 import pytest
-from config_factory import ConfigFactory
 from pydantic import ValidationError
 
+from fixtures.config_factory import ConfigFactory
 from framework.starter_web.banner import banner_application_runner
 from framework.starter_web.banner.banner_application_runner import BannerApplicationRunner
 from framework.starter_web.banner.banner_runtime_info import BannerRuntimeInfo

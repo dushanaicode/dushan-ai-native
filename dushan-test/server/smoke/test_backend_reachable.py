@@ -10,7 +10,8 @@ from urllib.error import URLError
 from urllib.request import urlopen
 
 import pytest
-from config_factory import ConfigFactory
+
+from fixtures.config_factory import ConfigFactory
 
 BACKEND_ROOT = Path(__file__).resolve().parents[3] / "dushan-admin-backend"
 

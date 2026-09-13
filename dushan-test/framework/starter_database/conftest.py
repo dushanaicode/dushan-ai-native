@@ -1,24 +1,18 @@
-import json
-import os
 from uuid import uuid4
 
 import pytest
-from config_factory import ConfigFactory
 from sqlalchemy import JSON, LargeBinary, MetaData, Numeric, String
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.orm import mapped_column
 
+from fixtures.config_factory import ConfigFactory
+from fixtures.database_fixtures import TARGETS
 from framework.common.page.config.page_settings import PageSettings
 from framework.common.page.core.data_paginator import DataPaginator
 from framework.starter_database.config.database_settings import DatabaseSettings
 from framework.starter_database.model.base_do import BaseDO
 from framework.starter_database.repository.base_mapper import BaseMapper
 from framework.starter_database.session.session_provider import SessionProvider
-
-TARGETS = [
-    {"name": "sqlite", "url": None},
-    *json.loads(os.environ.get("DUSHAN_DATABASE_TEST_URLS", "[]")),
-]
 
 
 @pytest.fixture(params=TARGETS, ids=lambda target: target["name"])

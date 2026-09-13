@@ -3,9 +3,9 @@ import threading
 from pathlib import Path
 
 import pytest
-from config_factory import ConfigFactory
 from loguru import logger
 
+from fixtures.config_factory import ConfigFactory
 from framework.starter_logging.config.log_settings import LogSettings
 from framework.starter_logging.core.logger_configurator import LoggerConfigurator
 from framework.starter_logging.starter import logging_starter as logging_starter_module

@@ -1,0 +1,8 @@
+{
+  "ip.error": "IP 模块异常",
+  "ip.area_data_load_error": "地区数据加载失败",
+  "ip.not_initialized": "IP 资源尚未初始化或已经关闭",
+  "ip.xdb_load_error": "ip2region 数据校验失败",
+  "ip.query_failed": "IP 归属地查询失败",
+  "ip.family_not_enabled": "本地 IP 地址族未启用"
+}

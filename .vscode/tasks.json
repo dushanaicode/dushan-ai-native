@@ -1,0 +1,57 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "后端: 安装/同步依赖 (Poetry)",
+      "type": "shell",
+      "command": "poetry install",
+      "options": {
+        "cwd": "${workspaceFolder}/dushan-admin-backend"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "测试: 安装/同步依赖 (pip)",
+      "type": "shell",
+      "command": "pip install -r requirements.txt",
+      "options": {
+        "cwd": "${workspaceFolder}/dushan-test"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "测试: 运行测试套件 (PowerShell 脚本)",
+      "type": "shell",
+      "windows": {
+        "command": "powershell -ExecutionPolicy Bypass -File .\\run-tests.ps1"
+      },
+      "osx": {
+        "command": "pwsh -File ./run-tests.ps1"
+      },
+      "linux": {
+        "command": "pwsh -File ./run-tests.ps1"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}/dushan-test"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "测试: 运行 pytest (快速单元测试)",
+      "type": "shell",
+      "windows": {
+        "command": ".\\.venv\\Scripts\\pytest -c pytest.ini server framework -m \"not smoke\""
+      },
+      "osx": {
+        "command": "./.venv/bin/pytest -c pytest.ini server framework -m \"not smoke\""
+      },
+      "linux": {
+        "command": "./.venv/bin/pytest -c pytest.ini server framework -m \"not smoke\""
+      },
+      "options": {
+        "cwd": "${workspaceFolder}/dushan-test"
+      },
+      "problemMatcher": []
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "captcha.invalid_input": "Invalid CAPTCHA input",
+  "captcha.wrong_answer": "Incorrect CAPTCHA answer",
+  "captcha.expired": "CAPTCHA expired or already used",
+  "captcha.exhausted": "CAPTCHA attempts exhausted",
+  "captcha.invalid_verification": "CAPTCHA verification invalid, expired or already used",
+  "captcha.disabled": "CAPTCHA is disabled",
+  "captcha.unavailable": "CAPTCHA resources are not ready",
+  "captcha.cache_unavailable": "CAPTCHA cache unavailable",
+  "captcha.corrupt": "Corrupt CAPTCHA cache data",
+  "captcha.provider_timeout": "CAPTCHA provider timed out",
+  "captcha.provider_failure": "CAPTCHA provider failed",
+  "captcha.provider_response": "Invalid CAPTCHA provider response",
+  "captcha.capacity": "CAPTCHA generation limit reached",
+  "captcha.resource": "Invalid CAPTCHA font resource"
+}

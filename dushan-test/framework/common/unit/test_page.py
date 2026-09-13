@@ -1,9 +1,9 @@
 from operator import itemgetter
 
 import pytest
-from config_factory import ConfigFactory
 from pydantic import ValidationError
 
+from fixtures.config_factory import ConfigFactory
 from framework.common.exception.exceptions.illegal_argument_exception import (
     IllegalArgumentException,
 )

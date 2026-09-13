@@ -1,0 +1,6 @@
+{
+  "aliyun_authorization": "ACS3-HMAC-SHA256 Credential=test-id,SignedHeaders=host;x-acs-action;x-acs-content-sha256;x-acs-date;x-acs-signature-nonce;x-acs-version,Signature=9914af17bed7b23002cfbd68b8c9bbe04261c4fd37030ff222eaac0c5acd72a3",
+  "aliyun_body_sha256": "82f342e0b2cb6c0c336acc647514cd2e617a0f43d90eb75e2adf6218eaaf4984",
+  "tencent_authorization": "TC3-HMAC-SHA256 Credential=test-id/2026-09-12/captcha/tc3_request, SignedHeaders=content-type;host, Signature=36010d87f415a6d25d9680d5e38028d92f927de2607b7f79a440306c82fe1fcd",
+  "tencent_body_sha256": "3ddf86e8aed896fb9120172b7e7573f6344cacaf83acd290db611c39e2408c93"
+}

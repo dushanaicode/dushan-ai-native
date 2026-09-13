@@ -5,7 +5,6 @@ from datetime import datetime, timezone
 
 import anyio
 import pytest
-from config_factory import ConfigFactory
 from fastapi import FastAPI
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from fastapi.testclient import TestClient
@@ -13,6 +12,7 @@ from loguru import logger
 from pydantic import ValidationError
 from starlette.requests import ClientDisconnect
 
+from fixtures.config_factory import ConfigFactory
 from framework.common.exception.constants.global_error_code_constants import (
     GlobalErrorCodeConstants,
 )

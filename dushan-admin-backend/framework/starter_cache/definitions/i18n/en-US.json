@@ -1,0 +1,14 @@
+{
+  "cache.error": "Cache module error",
+  "cache.not_initialized": "Cache is not ready or is shutting down",
+  "cache.init_failed": "Cache initialization failed",
+  "cache.client_not_found": "Cache client is unavailable",
+  "cache.connection_failed": "Cache connection failed",
+  "cache.serialization_failed": "Failed to serialize the cached value",
+  "cache.deserialization_failed": "Failed to deserialize the cached value",
+  "cache.config_error": "Invalid cache configuration",
+  "cache.invalid_cache_key": "Invalid cache key declaration",
+  "cache.lock_acquire_failed": "Failed to acquire the distributed lock",
+  "cache.lock_release_failed": "Failed to release the distributed lock",
+  "cache.operation_failed": "Cache operation failed"
+}

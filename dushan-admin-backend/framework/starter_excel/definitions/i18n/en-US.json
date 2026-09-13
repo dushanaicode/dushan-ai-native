@@ -1,0 +1,9 @@
+{
+  "excel.error": "Excel operation failed",
+  "excel.read_failed": "Failed to read XLSX workbook",
+  "excel.write_failed": "Failed to write XLSX workbook",
+  "excel.validation_failed": "Excel data validation failed",
+  "excel.config_failed": "Invalid Excel column definition",
+  "excel.limit_exceeded": "Excel resource limit exceeded",
+  "excel.conversion_failed": "Excel field conversion failed"
+}

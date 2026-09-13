@@ -2,11 +2,11 @@ import asyncio
 from contextlib import suppress
 
 import pytest
-from conftest import TARGETS
 from pydantic import SecretStr
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import create_async_engine
 
+from fixtures.database_fixtures import TARGETS
 from framework.starter_database.session.session_provider import SessionProvider
 
 

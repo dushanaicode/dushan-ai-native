@@ -1,0 +1,79 @@
+{
+  "font": "DushanCaptcha.ttf",
+  "upstream": {
+    "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanssc/NotoSansSC%5Bwght%5D.ttf",
+    "sha256": "a3041811a78c361b1de50f953c805e0244951c21c5bd412f7232ef0d899af0da",
+    "bytes": 17772300
+  },
+  "license": "OFL-1.1",
+  "transformation": "fonttools 4.65.0; wght=600; subset and rename",
+  "characters": "天地山水日月风云花草树木鸟鱼春夏秋冬东南西北中人文书画诗心手足红黄蓝绿白黑金石田土星海河湖雨雪渡舟林火光明和安乐",
+  "ascii": [
+    32,
+    126
+  ],
+  "sha256": "58f81e2e7c1a67cc9998c4667f98c20e22d44c5bf5cc0b42fa20fe42e839bbd0",
+  "background": {
+    "source": "迁自参考项目 DuShan-Vue3-FastAPI 的 server/assets/jigsaw（12 张）",
+    "license": "上游授权未记录；随参考项目一并沿用，对外分发前需由 Owner 确认来源",
+    "adaptation": "310×155 缩放到 320×160，统一重编码为不含 EXIF/ICC 的 JPEG q88",
+    "directory": "backgrounds",
+    "count": 12,
+    "total_bytes": 184169,
+    "size": [
+      320,
+      160
+    ],
+    "files": {
+      "01.jpg": {
+        "origin": "1.jpg",
+        "sha256": "3038a254cc33809d8df651228ade15474b5415798fdd80dfa0f962f3142b194e"
+      },
+      "02.jpg": {
+        "origin": "2.jpg",
+        "sha256": "086012abfcdc6a143ca040daaa1c7c7d27e14816f7b3a5971b447684000c03af"
+      },
+      "03.jpg": {
+        "origin": "3.jpg",
+        "sha256": "6e33c1d16ecdc9bc17bf149d220eb4a900437e6f75c79db22e71639c01268319"
+      },
+      "04.jpg": {
+        "origin": "4.jpg",
+        "sha256": "c6c8c204a35c9e778d2d9bfbb05740887f2b63df412a74f9c72fd1a6cb5cdbc1"
+      },
+      "05.jpg": {
+        "origin": "5.jpg",
+        "sha256": "03a0f2cfb52d593144a396cbf3cb1ce0d6973d46a4d1c93f237930ec96bc18a8"
+      },
+      "06.jpg": {
+        "origin": "6.jpg",
+        "sha256": "1f34ad56e85426d38e8e8bed729b292d7b15138c9f74849920d39ae90d042bc7"
+      },
+      "07.jpg": {
+        "origin": "7.jpg",
+        "sha256": "7139a48fd704626b1c1802d39ce0c08475bb9cc605dc0ee01a9742a5ec874493"
+      },
+      "08.jpg": {
+        "origin": "8.jpg",
+        "sha256": "68cc19c759cb26bc223fe1122e187d8092cd4372b5ee3d1f6c942af2c62f3bf7"
+      },
+      "09.jpg": {
+        "origin": "9.jpg",
+        "sha256": "81ca40d61abb1dd24a52f80e8f30f1bea432f8cbf1088e4bf174f9315fe3c2d6"
+      },
+      "10.jpg": {
+        "origin": "10.jpg",
+        "sha256": "84a43b423eac612288fa7aa38dc895fafb023323ee2510c8a89ce4dc32efdd0c"
+      },
+      "11.jpg": {
+        "origin": "11.jpg",
+        "sha256": "04406bba96d45f72a734c8614c382f705f2e5a3f991b82d891d4ee1dfcb5e393"
+      },
+      "12.jpg": {
+        "origin": "12.jpg",
+        "sha256": "4b5a7edfffdf729c3a2cc8c5e393161388b6037e5c8c1f923b734485edd5e9b4"
+      }
+    },
+    "override": "部署可用 captcha.background_dir 指向自有授权图片目录"
+  }
+}

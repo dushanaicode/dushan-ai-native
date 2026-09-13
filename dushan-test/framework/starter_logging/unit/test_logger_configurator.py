@@ -2,9 +2,9 @@ import json
 from pathlib import Path
 
 import pytest
-from config_factory import ConfigFactory
 from loguru import logger
 
+from fixtures.config_factory import ConfigFactory
 from framework.common.enums.application_environment_enum import (
     ApplicationEnvironmentEnum,
 )

@@ -1,0 +1,80 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "FastAPI: 启动后端开发服务 (dushan-admin-backend)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/dushan-admin-backend/app.py",
+      "cwd": "${workspaceFolder}/dushan-admin-backend",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "PYTHONUTF8": "1"
+      },
+      "windows": {
+        "python": "${workspaceFolder}/dushan-admin-backend/.venv/Scripts/python.exe"
+      },
+      "osx": {
+        "python": "${workspaceFolder}/dushan-admin-backend/.venv/bin/python"
+      },
+      "linux": {
+        "python": "${workspaceFolder}/dushan-admin-backend/.venv/bin/python"
+      }
+    },
+    {
+      "name": "Pytest: 调试全部测试 (dushan-test)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": [
+        "-c",
+        "pytest.ini",
+        "server",
+        "framework",
+        "-m",
+        "not smoke"
+      ],
+      "cwd": "${workspaceFolder}/dushan-test",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "PYTHONUTF8": "1"
+      },
+      "windows": {
+        "python": "${workspaceFolder}/dushan-test/.venv/Scripts/python.exe"
+      },
+      "osx": {
+        "python": "${workspaceFolder}/dushan-test/.venv/bin/python"
+      },
+      "linux": {
+        "python": "${workspaceFolder}/dushan-test/.venv/bin/python"
+      }
+    },
+    {
+      "name": "Pytest: 调试当前打开的测试文件",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": [
+        "-c",
+        "${workspaceFolder}/dushan-test/pytest.ini",
+        "${file}"
+      ],
+      "cwd": "${workspaceFolder}/dushan-test",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "windows": {
+        "python": "${workspaceFolder}/dushan-test/.venv/Scripts/python.exe"
+      },
+      "osx": {
+        "python": "${workspaceFolder}/dushan-test/.venv/bin/python"
+      },
+      "linux": {
+        "python": "${workspaceFolder}/dushan-test/.venv/bin/python"
+      }
+    }
+  ]
+}

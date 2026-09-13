@@ -47,6 +47,40 @@ banner:
 # ==================== 配置模型与运行覆盖 ====================
 config:
   models: # 模型通过自身环境前缀覆盖字段，例如 DATABASE_ENABLED
+    # ===== 验证码：默认关闭，启用前须开启 Cache =====
+    captcha:
+      enabled: false
+      provider: block_puzzle # block_puzzle / click_word / aliyun / tencent
+      purposes: [login, register] # 业务入口指定用途；消费凭证时必须匹配
+      client_name: default # 复用 Cache 中已声明的客户端
+      challenge_ttl_seconds: 180 # 挑战有效期，尝试不会刷新 TTL
+      verification_ttl_seconds: 60 # 挑战通过后的业务凭证有效期，只能消费一次
+      max_attempts: 3 # 每次提交预扣一次；非法载荷及服务失败不返还
+      slider_tolerance: 5.0 # 原图像素，滑块条只沿 x 轴移动，提交 y=0
+      click_tolerance: 10.0 # 原图像素，按 word 列表顺序点击，使用圆形容差
+      generation_concurrency: 4 # 每进程在途生成上限，超出直接拒绝；线程池按此大小创建
+      generation_limit: 120 # 窗口内最多创建的挑战数；计数在 Redis 共享，多 worker 合用同一配额
+      generation_window_seconds: 60 # Redis 原子固定窗口，秒
+      interference: 1 # 图片干扰级别：0 / 1 / 2
+      background_dir: null # 留空使用随包背景图；填目录则改用自有图片，需为 jpg/jpeg/png 且能解码
+      watermark: 渡山 # 最多 16 字符，须属于随包字体字符集
+      tracing_enabled: false # 通过 OpenTelemetry API 接入宿主已配置的 tracer
+      cloud_timeout_seconds: 5.0 # 包括读取响应的总超时，不隐式重试
+      cloud_max_connections: 10
+      cloud_max_response_bytes: 32768 # 禁止压缩响应，读取时限制字节数
+      aliyun:
+        access_key_id: "" # 通过部署环境提供，不写真实凭据
+        access_key_secret: ""
+        scene_id: ""
+        prefix: ""
+        region: cn # cn / sgp，与 endpoint 必须对应
+        language: cn # cn / en
+        endpoint: captcha.cn-shanghai.aliyuncs.com
+      tencent:
+        app_id: 0
+        app_secret: ""
+        secret_id: ""
+        secret_key: ""
     database:
       enabled: false # 填写来源后开启；关闭时不导入驱动或连接数据库
       sources: [] # 每项明确 name/url/role/weight/pool/tls；role=primary/replica/named，pool=null 继承下方池配置
@@ -78,6 +112,63 @@ config:
       id_strategy: database # database 使用数据库自增；snowflake 使用已有 SnowflakeUtils
       snowflake_machine_id: null # snowflake 必须显式分配 0～1023；同机器号不能被多进程同时使用
       after_commit_result_limit: 100 # 最近提交后动作结果的最大条数
+    cache:
+      enabled: false # 填写 Redis 地址后开启；关闭时不建立连接，缓存组件调用会明确报未就绪
+      host: 127.0.0.1 # Redis 主机地址；本轮只支持单机部署，哨兵与集群未迁入
+      port: 6379 # Redis 端口，范围 1～65535
+      username: null # Redis 用户名；填写时必须同时填写密码
+      password: null # Redis 密码，通过 CACHE_PASSWORD 注入，不写入版本库
+      clients: # 本应用建立的逻辑客户端；CacheKey 的 client_name 只能引用这里的 name
+        - { name: default, db: 0 }
+      default_client: default # 分布式锁等没有业务前缀的操作使用的客户端
+      max_connections: 50 # 每个客户端、每个应用进程的连接池上限
+      pool_wait_timeout_seconds: 10.0 # 连接池借用等待秒数；超时按缓存操作失败上报，不静默排队
+      socket_timeout_seconds: 5.0 # 单条命令的读写超时秒数
+      socket_connect_timeout_seconds: 5.0 # 建立连接的超时秒数
+      connection_health_check_seconds: 30.0 # 空闲连接借出前的探活间隔；0 表示不探活
+      max_ttl_seconds: 2592000 # 单次写入允许的最大存活秒数，超过直接拒绝
+      null_value_enabled: true # 回源结果为空时写入空值，防止同一个不存在的键反复穿透
+      null_value_ttl_seconds: 60 # 空值缓存的独立存活秒数，必须明显短于正常数据
+    ip:
+      enabled: false # 显式启用后按应用加载地区/XDB；普通导入与未启用应用不读大型资源
+      area_csv_path: null # null 使用入包地区数据；自定义路径必须是绝对路径
+      local_enabled: true # 本地 IPv4/IPv6 查询不依赖外网
+      local_families: [ipv4, ipv6] # 按需选择；每进程 XDB 数据约 IPv4 11 MB、IPv6 37 MB，多 worker 分别持有
+      local_data_dir: null # null 使用入包 manifest/XDB；自定义目录必须是绝对路径
+      online_enabled: false # 在线查询单独启用
+      online_providers: [pconline, vore] # 在线查询顺序
+      online_timeout_seconds: 2.0 # 每个在线请求的连接/读写超时秒数
+      query_budget_seconds: 5.0 # 整次归属地查询的总预算秒数
+      online_failure_policy: continue # continue 保留失败信息并尝试下一 Provider；raise 立即抛错
+      online_max_connections: 20 # 每个应用在线客户端的连接总量上限
+      online_max_response_bytes: 65536 # 在线响应字节上限
+      pconline_api_url: https://whois.pconline.com.cn/ipJson.jsp
+      vore_api_url: https://api.vore.top/api/IPdata
+      trusted_proxy_cidrs: [] # 仅信任显式 CIDR 中的直连代理，默认忽略转发头
+      cache_max_size: 1024 # 应用内归属地结果缓存上限；0 禁用，不依赖 Cache Starter
+      cache_ttl_seconds: 3600.0 # 已知结果保留秒数
+      unknown_cache_ttl_seconds: 60.0 # 未知结果保留秒数；0 不缓存未知结果
+    excel:
+      header_font_bold: true # 导出与模板表头使用粗体
+      header_font_size: 11 # 表头字号
+      auto_adjust_column_width: true # 按显示值调整列宽，仍受下方上下限约束
+      min_column_width: 10 # Excel 字符宽度单位
+      max_column_width: 60
+      max_import_rows: 10000 # 不含表头的数据行上限
+      max_concurrent_imports: 1 # 每应用同时解析的导入数；等待期间不加载工作簿，避免并发内存叠加
+      max_export_rows: 10000
+      max_columns: 200 # 工作表列上限
+      max_cells: 200000 # 单次处理的单元格数量上限
+      max_upload_size_bytes: 10485760 # XLSX 压缩文件最大字节数
+      max_archive_entries: 1000 # ZIP 条目数上限
+      max_uncompressed_size_bytes: 104857600 # 全部 ZIP 条目的解压字节总量上限
+      max_cell_text_length: 32767 # 单元格文本长度上限
+      max_errors: 100 # 收集到此数量的定位错误后停止导入
+      max_dropdown_options: 10000 # 每列下拉选项上限
+      template_rows: 100 # 模板预设数据校验行数
+      money_decimal_places: 2 # 金额转换小数位数
+      formula_policy: reject # reject 拒绝导入公式；literal 保留公式文本，不计算公式
+      unknown_columns: reject # reject 拒绝未知表头；ignore 忽略未知列
   source_order: [environment, memory, external, file, yaml] # 优先级从高到低；模型/字段可显式收紧
   files: [] # [{path: config-overrides.yaml, required: true}]；后列文件覆盖先列同名键
   reload_enabled: false # 显式内存/文件/外部快照刷新；不启动后台监听线程

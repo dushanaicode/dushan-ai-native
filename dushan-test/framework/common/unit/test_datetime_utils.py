@@ -1,8 +1,8 @@
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from config_factory import ConfigFactory
 
+from fixtures.config_factory import ConfigFactory
 from framework.common.datetime.core.date_range_builder import DateRangeBuilder
 from framework.common.datetime.core.date_utils import DateUtils
 from framework.common.datetime.core.datetime_options import DateTimeOptions

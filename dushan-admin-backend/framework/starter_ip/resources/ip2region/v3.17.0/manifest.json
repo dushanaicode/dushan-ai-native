@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "package": {
+    "name": "py-ip2region",
+    "version": "3.0.4",
+    "import_name": "ip2region"
+  },
+  "data": {
+    "release": "v3.17.0",
+    "commit": "cd40e3a1d532d645697999d646cf0e10481cef33",
+    "structure_version": 3,
+    "region_fields": [
+      "country",
+      "province",
+      "city",
+      "isp",
+      "iso_alpha2"
+    ]
+  },
+  "license": {
+    "filename": "LICENSE.md",
+    "spdx": "Apache-2.0 OR MIT",
+    "bytes": 12976,
+    "sha256": "fe01f2f8fcaafac539154e6aa80b0b7f8af54e01dc4d52322f72971991c6280e",
+    "url": "https://raw.githubusercontent.com/lionsoul2014/ip2region/cd40e3a1d532d645697999d646cf0e10481cef33/LICENSE.md"
+  },
+  "ipv4": {
+    "filename": "ip2region_v4.xdb",
+    "ip_version": 4,
+    "bytes": 11114380,
+    "sha256": "6307a9696f5711f84bcb8b25f07894de68a64a0ed4a1cc7e990562dd3084f210",
+    "url": "https://raw.githubusercontent.com/lionsoul2014/ip2region/cd40e3a1d532d645697999d646cf0e10481cef33/data/ip2region_v4.xdb"
+  },
+  "ipv6": {
+    "filename": "ip2region_v6.xdb",
+    "ip_version": 6,
+    "bytes": 37258897,
+    "sha256": "5b93da35ac28bc316dccc54a758381f7a874ae0461dd51ff5df5e34815586f11",
+    "url": "https://raw.githubusercontent.com/lionsoul2014/ip2region/cd40e3a1d532d645697999d646cf0e10481cef33/data/ip2region_v6.xdb"
+  }
+}
