@@ -325,7 +325,6 @@ export type {
   IImportMap,
   ImportmapPluginOptions,
   LibraryPluginOptions,
-  NitroMockPluginOptions,
   PrintPluginOptions,
   VbenViteConfig,
 };

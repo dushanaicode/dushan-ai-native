@@ -8,10 +8,10 @@ import type { NativeRequestConfig } from '../api/response';
 import type { ComponentPropsMap, ComponentType } from './component';
 
 import { setupVbenForm, useVbenForm as useForm, z } from '@vben/common-ui';
-import { $t } from '@vben/locales';
 
 import { ElMessage } from 'element-plus';
 
+import { formRules } from './form-rules';
 import { FormSubmission } from './form-submission';
 
 async function initSetupVbenForm() {
@@ -22,20 +22,7 @@ async function initSetupVbenForm() {
         CheckboxGroup: 'model-value',
       },
     },
-    rules: {
-      required: (value, _params, ctx) => {
-        if (value === undefined || value === null || value.length === 0) {
-          return $t('ui.formRules.required', [ctx.label]);
-        }
-        return true;
-      },
-      selectRequired: (value, _params, ctx) => {
-        if (value === undefined || value === null) {
-          return $t('ui.formRules.selectRequired', [ctx.label]);
-        }
-        return true;
-      },
-    },
+    rules: formRules,
   });
 }
 

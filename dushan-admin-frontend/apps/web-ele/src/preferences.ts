@@ -1,7 +1,6 @@
-import {
-  appCopyrightPreferences,
-  defineOverridesPreferences,
-} from '@vben/preferences';
+import { defineOverridesPreferences } from '@vben/preferences';
+
+import { projectLinks } from '#/services/doc-links';
 
 /**
  * @description 项目配置文件
@@ -13,5 +12,17 @@ export const overridesPreferences = defineOverridesPreferences({
   app: {
     name: import.meta.env.VITE_APP_TITLE,
   },
-  copyright: appCopyrightPreferences,
+  copyright: {
+    companyName: 'dushan-ai-native',
+    companySiteLink: projectLinks.github,
+    date: '2026',
+    enable: true,
+    icp: '',
+    icpLink: '',
+  },
+  // 暂无品牌 Logo 图片，只显示应用名文字
+  logo: {
+    source: '',
+    sourceDark: '',
+  },
 });

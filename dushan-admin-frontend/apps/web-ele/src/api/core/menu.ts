@@ -1,10 +1,10 @@
-import type { RouteRecordStringComponent } from '@vben/types';
-
 import { requestClient } from '#/api/request';
+
+import { parseMenus } from '../../router/menu-adapter';
 
 /**
  * 获取用户所有菜单
  */
 export async function getAllMenusApi() {
-  return requestClient.get<RouteRecordStringComponent[]>('/menu/all');
+  return parseMenus(await requestClient.get<unknown>('/menu/all'));
 }

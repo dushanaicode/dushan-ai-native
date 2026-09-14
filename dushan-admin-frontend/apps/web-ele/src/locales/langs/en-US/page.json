@@ -1,4 +1,8 @@
 {
+  "brand": {
+    "pageTitle": "AI-Native Rapid Development Platform",
+    "pageDesc": "Built for super individuals, FDEs, enterprises and one-person companies"
+  },
   "auth": {
     "login": "Login",
     "register": "Register",

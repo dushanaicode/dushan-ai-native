@@ -43,11 +43,7 @@ class RequestClient {
   public download: FileDownloader['download'];
 
   public readonly instance: AxiosInstance;
-  // 是否正在刷新token
-  public isRefreshing = false;
   public postSSE: SSE['postSSE'];
-  // 刷新token队列
-  public refreshTokenQueue: ((token: string) => void)[] = [];
   public requestSSE: SSE['requestSSE'];
   public upload: FileUploader['upload'];
 

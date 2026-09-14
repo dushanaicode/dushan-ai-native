@@ -4,6 +4,7 @@ import { computed } from 'vue';
 import { AuthPageLayout } from '@vben/layouts';
 import { preferences } from '@vben/preferences';
 
+import DocLinksFooter from '#/components/doc-links-footer.vue';
 import { $t } from '#/locales';
 
 const appName = computed(() => preferences.app.name);
@@ -16,10 +17,13 @@ const logoDark = computed(() => preferences.logo.sourceDark);
     :app-name="appName"
     :logo="logo"
     :logo-dark="logoDark"
-    :page-description="$t('authentication.pageDesc')"
-    :page-title="$t('authentication.pageTitle')"
+    :page-description="$t('page.brand.pageDesc')"
+    :page-title="$t('page.brand.pageTitle')"
   >
     <!-- 自定义工具栏 -->
     <!-- <template #toolbar></template> -->
+    <template #copyright>
+      <DocLinksFooter />
+    </template>
   </AuthPageLayout>
 </template>

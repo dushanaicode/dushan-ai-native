@@ -1,0 +1,133 @@
+{
+  "formRules": {
+    "mobile": "Enter a valid mobile number"
+  },
+  "rangePicker": {
+    "beginTime": "Start time",
+    "endTime": "End time",
+    "last7Days": "Last 7 days",
+    "last30Days": "Last 30 days",
+    "lastMonth": "Last month",
+    "lastWeek": "Last week",
+    "separator": "to",
+    "thisMonth": "This month",
+    "thisWeek": "This week",
+    "today": "Today",
+    "yesterday": "Yesterday"
+  },
+  "tagEditor": {
+    "preview": "Preview",
+    "outline": "Outline",
+    "text": "Text",
+    "color": "Background color",
+    "cancel": "Cancel",
+    "apply": "Apply",
+    "link": "Link",
+    "textColor": "Text color",
+    "placeholder": "Edit tag style",
+    "title": "Tag style",
+    "solid": "Solid",
+    "clear": "Clear"
+  },
+  "dictionary": {
+    "retry": "Dictionary failed to load. Retry"
+  },
+  "captcha": {
+    "slide": "Drag to complete the puzzle",
+    "refresh": "Refresh challenge",
+    "failed": "Verification failed. Please retry",
+    "begin": "Start verification",
+    "image": "Captcha image",
+    "title": "Security verification",
+    "loading": "Verifying"
+  },
+  "notification": {
+    "readAll": "Mark all as read",
+    "refresh": "Refresh",
+    "failed": "Notification request failed. Please retry",
+    "read": "Mark as read",
+    "empty": "No notifications",
+    "title": "Notifications"
+  },
+  "tableAction": {
+    "more": "More",
+    "failed": "Action failed. Please retry"
+  },
+  "export": {
+    "cancel": "Cancel",
+    "title": "Export",
+    "all": "Select all",
+    "failed": "Export failed. Please retry"
+  },
+  "iframe": {
+    "loading": "Loading page",
+    "reload": "Reload",
+    "failed": "Page failed to load",
+    "empty": "No embedded URL"
+  },
+  "cron": {
+    "eachHour": "Every hour",
+    "eachMinute": "Every minute",
+    "apply": "Apply",
+    "range": "Range",
+    "generate": "Generate expression",
+    "week": "Weekday",
+    "cancel": "Cancel",
+    "minute": "Minute",
+    "day": "Day",
+    "every": "Any",
+    "list": "Values",
+    "step": "Interval",
+    "hour": "Hour",
+    "invalid": "Use five numeric fields with valid ranges and intervals",
+    "eachMonth": "First day of each month",
+    "month": "Month",
+    "shortcut": "Choose a preset",
+    "eachDay": "Daily at midnight",
+    "eachWeek": "Sunday at midnight"
+  },
+  "wizard": {
+    "prev": "Previous",
+    "next": "Next",
+    "finish": "Finish"
+  },
+  "upload": {
+    "failed": "File operation failed. Select again or refresh file details",
+    "preview": "View file",
+    "cancel": "Cancel upload",
+    "remove": "Remove",
+    "choose": "Choose files",
+    "retry": "Refresh file details"
+  },
+  "editor": {
+    "preview": "Preview",
+    "pending": "Wait for image uploads to finish or remove temporary images"
+  },
+  "avatar": {
+    "cancel": "Cancel",
+    "title": "Edit avatar",
+    "apply": "Save avatar",
+    "choose": "Choose avatar",
+    "failed": "Avatar processing failed. Please retry"
+  },
+  "userSelect": {
+    "keyword": "Account or name",
+    "retry": "Reload",
+    "cancel": "Cancel",
+    "user": "User",
+    "failed": "Could not load users. Please retry",
+    "search": "Search",
+    "placeholder": "Select users",
+    "clear": "Clear",
+    "description": "Description",
+    "confirm": "Confirm",
+    "title": "Select users",
+    "department": "Select department"
+  },
+  "docLinks": {
+    "docs": "Documentation",
+    "guide": "Guide (free)",
+    "deepDive": "Source walkthrough (Knowledge Planet)",
+    "feedback": "Feedback"
+  }
+}

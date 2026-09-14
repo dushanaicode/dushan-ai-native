@@ -20,6 +20,7 @@ export default defineConfig({
       '**/e2e/**',
       '**/dist/**',
       '**/.{idea,git,cache,output,temp}/**',
+      '**/Temp/**',
       '**/node_modules/**',
       '**/{stylelint,eslint}.config.*',
       '**/{oxfmt,oxlint}.config.*',

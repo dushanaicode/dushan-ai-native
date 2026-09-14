@@ -34,6 +34,7 @@ const createFetchMock = (chunks: string[], ok = true) => {
           }
           return { done: true, value: undefined };
         },
+        releaseLock: () => {},
       }),
     },
   });

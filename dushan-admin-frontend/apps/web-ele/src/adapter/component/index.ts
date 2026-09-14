@@ -28,12 +28,21 @@ import type {
 } from '@vben/common-ui';
 import type { Recordable } from '@vben/types';
 
+import type CronTabComponent from '../../components/cron-tab/cron-tab.vue';
+import type RichTextareaComponent from '../../components/rich-textarea.vue';
+import type TagEditorComponent from '../../components/tag-editor.vue';
+import type FileUploadComponent from '../../components/upload/file-upload.vue';
+import type ImageUploadComponent from '../../components/upload/image-upload.vue';
+import type UserSelectFormFieldComponent from '../../components/user-select/user-select-form-field.vue';
+
 import { defineAsyncComponent, defineComponent, h, ref } from 'vue';
 
 import { ApiComponent, globalShareState, IconPicker } from '@vben/common-ui';
 import { $t } from '@vben/locales';
 
 import { ElNotification } from 'element-plus';
+
+import { statusSwitchProps } from '../../constants/status';
 
 type ElTreeSelectSchemaProps = InstanceType<typeof ElTreeSelectType>['$props'];
 type ElTimePickerSchemaProps = InstanceType<typeof ElTimePickerType>['$props'];
@@ -141,6 +150,25 @@ const ElUpload = defineAsyncComponent(() =>
   ]).then(([res]) => res.ElUpload),
 );
 
+const CronTab = defineAsyncComponent(
+  () => import('../../components/cron-tab/cron-tab.vue'),
+);
+const FileUpload = defineAsyncComponent(
+  () => import('../../components/upload/file-upload.vue'),
+);
+const ImageUpload = defineAsyncComponent(
+  () => import('../../components/upload/image-upload.vue'),
+);
+const RichTextarea = defineAsyncComponent(
+  () => import('../../components/rich-textarea.vue'),
+);
+const UserSelectFormField = defineAsyncComponent(
+  () => import('../../components/user-select/user-select-form-field.vue'),
+);
+const TagEditor = defineAsyncComponent(
+  () => import('../../components/tag-editor.vue'),
+);
+
 const withDefaultPlaceholder = (
   component: Component,
   type: 'input' | 'select',
@@ -181,18 +209,25 @@ export type ComponentType =
   | 'ApiTreeSelect'
   | 'Checkbox'
   | 'CheckboxGroup'
+  | 'CronTab'
   | 'DatePicker'
   | 'Divider'
+  | 'FileUpload'
   | 'IconPicker'
+  | 'ImageUpload'
   | 'Input'
   | 'InputNumber'
   | 'RadioGroup'
+  | 'RichTextarea'
   | 'Select'
   | 'Space'
+  | 'StatusSwitch'
   | 'Switch'
+  | 'TagEditor'
   | 'TimePicker'
   | 'TreeSelect'
   | 'Upload'
+  | 'UserSelectFormField'
   | BaseFormComponentType;
 
 /**
@@ -211,7 +246,16 @@ export interface ComponentPropsMap {
   RadioGroup: RadioGroupProps;
   Select: SelectV2Props;
   Space: SpaceProps;
+  StatusSwitch: Omit<SwitchProps, 'activeValue' | 'inactiveValue'>;
   Switch: SwitchProps;
+  CronTab: InstanceType<typeof CronTabComponent>['$props'];
+  FileUpload: InstanceType<typeof FileUploadComponent>['$props'];
+  ImageUpload: InstanceType<typeof ImageUploadComponent>['$props'];
+  RichTextarea: InstanceType<typeof RichTextareaComponent>['$props'];
+  UserSelectFormField: InstanceType<
+    typeof UserSelectFormFieldComponent
+  >['$props'];
+  TagEditor: InstanceType<typeof TagEditorComponent>['$props'];
   TimePicker: ElTimePickerSchemaProps;
   TreeSelect: ElTreeSelectSchemaProps;
   Upload: UploadProps;
@@ -308,7 +352,15 @@ async function initComponentAdapter() {
       return h(ElSelectV2, { ...props, attrs }, slots);
     },
     Space: ElSpace,
+    StatusSwitch: (props, { attrs, slots }) =>
+      h(ElSwitch, { ...props, ...attrs, ...statusSwitchProps }, slots),
     Switch: ElSwitch,
+    CronTab,
+    FileUpload,
+    ImageUpload,
+    RichTextarea,
+    UserSelectFormField,
+    TagEditor,
     TimePicker: (props, { attrs, slots }) => {
       const { name, id, isRange } = props;
       const extraProps: Recordable<any> = {};

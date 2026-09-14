@@ -5,7 +5,7 @@ import { useRouter } from 'vue-router';
 
 import { LOGIN_PATH } from '@vben/constants';
 import { preferences } from '@vben/preferences';
-import { resetAllStores, useAccessStore, useUserStore } from '@vben/stores';
+import { useAccessStore, useTabbarStore, useUserStore } from '@vben/stores';
 
 import { ElNotification } from 'element-plus';
 import { defineStore } from 'pinia';
@@ -13,93 +13,141 @@ import { defineStore } from 'pinia';
 import { getAccessCodesApi, getUserInfoApi, loginApi, logoutApi } from '#/api';
 import { $t } from '#/locales';
 
+import { getSession } from '../services/session/runtime';
+
 export const useAuthStore = defineStore('auth', () => {
   const accessStore = useAccessStore();
   const userStore = useUserStore();
+  const tabbarStore = useTabbarStore();
   const router = useRouter();
-
   const loginLoading = ref(false);
+  let loginPromise: Promise<{ userInfo: UserInfo }> | undefined;
+  let logoutPromise: Promise<void> | undefined;
 
-  /**
-   * 异步处理登录操作
-   * Asynchronously handle the login process
-   * @param params 登录表单数据
-   */
-  async function authLogin(
+  function clearSessionAccess() {
+    tabbarStore.$reset();
+    tabbarStore.renderRouteView = false;
+    userStore.$reset();
+    accessStore.$patch({
+      accessCodes: [],
+      accessMenus: [],
+      accessRoutes: [],
+      isAccessChecked: false,
+      isLockScreen: false,
+      lockScreenPassword: undefined,
+      refreshToken: null,
+    });
+  }
+
+  function authLogin(
     params: Recordable<any>,
     onSuccess?: () => Promise<void> | void,
   ) {
-    // 异步处理用户登录操作并获取 accessToken
-    let userInfo: null | UserInfo = null;
+    loginPromise ??= runLogin(params, onSuccess).finally(() => {
+      loginPromise = undefined;
+    });
+    return loginPromise;
+  }
+
+  async function runLogin(
+    params: Recordable<any>,
+    onSuccess?: () => Promise<void> | void,
+  ) {
+    const session = getSession();
+    const wasExpired = accessStore.loginExpired;
+    session.replace(null);
+    let scope = session.capture();
+    loginLoading.value = true;
     try {
-      loginLoading.value = true;
       const { accessToken } = await loginApi(params);
-
-      // 如果成功获取到 accessToken
-      if (accessToken) {
-        // 将 accessToken 存储到 accessStore 中
-        accessStore.setAccessToken(accessToken);
-
-        // 获取用户信息并存储到 accessStore 中
-        const [fetchUserInfoResult, accessCodes] = await Promise.all([
-          fetchUserInfo(),
-          getAccessCodesApi(),
-        ]);
-
-        userInfo = fetchUserInfoResult;
-
-        userStore.setUserInfo(userInfo);
-        accessStore.setAccessCodes(accessCodes);
-
-        if (accessStore.loginExpired) {
-          accessStore.setLoginExpired(false);
-        } else {
-          onSuccess
-            ? await onSuccess?.()
-            : await router.push(
-                userInfo.homePath || preferences.app.defaultHomePath,
-              );
-        }
-
-        if (userInfo?.realName) {
-          ElNotification({
-            message: `${$t('authentication.loginSuccessDesc')}:${userInfo?.realName}`,
-            title: $t('authentication.loginSuccess'),
-            type: 'success',
-          });
-        }
+      session.assertCurrent(scope);
+      session.replace(accessToken);
+      scope = session.capture();
+      const [userInfo, accessCodes] = await Promise.all([
+        fetchUserInfo(),
+        getAccessCodesApi(),
+      ]);
+      session.assertCurrent(scope);
+      accessStore.setAccessCodes(accessCodes);
+      accessStore.setLoginExpired(false);
+      if (wasExpired) {
+        // URL 保持不变，但权限树已经撤销，需要重新判定当前页面是否可达。
+        await router.replace(router.currentRoute.value.fullPath);
+      } else {
+        await (onSuccess ? onSuccess() : router.push(userInfo.homePath));
       }
+      session.assertCurrent(scope);
+      if (!wasExpired && userInfo.realName)
+        ElNotification({
+          message: `${$t('authentication.loginSuccessDesc')}:${userInfo.realName}`,
+          title: $t('authentication.loginSuccess'),
+          type: 'success',
+        });
+      return { userInfo };
+    } catch (error) {
+      if (session.capture().generation === scope.generation)
+        session.replace(null);
+      throw error;
     } finally {
       loginLoading.value = false;
     }
-
-    return {
-      userInfo,
-    };
   }
 
-  async function logout(redirect: boolean = true) {
-    try {
-      await logoutApi();
-    } catch {
-      // 不做任何处理
-    }
-    resetAllStores();
-    accessStore.setLoginExpired(false);
+  function logout(redirect = true) {
+    if (logoutPromise) return logoutPromise;
+    const session = getSession();
+    const authenticated = session.capture().token !== null;
+    session.replace(null);
+    const scope = session.capture();
+    logoutPromise = (async () => {
+      try {
+        if (authenticated) await logoutApi();
+      } finally {
+        if (session.capture().generation === scope.generation) {
+          accessStore.setLoginExpired(false);
+          await redirectToLogin(redirect);
+        }
+      }
+    })().finally(() => {
+      logoutPromise = undefined;
+    });
+    return logoutPromise;
+  }
 
-    // 回登录页带上当前路由地址
+  async function redirectToLogin(redirect = true) {
     await router.replace({
       path: LOGIN_PATH,
       query: redirect
-        ? {
-            redirect: encodeURIComponent(router.currentRoute.value.fullPath),
-          }
+        ? { redirect: encodeURIComponent(router.currentRoute.value.fullPath) }
         : {},
     });
   }
 
+  async function expireSession() {
+    const modal =
+      preferences.app.loginExpiredMode === 'modal' &&
+      router.currentRoute.value.matched.some((route) => route.name === 'Root');
+    accessStore.setLoginExpired(modal);
+    if (!modal) await redirectToLogin();
+  }
+
+  async function syncExternalSession() {
+    accessStore.setLoginExpired(false);
+    await (getSession().capture().token === null
+      ? redirectToLogin()
+      : router.replace(router.currentRoute.value.fullPath));
+  }
+
+  async function refreshAccess() {
+    const session = getSession();
+    session.replace(session.capture().token);
+    await router.replace(router.currentRoute.value.fullPath);
+  }
+
   async function fetchUserInfo() {
+    const scope = getSession().capture();
     const userInfo = await getUserInfoApi();
+    getSession().assertCurrent(scope);
     userStore.setUserInfo(userInfo);
     return userInfo;
   }
@@ -111,8 +159,12 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     $reset,
     authLogin,
+    clearSessionAccess,
+    expireSession,
     fetchUserInfo,
     loginLoading,
     logout,
+    refreshAccess,
+    syncExternalSession,
   };
 });

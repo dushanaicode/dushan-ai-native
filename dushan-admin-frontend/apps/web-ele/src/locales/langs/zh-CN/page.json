@@ -1,4 +1,8 @@
 {
+  "brand": {
+    "pageTitle": "AI-Native 快速开发平台",
+    "pageDesc": "为 超级个体 / FDE / 企业 / 一人公司OPC 打造"
+  },
   "auth": {
     "login": "登录",
     "register": "注册",

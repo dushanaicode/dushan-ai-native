@@ -279,19 +279,39 @@ function createCustomImage(
             input.accept = imageUpload.accept ?? DEFAULT_ACCEPT;
             input.style.display = 'none';
 
-            input.addEventListener('change', () => {
-              const file = input.files?.[0];
-              if (!file) return;
-
-              const error = validateFile(file, imageUpload);
-              if (error) {
-                handleUploadError(new Error(error), imageUpload);
-                return;
-              }
-
-              createUploadProcess(cmdEditor, file, imageUpload, blobUrlTracker);
+            const listeners = new AbortController();
+            const dispose = () => {
+              listeners.abort();
               input.remove();
+              cmdEditor.off('destroy', dispose);
+            };
+            // 文件选择可能取消，也可能在选择完成前卸载编辑器。
+            cmdEditor.on('destroy', dispose);
+            input.addEventListener('cancel', dispose, {
+              signal: listeners.signal,
             });
+            input.addEventListener(
+              'change',
+              () => {
+                const file = input.files?.[0];
+                dispose();
+                if (!file) return;
+
+                const error = validateFile(file, imageUpload);
+                if (error) {
+                  handleUploadError(new Error(error), imageUpload);
+                  return;
+                }
+
+                createUploadProcess(
+                  cmdEditor,
+                  file,
+                  imageUpload,
+                  blobUrlTracker,
+                );
+              },
+              { signal: listeners.signal },
+            );
 
             document.body.append(input);
             input.click();

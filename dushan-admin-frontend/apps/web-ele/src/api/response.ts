@@ -2,8 +2,11 @@ import type {
   RequestClient,
   RequestClientConfig,
   RequestResponse,
-  ResponseInterceptorConfig,
 } from '@vben/request';
+
+import type { SessionSnapshot } from '../services/session/coordinator';
+
+import { isAxiosError } from '@vben/request';
 
 import { BusinessError } from './business-error';
 
@@ -37,6 +40,11 @@ export interface PageResult<T> {
 }
 
 export type NativeRequestConfig = {
+  /** 只在客户端保存会话上下文，不发送为请求头。 */
+  __session?: SessionSnapshot;
+  __isRetryRequest?: boolean;
+  /** GET/HEAD/OPTIONS 默认可重放，写请求须由调用方明确允许。 */
+  allowAuthReplay?: boolean;
   /** form只将业务错误交给提交表单，网络故障仍由请求层提示。 */
   errorMessageMode?: 'form' | 'message';
 } & RequestClientConfig;
@@ -79,7 +87,7 @@ export function parseApiResponse(value: unknown): ApiResponse<unknown> {
 }
 
 /** 对普通业务JSON解包一次，保留文件下载等body/raw调用方式。 */
-export function nativeResponseInterceptor(): ResponseInterceptorConfig {
+export function nativeResponseInterceptor() {
   return {
     async fulfilled(response: RequestResponse) {
       // 文件失败是JSON且没有下载头，不能把业务错误保存为一个下载文件。
@@ -119,12 +127,13 @@ export function nativeResponseInterceptor(): ResponseInterceptorConfig {
   };
 }
 
-/** 只有业务登录失效才进入刷新流程，登录、退出与刷新接口不再次触发。 */
+/** 识别业务码和 HTTP 401，认证端点不递归刷新。 */
 export function isAuthenticationFailure(error: unknown): boolean {
+  if (!(error instanceof BusinessError) && !isAxiosError(error)) return false;
   return (
-    error instanceof BusinessError &&
-    error.code === 401 &&
-    !/\/auth\/(?:login|logout|refresh)(?:[/?]|$)/.test(error.config.url ?? '')
+    (error instanceof BusinessError ? error.code : error.response?.status) ===
+      401 &&
+    !/\/auth\/(?:login|logout|refresh)(?:[/?]|$)/.test(error.config?.url ?? '')
   );
 }
 

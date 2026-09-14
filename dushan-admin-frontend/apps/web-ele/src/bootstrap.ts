@@ -1,3 +1,5 @@
+import type { RealtimePorts } from './services/realtime';
+
 import { createApp, watchEffect } from 'vue';
 
 import { registerAccessDirective } from '@vben/access';
@@ -14,10 +16,23 @@ import { $t, setupI18n } from '#/locales';
 
 import { initComponentAdapter } from './adapter/component';
 import { initSetupVbenForm } from './adapter/form';
+import { refreshTokenApi } from './api/core/auth';
 import App from './app.vue';
 import { router } from './router';
+import { routes } from './router/routes';
+import {
+  installSessionAccess,
+  reportNavigationFailure,
+} from './router/session-access';
+import { installAnalytics, useAnalyticsConfig } from './services/analytics';
+import { installRealtime } from './services/realtime';
+import { setupSession } from './services/session/runtime';
+import { useAuthStore } from './store';
 
-async function bootstrap(namespace: string) {
+async function bootstrap(namespace: string, realtimePorts?: RealtimePorts) {
+  // 统计配置错误时在创建应用前失败
+  const analytics = useAnalyticsConfig();
+
   // 初始化组件适配器
   await initComponentAdapter();
 
@@ -48,6 +63,35 @@ async function bootstrap(namespace: string) {
 
   // 配置 pinia-tore
   await initStores(app, { namespace });
+  const session = setupSession({
+    namespace,
+    refresh: refreshTokenApi,
+    expire: () => useAuthStore().expireSession(),
+  });
+  app.onUnmount(() => session.dispose());
+  import.meta.hot?.dispose(() => session.dispose());
+  installRealtime({
+    app,
+    namespace,
+    session,
+    ports: realtimePorts,
+    origin: window.location.origin,
+    environment: {
+      enabled: import.meta.env.VITE_WEBSOCKET_ENABLED,
+      path: import.meta.env.VITE_WEBSOCKET_PATH,
+    },
+  });
+  const releaseAccess = installSessionAccess({
+    session,
+    router,
+    routes,
+    clear: () => useAuthStore().clearSessionAccess(),
+    onExternalChange: () => {
+      void useAuthStore().syncExternalSession().catch(reportNavigationFailure);
+    },
+  });
+  app.onUnmount(releaseAccess);
+  import.meta.hot?.dispose(releaseAccess);
 
   // 安装权限指令
   registerAccessDirective(app);
@@ -74,6 +118,8 @@ async function bootstrap(namespace: string) {
   });
 
   app.mount('#app');
+
+  installAnalytics(analytics, document);
 }
 
 export { bootstrap };

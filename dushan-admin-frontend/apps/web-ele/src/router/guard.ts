@@ -2,13 +2,15 @@ import type { Router } from 'vue-router';
 
 import { LOGIN_PATH } from '@vben/constants';
 import { preferences } from '@vben/preferences';
-import { useAccessStore, useUserStore } from '@vben/stores';
+import { useAccessStore, useTabbarStore, useUserStore } from '@vben/stores';
 import { startProgress, stopProgress } from '@vben/utils';
 
 import { accessRoutes, coreRouteNames } from '#/router/routes';
 import { useAuthStore } from '#/store';
 
+import { getSession } from '../services/session/runtime';
 import { generateAccess } from './access';
+import { readRedirect } from './session-access';
 
 /**
  * 通用守卫配置
@@ -45,7 +47,16 @@ function setupCommonGuard(router: Router) {
  * @param router
  */
 function setupAccessGuard(router: Router) {
+  router.afterEach((_to, _from, failure) => {
+    if (failure) return;
+    getSession().capture();
+    const access = useAccessStore();
+    if (access.accessToken && access.isAccessChecked)
+      useTabbarStore().renderRouteView = true;
+  });
   router.beforeEach(async (to, from) => {
+    const session = getSession();
+    const scope = session.capture();
     const accessStore = useAccessStore();
     const userStore = useUserStore();
     const authStore = useAuthStore();
@@ -53,10 +64,9 @@ function setupAccessGuard(router: Router) {
     // 基本路由，这些路由不需要进入权限拦截
     if (coreRouteNames.includes(to.name as string)) {
       if (to.path === LOGIN_PATH && accessStore.accessToken) {
-        return decodeURIComponent(
-          (to.query?.redirect as string) ||
-            userStore.userInfo?.homePath ||
-            preferences.app.defaultHomePath,
+        return readRedirect(
+          to.query.redirect,
+          userStore.userInfo?.homePath ?? preferences.app.defaultHomePath,
         );
       }
       return true;
@@ -93,6 +103,7 @@ function setupAccessGuard(router: Router) {
     // 生成路由表
     // 当前登录用户拥有的角色标识列表
     const userInfo = userStore.userInfo || (await authStore.fetchUserInfo());
+    session.assertCurrent(scope);
     const userRoles = userInfo.roles ?? [];
 
     // 生成菜单和路由
@@ -103,17 +114,21 @@ function setupAccessGuard(router: Router) {
       routes: accessRoutes,
     });
 
+    session.assertCurrent(scope);
+
     // 保存菜单信息和路由信息
     accessStore.setAccessMenus(accessibleMenus);
     accessStore.setAccessRoutes(accessibleRoutes);
     accessStore.setIsAccessChecked(true);
-    const redirectPath = (from.query.redirect ??
-      (to.path === preferences.app.defaultHomePath
-        ? userInfo.homePath || preferences.app.defaultHomePath
-        : to.fullPath)) as string;
+    const redirectPath = readRedirect(
+      from.query.redirect,
+      to.path === preferences.app.defaultHomePath
+        ? userInfo.homePath
+        : to.fullPath,
+    );
 
     return {
-      ...router.resolve(decodeURIComponent(redirectPath)),
+      ...router.resolve(redirectPath),
       replace: true,
     };
   });

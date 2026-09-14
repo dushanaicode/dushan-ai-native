@@ -1,0 +1,133 @@
+{
+  "formRules": {
+    "mobile": "请输入有效的手机号码"
+  },
+  "rangePicker": {
+    "beginTime": "开始时间",
+    "endTime": "结束时间",
+    "last7Days": "最近 7 天",
+    "last30Days": "最近 30 天",
+    "lastMonth": "上月",
+    "lastWeek": "上周",
+    "separator": "至",
+    "thisMonth": "本月",
+    "thisWeek": "本周",
+    "today": "今天",
+    "yesterday": "昨天"
+  },
+  "tagEditor": {
+    "preview": "预览标签",
+    "outline": "描边",
+    "text": "文本",
+    "color": "背景颜色",
+    "cancel": "取消",
+    "apply": "确定",
+    "link": "链接",
+    "textColor": "文字颜色",
+    "placeholder": "编辑标签样式",
+    "title": "标签样式",
+    "solid": "实心",
+    "clear": "清除"
+  },
+  "dictionary": {
+    "retry": "字典加载失败，点击重试"
+  },
+  "captcha": {
+    "slide": "拖动滑块完成拼图",
+    "refresh": "刷新验证码",
+    "failed": "验证失败，请重试",
+    "begin": "开始验证",
+    "image": "验证码图片",
+    "title": "安全验证",
+    "loading": "验证处理中"
+  },
+  "notification": {
+    "readAll": "全部已读",
+    "refresh": "刷新",
+    "failed": "通知操作失败，请重试",
+    "read": "标记已读",
+    "empty": "暂无通知",
+    "title": "通知"
+  },
+  "tableAction": {
+    "more": "更多",
+    "failed": "操作失败，请重试"
+  },
+  "export": {
+    "cancel": "取消",
+    "title": "导出",
+    "all": "全选",
+    "failed": "导出失败，请重试"
+  },
+  "iframe": {
+    "loading": "页面加载中",
+    "reload": "重新加载",
+    "failed": "页面加载失败",
+    "empty": "暂无内嵌地址"
+  },
+  "cron": {
+    "eachHour": "每小时",
+    "eachMinute": "每分钟",
+    "apply": "应用",
+    "range": "范围",
+    "generate": "生成表达式",
+    "week": "周",
+    "cancel": "取消",
+    "minute": "分钟",
+    "day": "日",
+    "every": "任意值",
+    "list": "指定",
+    "step": "间隔",
+    "hour": "小时",
+    "invalid": "表达式无效：生成器支持五段数字格式，请检查范围和步长",
+    "eachMonth": "每月一号",
+    "month": "月",
+    "shortcut": "选择常用表达式",
+    "eachDay": "每天零点",
+    "eachWeek": "每周日零点"
+  },
+  "wizard": {
+    "prev": "上一步",
+    "next": "下一步",
+    "finish": "完成"
+  },
+  "upload": {
+    "failed": "文件操作失败，请重新选择或刷新文件信息",
+    "preview": "查看文件",
+    "cancel": "取消上传",
+    "remove": "移除",
+    "choose": "选择文件",
+    "retry": "刷新文件信息"
+  },
+  "editor": {
+    "preview": "预览",
+    "pending": "图片尚未完成，请等待上传或移除临时图片"
+  },
+  "avatar": {
+    "cancel": "取消",
+    "title": "编辑头像",
+    "apply": "保存头像",
+    "choose": "选择头像",
+    "failed": "头像处理失败，请重试"
+  },
+  "userSelect": {
+    "keyword": "输入账号或名称",
+    "retry": "重新加载",
+    "cancel": "取消",
+    "user": "用户",
+    "failed": "用户加载失败，请重试",
+    "search": "搜索",
+    "placeholder": "请选择用户",
+    "clear": "清空",
+    "description": "说明",
+    "confirm": "确定",
+    "title": "选择用户",
+    "department": "选择部门"
+  },
+  "docLinks": {
+    "docs": "官方文档",
+    "guide": "使用文档（免费）",
+    "deepDive": "源码解读（知识星球）",
+    "feedback": "问题反馈"
+  }
+}
