@@ -5,6 +5,7 @@ import pytest
 from fastapi import Depends
 
 from fixtures.cache_fixtures import app_values, redis_values, requires_redis
+from fixtures.public_web_app import create_public_app
 from framework.starter_cache.core.cache_handler import CacheHandler
 from framework.starter_cache.core.cache_manager import CacheManager
 from framework.starter_cache.exception.cache_connection_exception import CacheConnectionException
@@ -12,13 +13,12 @@ from framework.starter_di.context.get_bean import get_bean
 from framework.starter_di.decorators.di_dependency import DiDependency
 from framework.starter_di.enums.container_state_enum import ContainerStateEnum
 from framework.starter_di.exception.di_exception import DiException
-from server.starter_server import create_app
 
 pytestmark = requires_redis
 
 
 def build_app(config_dir, module_values, **overrides):
-    return create_app(
+    return create_public_app(
         base_dir=config_dir(app_values(redis_values(**overrides), **module_values)), environ={}
     )
 

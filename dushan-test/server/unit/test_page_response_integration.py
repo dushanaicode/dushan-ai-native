@@ -5,24 +5,24 @@ from fastapi import Query
 from fastapi.testclient import TestClient
 from starlette.datastructures import Headers
 
+from fixtures.public_web_app import create_public_app
 from framework.common.exception.constants.global_error_code_constants import (
     GlobalErrorCodeConstants,
 )
 from framework.common.page.core.data_paginator import DataPaginator
 from framework.common.page.schemas.page_query import PageQuery
 from framework.common.page.schemas.page_result import PageResult
-from framework.common.response.core.file_result import FileResult
-from framework.common.response.core.result import Result
 from framework.common.schemas.base_vo import BaseVO
 from framework.starter_config.provider.bootstrap_config_error import BootstrapConfigError
-from server.starter_server import create_app
+from framework.starter_web.response.file_result import FileResult
+from framework.starter_web.response.result import Result
 
 pytestmark = pytest.mark.unit
 
 
 def test_page_and_result_work_in_real_routes_with_runtime_configuration(config_dir):
     """从环境变量到查询解析再到公开响应，完整验证分页契约与模型过滤。"""
-    app = create_app(
+    app = create_public_app(
         base_dir=config_dir(), environ={"PAGE_DEFAULT_SIZE": "2", "PAGE_MAX_SIZE": "3"}
     )
     paginator = DataPaginator(app.state.bootstrap.page_settings)
@@ -68,7 +68,7 @@ def test_response_configuration_is_applied_without_global_state(config_dir):
             "response": {"download_cache": "private", "download_max_age": 20},
         }
     )
-    first = create_app(
+    first = create_public_app(
         base_dir=root,
         environ={
             "PAGE_FETCH_ALL_ENABLED": "true",
@@ -78,7 +78,7 @@ def test_response_configuration_is_applied_without_global_state(config_dir):
             "RESPONSE_FILE_CHUNK_SIZE": "8",
         },
     ).state.bootstrap
-    second = create_app(base_dir=root, environ={}).state.bootstrap
+    second = create_public_app(base_dir=root, environ={}).state.bootstrap
     assert first.page_settings.fetch_all_enabled is True
     assert second.page_settings.fetch_all_enabled is False
     assert first.response_settings.file_chunk_size == 8
@@ -117,7 +117,7 @@ def test_lifespan_injects_same_translator_into_middleware_and_exception_handler(
             else:
                 await self.app(scope, receive, send)
 
-    app = create_app(base_dir=config_dir(), environ={})
+    app = create_public_app(base_dir=config_dir(), environ={})
     context = app.state.bootstrap
     app.add_middleware(GateMiddleware, result=context.middleware_result)
     assert context.middleware_result.translator is None
@@ -138,7 +138,7 @@ def test_lifespan_injects_same_translator_into_middleware_and_exception_handler(
 
 def test_disabled_i18n_keeps_middleware_default_message(config_dir):
     """关闭国际化时仍有可用中文提示，翻译器不成为强制外部服务。"""
-    app = create_app(base_dir=config_dir({"i18n": {"enabled": False}}), environ={})
+    app = create_public_app(base_dir=config_dir({"i18n": {"enabled": False}}), environ={})
     with TestClient(app):
         content = app.state.bootstrap.middleware_result.build_error_content(
             GlobalErrorCodeConstants.BAD_REQUEST, accept_language="en-US"
@@ -158,4 +158,4 @@ def test_disabled_i18n_keeps_middleware_default_message(config_dir):
 def test_invalid_component_config_stops_app_creation(config_dir, environ):
     """无效开关和边界值不能静默回退为另一套运行参数。"""
     with pytest.raises(BootstrapConfigError):
-        create_app(base_dir=config_dir(), environ=environ)
+        create_public_app(base_dir=config_dir(), environ=environ)

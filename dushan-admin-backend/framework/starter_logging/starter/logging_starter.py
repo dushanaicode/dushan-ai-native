@@ -7,10 +7,10 @@ from typing import cast
 
 from loguru import logger
 
-from framework.common.diagnostics.terminal_error_reporter import TerminalErrorReporter
 from framework.common.security.sanitizer import Sanitizer
 from framework.starter_logging.config.log_settings import LogSettings
 from framework.starter_logging.core.logger_configurator import LoggerConfigurator
+from framework.starter_logging.diagnostics.terminal_error_reporter import TerminalErrorReporter
 from framework.starter_logging.starter.terminal_shutdown_observer import TerminalShutdownObserver
 
 

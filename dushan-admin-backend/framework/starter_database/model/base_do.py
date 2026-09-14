@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy import BigInteger, Boolean, DateTime, Identity, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from framework.common.utils.id.snowflake_utils import SnowflakeUtils
+from framework.starter_database.id.snowflake_utils import SnowflakeUtils
 from framework.starter_database.model.base import Base
 
 

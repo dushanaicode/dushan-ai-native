@@ -1,0 +1,11 @@
+{
+  "protection.unavailable": "Protection storage is unavailable",
+  "protection.invalid": "Invalid protection configuration or parameters",
+  "protection.closed": "Protection is not ready or is closing",
+  "protection.rate_limited": "Too many requests; retry later",
+  "protection.capacity": "Protection processing capacity reached",
+  "protection.lock_busy": "Timed out acquiring the distributed lock",
+  "protection.lock_lost": "Lock lease expired or ownership changed",
+  "protection.duplicate": "Duplicate request",
+  "protection.owner_lost": "Idempotency state expired or ownership changed"
+}

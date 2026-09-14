@@ -7,6 +7,7 @@ import pytest
 from fastapi import Depends, Request
 from pydantic import BaseModel
 
+from fixtures.public_web_app import create_public_app
 from framework.starter_di.decorators.di_dependency import DiDependency
 from framework.starter_excel.converter.area_converter import AreaConverter
 from framework.starter_excel.model.excel_column import ExcelColumn
@@ -23,7 +24,6 @@ from framework.starter_ip.model.area import Area
 from framework.starter_ip.service.area_service import AreaService
 from framework.starter_ip.service.ip_location_service import IpLocationService
 from server.bootstrap.bootstrapper import BootstrapError
-from server.starter_server import create_app
 
 pytestmark = pytest.mark.unit
 
@@ -50,7 +50,7 @@ async def test_real_area_xlsx_and_local_ipv4_ipv6_use_application_di(config_dir,
     monkeypatch.setattr(
         IpLocationHttpClient, "open", lambda self: pytest.fail("离线应用不能创建在线客户端")
     )
-    app = create_app(
+    app = create_public_app(
         base_dir=config_dir({"scanner": {"enabled": False}}),
         environ={"IP_ENABLED": "true", "CACHE_ENABLED": "false", "DATABASE_ENABLED": "false"},
     )
@@ -87,7 +87,7 @@ async def test_plain_xlsx_runs_with_ip_cache_and_database_disabled(config_dir, m
     """禁用外部资源时，已装配的 XLSX 核心仍可用。"""
     for owner in (AreaService, Ip2RegionDatabase):
         monkeypatch.setattr(owner, "initialize", lambda *args: pytest.fail("禁用资源被加载"))
-    app = create_app(base_dir=config_dir(), environ={})
+    app = create_public_app(base_dir=config_dir(), environ={})
     async with app.router.lifespan_context(app):
         runtime = app.state.application_context
         with runtime.execution():
@@ -101,8 +101,8 @@ async def test_area_resources_are_isolated_and_one_app_can_close_first(config_di
     root = config_dir()
     environ = {"IP_ENABLED": "true", "IP_LOCAL_ENABLED": "false"}
     first, second = (
-        create_app(base_dir=root, environ=environ),
-        create_app(base_dir=root, environ=environ),
+        create_public_app(base_dir=root, environ=environ),
+        create_public_app(base_dir=root, environ=environ),
     )
     async with second.router.lifespan_context(second):
         async with first.router.lifespan_context(first):
@@ -126,7 +126,7 @@ async def test_failed_ip_startup_releases_already_loaded_areas(config_dir, tmp_p
         captured.append(self)
 
     monkeypatch.setattr(AreaService, "initialize", record_initialize)
-    app = create_app(
+    app = create_public_app(
         base_dir=config_dir(),
         environ={"IP_ENABLED": "true", "IP_LOCAL_DATA_DIR": str(tmp_path / "missing-xdb")},
     )
@@ -141,7 +141,9 @@ async def test_failed_ip_startup_releases_already_loaded_areas(config_dir, tmp_p
 
 
 async def test_http_client_ip_uses_real_peer_and_application_proxy_config(config_dir):
-    app = create_app(base_dir=config_dir(), environ={"IP_TRUSTED_PROXY_CIDRS": '["10.0.0.0/8"]'})
+    app = create_public_app(
+        base_dir=config_dir(), environ={"IP_TRUSTED_PROXY_CIDRS": '["10.0.0.0/8"]'}
+    )
 
     @app.get("/client-ip")
     async def client_ip(request: Request, settings: IpSettings = Depends(DiDependency(IpSettings))):
@@ -163,7 +165,7 @@ async def test_http_client_ip_uses_real_peer_and_application_proxy_config(config
 
 
 async def test_host_cancellation_closes_ip_resources(config_dir):
-    app = create_app(
+    app = create_public_app(
         base_dir=config_dir(), environ={"IP_ENABLED": "true", "IP_LOCAL_ENABLED": "false"}
     )
     ready = asyncio.Event()
@@ -185,7 +187,9 @@ async def test_host_cancellation_closes_ip_resources(config_dir):
 
 
 async def test_explicit_ip_enable_requires_di(config_dir):
-    app = create_app(base_dir=config_dir(), environ={"IP_ENABLED": "true", "DI_ENABLED": "false"})
+    app = create_public_app(
+        base_dir=config_dir(), environ={"IP_ENABLED": "true", "DI_ENABLED": "false"}
+    )
     with pytest.raises(BootstrapError) as caught:
         async with app.router.lifespan_context(app):
             pytest.fail("没有 DI 的 IP 资源不能就绪")
@@ -203,7 +207,7 @@ async def test_explicit_ip_enable_requires_di(config_dir):
 )
 async def test_application_loads_only_the_requested_ip_family(config_dir, family, selected, other):
     """环境覆盖通过真实 DI/启动步骤生效，未加载族与正常未知结果明确区分。"""
-    app = create_app(
+    app = create_public_app(
         base_dir=config_dir(),
         environ={"IP_ENABLED": "true", "IP_LOCAL_FAMILIES": f'["{family}"]'},
     )

@@ -4,13 +4,13 @@ import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
+from fixtures.public_web_app import create_public_app
 from framework.common.exception.constants.global_error_code_constants import (
     GlobalErrorCodeConstants,
 )
 from framework.common.exception.exceptions.configuration_exception import ConfigurationException
 from framework.starter_config.provider.bootstrap_config_error import BootstrapConfigError
 from server.bootstrap.bootstrapper import BootstrapError
-from server.starter_server import create_app
 
 pytestmark = pytest.mark.unit
 
@@ -32,7 +32,7 @@ def add_error_routes(app):
 
 
 def test_application_lifespan_injects_translator_and_translates_http_errors(config_dir):
-    app = create_app(base_dir=config_dir(), environ={})
+    app = create_public_app(base_dir=config_dir(), environ={})
     add_error_routes(app)
     handler = app.state.bootstrap.exception_handler
     assert handler.translator is None
@@ -65,7 +65,7 @@ def test_disabled_i18n_preserves_final_http_detail_without_loading_resources(con
             }
         }
     )
-    app = create_app(base_dir=root, environ={})
+    app = create_public_app(base_dir=root, environ={})
     add_error_routes(app)
     with TestClient(app, raise_server_exceptions=False) as client:
         response = client.get("/bad-request", headers={"Accept-Language": "en-US"})
@@ -76,7 +76,7 @@ def test_disabled_i18n_preserves_final_http_detail_without_loading_resources(con
 @pytest.mark.parametrize("vary", [None, "Accept-Encoding", "accept-language", "*"])
 def test_localized_errors_preserve_headers_and_declare_language_variation(config_dir, vary):
     """共享缓存按语言区分异常响应，原认证与重试响应头保持有效。"""
-    app = create_app(base_dir=config_dir(), environ={})
+    app = create_public_app(base_dir=config_dir(), environ={})
     headers = {"WWW-Authenticate": "Bearer", "Retry-After": "3"}
     if vary is not None:
         headers["vary"] = vary
@@ -117,7 +117,7 @@ def test_configuration_alone_adds_french_with_relative_resource_root(config_dir)
     (resources / "fr-FR.json").write_text(
         json.dumps({"exception.bad_gateway": "Passerelle indisponible"}), encoding="utf-8"
     )
-    app = create_app(base_dir=root, environ={})
+    app = create_public_app(base_dir=root, environ={})
     add_error_routes(app)
     with TestClient(app, raise_server_exceptions=False) as client:
         response = client.get("/gateway-failure", headers={"Accept-Language": "fr"})
@@ -138,12 +138,12 @@ def test_configuration_can_require_business_translations(config_dir):
     environ = {"I18N_REQUIRED_MESSAGE_KEYS": '["account.greeting"]'}
     with (
         pytest.raises(BootstrapError) as error,
-        TestClient(create_app(base_dir=root, environ=environ)),
+        TestClient(create_public_app(base_dir=root, environ=environ)),
     ):
         pass
     assert "account.greeting" in str(error.value.__cause__)
     (resources / "zh-CN.json").write_text('{"account.greeting":"欢迎"}', encoding="utf-8")
-    app = create_app(base_dir=root, environ=environ)
+    app = create_public_app(base_dir=root, environ=environ)
     with TestClient(app):
         translator = app.state.bootstrap.exception_handler.translator
         assert translator.translate_any_scope("account.greeting", "en-US") == "Welcome"
@@ -151,7 +151,7 @@ def test_configuration_can_require_business_translations(config_dir):
 
 
 def test_i18n_environment_configuration_overrides_yaml(config_dir):
-    app = create_app(
+    app = create_public_app(
         base_dir=config_dir(),
         environ={
             "I18N_DEFAULT_LOCALE": "en-US",
@@ -182,7 +182,7 @@ def test_i18n_environment_configuration_overrides_yaml(config_dir):
     ],
 )
 def test_strict_i18n_failure_prevents_startup_and_releases_previous_resources(config_dir, i18n):
-    app = create_app(base_dir=config_dir({"i18n": i18n}), environ={})
+    app = create_public_app(base_dir=config_dir({"i18n": i18n}), environ={})
     with pytest.raises(BootstrapError) as error, TestClient(app):
         pass
     assert isinstance(error.value.__cause__, ConfigurationException)
@@ -193,7 +193,7 @@ def test_strict_i18n_failure_prevents_startup_and_releases_previous_resources(co
 
 
 def test_validation_warning_allows_incomplete_additional_language(config_dir):
-    app = create_app(
+    app = create_public_app(
         base_dir=config_dir(
             {
                 "i18n": {
@@ -214,7 +214,7 @@ def test_validation_warning_allows_incomplete_additional_language(config_dir):
 @pytest.mark.parametrize("i18n", [{"unknown_option": True}, {"reload_interval": 0}])
 def test_invalid_i18n_configuration_fails_during_application_creation(config_dir, i18n):
     with pytest.raises(BootstrapConfigError):
-        create_app(base_dir=config_dir({"i18n": i18n}), environ={})
+        create_public_app(base_dir=config_dir({"i18n": i18n}), environ={})
 
 
 def test_multiple_applications_keep_translations_isolated(config_dir):
@@ -227,7 +227,7 @@ def test_multiple_applications_keep_translations_isolated(config_dir):
         )
 
     def create(name):
-        return create_app(
+        return create_public_app(
             base_dir=root,
             environ={
                 "I18N_RESOURCE_ROOTS": json.dumps(
@@ -264,7 +264,7 @@ def test_configured_http_hot_reload_retains_last_valid_translation(
     config_dir, monkeypatch, hot_reload
 ):
     clock = [100.0]
-    monkeypatch.setattr("framework.common.i18n.core.reloader.monotonic", lambda: clock[0])
+    monkeypatch.setattr("framework.starter_i18n.core.reloader.monotonic", lambda: clock[0])
     root = config_dir(
         {
             "i18n": {
@@ -278,7 +278,7 @@ def test_configured_http_hot_reload_retains_last_valid_translation(
     resources.mkdir()
     resource = resources / "en-US.json"
     resource.write_text('{"exception.bad_gateway":"Before"}', encoding="utf-8")
-    app = create_app(base_dir=root, environ={})
+    app = create_public_app(base_dir=root, environ={})
     add_error_routes(app)
     with TestClient(app, raise_server_exceptions=False) as client:
         headers = {"Accept-Language": "en-US"}

@@ -18,9 +18,9 @@ from sqlalchemy.sql import visitors
 from sqlalchemy.sql.schema import Table
 from sqlalchemy.sql.selectable import SelectBase
 
-from framework.common.page.core.data_paginator import DataPaginator
 from framework.common.page.schemas.page_query import PageQuery
 from framework.starter_database.model.base_do import BaseDO
+from framework.starter_database.pagination.sql_paginator import SqlPaginator
 from framework.starter_database.repository.atomic_upsert import AtomicUpsert
 from framework.starter_database.session.managed_session import ManagedSession
 from framework.starter_database.session.session_provider import SessionProvider
@@ -40,7 +40,7 @@ class BaseMapper(Generic[T]):
     """
 
     session_provider: SessionProvider = Inject()
-    paginator: DataPaginator = Inject()
+    paginator: SqlPaginator = Inject()
 
     def __init__(self, model: type[T], datasource: str | None = None) -> None:
         if len(inspect(model).primary_key) != 1:

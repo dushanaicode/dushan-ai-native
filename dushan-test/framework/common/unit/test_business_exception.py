@@ -40,9 +40,9 @@ from framework.common.exception.exceptions.service_exception import ServiceExcep
 from framework.common.exception.exceptions.third_party_exception import ThirdPartyException
 from framework.common.exception.registry.error_code_decorator import error_code
 from framework.common.exception.registry.error_code_registry import ErrorCodeRegistry
-from framework.common.exception.utils.exception_util import ExceptionUtil
-from framework.common.exception.utils.response_builder import ExceptionResponseBuilder
 from framework.common.security.sanitizer import Sanitizer
+from framework.starter_web.exception.exception_util import ExceptionUtil
+from framework.starter_web.exception.response_builder import ExceptionResponseBuilder
 
 pytestmark = pytest.mark.unit
 
@@ -357,35 +357,35 @@ def test_formatting_preserves_control_signals(signal: BaseException) -> None:
 
 
 def test_all_exception_modules_are_importable() -> None:
-    """所有异常模块可独立导入，不依赖数据库、业务服务或翻译器启动。"""
+    "所有异常模块可独立导入，不依赖数据库、业务服务或翻译器启动。"
     modules = (
-        "constants.global_error_code_constants",
-        "core.error_code",
-        "core.exception_handler",
-        "core.exception_trace_reporter",
-        "exceptions.auth_exception",
-        "exceptions.base_business_exception",
-        "exceptions.configuration_exception",
-        "exceptions.conflict_exception",
-        "exceptions.illegal_argument_exception",
-        "exceptions.model_validator_exception",
-        "exceptions.not_found_exception",
-        "exceptions.permission_exception",
-        "exceptions.rate_limit_exception",
-        "exceptions.remote_service_exception",
-        "exceptions.remote_error_detail",
-        "exceptions.server_exception",
-        "exceptions.service_exception",
-        "exceptions.third_party_exception",
-        "registry.error_code_decorator",
-        "registry.error_code_registry",
-        "utils.error_log_recorder",
-        "utils.exception_logger",
-        "utils.exception_util",
-        "utils.response_builder",
+        "framework.common.exception.constants.global_error_code_constants",
+        "framework.common.exception.core.error_code",
+        "framework.starter_web.exception.exception_handler",
+        "framework.common.exception.core.exception_trace_reporter",
+        "framework.common.exception.exceptions.auth_exception",
+        "framework.common.exception.exceptions.base_business_exception",
+        "framework.common.exception.exceptions.configuration_exception",
+        "framework.common.exception.exceptions.conflict_exception",
+        "framework.common.exception.exceptions.illegal_argument_exception",
+        "framework.common.exception.exceptions.model_validator_exception",
+        "framework.common.exception.exceptions.not_found_exception",
+        "framework.common.exception.exceptions.permission_exception",
+        "framework.common.exception.exceptions.rate_limit_exception",
+        "framework.common.exception.exceptions.remote_service_exception",
+        "framework.common.exception.exceptions.remote_error_detail",
+        "framework.common.exception.exceptions.server_exception",
+        "framework.common.exception.exceptions.service_exception",
+        "framework.common.exception.exceptions.third_party_exception",
+        "framework.common.exception.registry.error_code_decorator",
+        "framework.common.exception.registry.error_code_registry",
+        "framework.starter_web.exception.error_log_recorder",
+        "framework.starter_web.exception.exception_logger",
+        "framework.starter_web.exception.exception_util",
+        "framework.starter_web.exception.response_builder",
     )
     for name in modules:
-        import_module(f"framework.common.exception.{name}")
+        import_module(name)
 
 
 def test_configuration_exception_and_error_configuration_map_to_500() -> None:

@@ -5,25 +5,17 @@ from contextvars import Context
 from typing import Any, TypeVar
 
 from anyio import CancelScope
-from loguru import logger
-
-from framework.common.diagnostics.exception_trace_formatter import ExceptionTraceFormatter
 
 T = TypeVar("T")
 
 
 class AsyncioUtils:
-    """组织异步并发、受保护清理和有归属的后台任务。
+    """组织异步并发、受保护清理和由调用方持有的任务。
 
     并发入口接收协程工厂，确保任务不会在限流前启动；失败时取消并等待同组任务。
-    后台任务由实例持有，生命周期结束必须 await aclose()。
+    应用后台任务由 ApplicationContext.tasks 登记和排空，本工具不另建任务管理器。
     context=None 继承当前上下文，传入显式 Context 可隔离执行资源，不使用全局清理注册表。
     """
-
-    def __init__(self) -> None:
-        """保存当前实例拥有的后台任务。"""
-        self._background_tasks: set[asyncio.Task] = set()
-        self._closed = False
 
     @classmethod
     async def gather_with_concurrency(
@@ -80,38 +72,3 @@ class AsyncioUtils:
     ) -> asyncio.Task[T]:
         """创建由调用方持有并等待的任务，采用 Python 原生上下文传递契约。"""
         return asyncio.create_task(coro, name=name, context=context)
-
-    def run_async_task(
-        self,
-        coro: Coroutine[Any, Any, T],
-        *,
-        name: str | None = None,
-        context: Context | None = None,
-    ) -> asyncio.Task[T]:
-        """启动本实例拥有的后台任务，完成时记录经过脱敏的失败信息。"""
-        if self._closed:
-            coro.close()
-            raise RuntimeError("后台任务管理器已关闭")
-        task = self.create_task(coro, name=name, context=context)
-        self._background_tasks.add(task)
-        task.add_done_callback(self._handle_task_result)
-        return task
-
-    def _handle_task_result(self, task: asyncio.Task) -> None:
-        """释放任务引用并消费终态异常，取消属于正常关闭行为。"""
-        self._background_tasks.discard(task)
-        if task.cancelled():
-            return
-        exception = task.exception()
-        if exception is not None:
-            logger.error(
-                "后台任务执行失败：\n{}", "".join(ExceptionTraceFormatter.format(exception))
-            )
-
-    async def aclose(self) -> None:
-        """禁止新建后台任务，取消并等待所有已有任务完成清理。"""
-        self._closed = True
-        tasks = tuple(self._background_tasks)
-        for task in tasks:
-            task.cancel()
-        await self.run_cancellation_shielded(asyncio.gather(*tasks, return_exceptions=True))

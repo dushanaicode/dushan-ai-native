@@ -91,20 +91,18 @@ async def test_wrong_purpose_does_not_burn_other_purpose_attempt(captcha, stored
 async def test_optional_trace_receives_no_answers_or_tokens(
     captcha_app, stored_answer, monkeypatch
 ):
-    from contextlib import contextmanager
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
-    from opentelemetry import trace
+    from framework.starter_monitor.core.monitor_service import MonitorService
 
-    spans = []
-
-    class TestTracer:
-        @contextmanager
-        def start_as_current_span(self, name, **kwargs):
-            spans.append((name, kwargs))
-            yield
-
-    monkeypatch.setattr(trace, "get_tracer", lambda *args: TestTracer())
-    app = await captcha_app(tracing_enabled=True)
+    exporter = InMemorySpanExporter()
+    monkeypatch.setattr(MonitorService, "_create_exporter", lambda service: exporter)
+    app = await captcha_app(
+        tracing_enabled=True,
+        app_overrides={
+            "config": {"models": {"monitor": {"enabled": True, "sampler": "always_on"}}}
+        },
+    )
     with app.state.application_context.execution():
         service = app.state.captcha
         challenge = await service.create("login")
@@ -112,8 +110,13 @@ async def test_optional_trace_receives_no_answers_or_tokens(
             challenge.token, "login", await stored_answer(service, challenge)
         )
         await service.consume(proof.verification, "login")
-        assert [name for name, _ in spans] == ["captcha.create", "captcha.check", "captcha.consume"]
-        assert challenge.token not in repr(spans) and proof.verification not in repr(spans)
-        assert all(
-            not kw["record_exception"] and not kw["set_status_on_exception"] for _, kw in spans
-        )
+        assert await app.state.monitor.flush()
+        spans = exporter.get_finished_spans()
+        assert [span.name for span in spans] == [
+            "captcha.create",
+            "captcha.check",
+            "captcha.consume",
+        ]
+        payload = "".join(span.to_json() for span in spans)
+        assert challenge.token not in payload and proof.verification not in payload
+        assert all(dict(span.attributes) == {"captcha.provider": "block_puzzle"} for span in spans)

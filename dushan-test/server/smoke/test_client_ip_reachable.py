@@ -23,11 +23,13 @@ APPLICATION = """from fastapi import Depends, Request
 from framework.starter_di.decorators.di_dependency import DiDependency
 from framework.starter_ip.config.ip_settings import IpSettings
 from framework.starter_ip.core.client_ip_resolver import ClientIpResolver
+from framework.starter_web.routing.route_policy import RoutePolicy
 from server.starter_server import create_app
 
 app = create_app(app_env="test")
 
 @app.get("/client-ip")
+@RoutePolicy.public()
 async def client_ip(request: Request, settings=Depends(DiDependency(IpSettings))):
     peer = request.client.host
     return {
@@ -70,6 +72,7 @@ def test_real_engine_preserves_peer_and_applies_proxy_policy(engine, trusted, co
     env = dict(
         os.environ,
         SERVER_ENV="test",
+        SERVER_ENGINE=engine,
         DUSHAN_CONFIG_DIR=str(root),
         PYTHONPATH=os.pathsep.join((str(tmp_path), str(BACKEND_ROOT))),
         PYTHONDONTWRITEBYTECODE="1",
@@ -123,7 +126,7 @@ def test_real_engine_preserves_peer_and_applies_proxy_policy(engine, trusted, co
                     result = json.load(response)
                 assert result == {
                     "peer": "127.0.0.1",
-                    "scope_scheme": "http",
+                    "scope_scheme": scheme if trusted else "http",
                     "ip": address if trusted else "127.0.0.1",
                     "scheme": scheme if trusted else "http",
                 }

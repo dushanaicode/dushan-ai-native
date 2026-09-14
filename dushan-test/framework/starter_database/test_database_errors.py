@@ -23,14 +23,14 @@ from starlette.requests import Request
 
 from framework.common.diagnostics.exception_trace_formatter import ExceptionTraceFormatter
 from framework.common.diagnostics.safe_exception_diagnostics import SafeExceptionDiagnostics
-from framework.common.exception.core.exception_handler import GlobalExceptionHandler
-from framework.common.exception.utils.response_builder import ExceptionResponseBuilder
 from framework.starter_database.exception.after_commit_exception import AfterCommitException
 from framework.starter_database.exception.database_error_codes import DatabaseErrorCodes
 from framework.starter_database.exception.database_error_translator import DatabaseErrorTranslator
 from framework.starter_database.exception.database_exception import DatabaseException
 from framework.starter_database.session.managed_async_session import ManagedAsyncSession
 from framework.starter_logging.core.logger_configurator import LoggerConfigurator
+from framework.starter_web.exception.exception_handler import GlobalExceptionHandler
+from framework.starter_web.exception.response_builder import ExceptionResponseBuilder
 
 
 def driver_error(*, state=None, code=None):

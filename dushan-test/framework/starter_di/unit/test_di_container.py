@@ -79,6 +79,29 @@ async def test_constructor_and_field_injection_preserve_scopes_and_app_isolation
     await second.shutdown()
 
 
+async def test_optional_binding_only_treats_absent_key_as_missing(configuration):
+    class Missing:
+        pass
+
+    @service(scope=ComponentScopeEnum.TRANSIENT)
+    class Failing:
+        def __init__(self):
+            raise DiException(error_code=DiErrorCodes.MISSING_BINDING, msg="构造中的依赖失败")
+
+    current = container([Failing], configuration)
+    with pytest.raises(DiException):
+        current.get_optional(Missing)
+    await current.startup()
+    try:
+        assert current.get_optional(Missing) is None
+        with pytest.raises(DiException):
+            current.get_optional(Failing)
+    finally:
+        await current.shutdown()
+    with pytest.raises(DiException):
+        current.get_optional(Missing)
+
+
 async def test_interface_and_provider_lists_reuse_the_original_singleton(configuration):
     class Handler:
         pass

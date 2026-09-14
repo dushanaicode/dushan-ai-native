@@ -199,6 +199,21 @@ class DiContainer:
                     self._resolution_seconds += perf_counter() - started
                 self._condition.notify_all()
 
+    def get_optional(self, key: type[T]) -> T | None:
+        """已启动容器中只有未注册的键返回 None；现有绑定的创建/解析故障继续抛出。"""
+        if self._application is not None:
+            self._application.validate_resolution()
+        with self._condition:
+            if self._state is not ContainerStateEnum.READY:
+                raise DiException(error_code=DiErrorCodes.NOT_READY)
+            present = (
+                key in self._instances
+                or key in self.configuration.model_classes
+                or key in self._plan.bindings
+                or key in self._plan.providers
+            )
+        return self.get(key) if present else None
+
     def get_by_role(self, role: BaseEnum) -> tuple[object, ...]:
         """读取当前应用的活动角色实例，仍遵循各绑定的作用域。"""
         if self.state is not ContainerStateEnum.READY:

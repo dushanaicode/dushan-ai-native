@@ -8,6 +8,9 @@ dependencies = [
     # 公共异常处理与响应直接使用的 Web 类型。
     "fastapi==0.137.1",
     "starlette==1.3.1",
+    # 原生 Form/UploadFile 解析，以及显式富文本净化。
+    "python-multipart==0.0.32",
+    "nh3==0.3.7",
     # 异步生成器关闭时隔离取消信号。
     "anyio==4.15.1",
     # SQL分页直接使用异步Session和查询表达式。
@@ -21,7 +24,11 @@ dependencies = [
     "pydantic==2.13.4",
     "PyYAML==6.0.3",
     "loguru==0.7.3",
-    "opentelemetry-api==1.21.0",
+    # 追踪 API、SDK 与 OTLP 导出器使用同一发布版本。
+    "opentelemetry-api==1.44.0",
+    "opentelemetry-sdk==1.44.0",
+    "opentelemetry-exporter-otlp-proto-grpc==1.44.0",
+    "grpcio==1.83.1", # 直接使用TLS凭据、压缩及有界通道选项
     # 受限表达式渲染，以及 Windows 等无系统时区库环境的日期工具。
     "Jinja2==3.1.6",
     "tzdata==2026.3",
@@ -34,6 +41,11 @@ dependencies = [
     "defusedxml==0.7.1",
     # 仅显式启用在线 IP Provider 时发起请求；沿用测试环境已用版本。
     "httpx==0.28.1",
+    # OIDC 签名和声明验证；RSA2 授权签名复用已锁定的 cryptography。
+    "joserfc==1.7.5",
+    "cryptography==50.0.1",
+    # 本站密码哈希，明确拒绝 72 UTF-8 字节以上的密码。
+    "bcrypt==5.0.0",
     # ip2region 官方 Python IPv4/IPv6 查询绑定，数据库随组件独立入包。
     "py-ip2region==3.0.4",
     # 本地滑块与汉字点选图像生成；字体及其 OFL 许可证随组件入包。

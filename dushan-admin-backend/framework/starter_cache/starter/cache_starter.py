@@ -3,6 +3,7 @@ from collections.abc import Iterable
 from framework.starter_cache.config.cache_settings import CacheSettings
 from framework.starter_cache.core.cache_key_registry import CacheKeyRegistry
 from framework.starter_cache.core.cache_manager import CacheManager
+from framework.starter_cache.model.cache_key import CacheKey
 from framework.starter_cache.model.cache_key_container import CacheKeyContainer
 from framework.starter_di.decorators.components import starter
 
@@ -25,9 +26,14 @@ class CacheStarter:
         self.cache_key_registry = cache_key_registry
         self.settings = settings
 
-    async def open(self, containers: Iterable[type[CacheKeyContainer]]) -> None:
+    async def open(
+        self,
+        containers: Iterable[type[CacheKeyContainer]],
+        *,
+        resource_keys: Iterable[CacheKey] = (),
+    ) -> None:
         """登记键声明并建立全部 Redis 连接。"""
-        self.cache_key_registry.register(containers, self.settings)
+        self.cache_key_registry.register(containers, self.settings, resource_keys=resource_keys)
         await self.cache_manager.open()
 
     async def close(self) -> None:

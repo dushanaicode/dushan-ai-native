@@ -74,9 +74,7 @@ return 1
     def __init__(self, cache: CacheHandler, settings: CaptchaSettings) -> None:
         self.cache = cache
         self.settings = settings
-        # 前缀由 CaptchaCacheKeys 静态声明并参与 Cache 启动校验；
-        # 客户端仍由配置选择，便于把验证码状态放到单独的 Redis DB。
-        self.key = CaptchaCacheKeys.STATE.model_copy(update={"client_name": settings.client_name})
+        self.key = CaptchaCacheKeys.state(settings.client_name)
 
     def identifier(self, purpose: str, kind: str, token: str) -> str:
         """缓存键只保存令牌摘要；用途边界在读取前确定。"""

@@ -3,18 +3,18 @@ import yaml
 from pydantic import ValidationError
 
 from fixtures.config_factory import ConfigFactory
-from framework.common.i18n.core.i18n_options import I18nOptions
+from fixtures.public_web_app import create_public_app
 from framework.common.page.config.page_settings import PageSettings
 from framework.common.page.core.data_paginator import DataPaginator
-from framework.common.response.config.response_settings import ResponseSettings
-from framework.common.response.core.file_result import FileResult
 from framework.starter_config.provider.bootstrap_config_error import BootstrapConfigError
 from framework.starter_config.provider.bootstrap_config_provider import BootstrapConfigProvider
+from framework.starter_i18n.core.i18n_options import I18nOptions
 from framework.starter_logging.config.log_settings import LogSettings
 from framework.starter_logging.core.logger_configurator import LoggerConfigurator
 from framework.starter_logging.starter.logging_starter import LoggingStarter
+from framework.starter_web.config.response_settings import ResponseSettings
+from framework.starter_web.response.file_result import FileResult
 from server.config.application_settings import ApplicationSettings
-from server.starter_server import create_app
 
 pytestmark = pytest.mark.unit
 
@@ -185,9 +185,9 @@ def test_falsey_configurator_is_not_replaced(tmp_path):
 def test_application_retains_immutable_sources_for_its_configuration_snapshot(config_dir):
     """运行中的应用保留启动时的来源，查询时不重新加载已变化的文件。"""
     root = config_dir({"page": {"default_size": 2}})
-    first = create_app(base_dir=root, environ={"LOG_CONSOLE_LEVEL": "ERROR"}).state.bootstrap
+    first = create_public_app(base_dir=root, environ={"LOG_CONSOLE_LEVEL": "ERROR"}).state.bootstrap
     config_dir({"page": {"default_size": 4}})
-    second = create_app(base_dir=root, environ={}).state.bootstrap
+    second = create_public_app(base_dir=root, environ={}).state.bootstrap
     assert first.page_settings.default_size == 2 and second.page_settings.default_size == 4
     assert first.config_sources["log.console_level"] == "环境变量 LOG_CONSOLE_LEVEL"
     assert second.config_sources["log.console_level"] == "application.yaml"

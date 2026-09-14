@@ -6,12 +6,14 @@ from fastapi import Depends
 from sqlalchemy import literal, select
 from starlette.responses import StreamingResponse
 
+from fixtures.public_web_app import create_public_app
+from framework.common.page.core.data_paginator import DataPaginator
 from framework.starter_database.decorators.transactional import transactional
+from framework.starter_database.pagination.sql_paginator import SqlPaginator
 from framework.starter_database.session.session_provider import SessionProvider
 from framework.starter_di.context.get_bean import get_bean
 from framework.starter_di.decorators.di_dependency import DiDependency
 from framework.starter_di.enums.container_state_enum import ContainerStateEnum
-from server.starter_server import create_app
 
 
 def app_values(settings):
@@ -27,12 +29,20 @@ async def test_application_explicit_database_definitions_and_real_http(
 ):
     values = app_values(database_settings)
     values["scanner"] = {"enabled": scan}
-    app = create_app(base_dir=config_dir(values), environ={})
+    app = create_public_app(base_dir=config_dir(values), environ={})
 
     @app.get("/database")
-    async def route(database=Depends(DiDependency(SessionProvider))):
+    async def route(
+        database=Depends(DiDependency(SessionProvider)),
+        paginator=Depends(DiDependency(SqlPaginator)),
+        memory_paginator=Depends(DiDependency(DataPaginator)),
+    ):
+        assert type(memory_paginator) is DataPaginator
+        assert type(paginator) is SqlPaginator
         async with database.read_session() as session:
-            return {"value": await session.scalar(select(literal(7)))}
+            page = await paginator.paginate_query(session, select(literal(7)))
+            assert page.total == 1
+            return {"value": page.items[0]}
 
     async with app.router.lifespan_context(app):
         database = app.state.database
@@ -48,7 +58,7 @@ async def test_application_explicit_database_definitions_and_real_http(
 
 
 async def test_transaction_decorator_uses_current_application(database_settings, config_dir):
-    app = create_app(base_dir=config_dir(app_values(database_settings)), environ={})
+    app = create_public_app(base_dir=config_dir(app_values(database_settings)), environ={})
 
     @transactional
     async def operation():
@@ -63,7 +73,9 @@ async def test_transaction_decorator_uses_current_application(database_settings,
 async def test_streaming_response_can_read_database_in_framework_child_task(
     database_settings, config_dir
 ):
-    app = create_app(base_dir=config_dir(app_values(database_settings)), environ={})
+    app = create_public_app(
+        base_dir=config_dir(app_values(database_settings)), environ={}, engine="uvicorn"
+    )
 
     @app.get("/stream")
     async def route(database=Depends(DiDependency(SessionProvider))):
@@ -83,7 +95,7 @@ async def test_streaming_response_can_read_database_in_framework_child_task(
 async def test_after_commit_background_work_created_during_application_drain(
     database_settings, config_dir
 ):
-    app = create_app(base_dir=config_dir(app_values(database_settings)), environ={})
+    app = create_public_app(base_dir=config_dir(app_values(database_settings)), environ={})
     admitted, release = asyncio.Event(), asyncio.Event()
     called = []
     async with app.router.lifespan_context(app):

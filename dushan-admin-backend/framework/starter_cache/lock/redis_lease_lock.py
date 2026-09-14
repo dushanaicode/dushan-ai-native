@@ -33,10 +33,18 @@ class RedisLeaseLock:
     """绑定单个持有者令牌的不可重入 Redis 租约锁。
 
     租约必须是有限时长：持有者进程崩溃时锁要能自动过期，否则整个前缀会被永久堵住。
-    实例只能获取一次，释放后不可复用，避免同一个令牌被两段逻辑共用。
+    实例只允许一次获取尝试，释放后不可复用，避免同一个令牌被两段逻辑共用。
     """
 
-    def __init__(self, client: Redis, key: str, lease_seconds: float, wait_seconds: float) -> None:
+    def __init__(
+        self,
+        client: Redis,
+        key: str,
+        lease_seconds: float,
+        wait_seconds: float,
+        *,
+        command_timeout_seconds: float | None = None,
+    ) -> None:
         self._client = client
         self._key = key
         self._lease_seconds = self.validate_seconds(
@@ -44,7 +52,16 @@ class RedisLeaseLock:
         )
         self._lease_milliseconds = self._to_lease_milliseconds(self._lease_seconds)
         self._wait_seconds = self.validate_seconds(wait_seconds, "wait_seconds", allow_zero=True)
+        # 调用方可收紧单次命令上界；None 沿用 Cache 客户端自身的连接/读写超时。
+        self._command_timeout_seconds = (
+            None
+            if command_timeout_seconds is None
+            else self.validate_seconds(
+                command_timeout_seconds, "command_timeout_seconds", allow_zero=False
+            )
+        )
         self._owner_token = uuid.uuid4().hex
+        self._acquire_started = False
         self._acquired = False
         self._lease_deadline: float | None = None
 
@@ -55,17 +72,19 @@ class RedisLeaseLock:
 
     async def acquire(self) -> bool:
         """在等待上界内用 SET NX PX 获取租约，超时返回 False 而不是抛错。"""
-        if self._acquired:
+        if self._acquire_started:
             raise CacheLockException(msg="锁实例不支持重复获取")
+        self._acquire_started = True
         loop = asyncio.get_running_loop()
         deadline = loop.time() + self._wait_seconds
         while True:
             attempt_started_at = loop.time()
             try:
-                acquired = await self._client.set(
-                    self._key, self._owner_token, nx=True, px=self._lease_milliseconds
-                )
-            except RedisError as error:
+                async with asyncio.timeout(self._command_timeout_seconds):
+                    acquired = await self._client.set(
+                        self._key, self._owner_token, nx=True, px=self._lease_milliseconds
+                    )
+            except (RedisError, TimeoutError) as error:
                 raise CacheLockException(msg="Redis 获取租约锁失败", cause=error) from error
             if acquired:
                 self._acquired = True
@@ -88,16 +107,17 @@ class RedisLeaseLock:
     async def _release_once(self) -> LockReleaseOutcomeEnum:
         """执行一次原子释放并解释返回值。"""
         try:
-            result = await self._client.eval(
-                _RELEASE_SCRIPT,
-                1,
-                self._key,
-                self._owner_token,
-                LockReleaseOutcomeEnum.RELEASED.code,
-                LockReleaseOutcomeEnum.MISSING.code,
-                LockReleaseOutcomeEnum.LOST_OWNER.code,
-            )
-        except RedisError as error:
+            async with asyncio.timeout(self._command_timeout_seconds):
+                result = await self._client.eval(
+                    _RELEASE_SCRIPT,
+                    1,
+                    self._key,
+                    self._owner_token,
+                    LockReleaseOutcomeEnum.RELEASED.code,
+                    LockReleaseOutcomeEnum.MISSING.code,
+                    LockReleaseOutcomeEnum.LOST_OWNER.code,
+                )
+        except (RedisError, TimeoutError) as error:
             raise CacheLockException(
                 error_code=CacheErrorCodes.LOCK_RELEASE_FAILED,
                 msg="Redis 释放租约锁失败",

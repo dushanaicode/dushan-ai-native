@@ -5,8 +5,8 @@ from asyncio import CancelledError
 import pytest
 
 from framework.common.diagnostics.exception_trace_formatter import ExceptionTraceFormatter
-from framework.common.diagnostics.terminal_error_reporter import TerminalErrorReporter
 from framework.common.security.sanitizer import Sanitizer
+from framework.starter_logging.diagnostics.terminal_error_reporter import TerminalErrorReporter
 
 pytestmark = pytest.mark.unit
 

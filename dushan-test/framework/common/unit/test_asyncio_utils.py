@@ -3,7 +3,6 @@ from contextvars import Context, ContextVar
 
 import anyio
 import pytest
-from loguru import logger
 
 from framework.common.utils.asyncio.asyncio_utils import AsyncioUtils
 from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
@@ -47,28 +46,6 @@ async def test_bounded_gather_preserves_order_and_cancels_peers_on_failure():
     assert cleaned.is_set()
 
 
-async def test_background_tasks_are_owned_and_closed():
-    helper = AsyncioUtils()
-    other = AsyncioUtils()
-    started, closed = asyncio.Event(), asyncio.Event()
-
-    async def background():
-        started.set()
-        try:
-            await asyncio.Event().wait()
-        finally:
-            closed.set()
-
-    task = helper.run_async_task(background())
-    await started.wait()
-    await other.aclose()
-    assert not task.done()
-    await helper.aclose()
-    assert task.cancelled() and closed.is_set()
-    with pytest.raises(RuntimeError):
-        helper.run_async_task(background())
-
-
 async def test_explicit_context_isolation_uses_python_context_contract():
     variable = ContextVar("resource", default=None)
     variable.set("parent")
@@ -79,24 +56,6 @@ async def test_explicit_context_isolation_uses_python_context_contract():
     assert await AsyncioUtils.create_task(read()) == "parent"
     assert await AsyncioUtils.create_task(read(), context=Context()) is None
     assert variable.get() == "parent"
-
-
-async def test_background_failure_is_logged_after_redaction():
-    messages = []
-    sink = logger.add(lambda message: messages.append(str(message)))
-    helper = AsyncioUtils()
-
-    async def fail():
-        raise ValueError("password=private-value")
-
-    try:
-        task = helper.run_async_task(fail())
-        await asyncio.gather(task, return_exceptions=True)
-        await helper.aclose()
-    finally:
-        logger.remove(sink)
-    output = "".join(messages)
-    assert "后台任务执行失败" in output and "private-value" not in output
 
 
 async def test_shield_survives_anyio_scope_cancellation():

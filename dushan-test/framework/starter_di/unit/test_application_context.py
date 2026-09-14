@@ -20,6 +20,52 @@ from framework.starter_di.exception.di_exception import DiException
 pytestmark = pytest.mark.unit
 
 
+async def test_joined_isolated_run_clears_context_and_propagates_errors(contexts):
+    application = contexts([])
+    await application.startup()
+    application.mark_ready()
+    inherited = ContextVar("joined_scope", default=None)
+    token = inherited.set("parent-tenant")
+
+    async def execute():
+        assert ApplicationContext.current() is application
+        assert inherited.get() is None
+        raise ValueError("caller-owned failure")
+
+    try:
+        with application.execution():
+            with pytest.raises(ValueError, match="caller-owned"):
+                await application.tasks.run_isolated(execute)
+            assert inherited.get() == "parent-tenant"
+    finally:
+        inherited.reset(token)
+    assert application.tasks.active_count == 0
+    await application.shutdown()
+
+
+async def test_joined_isolated_run_cancellation_drains_cleanup(contexts):
+    application = contexts([])
+    await application.startup()
+    application.mark_ready()
+    entered, exited = asyncio.Event(), asyncio.Event()
+
+    async def execute():
+        entered.set()
+        try:
+            await asyncio.Event().wait()
+        finally:
+            await asyncio.sleep(0)
+            exited.set()
+
+    task = asyncio.create_task(application.tasks.run_isolated(execute))
+    await entered.wait()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert exited.is_set()
+    await application.shutdown()
+
+
 @contextmanager
 def captured_logs(level):
     records = []

@@ -1,16 +1,17 @@
 from pydantic import BaseModel, ConfigDict
 
 from framework.common.datetime.core.datetime_options import DateTimeOptions
-from framework.common.i18n.core.i18n_options import I18nOptions
 from framework.common.page.config.page_settings import PageSettings
-from framework.common.response.config.response_settings import ResponseSettings
-from framework.common.utils.el.expression_options import ExpressionOptions
 from framework.starter_config.config.config_settings import ConfigSettings
 from framework.starter_di.config.di_settings import DiSettings
+from framework.starter_i18n.core.i18n_options import I18nOptions
 from framework.starter_logging.config.log_settings import LogSettings
 from framework.starter_module.config.module_settings import ModuleSettings
 from framework.starter_scanner.config.scanner_config import ScannerConfig
+from framework.starter_security.bizlog.expression.expression_options import ExpressionOptions
 from framework.starter_web.config.banner_settings import BannerSettings
+from framework.starter_web.config.response_settings import ResponseSettings
+from framework.starter_web.config.web_settings import WebSettings
 from server.config.granian.granian_settings import GranianSettings
 from server.config.server.server_settings import ServerSettings
 from server.config.uvicorn.uvicorn_settings import UvicornSettings
@@ -35,3 +36,4 @@ class ApplicationSettings(BaseModel):
     scanner: ScannerConfig
     config: ConfigSettings
     di: DiSettings
+    web: WebSettings

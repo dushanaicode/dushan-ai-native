@@ -1,0 +1,16 @@
+{
+  "auth.config": "授权配置无效或缺失",
+  "auth.unsupported": "授权源不支持该操作",
+  "auth.source": "授权源未注册",
+  "auth.state": "授权上下文无效、过期或已使用",
+  "auth.input": "授权输入无效",
+  "auth.disabled": "第三方授权未启用",
+  "auth.unavailable": "授权资源尚未就绪或已关闭",
+  "auth.cache": "授权缓存不可用",
+  "auth.rejected": "第三方拒绝授权请求",
+  "auth.response": "第三方授权响应无效",
+  "auth.network": "第三方授权传输失败",
+  "auth.timeout": "第三方授权操作超时",
+  "auth.oidc": "OIDC 签名或声明验证失败",
+  "auth.binding": "第三方凭据与应用配置不匹配"
+}

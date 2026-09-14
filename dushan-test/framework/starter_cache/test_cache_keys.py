@@ -97,6 +97,38 @@ def test_registry_refuses_to_register_twice():
         registry.register([], settings())
 
 
+def test_registry_validates_application_resource_keys_with_static_keys():
+    registry = CacheKeyRegistry()
+    resource = key("captcha", client_name="second")
+    registry.register([container(A=key("a"))], settings(), resource_keys=[resource])
+    assert registry.find("captcha") is resource
+    assert set(registry.get_all()) == {"a", "captcha"}
+
+
+@pytest.mark.parametrize("name", ["a", "a:b"])
+def test_resource_keys_cannot_overlap_static_keys(name):
+    registry = CacheKeyRegistry()
+    with pytest.raises(CacheConfigException, match="重复声明|互相包含"):
+        registry.register([container(A=key("a"))], settings(), resource_keys=[key(name)])
+    assert not registry.is_registered and not registry.get_all()
+
+
+def test_resource_keys_cannot_reference_unconfigured_clients():
+    registry = CacheKeyRegistry()
+    with pytest.raises(CacheConfigException, match="未配置的客户端"):
+        registry.register([], settings(), resource_keys=[key("a", client_name="absent")])
+
+
+def test_resource_keys_must_obey_colocation_with_static_keys():
+    registry = CacheKeyRegistry()
+    with pytest.raises(CacheConfigException, match="共置组路由不一致"):
+        registry.register(
+            [container(A=key("a", colocation_group="session"))],
+            settings(),
+            resource_keys=[key("b", client_name="second", colocation_group="session")],
+        )
+
+
 @pytest.mark.parametrize("name", ["Abc", "9abc", "a-b", "a:", ":a", "a::b", "a b", "", "a" * 129])
 def test_cache_key_prefix_pattern_rejects_unsafe_names(name):
     with pytest.raises(ValidationError):

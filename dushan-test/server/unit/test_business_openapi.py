@@ -5,11 +5,11 @@ from fastapi import APIRouter, Query
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.testclient import TestClient
 
+from fixtures.public_web_app import create_public_app
 from framework.common.page.schemas.page_query import PageQuery
 from framework.common.page.schemas.page_result import PageResult
-from framework.common.response.core.result import Result
 from framework.common.schemas.base_vo import BaseVO
-from server.starter_server import create_app
+from framework.starter_web.response.result import Result
 
 pytestmark = pytest.mark.unit
 
@@ -30,7 +30,7 @@ def test_openapi_keeps_typed_pagination_and_describes_actual_validation_response
     class RecordVO(BaseVO):
         record_id: int
 
-    app = create_app(base_dir=config_dir(), environ={})
+    app = create_public_app(base_dir=config_dir(), environ={})
 
     @app.get("/records", response_model=Result[PageResult[RecordVO]])
     async def records(query: Annotated[PageQuery, Query()]):
@@ -61,7 +61,7 @@ def test_openapi_keeps_typed_pagination_and_describes_actual_validation_response
 
 def test_openapi_preserves_special_statuses_media_and_explicit_responses(config_dir, tmp_path):
     """文件和跳转保留协议状态，默认参数错误补充为 JSON 200，显式响应声明不被删除。"""
-    app = create_app(base_dir=config_dir(), environ={})
+    app = create_public_app(base_dir=config_dir(), environ={})
     file = tmp_path / "download.bin"
     file.write_bytes(b"abcdef")
     binary = {"application/octet-stream": {"schema": {"type": "string", "format": "binary"}}}
@@ -121,8 +121,8 @@ def test_openapi_preserves_special_statuses_media_and_explicit_responses(config_
 def test_openapi_cache_and_included_routes_remain_per_application(config_dir):
     """原生缓存失效后处理新增路由，重复读取不嵌套 schema，应用之间没有共享状态。"""
     root = config_dir()
-    first = create_app(base_dir=root, environ={})
-    second = create_app(base_dir=root, environ={})
+    first = create_public_app(base_dir=root, environ={})
+    second = create_public_app(base_dir=root, environ={})
     router = APIRouter()
 
     @router.get("/included", response_model=Result[int])

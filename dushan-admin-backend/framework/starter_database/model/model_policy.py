@@ -7,9 +7,9 @@ from sqlalchemy.orm import with_loader_criteria
 from sqlalchemy.sql import visitors
 from sqlalchemy.sql.elements import BindParameter
 
-from framework.common.utils.id.snowflake_utils import SnowflakeUtils
 from framework.starter_database.config.database_settings import DatabaseSettings
 from framework.starter_database.context.database_context import DatabaseContext
+from framework.starter_database.id.snowflake_utils import SnowflakeUtils
 from framework.starter_database.model.base_do import BaseDO
 from framework.starter_database.repository.atomic_upsert import AtomicUpsert
 from framework.starter_database.session.write_result import WriteResult

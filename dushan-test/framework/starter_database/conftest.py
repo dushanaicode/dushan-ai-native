@@ -8,9 +8,9 @@ from sqlalchemy.orm import mapped_column
 from fixtures.config_factory import ConfigFactory
 from fixtures.database_fixtures import TARGETS
 from framework.common.page.config.page_settings import PageSettings
-from framework.common.page.core.data_paginator import DataPaginator
 from framework.starter_database.config.database_settings import DatabaseSettings
 from framework.starter_database.model.base_do import BaseDO
+from framework.starter_database.pagination.sql_paginator import SqlPaginator
 from framework.starter_database.repository.base_mapper import BaseMapper
 from framework.starter_database.session.session_provider import SessionProvider
 
@@ -50,7 +50,7 @@ async def database_case(database_settings):
     schema = create_async_engine(database_settings.sources[0].url.get_secret_value())
     mapper = BaseMapper(Item)
     mapper.session_provider = database
-    mapper.paginator = DataPaginator(ConfigFactory.build(PageSettings, "page"))
+    mapper.paginator = SqlPaginator(ConfigFactory.build(PageSettings, "page"))
     created = False
     try:
         async with schema.begin() as connection:

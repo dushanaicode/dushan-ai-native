@@ -1,0 +1,11 @@
+{
+  "protection.unavailable": "保护存储不可用",
+  "protection.invalid": "保护配置或参数无效",
+  "protection.closed": "保护组件尚未就绪或正在关闭",
+  "protection.rate_limited": "请求过于频繁，请稍后重试",
+  "protection.capacity": "保护组件处理容量已满",
+  "protection.lock_busy": "获取分布式锁超时",
+  "protection.lock_lost": "分布式锁租约已过期或持有者变更",
+  "protection.duplicate": "请求重复提交",
+  "protection.owner_lost": "幂等状态已过期或持有者变更"
+}

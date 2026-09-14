@@ -20,9 +20,8 @@ from framework.starter_captcha.model.captcha_record import CaptchaRecord
 class LocalCaptchaProvider(CaptchaProvider):
     """固定 320×160 原图，滑块为 48×160 透明条；点选按提示顺序点击字形中心。
 
-    背景取自随包照片。缺口用同图异地内容去色后按整图亮度分位变调，字形取局部亮度的
-    反色：两者都由背景派生，绝不使用固定颜色——固定色一旦落在背景色域之外，
-    一次全局阈值就能把答案位置直接筛出来，验证码就失去意义。
+    背景取自随包照片，每次先随机裁切、镜像和重采样，再从本次背景裁出滑块，
+    避免直接复用公开原图像素。缺口与字形需保持可辨认，不以固定图库保密作为防护。
     原图按 JPEG 返回，滑块条需要透明通道按 PNG 返回。
     """
 
@@ -92,12 +91,24 @@ class LocalCaptchaProvider(CaptchaProvider):
             return base64.b64encode(stream.getvalue()).decode("ascii")
 
     def _background(self, stack: ExitStack, random: SystemRandom) -> Image.Image:
-        """随机取一张背景；尺寸不符时缩放到工作尺寸。"""
+        """保留原始背景素材，按本次随机视窗生成工作图，变换参数不进入响应。"""
         raw = random.choice(self.backgrounds)
         source = self._image(stack, Image.open(BytesIO(raw)))
         image = self._image(stack, source.convert("RGB"))
-        if image.size != (self.WIDTH, self.HEIGHT):
-            image = self._image(stack, image.resize((self.WIDTH, self.HEIGHT), Image.LANCZOS))
+        scale = random.uniform(0.68, 0.86)
+        width, height = image.width * scale, image.height * scale
+        left = random.uniform(0, image.width - width)
+        top = random.uniform(0, image.height - height)
+        image = self._image(
+            stack,
+            image.resize(
+                (self.WIDTH, self.HEIGHT),
+                Image.Resampling.LANCZOS,
+                box=(left, top, left + width, top + height),
+            ),
+        )
+        if random.getrandbits(1):
+            image = self._image(stack, image.transpose(Image.Transpose.FLIP_LEFT_RIGHT))
         return image
 
     def _puzzle_mask(self, stack: ExitStack) -> Image.Image:
@@ -118,12 +129,7 @@ class LocalCaptchaProvider(CaptchaProvider):
         y: int,
         random: SystemRandom,
     ) -> None:
-        """把缺口画成同一块背景的变调副本，并沿轮廓描一道浅边提升可见性。
-
-        缺口内容取自同一张图的另一处（见 _displaced_patch），再按整图亮度分位变调：
-        偏亮压向暗分位、偏暗抬向亮分位，任何背景上都有足够对比度，
-        且始终落在这张图已有的亮度分布内，两端阈值都筛不出来。
-        """
+        """用同图异地区块填充缺口，再按整图亮度分位变调并描边，帮助辨认轮廓。"""
         box = (x, y, x + self.GAP, y + self.GAP)
         local = self._image(stack, image.crop(box))
         filler = self._image(stack, self._displaced_patch(image, x, y, random))
@@ -137,8 +143,7 @@ class LocalCaptchaProvider(CaptchaProvider):
 
         source = ImageStat.Stat(self._image(stack, blended.convert("L"))).mean[0]
         low, high = self._tone_targets(image)
-        # 往整图自身的暗分位或亮分位靠：缺口因此永远落在这张图已有的亮度分布内，
-        # 既不会在暗端也不会在亮端成为离群点，攻击者无法用任何单侧阈值筛出来。
+        # 参照整图的亮度调整对比，避免所有照片都使用同一种缺口填充色。
         target = low if source > (low + high) / 2 else high
         factor = min(max(target / max(source, 1.0), 0.35), 2.6) * random.uniform(0.92, 1.08)
         shadow = self._image(stack, ImageEnhance.Brightness(blended).enhance(factor))
@@ -153,13 +158,7 @@ class LocalCaptchaProvider(CaptchaProvider):
     def _displaced_patch(
         self, image: Image.Image, x: int, y: int, random: SystemRandom
     ) -> Image.Image:
-        """取同一张图上另一处、并做镜像的区块，用来填缺口。
-
-        缺口若直接用原地内容变调，它与发给前端的滑块块只差一个仿射变换，
-        归一化互相关一次扫描就能把位置对出来（实测可达四成）。改用异地内容后，
-        滑块块的原始像素已不在图中任何位置，模板匹配失去可对齐的目标；
-        因为取自同一张图，亮度分布和纹理风格仍然一致，不会形成视觉异物。
-        """
+        """用同图异地镜像区块填充，避免缺口与滑块只相差一个亮度变换。"""
         span_x, span_y = self.WIDTH - self.GAP, self.HEIGHT - self.GAP
         for _ in range(16):
             source_x = random.randrange(span_x + 1)
@@ -307,10 +306,7 @@ class LocalCaptchaProvider(CaptchaProvider):
     def _word_colours(
         pixels, cx: int, cy: int
     ) -> tuple[tuple[int, int, int], tuple[int, int, int]]:
-        """字色由该处背景亮度决定：亮底用深字，暗底用浅字，描边取反。
-
-        颜色跟随背景而不是固定值，字形因此不会整体落在背景色域之外。
-        """
+        """按背景亮度选择深字浅边或浅字深边，保持字形可读。"""
         red, green, blue = pixels[cx, cy]
         luminance = 0.299 * red + 0.587 * green + 0.114 * blue
         if luminance >= 128:

@@ -5,9 +5,10 @@ import pytest
 
 from fixtures.cache_fixtures import REDIS_TARGET, redis_values
 from fixtures.config_factory import ConfigFactory
+from fixtures.public_web_app import create_public_app
 from framework.starter_captcha.config.captcha_settings import CaptchaSettings
 from framework.starter_captcha.core.captcha_service import CaptchaService
-from server.starter_server import create_app
+from framework.starter_web.routing.router_registration import RouterRegistration
 
 
 @pytest.fixture
@@ -27,7 +28,7 @@ async def captcha_app(config_dir):
         pytest.skip("需要 DUSHAN_CACHE_TEST_REDIS 指向真实 Redis")
     async with AsyncExitStack() as stack:
 
-        async def build(*, app_overrides=None, **overrides):
+        async def build(*, app_overrides=None, routers=(), **overrides):
             values = {
                 "banner": {"enabled": False},
                 "config": {
@@ -35,9 +36,10 @@ async def captcha_app(config_dir):
                 },
             }
             ConfigFactory.merge(values, app_overrides or {})
-            app = create_app(
+            app = create_public_app(
                 base_dir=config_dir(values),
                 environ={},
+                routers=[RouterRegistration(router) for router in routers],
             )
             await stack.enter_async_context(app.router.lifespan_context(app))
             return app

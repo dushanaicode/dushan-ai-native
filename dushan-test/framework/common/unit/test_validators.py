@@ -9,7 +9,6 @@ from pydantic import AfterValidator, field_validator
 from pydantic_core import PydanticCustomError
 
 from framework.common.enums.status_enum import StatusEnum
-from framework.common.exception.core.exception_handler import GlobalExceptionHandler
 from framework.common.schemas.base_request_vo import BaseRequestVO
 from framework.common.validator.allowed_values import AllowedValues
 from framework.common.validator.assert_true import AssertTrue
@@ -35,6 +34,7 @@ from framework.common.validator.range import Range
 from framework.common.validator.size import Size
 from framework.common.validator.unique_items import UniqueItems
 from framework.common.validator.url import URL
+from framework.starter_web.exception.exception_handler import GlobalExceptionHandler
 
 pytestmark = pytest.mark.unit
 

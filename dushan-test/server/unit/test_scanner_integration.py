@@ -5,12 +5,12 @@ from dataclasses import replace
 import pytest
 from fastapi.testclient import TestClient
 
+from fixtures.public_web_app import create_public_app
 from fixtures.scanner_fixtures import error_source
 from framework.common.exception.exceptions.configuration_exception import ConfigurationException
 from framework.common.exception.exceptions.service_exception import ServiceException
 from framework.starter_config.provider.bootstrap_config_error import BootstrapConfigError
 from server.bootstrap.bootstrapper import BootstrapError
-from server.starter_server import create_app
 
 pytestmark = pytest.mark.unit
 
@@ -22,7 +22,9 @@ def application(config_dir, *packages, enabled=None, environ=None):
             "enabled": ["framework", *(packages if enabled is None else enabled)],
         }
     }
-    return create_app(base_dir=config_dir(values), environ={} if environ is None else environ)
+    return create_public_app(
+        base_dir=config_dir(values), environ={} if environ is None else environ
+    )
 
 
 def explicit_only(definitions):

@@ -8,6 +8,7 @@ from fastapi import Depends, WebSocket
 from fastapi.responses import StreamingResponse
 from fastapi.testclient import TestClient
 
+from fixtures.public_web_app import create_public_app
 from framework.starter_config.provider.bootstrap_config_error import BootstrapConfigError
 from framework.starter_di.context.application_context import ApplicationContext
 from framework.starter_di.context.application_state_enum import ApplicationStateEnum
@@ -17,7 +18,6 @@ from framework.starter_di.enums.container_state_enum import ContainerStateEnum
 from framework.starter_di.exception.di_error_codes import DiErrorCodes
 from server.bootstrap.bootstrapper import BootstrapError
 from server.bootstrap.step_registry import APP_BOOTSTRAP_STEPS, BootstrapStepSpec
-from server.starter_server import create_app
 
 pytestmark = pytest.mark.unit
 
@@ -46,7 +46,7 @@ def setup_app(module_package, config_dir, *, environ=None, steps=None):
         }
     )
     resource_type = importlib.import_module("context_feature.resource").Resource
-    return create_app(
+    return create_public_app(
         base_dir=root, environ={} if environ is None else environ, steps=steps
     ), resource_type
 
@@ -107,7 +107,7 @@ def test_yaml_switches_control_real_lookup_and_automatic_binding(module_package,
 
 
 async def test_stream_keeps_context_and_drain_waits_until_last_body(module_package, config_dir):
-    app, resource_type = setup_app(module_package, config_dir)
+    app, resource_type = setup_app(module_package, config_dir, environ={"SERVER_ENGINE": "uvicorn"})
     entered, release = asyncio.Event(), asyncio.Event()
 
     @app.get("/stream")
@@ -128,7 +128,7 @@ async def test_stream_keeps_context_and_drain_waits_until_last_body(module_packa
             transport=httpx.ASGITransport(app), base_url="http://test"
         ) as client:
             request = asyncio.create_task(client.get("/stream"))
-            await entered.wait()
+            await asyncio.wait_for(entered.wait(), 5)
             draining = asyncio.create_task(current.drain())
             await asyncio.sleep(0.01)
             assert not draining.done() and current.get_statistics()["executions"] == 1

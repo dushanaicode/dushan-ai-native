@@ -2,8 +2,24 @@ name = "framework"
 package = "framework"
 scan_roots = ["common.exception.constants", "starter_scanner.exception", "starter_di.exception"]
 definitions = [
+  "starter_security.config.security_settings:SecuritySettings",
+  "starter_security.context.security_context:SecurityContext",
+  "starter_security.core.security_service:SecurityService",
+  "starter_security.core.password_encoder:PasswordEncoder",
+  "starter_security.bizlog.log_record_context:LogRecordContext",
+  "starter_security.bizlog.biz_log_service:BizLogService",
+  "starter_auth.config.auth_settings:AuthSettings",
+  "starter_auth.config.configured_auth_clients:ConfiguredAuthClients",
+  "starter_auth.core.auth_provider_registry:AuthProviderRegistry",
+  "starter_auth.core.auth_service:AuthService",
+  "starter_auth.exception.auth_error_codes:AuthErrorCodes",
+  "starter_protection.config.protection_settings:ProtectionSettings",
+  "starter_protection.core.protection_service:ProtectionService",
+  "starter_protection.exception.protection_error_codes:ProtectionErrorCodes",
+  "starter_monitor.config.monitor_settings:MonitorSettings",
+  "starter_monitor.core.monitor_service:MonitorService",
+  "starter_monitor.exception.monitor_error_codes:MonitorErrorCodes",
   "starter_captcha.config.captcha_settings:CaptchaSettings",
-  "starter_captcha.definitions.captcha_cache_keys:CaptchaCacheKeys",
   "starter_captcha.exception.captcha_error_codes:CaptchaErrorCodes",
   "starter_captcha.core.captcha_service:CaptchaService",
   "starter_cache.config.cache_settings:CacheSettings",
@@ -41,6 +57,21 @@ definitions = [
 ]
 requires = []
 required_message_keys = []
+
+[[resource_roots]]
+path = "starter_auth/definitions/i18n"
+scope = "auth"
+required = true
+
+[[resource_roots]]
+path = "starter_protection/definitions/i18n"
+scope = "protection"
+required = true
+
+[[resource_roots]]
+path = "starter_monitor/definitions/i18n"
+scope = "monitor"
+required = true
 
 [[resource_roots]]
 path = "starter_captcha/definitions/i18n"

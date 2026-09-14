@@ -80,12 +80,17 @@ class ApplicationContext:
 
     @classmethod
     def current(cls) -> "ApplicationContext":
+        return cls.current_execution().application
+
+    @classmethod
+    def current_execution(cls) -> ExecutionBinding:
+        """读取当前有效执行的身份，供上下文适配核对同一边界，不创建执行。"""
         binding = cls._current.get()
         if binding is None:
             raise DiException(error_code=DiErrorCodes.CONTEXT_MISSING)
         if not binding.active:
             raise DiException(error_code=DiErrorCodes.CONTEXT_EXPIRED)
-        return binding.application
+        return binding
 
     async def startup(self) -> None:
         with self._lock:

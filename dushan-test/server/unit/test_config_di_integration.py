@@ -4,13 +4,13 @@ import pytest
 from fastapi import Depends
 from fastapi.testclient import TestClient
 
+from fixtures.public_web_app import create_public_app
 from framework.common.enums.component_type_enum import ComponentTypeEnum
 from framework.starter_config.provider.bootstrap_config_error import BootstrapConfigError
 from framework.starter_di.decorators.di_dependency import DiDependency
 from framework.starter_di.enums.container_state_enum import ContainerStateEnum
 from framework.starter_di.exception.di_error_codes import DiErrorCodes
 from server.bootstrap.bootstrapper import BootstrapError
-from server.starter_server import create_app
 
 pytestmark = pytest.mark.unit
 
@@ -70,7 +70,11 @@ def create_feature_app(module_package, config_dir, *, label="base", fail_start=F
             },
         }
     )
-    return create_app(base_dir=root, environ={} if environ is None else environ)
+    app = create_public_app(base_dir=root, environ={} if environ is None else environ)
+    add_route(
+        app, importlib.import_module("foundation_feature.services.feature_service").FeatureService
+    )
+    return app
 
 
 def add_route(app, service_type):
@@ -94,7 +98,6 @@ def test_real_declaration_scan_config_di_http_and_cleanup_chain(module_package, 
         service_type = importlib.import_module(
             "foundation_feature.services.feature_service"
         ).FeatureService
-        add_route(app, service_type)
         assert snapshot.configuration.get_sources(models[0])["label"] == "环境变量 FEATURE_LABEL"
         assert app.state.application_context is snapshot.application_context
         assert client.get("/feature").json()["data"]["label"] == "environment/environment"
@@ -111,9 +114,7 @@ def test_shared_classes_have_distinct_app_config_and_container_state(module_pack
     second = create_feature_app(module_package, config_dir, label="second")
     with TestClient(first) as a:
         cls = importlib.import_module("foundation_feature.services.feature_service").FeatureService
-        add_route(first, cls)
         with TestClient(second) as b:
-            add_route(second, cls)
             assert a.get("/feature").json()["data"]["label"] == "first/first"
             assert b.get("/feature").json()["data"]["label"] == "second/second"
             sa, sb = first.state.bootstrap.definitions, second.state.bootstrap.definitions
@@ -134,7 +135,6 @@ def test_config_refresh_changes_explicit_reads_without_mutating_constructor_snap
     app = create_feature_app(module_package, config_dir)
     with TestClient(app) as client:
         cls = importlib.import_module("foundation_feature.services.feature_service").FeatureService
-        add_route(app, cls)
         snapshot = app.state.bootstrap.definitions
         with snapshot.application_context.execution():
             current = snapshot.application_context.container.get(cls)
@@ -177,7 +177,6 @@ def test_di_disabled_still_loads_config_models_and_does_not_construct_services(
     app = create_feature_app(module_package, config_dir, environ={"DI_ENABLED": "false"})
     with TestClient(app) as client:
         cls = importlib.import_module("foundation_feature.services.feature_service").FeatureService
-        add_route(app, cls)
         snapshot = app.state.bootstrap.definitions
         assert snapshot.application_context is None
         assert (
@@ -218,10 +217,11 @@ def test_explicit_config_and_di_use_the_same_catalog_with_or_without_scan(
             "scanner": {"enabled": automatic},
         }
     )
-    app = create_app(base_dir=root, environ={})
+    app = create_public_app(base_dir=root, environ={})
+    cls = importlib.import_module("foundation_feature.services.feature_service").FeatureService
+    add_route(app, cls)
     with TestClient(app) as client:
         cls = importlib.import_module("foundation_feature.services.feature_service").FeatureService
-        add_route(app, cls)
         assert client.get("/feature").json()["data"]["label"] == "explicit/explicit"
         definitions = app.state.bootstrap.definitions.scan_result.definitions
         assert len([item for item in definitions if item.module == "feature"]) == 3

@@ -1,7 +1,7 @@
 from pydantic import BaseModel, ConfigDict, ValidationInfo, field_validator
 
-from framework.common.i18n.core.i18n_locale_root import I18nLocaleRoot
 from framework.common.importing.package_locator import PackageLocator
+from framework.starter_i18n.core.i18n_locale_root import I18nLocaleRoot
 
 
 class ModuleDefinition(BaseModel):

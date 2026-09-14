@@ -11,13 +11,13 @@ from framework.common.exception.constants.global_error_code_constants import (
     GlobalErrorCodeConstants,
 )
 from framework.common.exception.core.error_code import ErrorCode
-from framework.common.exception.core.exception_handler import GlobalExceptionHandler
 from framework.common.exception.exceptions.base_business_exception import BaseBusinessException
 from framework.common.exception.exceptions.configuration_exception import ConfigurationException
 from framework.common.exception.exceptions.rate_limit_exception import RateLimitException
-from framework.common.exception.utils.error_log_recorder import ErrorLogRecorder
-from framework.common.exception.utils.exception_logger import ExceptionLogger
-from framework.common.exception.utils.response_builder import ExceptionResponseBuilder
+from framework.starter_web.exception.error_log_recorder import ErrorLogRecorder
+from framework.starter_web.exception.exception_handler import GlobalExceptionHandler
+from framework.starter_web.exception.exception_logger import ExceptionLogger
+from framework.starter_web.exception.response_builder import ExceptionResponseBuilder
 
 pytestmark = pytest.mark.unit
 

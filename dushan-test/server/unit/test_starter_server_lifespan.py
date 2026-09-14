@@ -5,15 +5,15 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
+from fixtures.public_web_app import create_public_app
 from framework.starter_logging.starter.logging_starter import LoggingStarter
 from server.bootstrap.bootstrapper import BootstrapError
 from server.bootstrap.step_registry import BootstrapStepSpec
 from server.bootstrap.steps.logging_step import configure_logging
-from server.starter_server import create_app
 
 
 def test_health_and_docs_after_startup(config_dir):
-    app = create_app(base_dir=config_dir(), environ={})
+    app = create_public_app(base_dir=config_dir(), environ={})
     with TestClient(app) as client:
         response = client.get("/health")
         assert response.status_code == 200
@@ -26,7 +26,7 @@ def test_health_and_docs_after_startup(config_dir):
 
 
 async def test_health_is_not_ready_without_lifespan(config_dir):
-    app = create_app(base_dir=config_dir(), environ={})
+    app = create_public_app(base_dir=config_dir(), environ={})
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app), base_url="http://test"
     ) as client:
@@ -34,7 +34,7 @@ async def test_health_is_not_ready_without_lifespan(config_dir):
 
 
 def test_production_hides_all_documentation_routes(config_dir):
-    app = create_app(
+    app = create_public_app(
         base_dir=config_dir(prod={"server": {"docs_enabled": False}}), app_env="prod", environ={}
     )
     with TestClient(app) as client:
@@ -61,7 +61,7 @@ def test_resources_close_in_reverse_order(config_dir):
         return run
 
     steps = [BootstrapStepSpec(name, resource(name)) for name in ("一", "二")]
-    app = create_app(base_dir=config_dir(), environ={}, steps=steps)
+    app = create_public_app(base_dir=config_dir(), environ={}, steps=steps)
     with TestClient(app) as client:
         assert client.get("/health").status_code == 200
     assert events == ["启动一", "启动二", "关闭二", "关闭一"]
@@ -83,7 +83,7 @@ def test_failed_startup_cleans_previous_resource_and_preserves_cause(config_dir)
         raise ValueError("启动失败用例")
         yield
 
-    app = create_app(
+    app = create_public_app(
         base_dir=config_dir(),
         environ={},
         steps=[BootstrapStepSpec("资源", opened), BootstrapStepSpec("失败项", broken)],
@@ -110,7 +110,7 @@ async def test_cancellation_is_not_changed_into_normal_startup_error(config_dir)
         raise asyncio.CancelledError()
         yield
 
-    app = create_app(
+    app = create_public_app(
         base_dir=config_dir(),
         environ={},
         steps=[BootstrapStepSpec("资源", opened), BootstrapStepSpec("取消项", cancelled)],
@@ -139,7 +139,7 @@ def test_failed_cleanup_still_releases_other_resources(config_dir):
         finally:
             raise RuntimeError("关闭失败用例")
 
-    app = create_app(
+    app = create_public_app(
         base_dir=config_dir(),
         environ={},
         steps=[BootstrapStepSpec("第一项", first), BootstrapStepSpec("第二项", second)],
@@ -166,7 +166,7 @@ async def test_logging_cleanup_failure_does_not_replace_startup_error(config_dir
         yield
 
     monkeypatch.setattr(LoggingStarter, "shutdown", failing_shutdown)
-    application = create_app(
+    application = create_public_app(
         base_dir=config_dir(),
         environ={},
         steps=[BootstrapStepSpec("日志", configure_logging), BootstrapStepSpec("失败步骤", broken)],
@@ -196,10 +196,10 @@ def test_multiple_apps_do_not_share_state(config_dir, tmp_path):
     )
     first_dir = tmp_path / "first-logs"
     second_dir = tmp_path / "second-logs"
-    first = create_app(
+    first = create_public_app(
         base_dir=root, environ={"SERVER_VERSION": "1", "LOG_ROOT_DIR": str(first_dir)}
     )
-    second = create_app(
+    second = create_public_app(
         base_dir=root, environ={"SERVER_VERSION": "2", "LOG_ROOT_DIR": str(second_dir)}
     )
     assert first.state.bootstrap is not second.state.bootstrap

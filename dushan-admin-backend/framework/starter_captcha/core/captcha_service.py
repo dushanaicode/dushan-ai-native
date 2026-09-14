@@ -2,11 +2,11 @@ import asyncio
 import ipaddress
 import re
 import secrets
+from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import nullcontext
+from contextlib import contextmanager, nullcontext
 
 from loguru import logger
-from opentelemetry import trace
 from pydantic import ValidationError
 
 from framework.starter_cache.core.cache_handler import CacheHandler
@@ -25,6 +25,7 @@ from framework.starter_captcha.provider.local_captcha_provider import LocalCaptc
 from framework.starter_captcha.provider.tencent_captcha_provider import TencentCaptchaProvider
 from framework.starter_di.decorators.components import framework
 from framework.starter_di.enums.component_scope_enum import ComponentScopeEnum
+from framework.starter_monitor.core.monitor_service import MonitorService
 
 
 @framework(scope=ComponentScopeEnum.SINGLETON)
@@ -45,9 +46,11 @@ class CaptchaService:
         self._pool: ThreadPoolExecutor | None = None
         self._jobs: set[asyncio.Future] = set()
         self._generating = 0
+        self._operations = 0
+        self._idle = asyncio.Event()
+        self._idle.set()
         self._closed = False
         self._close_task: asyncio.Task[None] | None = None
-        self._tracer = trace.get_tracer(__name__) if settings.tracing_enabled else None
 
     def configuration(self) -> dict:
         """只公开前端需要的选择和用途，不导出完整配置。"""
@@ -103,15 +106,26 @@ class CaptchaService:
         if not isinstance(token, str) or re.fullmatch(r"[A-Za-z0-9_-]{43}", token) is None:
             raise CaptchaException(code)
 
+    @contextmanager
+    def _operation(self, purpose: str) -> Iterator[CaptchaProvider]:
+        """登记完整操作，关闭时连同线程提交前的等待和最后一次缓存操作一起排空。"""
+        provider = self._require_active(purpose)
+        self._operations += 1
+        self._idle.clear()
+        try:
+            yield provider
+        finally:
+            self._operations -= 1
+            if self._operations == 0:
+                self._idle.set()
+
     def _span(self, operation: str):
-        if self._tracer is None:
+        if not self.settings.tracing_enabled:
             return nullcontext()
-        return self._tracer.start_as_current_span(
-            f"captcha.{operation}",
-            attributes={"captcha.provider": self.settings.provider},
-            record_exception=False,
-            set_status_on_exception=False,
-        )
+        monitor = MonitorService.current()
+        if monitor is None:
+            return nullcontext()
+        return monitor.span(f"captcha.{operation}", {"captcha.provider": self.settings.provider})
 
     def _generation_finished(self, future: asyncio.Future) -> None:
         self._jobs.remove(future)
@@ -121,13 +135,12 @@ class CaptchaService:
             logger.warning("验证码图片生成失败：{}", type(error).__name__)
 
     async def create(self, purpose: str) -> CaptchaChallenge:
-        provider = self._require_active(purpose)
-        if self._generating >= self.settings.generation_concurrency:
-            raise CaptchaException(Codes.CAPACITY)
-        self._generating += 1
-        submitted = False
-        try:
-            with self._span("create"):
+        with self._operation(purpose) as provider, self._span("create"):
+            if self._generating >= self.settings.generation_concurrency:
+                raise CaptchaException(Codes.CAPACITY)
+            self._generating += 1
+            submitted = False
+            try:
                 await self.store.reserve_generation()
                 future = asyncio.get_running_loop().run_in_executor(
                     self._pool, provider.create, purpose
@@ -145,11 +158,11 @@ class CaptchaService:
                     expires_in=self.settings.challenge_ttl_seconds,
                     data=data,
                 )
-        except (OSError, ValueError) as error:
-            raise CaptchaException(Codes.RESOURCE, cause=error) from error
-        finally:
-            if not submitted:
-                self._generating -= 1
+            except (OSError, ValueError) as error:
+                raise CaptchaException(Codes.RESOURCE, cause=error) from error
+            finally:
+                if not submitted:
+                    self._generating -= 1
 
     def _parse_answer(self, value: object, client_ip: str | None) -> CaptchaAnswer:
         try:
@@ -180,9 +193,8 @@ class CaptchaService:
         self, token: str, purpose: str, answer: object, *, client_ip: str | None = None
     ) -> CaptchaVerification:
         """每次已定位挑战的提交先扣次数，非法载荷和依赖失败同样不返还次数。"""
-        provider = self._require_active(purpose)
-        self._require_token(token, Codes.INVALID_INPUT)
-        with self._span("check"):
+        with self._operation(purpose) as provider, self._span("check"):
+            self._require_token(token, Codes.INVALID_INPUT)
             record, payload, remaining = await self.store.reserve(token, purpose)
             parsed = self._parse_answer(answer, client_ip)
             if not await provider.verify(record, parsed, client_ip):
@@ -197,23 +209,23 @@ class CaptchaService:
 
     async def consume(self, verification: str, purpose: str) -> None:
         """业务入口在执行操作前调用；正常返回才允许继续，重复/过期/跨用途均失败。"""
-        self._require_active(purpose)
-        self._require_token(verification, Codes.INVALID_VERIFICATION)
-        with self._span("consume"):
+        with self._operation(purpose), self._span("consume"):
+            self._require_token(verification, Codes.INVALID_VERIFICATION)
             await self.store.consume(verification, purpose)
 
     async def close(self) -> None:
         """所有关闭调用等待同一终态任务，取消等待者不会中断实际清理。"""
         if self._close_task is None:
+            self._closed = True
             self._close_task = asyncio.create_task(self._close_resources(), name="captcha-close")
         await asyncio.shield(self._close_task)
 
     async def _close_resources(self) -> None:
-        """先禁止新操作，等已提交的生成任务结束，再释放本应用的 HTTP 和线程资源。"""
-        self._closed = True
-        self._provider = None
+        """等完整操作及取消后仍运行的生成线程结束，再释放本应用资源。"""
+        await self._idle.wait()
         if self._jobs:
             await asyncio.gather(*self._jobs, return_exceptions=True)
+        self._provider = None
         if self._pool is not None:
             self._pool.shutdown(wait=True)
             self._pool = None

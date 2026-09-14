@@ -82,6 +82,10 @@ class SessionProvider:
         """绑定或移除同步安全查询消费者；适用于现有和随后发布的数据源。"""
         self._registry.bind_query_observer(observer)
 
+    def observe_queries(self, observer: QueryObserver):
+        """为应用资源步骤提供独占、可撤销的查询观测绑定。"""
+        return self._registry.observe_queries(observer)
+
     def next_id(self) -> int:
         """生成并按当前作用域记录 Snowflake ID；数据库自增策略不提供外部分配。"""
         self._registry.require_ready()

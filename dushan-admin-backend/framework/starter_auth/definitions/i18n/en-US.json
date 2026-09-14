@@ -1,0 +1,16 @@
+{
+  "auth.config": "Invalid or missing authorization configuration",
+  "auth.unsupported": "Operation not supported by this provider",
+  "auth.source": "Authorization provider not registered",
+  "auth.state": "Invalid, expired or consumed authorization context",
+  "auth.input": "Invalid authorization input",
+  "auth.disabled": "External authorization is disabled",
+  "auth.unavailable": "Authorization resources are not ready or closed",
+  "auth.cache": "Authorization cache unavailable",
+  "auth.rejected": "Authorization request rejected by provider",
+  "auth.response": "Invalid authorization provider response",
+  "auth.network": "Authorization transport failed",
+  "auth.timeout": "Authorization operation timed out",
+  "auth.oidc": "OIDC signature or claims verification failed",
+  "auth.binding": "External credentials do not match the application configuration"
+}

@@ -1,5 +1,6 @@
 import asyncio
 import random
+from contextlib import contextmanager
 from contextvars import Context
 from inspect import isawaitable, iscoroutine
 
@@ -44,6 +45,18 @@ class DataSourceRegistry:
 
     def bind_query_observer(self, observer: QueryObserver | None) -> None:
         self._query_observer = observer
+
+    @contextmanager
+    def observe_queries(self, observer: QueryObserver):
+        """独占绑定一个资源期观察器，拒绝覆盖已有消费者，退出只撤销自身。"""
+        if self._query_observer is not None:
+            raise ValueError("查询观察器已有消费者，不能隐式覆盖")
+        self._query_observer = observer
+        try:
+            yield
+        finally:
+            if self._query_observer is observer:
+                self._query_observer = None
 
     def _observation_failed(self, error: BaseException) -> None:
         # 不保存异常对象/消息，避免消费者把原始 SQL 或参数反向带入诊断。

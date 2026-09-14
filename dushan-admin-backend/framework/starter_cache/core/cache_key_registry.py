@@ -29,15 +29,23 @@ class CacheKeyRegistry:
         return self._registered
 
     def register(
-        self, containers: Iterable[type[CacheKeyContainer]], settings: CacheSettings
+        self,
+        containers: Iterable[type[CacheKeyContainer]],
+        settings: CacheSettings,
+        *,
+        resource_keys: Iterable[CacheKey] = (),
     ) -> None:
-        """收集容器声明的键并完成全部校验；重复登记视为启动流程错误。"""
+        """统一校验静态声明和应用按配置解析的资源键；重复登记视为启动流程错误。"""
         if self._registered:
             raise CacheConfigException(msg="缓存键注册表不能重复登记")
         collected: dict[str, CacheKey] = {}
         for container in containers:
             for cache_key in container.declared_keys():
-                self._collect(collected, container, cache_key)
+                self._collect(
+                    collected, f"{container.__module__}.{container.__qualname__}", cache_key
+                )
+        for cache_key in resource_keys:
+            self._collect(collected, "应用资源装配", cache_key)
         self._validate_clients(collected, settings)
         self._validate_colocation(collected)
         self._keys = collected
@@ -45,15 +53,12 @@ class CacheKeyRegistry:
         logger.info("缓存键登记完成，容器声明 {} 个前缀", len(collected))
 
     @staticmethod
-    def _collect(
-        collected: dict[str, CacheKey], container: type[CacheKeyContainer], cache_key: CacheKey
-    ) -> None:
+    def _collect(collected: dict[str, CacheKey], source: str, cache_key: CacheKey) -> None:
         """拒绝重复前缀，以及互为上下级的前缀。
 
         前缀 a 与 a:b 同时存在时，按 a 做整段失效会连带删除 a:b 的数据，
         归属和生命周期都会变得不可解释，因此在启动阶段直接失败。
         """
-        source = f"{container.__module__}.{container.__qualname__}"
         if cache_key.key in collected:
             raise CacheConfigException(
                 error_code=CacheErrorCodes.INVALID_CACHE_KEY,

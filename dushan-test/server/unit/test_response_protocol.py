@@ -7,6 +7,7 @@ from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.testclient import TestClient
 from pydantic import Field, HttpUrl
 
+from fixtures.public_web_app import create_public_app
 from framework.common.exception.constants.global_error_code_constants import (
     GlobalErrorCodeConstants,
 )
@@ -17,11 +18,10 @@ from framework.common.exception.exceptions.illegal_argument_exception import (
 from framework.common.exception.exceptions.model_validator_exception import ModelValidatorException
 from framework.common.exception.exceptions.remote_service_exception import RemoteServiceException
 from framework.common.exception.exceptions.service_exception import ServiceException
-from framework.common.exception.utils.validation_error_mapper import ValidationErrorMapper
 from framework.common.page.schemas.page_query import PageQuery
-from framework.common.response.core.result import Result
 from framework.common.schemas.base_request_vo import BaseRequestVO
-from server.starter_server import create_app
+from framework.starter_web.exception.validation_error_mapper import ValidationErrorMapper
+from framework.starter_web.response.result import Result
 
 pytestmark = pytest.mark.unit
 
@@ -41,7 +41,7 @@ def test_nested_request_errors_are_public_localized_and_form_addressable(
         contacts: list[Contact]
         password: Annotated[str, Field(min_length=30)]
 
-    app = create_app(base_dir=config_dir(), environ={})
+    app = create_public_app(base_dir=config_dir(), environ={})
 
     @app.post("/submit", response_model=Result[bool])
     async def submit(request: RequestVO):
@@ -66,7 +66,7 @@ def test_nested_request_errors_are_public_localized_and_form_addressable(
 
 def test_development_debug_keeps_json_contract_and_internal_failures_classified(config_dir):
     """开发debug不启用框架裸堆栈，响应模型错误仍是系统故障而非表单字段错误。"""
-    app = create_app(base_dir=config_dir({"server": {"debug": True}}), environ={})
+    app = create_public_app(base_dir=config_dir({"server": {"debug": True}}), environ={})
 
     @app.get("/broken", response_model=Result[int])
     async def broken():
@@ -87,7 +87,7 @@ def test_development_debug_keeps_json_contract_and_internal_failures_classified(
 )
 def test_business_services_can_explicitly_attach_field_errors(config_dir, exception_type):
     """业务字段错误有显式入口，私有context不被推断为公开详情。"""
-    app = create_app(base_dir=config_dir(), environ={})
+    app = create_public_app(base_dir=config_dir(), environ={})
 
     @app.post("/conflict")
     async def conflict():
@@ -114,7 +114,7 @@ def test_special_protocols_keep_http_status_and_public_page_names_are_strict(con
     """标准文件与跳转状态保留，旧分页名字不会被静默接受。"""
     file = tmp_path / "download.txt"
     file.write_bytes(b"abcdef")
-    app = create_app(base_dir=config_dir(), environ={})
+    app = create_public_app(base_dir=config_dir(), environ={})
 
     @app.get("/download")
     async def download():
@@ -188,7 +188,7 @@ def test_business_message_priority_survives_the_application_translation_chain(
     config_dir, arguments, expected
 ):
     """消息来源决定翻译优先级，显式提示即使等于默认文案也不能被改写。"""
-    app = create_app(base_dir=config_dir(), environ={})
+    app = create_public_app(base_dir=config_dir(), environ={})
 
     @app.get("/business-message")
     async def business_message():
@@ -218,7 +218,7 @@ def test_url_and_uuid_format_errors_are_distinct_from_integer_parsing_errors(
         record_id: UUID
         age: int
 
-    app = create_app(base_dir=config_dir(), environ={})
+    app = create_public_app(base_dir=config_dir(), environ={})
 
     @app.post("/validate-format", response_model=Result[bool])
     async def validate_format(request: RequestVO):

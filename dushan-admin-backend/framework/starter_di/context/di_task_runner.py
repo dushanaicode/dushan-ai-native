@@ -24,6 +24,19 @@ class DiTaskRunner:
             result = callback(*args, **kwargs)
             return await result if inspect.isawaitable(result) else result
 
+    async def run_isolated(self, callback: Callable, *args, **kwargs) -> Any:
+        """等待一个全新 Context 的执行；错误交还调用方，不记为后台任务故障。"""
+        self._application.require_owner_loop()
+        binding = self._application.reserve_execution(allow_nested=True)
+        try:
+            task = asyncio.create_task(
+                self._run_reserved(binding, callback, args, kwargs), context=Context()
+            )
+            return await task
+        finally:
+            # 同时覆盖在协程首次执行前取消的情况，释放由 ApplicationContext 幂等处理。
+            self._application.release_execution(binding)
+
     def run_sync(self, callback: Callable, *args, **kwargs) -> Any:
         """在调用线程运行同步回调；阻塞线程的终止仍由回调自身负责。"""
         with self._application.execution():

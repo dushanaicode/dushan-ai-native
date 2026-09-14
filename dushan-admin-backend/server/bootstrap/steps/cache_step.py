@@ -2,9 +2,14 @@ from contextlib import asynccontextmanager
 
 from framework.common.enums.component_type_enum import ComponentTypeEnum
 from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
+from framework.starter_auth.config.auth_settings import AuthSettings
 from framework.starter_cache.config.cache_settings import CacheSettings
 from framework.starter_cache.model.cache_key_container import CacheKeyContainer
 from framework.starter_cache.starter.cache_starter import CacheStarter
+from framework.starter_captcha.config.captcha_settings import CaptchaSettings
+from framework.starter_captcha.definitions.captcha_cache_keys import CaptchaCacheKeys
+from framework.starter_protection.config.protection_settings import ProtectionSettings
+from framework.starter_security.config.security_settings import SecuritySettings
 from server.bootstrap.context import AppBootstrapContext
 
 
@@ -36,9 +41,26 @@ class CacheStep:
             )
             if issubclass(component, CacheKeyContainer)
         )
+        resource_keys = ()
+        if SecuritySettings in definitions.configuration.model_classes:
+            security = definitions.configuration.get_config(SecuritySettings)
+            if security.enabled and security.permission_cache_enabled:
+                resource_keys += (security.cache_key(),)
+        if AuthSettings in definitions.configuration.model_classes:
+            auth = definitions.configuration.get_config(AuthSettings)
+            if auth.enabled:
+                resource_keys += auth.cache_keys()
+        if CaptchaSettings in definitions.configuration.model_classes:
+            captcha = definitions.configuration.get_config(CaptchaSettings)
+            if captcha.enabled:
+                resource_keys += (CaptchaCacheKeys.state(captcha.client_name),)
+        if ProtectionSettings in definitions.configuration.model_classes:
+            protection = definitions.configuration.get_config(ProtectionSettings)
+            if protection.enabled:
+                resource_keys += (protection.cache_key(),)
         primary = None
         try:
-            await starter.open(containers)
+            await starter.open(containers, resource_keys=resource_keys)
             ctx.app.state.cache = starter.cache_manager
             yield
         except BaseException as error:

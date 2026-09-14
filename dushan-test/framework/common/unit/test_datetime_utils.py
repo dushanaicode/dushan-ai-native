@@ -3,6 +3,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from fixtures.config_factory import ConfigFactory
+from fixtures.public_web_app import create_public_app
 from framework.common.datetime.core.date_range_builder import DateRangeBuilder
 from framework.common.datetime.core.date_utils import DateUtils
 from framework.common.datetime.core.datetime_options import DateTimeOptions
@@ -10,7 +11,6 @@ from framework.common.enums.date_interval_enum import DateIntervalEnum
 from framework.starter_config.provider.bootstrap_config_error import BootstrapConfigError
 from framework.starter_config.provider.bootstrap_config_provider import BootstrapConfigProvider
 from server.config.application_settings import ApplicationSettings
-from server.starter_server import create_app
 
 pytestmark = pytest.mark.unit
 
@@ -105,7 +105,7 @@ def test_month_end_and_equal_boundary_do_not_skip_or_overrun():
 
 def test_new_config_sections_have_sources_and_reach_component_instances(config_dir):
     root = config_dir()
-    app = create_app(
+    app = create_public_app(
         base_dir=root, environ={"DATETIME_TIMEZONE": "UTC", "EXPRESSION_ENABLED": "true"}
     )
     ctx = app.state.bootstrap

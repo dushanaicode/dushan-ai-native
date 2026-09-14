@@ -1,0 +1,5 @@
+{
+  "monitor.init_failed": "Trace initialization failed",
+  "monitor.invalid_config": "Invalid trace configuration",
+  "monitor.shutdown_failed": "Trace shutdown failed"
+}
