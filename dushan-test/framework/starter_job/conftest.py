@@ -2,7 +2,6 @@ import ast
 import importlib
 import os
 from datetime import UTC, datetime
-from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -12,11 +11,8 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from fixtures.config_factory import ConfigFactory
 from fixtures.database_fixtures import TARGETS
-from framework.starter_database.config.database_settings import DatabaseSettings
-from framework.starter_database.migration.migration_runner import MigrationRunner
 from framework.starter_job.core.job_service import JobService
 from framework.starter_job.model.job_definition import JobDefinition
-from framework.starter_tenant import migrations
 from server.starter_server import create_app
 
 SOURCE = """
@@ -350,13 +346,6 @@ async def job_case(job_target, config_dir, module_package, tmp_path, request):
         "health_check_enabled": False,
         "sources": [dict(name="primary", url=url, role="primary", weight=100, pool=None, tls=None)],
     }
-    migration = MigrationRunner(
-        DatabaseSettings.model_validate(values),
-        source="primary",
-        versions=Path(migrations.__file__).parent / "versions",
-        version_table="job_tenant_version",
-    )
-    await migration.run("upgrade", revision="head")
     engine = create_async_engine(url)
     try:
         async with engine.begin() as connection:
@@ -426,4 +415,3 @@ async def job_case(job_target, config_dir, module_package, tmp_path, request):
             if tenant_module is not None:
                 await connection.run_sync(tenant_module.metadata.drop_all)
         await engine.dispose()
-        await migration.run("downgrade", revision="base")

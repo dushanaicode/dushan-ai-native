@@ -6,10 +6,7 @@ from framework.starter_tenant.core.tenant_model_discovery import TenantModelDisc
 from framework.starter_tenant.core.tenant_model_registry import TenantModelRegistry
 from framework.starter_tenant.core.tenant_service import TenantService
 from framework.starter_tenant.core.tenant_session_policy import TenantSessionPolicy
-from framework.starter_tenant.enums.tenant_model_kind import TenantModelKind
 from framework.starter_tenant.exception.tenant_exception import TenantException
-from framework.starter_tenant.model.deployment_mode_record import DeploymentModeRecord
-from framework.starter_tenant.model.tenant_model import TenantModel
 from framework.starter_tenant.spi.tenant_directory_provider import TenantDirectoryProvider
 from framework.starter_tenant.spi.tenant_provisioning_provider import TenantProvisioningProvider
 
@@ -24,17 +21,11 @@ class TenantStep:
         if TenantSettings not in definitions.configuration.model_classes:
             yield
             return
-        models = [
-            model
-            for model in TenantModelDiscovery.collect(
-                tuple(module.definition.package for module in definitions.modules),
-                definitions.scan_result.get_components(),
-            )
-            if model is not DeploymentModeRecord
-        ]
-        registry = TenantModelRegistry(
-            [*models, TenantModel(DeploymentModeRecord, TenantModelKind.GLOBAL, None)]
+        models = TenantModelDiscovery.collect(
+            tuple(module.definition.package for module in definitions.modules),
+            definitions.scan_result.get_components(),
         )
+        registry = TenantModelRegistry(models)
         application = definitions.application_context
         if application is None:
             if models:
@@ -55,7 +46,6 @@ class TenantStep:
             if database is None:
                 yield
             else:
-                await service.mode.claim()
                 service.ready = service.directory is not None
                 policy = TenantSessionPolicy(registry, service.context)
                 with database.use_session_policy(policy):

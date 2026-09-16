@@ -5,10 +5,8 @@ from framework.starter_data_permission.config.data_permission_settings import Da
 from framework.starter_data_permission.core.data_permission_policy import DataPermissionPolicy
 from framework.starter_data_permission.core.data_permission_registry import DataPermissionRegistry
 from framework.starter_data_permission.core.data_permission_service import DataPermissionService
-from framework.starter_data_permission.model.data_permission_model import DataPermissionModel
 from framework.starter_data_permission.spi.data_exemption_provider import DataExemptionProvider
 from framework.starter_security.config.security_settings import SecuritySettings
-from framework.starter_tenant.model.deployment_mode_record import DeploymentModeRecord
 from server.bootstrap.context import AppBootstrapContext
 
 
@@ -43,8 +41,6 @@ class DataPermissionStep:
             and ctx.app.state.cache is None
         ):
             raise ValueError("数据权限要求 DI、Database、Security 及已配置的缓存资源就绪")
-        if ctx.app.state.tenant is not None:
-            models.append(DataPermissionModel(DeploymentModeRecord, True, None))
         registry = DataPermissionRegistry(models)
         service = application.container.get(DataPermissionService)
         service.exemptions = application.container.get_optional(DataExemptionProvider)

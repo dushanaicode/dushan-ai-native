@@ -15,8 +15,6 @@ dependencies = [
     "anyio==4.15.1",
     # SQL分页直接使用异步Session和查询表达式。
     "SQLAlchemy[asyncio]==2.0.52",
-    # 仅由独立迁移命令显式执行，应用启动不运行迁移。
-    "alembic==1.18.5",
     # MySQL 主线与 PostgreSQL 辅线；rsa 支持 MySQL 8 的完整认证交换。
     "aiomysql[rsa]==0.3.2",
     "asyncpg==0.31.0",

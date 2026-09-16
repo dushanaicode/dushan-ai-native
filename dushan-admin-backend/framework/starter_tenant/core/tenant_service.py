@@ -13,7 +13,6 @@ from framework.starter_security.model.login_session import LoginSession
 from framework.starter_security.spi.tenant_access_provider import TenantAccessProvider
 from framework.starter_tenant.config.tenant_settings import TenantSettings
 from framework.starter_tenant.context.tenant_context import TenantContext
-from framework.starter_tenant.core.deployment_mode_store import DeploymentModeStore
 from framework.starter_tenant.exception.tenant_exception import TenantException
 from framework.starter_tenant.model.tenant_access_grant import TenantAccessGrant
 from framework.starter_tenant.model.tenant_info import TenantInfo
@@ -35,7 +34,6 @@ class TenantService(TenantAccessProvider):
         self.context, self.security, self.database = context, security, database
         self.directory = None
         self.provisioning = None
-        self.mode = DeploymentModeStore(database, self.settings)
         self.ready = False
 
     def supports(self, capability: str) -> bool:
@@ -186,8 +184,7 @@ class TenantService(TenantAccessProvider):
             raise TenantException("denied")
         if self.settings.enabled and not self.supports("self_service_provisioning"):
             raise TenantException("denied")
-        async with self.database.transaction() as session:
-            await self.mode.assert_current(session)
+        async with self.database.transaction():
             fixed = None if self.settings.enabled else self.settings.default_tenant_id
             result = await self._call(
                 lambda: self.provisioning.provision(identity, request, fixed_tenant_id=fixed)

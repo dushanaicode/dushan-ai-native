@@ -2,7 +2,6 @@ import ast
 import importlib
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
-from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -11,9 +10,6 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from starter_tenant.conftest import SOURCE as TENANT_SOURCE
 
 from fixtures.config_factory import ConfigFactory
-from framework.starter_database.config.database_settings import DatabaseSettings
-from framework.starter_database.migration.migration_runner import MigrationRunner
-from framework.starter_tenant import migrations
 from starter_websocket.provider_source import SOURCE
 
 
@@ -49,13 +45,6 @@ async def sql_feature(target, tmp_path, module_package):
         "health_check_enabled": False,
         "sources": [dict(name="primary", url=uri, role="primary", weight=100, pool=None, tls=None)],
     }
-    migration = MigrationRunner(
-        DatabaseSettings.model_validate(database),
-        source="primary",
-        versions=Path(migrations.__file__).parent / "versions",
-        version_table="websocket_tenant_version",
-    )
-    await migration.run("upgrade", revision="head")
     engine = create_async_engine(uri)
     try:
         async with engine.begin() as connection:
@@ -149,4 +138,3 @@ class SqlController:
         async with engine.begin() as connection:
             await connection.run_sync(module.metadata.drop_all)
         await engine.dispose()
-        await migration.run("downgrade", revision="base")

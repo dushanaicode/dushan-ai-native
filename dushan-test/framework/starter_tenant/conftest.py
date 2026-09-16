@@ -2,7 +2,6 @@ import importlib
 import os
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -12,14 +11,11 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from fixtures.config_factory import ConfigFactory
 from fixtures.database_fixtures import TARGETS
-from framework.starter_database.config.database_settings import DatabaseSettings
-from framework.starter_database.migration.migration_runner import MigrationRunner
 from framework.starter_security.core.opaque_token import OpaqueToken
 from framework.starter_security.enums.security_realm import SecurityRealm
 from framework.starter_security.enums.tenant_access_mode import TenantAccessMode
 from framework.starter_security.model.login_session import LoginSession
 from framework.starter_security.spi.token_provider import TokenProvider
-from framework.starter_tenant import migrations
 from framework.starter_web.routing.route_policy import RoutePolicy
 from server.starter_server import create_app
 
@@ -292,14 +288,6 @@ async def tenant_case(tenant_target, config_dir, module_package, tmp_path, reque
         "sources": sources,
         "health_check_enabled": False,
     }
-    database_settings = DatabaseSettings.model_validate(database_values)
-    migration = MigrationRunner(
-        database_settings,
-        source="primary",
-        versions=Path(migrations.__file__).parent / "versions",
-        version_table="tenant_test_version",
-    )
-    await migration.run("upgrade", revision="head")
     engine = create_async_engine(url)
     try:
         async with engine.begin() as connection:
@@ -431,4 +419,3 @@ async def tenant_case(tenant_target, config_dir, module_package, tmp_path, reque
         async with engine.begin() as connection:
             await connection.run_sync(module.metadata.drop_all)
         await engine.dispose()
-        await migration.run("downgrade", revision="base")

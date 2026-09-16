@@ -5,7 +5,6 @@ import json
 import os
 from contextlib import AsyncExitStack
 from datetime import UTC, datetime
-from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -16,14 +15,11 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from fixtures.config_factory import ConfigFactory
 from fixtures.database_fixtures import TARGETS
-from framework.starter_database.config.database_settings import DatabaseSettings
-from framework.starter_database.migration.migration_runner import MigrationRunner
 from framework.starter_job.core.job_service import JobService
 from framework.starter_mq.core.mq_service import MQService
 from framework.starter_mq.core.outbox_service import OutboxService
 from framework.starter_mq.model.publish_command import PublishCommand
 from framework.starter_mq.spi.outbox_provider import OutboxProvider
-from framework.starter_tenant import migrations
 from server.starter_server import create_app
 
 SOURCE = """
@@ -493,13 +489,6 @@ async def mq_sql_case(mq_sql_target, mq_sql_options, config_dir, module_package,
         "health_check_enabled": False,
         "sources": [dict(name="primary", url=url, role="primary", weight=100, pool=None, tls=None)],
     }
-    migration = MigrationRunner(
-        DatabaseSettings.model_validate(database_values),
-        source="primary",
-        versions=Path(migrations.__file__).parent / "versions",
-        version_table="mq_tenant_version",
-    )
-    await migration.run("upgrade", revision="head")
     engine = create_async_engine(url)
     metadata = [job_module.metadata, store_module.metadata]
     packages = ["framework", job_package, mq_package, store_package]
@@ -644,4 +633,3 @@ async def mq_sql_case(mq_sql_target, mq_sql_options, config_dir, module_package,
             for item in reversed(metadata):
                 await connection.run_sync(item.drop_all)
         await engine.dispose()
-        await migration.run("downgrade", revision="base")
