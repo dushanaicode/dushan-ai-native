@@ -26,6 +26,7 @@ from framework.starter_security.model.permission_snapshot import PermissionSnaps
 from framework.starter_security.model.request_audit import RequestAudit
 from framework.starter_security.model.workload_identity import WorkloadIdentity
 from framework.starter_security.model.workload_message import WorkloadMessage
+from framework.starter_security.spi.data_access_provider import DataAccessProvider
 from framework.starter_security.spi.message_security_provider import MessageSecurityProvider
 from framework.starter_security.spi.permission_provider import PermissionProvider
 from framework.starter_security.spi.tenant_access_provider import TenantAccessProvider
@@ -60,6 +61,7 @@ class SecurityService:
         self._tenant: TenantAccessProvider | None = None
         self._messages: MessageSecurityProvider | None = None
         self._workloads: WorkloadProvider | None = None
+        self._data_access: DataAccessProvider | None = None
         self._phase = "new"
         self._active = 0
         self._idle = asyncio.Event()
@@ -72,12 +74,14 @@ class SecurityService:
         tenant: TenantAccessProvider | None = None,
         messages: MessageSecurityProvider | None = None,
         workloads: WorkloadProvider | None = None,
+        data_access: DataAccessProvider | None = None,
     ):
         if self._phase != "new" or not self.settings.enabled:
             raise SecurityException("closed")
         self._phase = "starting"
         self._tenant, self._messages = tenant, messages
         self._workloads = workloads
+        self._data_access = data_access
         if self.settings.permission_cache_enabled:
             await self._call(
                 lambda: self.cache.eval_atomic(self.settings.cache_key(), ("probe",), "return 1")
@@ -251,7 +255,7 @@ class SecurityService:
         ):
             raise SecurityException("configuration")
 
-    async def _check_policy(self, session: LoginSession, policy: RoutePolicy):
+    async def _check_policy(self, session: LoginSession, policy: RoutePolicy, *, snapshot=None):
         self.validate_policy(policy)
         if not policy.requires_identity:
             raise SecurityException("configuration")
@@ -281,7 +285,7 @@ class SecurityService:
         if not self._matches(session.scopes, policy.scopes, policy.scope_mode):
             raise SecurityException("denied")
         if policy.permissions or policy.roles:
-            snapshot = await self._snapshot(session)
+            snapshot = await self._snapshot(session) if snapshot is None else snapshot
             check = (
                 PermissionPolicy.all if policy.permission_mode == "all" else PermissionPolicy.any
             )
@@ -302,16 +306,28 @@ class SecurityService:
 
     @asynccontextmanager
     async def _authorized_session(self, session: LoginSession, policy: RoutePolicy):
-        await self._check_policy(session, policy)
+        # 身份已通过 _resolve 验证；先建立租户准入，再读取租户内的权限规则。
+        self.context._install(session)
         if session.tenant_id is not None:
             if self._tenant is None:
                 raise SecurityException("configuration")
             async with self._tenant_scope(self._tenant.enter(session, policy)):
-                self.context._install(session)
-                yield session
+                await self._check_policy(session, policy)
+                async with self._data_scope(session):
+                    yield session
         else:
-            self.context._install(session)
-            yield session
+            await self._check_policy(session, policy)
+            async with self._data_scope(session):
+                yield session
+
+    @asynccontextmanager
+    async def _data_scope(self, identity):
+        if self._data_access is None:
+            yield
+        else:
+            # 数据范围在可信身份安装后加载；同一 Context 内的 finally 负责快照复位。
+            async with self._data_access.enter(identity):
+                yield
 
     @asynccontextmanager
     async def _tenant_scope(self, manager):
@@ -366,6 +382,82 @@ class SecurityService:
                 return await callback(*args, **kwargs)
 
         return await self.context.application.tasks.run_isolated(invoke)
+
+    async def run_authenticated(self, resolver, policy: RoutePolicy, callback, *args, **kwargs):
+        """服务器认证适配器入口；resolver 必须验证凭证，不能接收客户端 Session DTO。
+
+        例如 WebSocket ticket 消费 SPI。身份仍经与 HTTP 相同的状态、策略、Tenant 和
+        Data Permission 路径；提供者错误不会退化为匿名。每次建立新的 DI/身份边界。
+        """
+
+        async def invoke():
+            async with self._operation():
+                with self.context._scope():
+                    domain = self._domain(policy)
+                    session = await self._call(
+                        lambda: resolver(application_id=self.settings.application_id, domain=domain)
+                    )
+                    self._validate(session, domain)
+                    current = await self._call(
+                        lambda: self.tokens.resolve(
+                            session.token_digest,
+                            application_id=self.settings.application_id,
+                            domain=domain,
+                        )
+                    )
+                    if current is None:
+                        raise SecurityException("invalid")
+                    self._validate(current, domain)
+                    if not hmac.compare_digest(
+                        current.token_digest, session.token_digest
+                    ) or self.session_version(current) != self.session_version(session):
+                        raise SecurityException("invalid")
+                    session = current
+                    async with self._authorized_session(session, policy):
+                        return await callback(session, *args, **kwargs)
+
+        return await self.context.application.tasks.run_isolated(invoke)
+
+    @classmethod
+    def session_version(cls, session: LoginSession):
+        """长连接冻结的身份与授权版本，不含可用作客户端凭证的明文值。"""
+        return (
+            cls.binding(session),
+            session.authorization_revision,
+            session.credential_revision,
+            session.current_credential_revision,
+            session.dept_id,
+            session.scopes,
+            session.effective_capabilities,
+        )
+
+    async def run_session_reference(
+        self, expected: LoginSession, policy: RoutePolicy, callback, *args, **kwargs
+    ):
+        """重新读取已由服务器认证的会话引用；身份/权限版本变化要求重新认证。"""
+
+        async def resolve(*, application_id, domain):
+            return expected
+
+        return await self.run_authenticated(resolve, policy, callback, *args, **kwargs)
+
+    async def allowed_policies(self, policies):
+        """在当前可信执行中一次加载权限，评估一组策略；供有期限的下行快照使用。"""
+        async with self._operation():
+            session = await self._live_current()
+            if self.session_version(session) != self.session_version(self.context.require()):
+                raise SecurityException("invalid")
+            snapshot = await self._snapshot(session)
+            allowed = set()
+            for key, policy in policies.items():
+                try:
+                    await self._check_policy(session, policy, snapshot=snapshot)
+                except SecurityException as error:
+                    if error.reason != "denied":
+                        raise
+                else:
+                    allowed.add(key)
+            return frozenset(allowed)
 
     async def logout(self, token: str, *, domain: str | None = None) -> None:
         async with self._operation():
@@ -571,15 +663,16 @@ class SecurityService:
 
     @asynccontextmanager
     async def _workload_scope(self, identity, capability):
+        self.context._install_workload(identity)
         if identity.tenant_id is None:
-            self.context._install_workload(identity)
-            yield
+            async with self._data_scope(identity):
+                yield
         else:
             if self._tenant is None:
                 raise SecurityException("configuration")
             async with self._tenant_scope(self._tenant.enter_workload(identity, capability)):
-                self.context._install_workload(identity)
-                yield
+                async with self._data_scope(identity):
+                    yield
 
     async def run_workload(
         self,

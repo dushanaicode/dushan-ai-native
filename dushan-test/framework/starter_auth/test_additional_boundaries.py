@@ -44,7 +44,13 @@ async def test_native_challenge_and_atomic_callback(harness, source):
 
 async def test_oidc_state_material_is_atomic_and_expires(harness):
     build, _, cache = harness
-    service = await build(configs=(client_config("HUAWEI_V3"),), state_ttl_seconds=1)
+    # 不给真实 transport：过期判断如果被时钟抖动绕过，交换会在这里因为没有可用响应
+    # 立即报错，而不是意外向厂商真实生产端点发出请求。
+    service = await build(
+        configs=(client_config("HUAWEI_V3"),),
+        state_ttl_seconds=1,
+        transport=RecordingTransport([]),
+    )
     config = service.clients._clients[("app-a", "HUAWEI_V3")]
     challenge = await service.begin("app-a", "HUAWEI_V3", binding=BINDING)
     key = cache.build_full_key(service.store.key, service.store.identifier(config, challenge.state))
@@ -53,7 +59,11 @@ async def test_oidc_state_material_is_atomic_and_expires(harness):
     assert set(payload) == {"binding", "client", "nonce", "verifier"}
     assert payload["nonce"] == parse_qs(urlsplit(challenge.url).query)["nonce"][0]
     assert 0 < await redis.pttl(key) <= 1000
-    await asyncio.sleep(1.05)
+    # 轮询真实过期而不是睡一个固定余量：真实系统时钟下固定 50ms 余量并不可靠。
+    deadline = asyncio.get_event_loop().time() + 5
+    while await redis.pttl(key) > 0:
+        assert asyncio.get_event_loop().time() < deadline, "state key 未在预期时间内过期"
+        await asyncio.sleep(0.02)
     with pytest.raises(AuthException) as failure:
         await service.complete(
             "app-a", "HUAWEI_V3", [("state", challenge.state), ("code", "code")], binding=BINDING

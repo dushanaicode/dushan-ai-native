@@ -157,11 +157,14 @@ async def test_background_callback_results_are_bounded_and_bad_contract_rejected
 
 
 async def test_loader_preflight_publication_and_periodic_refresh(database_settings, config_dir):
+    from fixtures.starter_steps import StarterSteps
+
     values = database_settings.model_dump(mode="json")
     for source, actual in zip(values["sources"], database_settings.sources):
         source["url"] = actual.url.get_secret_value()
     values["dynamic_refresh_interval_seconds"] = 0.02
     app = create_app(
+        steps=StarterSteps.without_tenant(),
         base_dir=config_dir(
             {"config": {"models": {"database": values}}, "banner": {"enabled": False}}
         ),

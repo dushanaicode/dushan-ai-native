@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, FastAPI
 from fastapi.routing import APIRoute, _iter_routes_with_context
 
 from framework.starter_di.decorators.di_dependency import DiDependency
+from framework.starter_web.routing.authenticated_websocket_route import AuthenticatedWebSocketRoute
 from framework.starter_web.routing.controller_metadata import ControllerMetadata
 from framework.starter_web.routing.published_routes import PublishedRoutes
 from framework.starter_web.routing.route_audit import RouteAudit
@@ -29,6 +30,7 @@ class RouteRegistrar:
         self._sealed = False
         self._declarations = None
         self._host_routes = tuple(app.routes)
+        self._socket_routes = {}
 
     @property
     def published(self) -> bool:
@@ -70,6 +72,27 @@ class RouteRegistrar:
         self.app.router._mark_routes_changed()
         self.app.openapi_schema = None
         self._sealed = True
+
+    def register_websocket(self, path, endpoint, *, authorizer, policy, name=None):
+        """在正式发布前登记受保护 WebSocket；同样审计重复、遮蔽及最终策略。"""
+        if self._sealed:
+            raise RuntimeError("Web 路由已经发布")
+        route = AuthenticatedWebSocketRoute(
+            path, endpoint, authorizer=authorizer, policy=policy, name=name
+        )
+        RouteAudit.validate([*self.app.routes, route])
+        self.app.router.routes.append(route)
+        self.app.router._mark_routes_changed()
+        self._socket_routes[id(route)] = route
+        return route
+
+    def unregister_websocket(self, route):
+        """只撤销本注册器持有的声明；宿主必须先完成 unseal。"""
+        if self._sealed or self._socket_routes.get(id(route)) is not route:
+            raise RuntimeError("WebSocket 路由不属于当前未发布注册器")
+        del self._socket_routes[id(route)]
+        self.app.router.routes.remove(route)
+        self.app.router._mark_routes_changed()
 
     def unseal(self) -> None:
         if self._sealed:

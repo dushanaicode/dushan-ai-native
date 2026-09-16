@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
+from framework.starter_data_permission.core.data_permission_service import DataPermissionService
 from framework.starter_security.bizlog.biz_log_service import BizLogService
 from framework.starter_security.config.security_settings import SecuritySettings
 from framework.starter_security.context.security_context import SecurityContext
@@ -41,10 +42,15 @@ class SecurityStep:
                 if original_access is not None and not isinstance(original_access, SecurityAccess):
                     raise ValueError("Security 与宿主授权提供者声明冲突")
                 service = application.container.get(SecurityService)
+                # 已装配 Tenant 使用其唯一运行时；独立 Security 装配仍通过正式 SPI。
+                tenant = ctx.app.state.tenant
+                if tenant is None:
+                    tenant = application.container.get_optional(TenantAccessProvider)
                 await service.open(
-                    tenant=application.container.get_optional(TenantAccessProvider),
+                    tenant=tenant,
                     messages=application.container.get_optional(MessageSecurityProvider),
                     workloads=application.container.get_optional(WorkloadProvider),
+                    data_access=application.container.get_optional(DataPermissionService),
                 )
                 ctx.app.state.security = service
                 routes.access_provider = SecurityAccess()

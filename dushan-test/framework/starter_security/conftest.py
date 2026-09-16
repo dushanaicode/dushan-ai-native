@@ -242,7 +242,10 @@ def security_factory(config_dir, tmp_path, security_module, module_package):
         )
         values["modules"]["packages"].append(optional)
         values["modules"]["enabled"].append(optional)
+        from fixtures.starter_steps import StarterSteps
+
         app = create_app(
+            steps=StarterSteps.without_tenant(),
             base_dir=config_dir(values),
             environ={},
             routers=(RouterRegistration(router),),

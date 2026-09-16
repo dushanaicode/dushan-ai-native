@@ -139,6 +139,8 @@ def test_migration_cli_reports_failure_without_credentials(config_dir, tmp_path)
         env={
             **os.environ,
             "PYTHONPATH": str(Path(__file__).resolve().parents[3] / "dushan-admin-backend"),
+            "PYTHONUTF8": "1",
+            "PYTHONIOENCODING": "utf-8",
         },
         capture_output=True,
         text=True,

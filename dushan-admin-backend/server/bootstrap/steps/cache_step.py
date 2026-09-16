@@ -8,6 +8,8 @@ from framework.starter_cache.model.cache_key_container import CacheKeyContainer
 from framework.starter_cache.starter.cache_starter import CacheStarter
 from framework.starter_captcha.config.captcha_settings import CaptchaSettings
 from framework.starter_captcha.definitions.captcha_cache_keys import CaptchaCacheKeys
+from framework.starter_data_permission.config.data_permission_settings import DataPermissionSettings
+from framework.starter_job.config.job_settings import JobSettings
 from framework.starter_protection.config.protection_settings import ProtectionSettings
 from framework.starter_security.config.security_settings import SecuritySettings
 from server.bootstrap.context import AppBootstrapContext
@@ -42,6 +44,10 @@ class CacheStep:
             if issubclass(component, CacheKeyContainer)
         )
         resource_keys = ()
+        if DataPermissionSettings in definitions.configuration.model_classes:
+            permissions = definitions.configuration.get_config(DataPermissionSettings)
+            if permissions.enabled and permissions.cache_enabled:
+                resource_keys += (permissions.cache_key(),)
         if SecuritySettings in definitions.configuration.model_classes:
             security = definitions.configuration.get_config(SecuritySettings)
             if security.enabled and security.permission_cache_enabled:
@@ -58,6 +64,10 @@ class CacheStep:
             protection = definitions.configuration.get_config(ProtectionSettings)
             if protection.enabled:
                 resource_keys += (protection.cache_key(),)
+        if JobSettings in definitions.configuration.model_classes:
+            job = definitions.configuration.get_config(JobSettings)
+            if job.enabled and job.owner_enabled:
+                resource_keys += (job.owner_key(),)
         primary = None
         try:
             await starter.open(containers, resource_keys=resource_keys)

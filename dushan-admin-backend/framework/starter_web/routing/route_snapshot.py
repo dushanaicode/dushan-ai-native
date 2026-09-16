@@ -7,6 +7,7 @@ from fastapi.routing import APIRoute, _IncludedRouter
 from starlette.routing import BaseRoute
 
 from framework.starter_web.response.stream_integrity import StreamIntegrity
+from framework.starter_web.routing.authenticated_websocket_route import AuthenticatedWebSocketRoute
 from framework.starter_web.routing.endpoint_invocation import EndpointInvocation
 from framework.starter_web.routing.route_guard import RouteGuard
 from framework.starter_web.routing.route_policy import RoutePolicy
@@ -71,7 +72,9 @@ class RouteSnapshot:
         if self.policy_validator is not None:
             self.policy_validator(policy)
         if not isinstance(original, APIRoute):
-            if policy.requires_identity:
+            if isinstance(original, AuthenticatedWebSocketRoute) and not policy.requires_identity:
+                raise ValueError("独立认证 WebSocket 不能改写为公开路由")
+            if policy.requires_identity and not isinstance(original, AuthenticatedWebSocketRoute):
                 raise ValueError("受保护 router 不接受 Route/Mount/WebSocket，必须由宿主独立授权")
             route = copy(effective)
             route.app = RouteTrace(effective.app, effective.path)

@@ -23,10 +23,14 @@ async def run(engine, port, evidence):
     from framework.starter_web.routing.route_policy import RoutePolicy
     from server.starter_server import create_app
 
+    from fixtures.starter_steps import StarterSteps
+
     (evidence / "origin.json").write_text(
         json.dumps({"security": security_module.__file__}), encoding="utf-8"
     )
-    app = create_app(access_provider=SecurityAccess(), engine=engine)
+    app = create_app(
+        steps=StarterSteps.without_tenant(), access_provider=SecurityAccess(), engine=engine
+    )
 
     @app.get("/__security_test/protected")
     @RoutePolicy(("read",), roles=("reader",))

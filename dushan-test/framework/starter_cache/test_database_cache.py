@@ -9,6 +9,7 @@ from sqlalchemy.orm import mapped_column
 
 from fixtures.cache_fixtures import app_values, redis_values, requires_redis
 from fixtures.config_factory import ConfigFactory
+from fixtures.starter_steps import StarterSteps
 from framework.starter_cache.core.cache_handler import CacheHandler
 from framework.starter_cache.core.cache_invalidation_dispatcher import CacheInvalidationDispatcher
 from framework.starter_cache.exception.cache_operation_exception import CacheOperationException
@@ -58,7 +59,7 @@ async def joint_app(config_dir, module_values, key_module, cache_prefix):
     schema = create_async_engine(MYSQL["url"])
     values = app_values(redis_values(), **module_values)
     values["config"]["models"]["database"] = database_values(MYSQL["url"])
-    app = create_app(base_dir=config_dir(values), environ={})
+    app = create_app(base_dir=config_dir(values), environ={}, steps=StarterSteps.without_tenant())
     created = False
     try:
         async with schema.begin() as connection:

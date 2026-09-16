@@ -2,6 +2,20 @@ name = "framework"
 package = "framework"
 scan_roots = ["common.exception.constants", "starter_scanner.exception", "starter_di.exception"]
 definitions = [
+  "starter_websocket.config.websocket_settings:WebSocketSettings",
+  "starter_websocket.core.websocket_service:WebSocketService",
+  "starter_mq.config.mq_settings:MQSettings",
+  "starter_mq.core.mq_service:MQService",
+  "starter_mq.core.outbox_service:OutboxService",
+  "starter_mq.jobs.outbox_job:OutboxJob",
+  "starter_job.config.job_settings:JobSettings",
+  "starter_job.core.job_service:JobService",
+  "starter_tenant.config.tenant_settings:TenantSettings",
+  "starter_tenant.context.tenant_context:TenantContext",
+  "starter_tenant.context.tenant_cache_context_provider:TenantCacheContextProvider",
+  "starter_tenant.core.tenant_service:TenantService",
+  "starter_data_permission.config.data_permission_settings:DataPermissionSettings",
+  "starter_data_permission.core.data_permission_service:DataPermissionService",
   "starter_security.config.security_settings:SecuritySettings",
   "starter_security.context.security_context:SecurityContext",
   "starter_security.core.security_service:SecurityService",

@@ -36,6 +36,13 @@ dependencies = [
     "injector==0.24.0",
     # Redis 官方异步客户端；连接池与客户端按应用持有，不使用其全局单例入口。
     "redis==7.4.1",
+    # 调度引擎固定 3.11；Cron 的验证、预览和实际触发共用解析。
+    "APScheduler==3.11.3",
+    "croniter==6.2.4",
+    # MQ 直接使用成熟异步客户端的确认、消费组与流控接口。
+    "aio-pika==10.0.1",
+    "aiokafka==0.14.0",
+    "pamqp==4.0.1", # 显式识别 AMQP 发布确认帧，拒绝负确认
     # XLSX 读写与不可信 XML 的实体扩展防护。
     "openpyxl==3.1.5",
     "defusedxml==0.7.1",

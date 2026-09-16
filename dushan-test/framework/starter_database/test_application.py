@@ -7,6 +7,7 @@ from sqlalchemy import literal, select
 from starlette.responses import StreamingResponse
 
 from fixtures.public_web_app import create_public_app
+from fixtures.starter_steps import StarterSteps
 from framework.common.page.core.data_paginator import DataPaginator
 from framework.starter_database.decorators.transactional import transactional
 from framework.starter_database.pagination.sql_paginator import SqlPaginator
@@ -29,7 +30,9 @@ async def test_application_explicit_database_definitions_and_real_http(
 ):
     values = app_values(database_settings)
     values["scanner"] = {"enabled": scan}
-    app = create_public_app(base_dir=config_dir(values), environ={})
+    app = create_public_app(
+        base_dir=config_dir(values), environ={}, steps=StarterSteps.without_tenant()
+    )
 
     @app.get("/database")
     async def route(
@@ -58,7 +61,11 @@ async def test_application_explicit_database_definitions_and_real_http(
 
 
 async def test_transaction_decorator_uses_current_application(database_settings, config_dir):
-    app = create_public_app(base_dir=config_dir(app_values(database_settings)), environ={})
+    app = create_public_app(
+        base_dir=config_dir(app_values(database_settings)),
+        environ={},
+        steps=StarterSteps.without_tenant(),
+    )
 
     @transactional
     async def operation():
@@ -74,7 +81,10 @@ async def test_streaming_response_can_read_database_in_framework_child_task(
     database_settings, config_dir
 ):
     app = create_public_app(
-        base_dir=config_dir(app_values(database_settings)), environ={}, engine="uvicorn"
+        steps=StarterSteps.without_tenant(),
+        base_dir=config_dir(app_values(database_settings)),
+        environ={},
+        engine="uvicorn",
     )
 
     @app.get("/stream")
@@ -95,7 +105,11 @@ async def test_streaming_response_can_read_database_in_framework_child_task(
 async def test_after_commit_background_work_created_during_application_drain(
     database_settings, config_dir
 ):
-    app = create_public_app(base_dir=config_dir(app_values(database_settings)), environ={})
+    app = create_public_app(
+        base_dir=config_dir(app_values(database_settings)),
+        environ={},
+        steps=StarterSteps.without_tenant(),
+    )
     admitted, release = asyncio.Event(), asyncio.Event()
     called = []
     async with app.router.lifespan_context(app):

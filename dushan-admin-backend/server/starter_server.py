@@ -21,6 +21,7 @@ from framework.starter_security.exception.security_exception import SecurityExce
 from framework.starter_security.integration.security_exception_handler import (
     SecurityExceptionHandler,
 )
+from framework.starter_tenant.middleware.tenant_selector_middleware import TenantSelectorMiddleware
 from framework.starter_web.exception.exception_handler import GlobalExceptionHandler
 from framework.starter_web.middleware.body_limit_middleware import BodyLimitMiddleware
 from framework.starter_web.middleware.http_protocol_middleware import HttpProtocolMiddleware
@@ -110,6 +111,10 @@ def create_app(
     application.state.monitor = None
     application.state.auth = None
     application.state.security = None
+    application.state.tenant = None
+    application.state.job = None
+    application.state.mq = None
+    application.state.websocket = None
     application.state.web_trusted_proxies = ()
     stream_policy = StreamResponsePolicy(settings.engine.value)
     application.state.web_stream_policy = stream_policy
@@ -121,6 +126,7 @@ def create_app(
     # add_middleware 逆序包裹：协议 → CORS → 请求 → 准入 → DI → Monitor → 异常 → GZip → DB → body。
     application.add_middleware(BodyLimitMiddleware, settings=web)
     application.add_middleware(DatabaseMiddleware)
+    application.add_middleware(TenantSelectorMiddleware)
     if web.gzip_enabled:
         application.add_middleware(
             ResponseCompressionMiddleware,

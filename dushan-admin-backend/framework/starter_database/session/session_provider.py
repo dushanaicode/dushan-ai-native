@@ -1,5 +1,5 @@
 import asyncio
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, contextmanager
 from contextvars import Context
 from datetime import datetime, timezone
 
@@ -15,6 +15,7 @@ from framework.starter_database.exception.database_exception import DatabaseExce
 from framework.starter_database.model.model_policy import ModelPolicy
 from framework.starter_database.spi.current_account_provider import CurrentAccountProvider
 from framework.starter_database.spi.query_observer import QueryObserver
+from framework.starter_database.spi.session_policy import SessionPolicy
 from framework.starter_database.transaction.transaction_manager import TransactionManager
 from framework.starter_di.decorators.components import framework
 
@@ -77,6 +78,18 @@ class SessionProvider:
 
     def bind_account_provider(self, provider: CurrentAccountProvider) -> None:
         self._transactions.policy.account_provider = provider
+
+    @contextmanager
+    def use_session_policy(self, policy: SessionPolicy):
+        """装配阶段绑定记录策略；退出前宿主必须排空业务，已有会话保留其策略。"""
+        policies = self._transactions.policy.session_policies
+        if policy in policies:
+            raise ValueError("Session 策略不能重复绑定")
+        policies.append(policy)
+        try:
+            yield
+        finally:
+            policies.remove(policy)
 
     def bind_query_observer(self, observer: QueryObserver | None) -> None:
         """绑定或移除同步安全查询消费者；适用于现有和随后发布的数据源。"""

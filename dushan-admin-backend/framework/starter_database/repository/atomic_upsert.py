@@ -1,9 +1,10 @@
-from sqlalchemy import and_, case, false
+from sqlalchemy import and_, case, false, true
 from sqlalchemy.dialects.mysql import insert as mysql_insert
 from sqlalchemy.dialects.postgresql import insert as postgresql_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql.dml import Insert
+from sqlalchemy.sql.util import ClauseAdapter
 
 
 class AtomicUpsert(Insert):
@@ -16,6 +17,7 @@ class AtomicUpsert(Insert):
         self.conflict_columns = tuple(conflict_columns)
         self.update_columns = tuple(update_columns)
         self.audit_update_columns = ("update_time",)
+        self.access_condition = None
 
     def compile_native(self, compiler, **kwargs):
         """按目标方言编译原子写入，保留审计与软删除约束。"""
@@ -29,7 +31,10 @@ class AtomicUpsert(Insert):
             native = native.on_conflict_do_update(
                 index_elements=[table.c[name] for name in self.conflict_columns],
                 set_={name: native.excluded[name] for name in columns},
-                where=table.c.deleted == false(),
+                where=and_(
+                    table.c.deleted == false(),
+                    self.access_condition if self.access_condition is not None else true(),
+                ),
             )
             return compiler.process(native, **kwargs)
         if dialect in {"mysql", "mariadb", "oceanbase"}:
@@ -37,6 +42,7 @@ class AtomicUpsert(Insert):
             eligible = and_(
                 table.c.deleted == false(),
                 *(table.c[name] == native.inserted[name] for name in self.conflict_columns),
+                self.access_condition if self.access_condition is not None else true(),
             )
             native = native.on_duplicate_key_update(
                 [
@@ -60,9 +66,17 @@ class AtomicUpsert(Insert):
             assignments = ", ".join(f"t.{quote(name)} = s.{quote(name)}" for name in columns)
             insert_columns = ", ".join(quote(name) for name in names)
             insert_values = ", ".join(f"s.{quote(name)}" for name in names)
+            access = (
+                " AND "
+                + compiler.process(
+                    ClauseAdapter(table.alias("t")).traverse(self.access_condition), **kwargs
+                )
+                if self.access_condition is not None
+                else ""
+            )
             return (
                 f"MERGE INTO {target} t USING (SELECT {source} FROM DUAL) s ON ({match}) "
-                f"WHEN MATCHED THEN UPDATE SET {assignments} WHERE t.{quote('deleted')} = 0 "
+                f"WHEN MATCHED THEN UPDATE SET {assignments} WHERE t.{quote('deleted')} = 0{access} "
                 f"WHEN NOT MATCHED THEN INSERT ({insert_columns}) VALUES ({insert_values})"
             )
         raise NotImplementedError(f"方言 {dialect} 尚未实现原子 upsert")

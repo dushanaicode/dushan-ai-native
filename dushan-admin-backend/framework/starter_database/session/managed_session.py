@@ -23,6 +23,7 @@ class ManagedSession(Session):
         self.active = True
         self.readonly = readonly
         self.execution = execution
+        self._database_policy = database_policy
         self._operation = ContextVar(f"database_operation_{id(self)}", default=None)
         self._boundary = ContextVar(f"database_boundary_{id(self)}", default=None)
         self._internal_parameters = ContextVar(f"database_parameters_{id(self)}", default=None)
@@ -33,6 +34,8 @@ class ManagedSession(Session):
         task = asyncio.current_task()
         if not self.active or (task is not self.owner and self._boundary.get() is not task):
             raise DatabaseException(error_code=DatabaseErrorCodes.CONTEXT_MISMATCH)
+        for policy in self.access_policies:
+            policy.check(self)
 
     @contextmanager
     def boundary(self):
@@ -108,6 +111,7 @@ class ManagedSession(Session):
             if not valid:
                 raise ValueError("结构化执行参数须为 mapping；仅 INSERT 支持 mapping 列表")
         with self.operation(), DatabaseErrorTranslator.boundary(dialect=self._engine_bind.dialect):
+            statement = self._database_policy.prepare_statement(statement, self)
             return ManagedResult(super().execute(statement, params, **kwargs))
 
     def scalar(self, statement, params=None, **kwargs):

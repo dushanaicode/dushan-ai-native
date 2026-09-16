@@ -1,9 +1,13 @@
 import { z } from '@vben/common-ui';
 
 const identifier = z.string().regex(/^[A-Za-z0-9][\w.:-]{0,127}$/);
+const messageType = z
+  .string()
+  .max(128)
+  .regex(/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/);
 const commandSchema = z
   .object({
-    type: identifier,
+    type: messageType,
     payload: z.unknown().optional(),
     requestId: identifier.optional(),
     senderId: identifier.optional(),
@@ -11,7 +15,7 @@ const commandSchema = z
   })
   .strict();
 const messageSchema = commandSchema.extend({
-  timestamp: z.number().nonnegative(),
+  timestamp: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
 });
 
 export type SocketCommand = z.infer<typeof commandSchema>;

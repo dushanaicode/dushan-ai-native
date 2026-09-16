@@ -16,6 +16,28 @@ export default defineConfig({
   resolve: {
     conditions: ['development', 'browser'],
     alias: {
+      '#': resolve(frontend, 'apps/web-ele/src'),
+      '@vben/plugins/vxe-table': resolve(
+        frontend,
+        'packages/effects/plugins/src/vxe-table/index.ts',
+      ),
+      '@vben/plugins/tiptap': resolve(
+        frontend,
+        'packages/effects/plugins/src/tiptap/index.ts',
+      ),
+      '@vben/locales': resolve(frontend, 'packages/locales/src/index.ts'),
+      '@vben/stores': resolve(frontend, 'packages/stores/src/index.ts'),
+      '@vben/preferences': resolve(
+        frontend,
+        'packages/preferences/src/index.ts',
+      ),
+      pinia: resolve(frontend, 'apps/web-ele/node_modules/pinia'),
+      'vue-router': resolve(frontend, 'apps/web-ele/node_modules/vue-router'),
+      dayjs: resolve(frontend, 'apps/web-ele/node_modules/dayjs'),
+      'element-plus': resolve(
+        frontend,
+        'apps/web-ele/node_modules/element-plus',
+      ),
       vitest: resolve(frontend, 'node_modules/vitest/dist/index.js'),
       vue: resolve(
         frontend,

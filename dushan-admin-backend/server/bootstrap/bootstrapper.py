@@ -38,15 +38,28 @@ async def bootstrap_app(
             finally:
                 ctx.ready = False
                 ctx.logger.info("服务正在关闭")
+                errors = []
+                caller_cancellation = None
+                # 长连接/消息入口先停止接收并排空；此时 DI 和发布连接仍可完成必要收尾。
+                for quiesce in reversed(ctx.before_drain):
+                    error, cancellation = await CleanupUtils.run_cancellation_safe_cleanup(
+                        quiesce, "外部入口停止接收"
+                    )
+                    if error is not None:
+                        errors.append(error)
+                    if caller_cancellation is None:
+                        caller_cancellation = cancellation
                 if ctx.definitions is not None and ctx.definitions.application_context is not None:
                     # 公开 drain 允许调用方取消；这里是资源所有者，必须等到排空终态。
                     error, cancellation = await CleanupUtils.run_cancellation_safe_cleanup(
                         ctx.definitions.application_context.drain, "应用业务排空"
                     )
-                    CleanupUtils.raise_collected_cleanup_errors(
-                        "应用业务排空失败",
-                        [] if error is None else [error],
-                        caller_cancellation=cancellation,
-                    )
+                    if error is not None:
+                        errors.append(error)
+                    if caller_cancellation is None:
+                        caller_cancellation = cancellation
+                CleanupUtils.raise_collected_cleanup_errors(
+                    "应用业务排空失败", errors, caller_cancellation=caller_cancellation
+                )
     finally:
         ctx.ready = False

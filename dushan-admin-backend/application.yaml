@@ -62,6 +62,124 @@ banner:
 # ==================== 配置模型与运行覆盖 ====================
 config:
   models: # 模型通过自身环境前缀覆盖字段，例如 DATABASE_ENABLED
+    websocket:
+      enabled: false
+      path: /api/ws
+      transport: local # local 必须单 worker；redis 为可丢广播
+      namespace: dushan-ai-native
+      cache_client: default
+      signing_secret: null # redis transport 启用时必须显式配置
+      allowed_origins: [] # 启用时明确白名单，不接受通配
+      subprotocols: [] # 空表示不协商子协议；客户端未知子协议明确拒绝
+      max_connections: 1000 # 下列连接限额均为单实例
+      max_connections_per_member: 5
+      max_connections_per_tenant: 100
+      max_pending_handshakes: 100
+      handshake_timeout_seconds: 10.0
+      command_timeout_seconds: 3.0
+      send_timeout_seconds: 5.0
+      handler_timeout_seconds: 120.0
+      shutdown_seconds: 10.0
+      max_message_bytes: 65536
+      inbound_queue_size: 16
+      outbound_queue_size: 64
+      handler_concurrency: 1 # 默认同连接保序
+      heartbeat_interval_seconds: 30.0
+      heartbeat_timeout_seconds: 90.0
+      authorization_refresh_seconds: 10.0
+      authorization_timeout_seconds: 2.0
+      authorization_concurrency: 256
+      instance_lease_seconds: 30.0
+      instance_renew_seconds: 5.0
+      transport_poll_seconds: 0.1
+      transport_restart_seconds: 1.0
+      envelope_max_age_seconds: 10.0
+      online_query_limit: 1000
+    mq: # 消费者由代码声明，覆盖只允许启停、并发与预取
+      enabled: false
+      backend: redis # redis: stream/pubsub；rabbitmq: queue；kafka: topic
+      namespace: dushan-ai-native
+      cache_client: default # Redis 与防重放均复用 Cache 连接
+      signing_secret: null # 启用时必须显式配置至少 32 字节密钥
+      max_age_seconds: 2592000
+      clock_skew_seconds: 30.0
+      replay_retention_seconds: 2678400
+      lease_seconds: 60.0
+      renew_seconds: 10.0
+      command_timeout_seconds: 5.0
+      handler_timeout_seconds: 300.0
+      shutdown_seconds: 30.0
+      poll_seconds: 0.1
+      concurrency: 4
+      prefetch: 16
+      max_consumers: 100
+      max_concurrency: 64
+      max_prefetch: 256
+      max_message_bytes: 262144
+      max_proof_bytes: 65536
+      stream_max_length: 100000 # 无法安全裁剪已确认历史时拒绝新发布
+      retry_max_length: 10000
+      dead_letter_max_length: 10000
+      dead_letter_retention_seconds: 604800
+      max_retry_delay_seconds: 3600.0
+      overrides: {}
+      unknown_override: fail # ignore 仍记录被忽略的 key
+      rabbit_url: null
+      rabbit_ca_file: null
+      kafka_bootstrap_servers: []
+      kafka_security_protocol: PLAINTEXT
+      kafka_sasl_mechanism: null
+      kafka_sasl_username: null
+      kafka_sasl_password: null
+      kafka_ca_file: null
+      kafka_cert_file: null
+      kafka_key_file: null
+      kafka_partitions: 1
+      kafka_replication_factor: 1
+      kafka_retention_bytes: 268435456 # 每分区保留上界；Kafka 不提供按条数硬限
+      outbox_enabled: false # 开启必须装配 Database、Job 与业务 OutboxProvider
+      outbox_batch_size: 100
+      outbox_max_attempts: 10
+      outbox_lease_seconds: 30.0
+      outbox_retry_seconds: 10.0
+      outbox_retention_seconds: 604800
+    job: # 业务定义 SPI 为权威，调度器只保存内存副本
+      enabled: false
+      owner_enabled: false # 仅显式调度进程开启；必须单 worker 并取得 Redis 租约
+      namespace: dushan-ai-native
+      cache_client: default
+      timezone: null # 显式继承 datetime.timezone
+      reconciliation_seconds: 30.0
+      poll_seconds: 0.1
+      owner_lease_seconds: 15.0
+      owner_renew_seconds: 3.0
+      command_timeout_seconds: 5.0
+      misfire_grace_seconds: 60 # 只在宽限内合并补跑一次，与重试无关
+      pending_limit: 1000
+      concurrency: 8
+      shutdown_seconds: 30.0
+      record_timeout_seconds: 3.0
+      result_max_length: 4000
+      tenant_lease_seconds: 600.0
+      max_jobs: 10000
+      max_retry_seconds: 300.0
+    tenant: # 部署模式；关闭只使用默认租户，不关闭数据隔离
+      enabled: true
+      default_tenant_id: "1" # 显式默认标识；首次开户前不伪造对应租户记录
+      profile: external_hosted # single_organization / internal_group / external_hosted / custom
+      custom_capabilities: [] # 仅 custom 使用，不能关闭必需的租户隔离
+      provider_timeout_seconds: 10.0
+      execution_seconds: 3600.0 # 授权执行的最长存活时间，仍受身份有效期限制
+      target_batch_size: 100 # 任务扇出每批目标上限
+    data_permission: # 启用前提供业务规则和 Tenant 准入；未声明模型明确拒绝
+      enabled: false
+      snapshot_seconds: 60.0 # 同一授权执行固定快照，过期拒绝而不中途刷新
+      provider_timeout_seconds: 10.0
+      in_clause_chunk_size: 500
+      cache_enabled: false # 可选跨执行缓存，复用 Cache 的回源与失效机制
+      cache_client: default
+      cache_ttl_seconds: 60
+      rule_version: "1" # 业务规则解释变化时推进，权限数据变化推进 authorization_revision
     security: # 本站可信身份；业务通过 TokenProvider/PermissionProvider 接入
       enabled: false # 关闭不会把已声明受保护的路由变为公开
       application_id: dushan-ai-native # 令牌与权限缓存的应用隔离标识

@@ -70,6 +70,47 @@ class RedisLeaseLock:
         """锁在 Redis 中的物理键。"""
         return self._key
 
+    @property
+    def owner_token(self) -> str:
+        """本次租约身份，供受控执行请求认领使用；不得输出到日志。"""
+        return self._owner_token
+
+    @property
+    def release_required(self) -> bool:
+        """取得过租约且尚未 CAS 释放，不等同于远端租约仍有效。"""
+        return self._acquired
+
+    @property
+    def is_valid(self) -> bool:
+        return (
+            self._acquired
+            and self._lease_deadline is not None
+            and asyncio.get_running_loop().time() < self._lease_deadline
+        )
+
+    async def renew(self) -> bool:
+        """只续当前 owner，使用发起时刻估算期限；已过期的本地租约不能复活。"""
+        if not self.is_valid:
+            return False
+        started = asyncio.get_running_loop().time()
+        try:
+            async with asyncio.timeout(self._command_timeout_seconds):
+                result = await self._client.eval(
+                    "if redis.call('GET',KEYS[1]) == ARGV[1] then return redis.call('PEXPIRE',KEYS[1],ARGV[2]) else return 0 end",
+                    1,
+                    self._key,
+                    self._owner_token,
+                    self._lease_milliseconds,
+                )
+        except (RedisError, TimeoutError) as error:
+            self._lease_deadline = None
+            raise CacheLockException(msg="Redis 续租失败", cause=error) from error
+        if result != 1:
+            self._lease_deadline = None
+            return False
+        self._lease_deadline = started + self._lease_seconds
+        return self.is_valid
+
     async def acquire(self) -> bool:
         """在等待上界内用 SET NX PX 获取租约，超时返回 False 而不是抛错。"""
         if self._acquire_started:

@@ -1,6 +1,11 @@
+import hashlib
+
+from framework.starter_cache.enums.cache_namespace import CacheNamespace
 from framework.starter_cache.exception.cache_config_exception import CacheConfigException
 from framework.starter_cache.exception.cache_error_codes import CacheErrorCodes
 from framework.starter_cache.model.cache_key import CacheKey
+from framework.starter_cache.spi.tenant_context_provider import TenantContextProvider
+from framework.starter_di.context.get_bean import get_bean
 
 
 class CacheKeyResolver:
@@ -17,16 +22,21 @@ class CacheKeyResolver:
     @classmethod
     def build_full_key(cls, cache_key: CacheKey, identifier: str) -> str:
         """构造一个确定标识的物理键。"""
-        return f"{cache_key.key}:{cls._require_identifier(identifier)}"
+        return f"{cls.build_prefix(cache_key)}:{cls._require_identifier(identifier)}"
 
-    @staticmethod
-    def build_prefix_pattern(cache_key: CacheKey) -> str:
+    @classmethod
+    def build_prefix_pattern(cls, cache_key: CacheKey) -> str:
         """构造该前缀下全部键的 SCAN 匹配模式。"""
-        return f"{cache_key.key}:*"
+        return f"{cls.build_prefix(cache_key)}:*"
 
     @staticmethod
     def build_prefix(cache_key: CacheKey) -> str:
         """返回不含分隔符的物理前缀，供 generation 栅栏键派生使用。"""
+        if cache_key.namespace is CacheNamespace.TENANT:
+            tenant_id = get_bean(TenantContextProvider).get_required_tenant_id()
+            segment = hashlib.sha256(tenant_id.encode("utf-8")).hexdigest()
+            # 普通 CacheKey 不能以 '_' 开头，全局前缀失效不会覆盖租户命名空间。
+            return f"__tenant__:t{segment}:{cache_key.key}"
         return cache_key.key
 
     @classmethod

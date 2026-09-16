@@ -3,6 +3,7 @@ from typing import Annotated
 from pydantic import ConfigDict, Field, StringConstraints
 
 from framework.common.schemas.base_bo import BaseBO
+from framework.starter_cache.enums.cache_namespace import CacheNamespace
 
 # 键前缀只允许小写字母、数字、下划线，冒号用于分段；物理键为 "<key>:<identifier>"。
 type CacheKeyName = Annotated[
@@ -30,5 +31,6 @@ class CacheKey(BaseBO):
     key: CacheKeyName
     remark: CacheKeyText
     client_name: CacheClientName
+    namespace: CacheNamespace = CacheNamespace.GLOBAL
     default_ttl_seconds: int | None = Field(default=None, strict=True, gt=0)
     colocation_group: CacheKeyText | None = None

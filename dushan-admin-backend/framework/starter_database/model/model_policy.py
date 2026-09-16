@@ -3,7 +3,7 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 
 from sqlalchemy import Delete, Insert, Update, event, false
-from sqlalchemy.orm import with_loader_criteria
+from sqlalchemy.orm import LoaderCriteriaOption, with_loader_criteria
 from sqlalchemy.sql import visitors
 from sqlalchemy.sql.elements import BindParameter
 
@@ -21,6 +21,7 @@ class ModelPolicy:
     def __init__(self, settings: DatabaseSettings, context: DatabaseContext) -> None:
         self.settings, self.context = settings, context
         self.account_provider = None
+        self.session_policies = []
         self.ids = (
             SnowflakeUtils(settings.snowflake_machine_id)
             if settings.enabled and settings.id_strategy == "snowflake"
@@ -28,6 +29,9 @@ class ModelPolicy:
         )
 
     def bind(self, session) -> None:
+        session.access_policies = tuple(self.session_policies)
+        for policy in session.access_policies:
+            policy.bind(session)
         event.listen(session, "before_flush", self.before_flush)
         event.listen(session, "after_flush", self.after_flush)
         event.listen(session, "do_orm_execute", self.before_execute, retval=True)
@@ -36,6 +40,18 @@ class ModelPolicy:
         return (
             self.context.current() if asyncio.current_task() is session.owner else session.execution
         )
+
+    def prepare_statement(self, statement, session):
+        """先确定 Database 自身的写入边界，再由上层 Session 策略验证目标集合。"""
+        execution = self.execution(session)
+        if (
+            self.settings.soft_delete_enabled
+            and not (execution is not None and execution.include_deleted)
+            and isinstance(statement, (Update, Delete))
+            and "deleted" in statement.table.c
+        ):
+            return statement.where(statement.table.c.deleted == false())
+        return statement
 
     def audit_values(self, session, *, inserting=False):
         execution = self.execution(session)
@@ -100,6 +116,8 @@ class ModelPolicy:
             supplied = {getattr(key, "key", key): value for key, value in raw.items()}
 
             def resolve(element):
+                if isinstance(element, LoaderCriteriaOption):
+                    return element
                 if isinstance(element, BindParameter):
                     if element.key in supplied:
                         return BindParameter(element.key, supplied[element.key], type_=element.type)
@@ -230,8 +248,6 @@ class ModelPolicy:
                         BaseDO, lambda model: model.deleted == false(), include_aliases=True
                     )
                 )
-            elif isinstance(statement, (Update, Delete)) and "deleted" in statement.table.c:
-                state.statement = statement.where(statement.table.c.deleted == false())
         if isinstance(statement, Update) and "update_time" in statement.table.c:
             supplied = {getattr(key, "key", key) for key in (statement._values or {})}
             supplied.update(state.parameters or {})

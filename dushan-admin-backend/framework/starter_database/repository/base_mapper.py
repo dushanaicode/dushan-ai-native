@@ -146,7 +146,7 @@ class BaseMapper(Generic[T]):
         table = self.model.__table__
         conflicts, updates = tuple(conflict_columns), tuple(update_columns)
         allowed = set(inspect(self.model).column_attrs.keys())
-        if set(values) - allowed or set(values) & (IMMUTABLE_FIELDS - {"id"}):
+        if set(values) - allowed or set(values) & (IMMUTABLE_FIELDS - {"id", "tenant_id"}):
             raise ValueError("upsert 包含未知字段或系统维护字段")
         if (
             not conflicts

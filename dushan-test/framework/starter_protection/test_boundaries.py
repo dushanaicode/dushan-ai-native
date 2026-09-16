@@ -113,7 +113,10 @@ async def test_business_ignoring_cancellation_outlives_lease_and_loses_owner(ser
 
 
 async def test_named_cache_client_routes_all_three_states(services, subject):
-    service = await services(client_name="second")
+    service = await services(
+        client_name="second",
+        cache_overrides={"clients": [{"name": "default", "db": 0}, {"name": "second", "db": 1}]},
+    )
     await service.rate_limiter.acquire("named", subject)
     lease = await service.locks.acquire("named", subject)
     await service.idempotency.acquire("named", subject, 1)

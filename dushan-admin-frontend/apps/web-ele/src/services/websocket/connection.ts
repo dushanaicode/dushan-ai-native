@@ -12,6 +12,28 @@ export interface SocketTicket {
   ticket: string;
   expiresAtMs: number;
 }
+
+export function buildSocketUrl(
+  base: URL,
+  ticket: SocketTicket,
+  audience: string,
+) {
+  if (!/^[a-z][a-z0-9-]{0,63}$/.test(audience))
+    throw new TypeError('WebSocket audience 无效');
+  const url = new URL(base);
+  url.searchParams.set('ticket', ticket.ticket);
+  url.searchParams.set('audience', audience);
+  return url;
+}
+
+export function classifySocketClose(
+  code: number,
+): 'auth' | 'limited' | 'retry' | 'stop' {
+  if (code === 4001) return 'auth';
+  if (code === 4003 || code === 1013) return 'limited';
+  if ([1000, 1003, 1008, 1009, 4002].includes(code)) return 'stop';
+  return 'retry';
+}
 export interface SocketPolicy {
   heartbeatIntervalMs: number;
   heartbeatTimeoutMs: number;
@@ -355,6 +377,16 @@ export class SocketConnection {
           url.hash
         )
           throw new TypeError('WebSocket 地址必须位于同源 /api 下');
+        const parameters = [...url.searchParams.keys()];
+        if (
+          parameters.length !== 2 ||
+          parameters.some((key) => !['audience', 'ticket'].includes(key)) ||
+          url.searchParams.getAll('ticket').length !== 1 ||
+          url.searchParams.get('ticket') !== ticket.ticket ||
+          url.searchParams.getAll('audience').length !== 1 ||
+          !/^[a-z][a-z0-9-]{0,63}$/.test(url.searchParams.get('audience') ?? '')
+        )
+          throw new TypeError('WebSocket 握手只接受一次性 ticket 和 audience');
         const socket = (
           this.options.createSocket ?? ((address) => new WebSocket(address))
         )(url.href);

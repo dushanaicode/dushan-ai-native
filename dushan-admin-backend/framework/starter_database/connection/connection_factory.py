@@ -35,8 +35,23 @@ class ConnectionFactory:
         engine = create_async_engine(url, **options)
         DatabaseErrorTranslator.install(engine.sync_engine)
         if dialect.driver == "aiosqlite":
+            event.listen(
+                engine.sync_engine, "connect", ConnectionFactory._enable_sqlite_constraints
+            )
             event.listen(engine.sync_engine, "handle_error", ConnectionFactory._cancel_sqlite_query)
         return engine
+
+    @staticmethod
+    def _enable_sqlite_constraints(connection, record) -> None:
+        """SQLite 每条连接显式启用外键，否则声明的租户复合关联不会执行。"""
+        cursor = connection.cursor()
+        try:
+            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.execute("PRAGMA foreign_keys")
+            if cursor.fetchone()[0] != 1:
+                raise ValueError("SQLite 外键约束未启用")
+        finally:
+            cursor.close()
 
     @staticmethod
     def _cancel_sqlite_query(context) -> None:

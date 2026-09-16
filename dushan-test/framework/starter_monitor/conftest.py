@@ -52,7 +52,10 @@ async def monitor_app(config_dir):
                 },
             }
             ConfigFactory.merge(values, app_overrides or {})
+            from fixtures.starter_steps import StarterSteps
+
             app = create_public_app(
+                steps=StarterSteps.without_tenant(),
                 base_dir=config_dir(values),
                 environ={},
                 routers=[RouterRegistration(router) for router in routers],

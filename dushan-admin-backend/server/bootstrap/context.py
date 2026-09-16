@@ -1,4 +1,4 @@
-from collections.abc import Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -54,6 +54,7 @@ class AppBootstrapContext:
     logging_owner: str = field(default_factory=lambda: uuid4().hex)
     logger: "Logger" = field(init=False)
     logging_starter: LoggingStarter | None = None
+    before_drain: list[Callable[[], Awaitable[None]]] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         """给当前应用绑定日志归属，受管 sink 据此隔离输出。"""

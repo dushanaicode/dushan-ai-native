@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 
 from framework.common.security.request_identity import RequestIdentity
 from framework.starter_web.context.request_context import RequestContext
+from framework.starter_web.routing.authenticated_websocket_route import AuthenticatedWebSocketRoute
 from framework.starter_web.routing.decorators import controller, route
 from framework.starter_web.routing.route_policy import RoutePolicy
 from framework.starter_web.routing.router_registration import RouterRegistration
@@ -381,3 +382,72 @@ def test_ambiguous_native_operation_id_is_rejected(config_dir):
     router.add_api_route("/ambiguous", lambda: {}, methods=["GET", "POST"])
     with pytest.raises(ValueError, match="唯一标识"):
         create_app(base_dir=config_dir(), environ={}, routers=[RouterRegistration(router)])
+
+
+async def _socket_endpoint(websocket):
+    await websocket.accept()
+    await websocket.close()
+
+
+async def _socket_authorizer(websocket, endpoint):
+    await endpoint(websocket)
+
+
+def test_register_websocket_before_seal_reject_duplicates_and_after_seal(config_dir):
+    app = create_app(base_dir=config_dir(), environ={})
+    registrar = app.state.web_routes
+    route = registrar.register_websocket(
+        "/socket", _socket_endpoint, authorizer=_socket_authorizer, policy=RoutePolicy(), name="s1"
+    )
+    assert isinstance(route, AuthenticatedWebSocketRoute)
+    assert route in app.routes
+    with pytest.raises(ValueError, match="重复路由"):
+        registrar.register_websocket(
+            "/socket",
+            _socket_endpoint,
+            authorizer=_socket_authorizer,
+            policy=RoutePolicy(),
+            name="s2",
+        )
+    assert route in app.routes and app.routes.count(route) == 1
+    registrar.unregister_websocket(route)
+    assert route not in app.routes
+    with TestClient(app):
+        with pytest.raises(RuntimeError, match="已经发布"):
+            registrar.register_websocket(
+                "/socket2",
+                _socket_endpoint,
+                authorizer=_socket_authorizer,
+                policy=RoutePolicy(),
+                name="s3",
+            )
+
+
+def test_unregister_websocket_requires_ownership_and_rejects_after_seal(config_dir):
+    app = create_app(base_dir=config_dir(), environ={})
+    registrar = app.state.web_routes
+    foreign = AuthenticatedWebSocketRoute(
+        "/foreign", _socket_endpoint, authorizer=_socket_authorizer, policy=RoutePolicy()
+    )
+    with pytest.raises(RuntimeError, match="不属于当前未发布注册器"):
+        registrar.unregister_websocket(foreign)
+    route = registrar.register_websocket(
+        "/owned", _socket_endpoint, authorizer=_socket_authorizer, policy=RoutePolicy()
+    )
+    with TestClient(app):
+        with pytest.raises(RuntimeError, match="不属于当前未发布注册器"):
+            registrar.unregister_websocket(route)
+
+
+@pytest.mark.parametrize(
+    "policy,authorizer",
+    [
+        (RoutePolicy.public(), _socket_authorizer),
+        (RoutePolicy(), None),
+    ],
+)
+def test_authenticated_websocket_route_requires_identity_and_authorizer(policy, authorizer):
+    with pytest.raises(ValueError, match="必须声明独立认证适配器和受保护策略"):
+        AuthenticatedWebSocketRoute(
+            "/socket", _socket_endpoint, authorizer=authorizer, policy=policy
+        )

@@ -77,10 +77,14 @@ async def test_web_validation_repeat_and_trusted_subject(protection_app):
         first = await client.post(
             "/submit/7", json={"quantity": 2, "password": "body-secret"}, headers=auth
         )
+        # x-tenant-id 不在这里用于伪造：starter_tenant 的 TenantSelectorMiddleware 会对
+        # 任何携带该请求头的请求无条件返回 403（早于路由分发），伪造租户头的场景应由
+        # starter_tenant/starter_web 侧的测试验证；这里只验证服务端可信身份解析不受
+        # x-user-id 这类伪造头影响。
         duplicate = await client.post(
             "/submit/7",
             json={"password": "body-secret", "quantity": "2"},
-            headers={**auth, "x-user-id": "forged-user", "x-tenant-id": "forged-tenant"},
+            headers={**auth, "x-user-id": "forged-user"},
         )
         assert first.json() == {"code": 0, "data": {"id": 7, "quantity": 2}}
         assert duplicate.status_code == 200 and duplicate.json()["code"] == Codes.DUPLICATE.code
