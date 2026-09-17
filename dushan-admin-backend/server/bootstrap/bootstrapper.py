@@ -31,13 +31,22 @@ async def bootstrap_app(
                     raise BootstrapError(f"启动步骤「{step.name}」失败") from error
             if ctx.definitions is not None and ctx.definitions.application_context is not None:
                 ctx.definitions.application_context.mark_ready()
-            ctx.ready = True
-            ctx.logger.info("服务已就绪")
+            primary = None
             try:
+                for name, activate in ctx.before_ready:
+                    try:
+                        await activate()
+                    except Exception as error:
+                        raise BootstrapError(f"启动激活「{name}」失败") from error
+                ctx.ready = True
+                ctx.logger.info("服务已就绪")
                 yield
+            except BaseException as error:
+                primary = error
+                raise
             finally:
                 ctx.ready = False
-                ctx.logger.info("服务正在关闭")
+                ctx.logger.info("【Bootstrapper 】服务正在关闭")
                 errors = []
                 caller_cancellation = None
                 # 长连接/消息入口先停止接收并排空；此时 DI 和发布连接仍可完成必要收尾。
@@ -59,7 +68,10 @@ async def bootstrap_app(
                     if caller_cancellation is None:
                         caller_cancellation = cancellation
                 CleanupUtils.raise_collected_cleanup_errors(
-                    "应用业务排空失败", errors, caller_cancellation=caller_cancellation
+                    "应用业务排空失败",
+                    errors,
+                    caller_cancellation=caller_cancellation,
+                    primary_error=primary,
                 )
     finally:
         ctx.ready = False

@@ -1,0 +1,26 @@
+[project]
+name = "module-system"
+version = "0.0.0"
+description = "dushan-ai-native 系统管理模块：身份、组织、权限与对外通道"
+requires-python = ">=3.12,<3.13"
+license = "MIT"
+# 邮件、腾讯短信和地址校验为实际业务依赖；其余版本与 framework 一致。
+dependencies = [
+    "fastapi==0.137.1",
+    "pydantic==2.13.4",
+    "SQLAlchemy==2.0.52",
+    "loguru==0.7.3",
+    "httpx==0.28.1",
+    "joserfc==1.7.5",
+    "aiosmtplib==4.0.0",
+    "tencentcloud-sdk-python==3.1.44",
+    "email-validator==2.3.0",
+]
+
+[tool.poetry]
+packages = [{ include = "module_system", from = ".." }]
+exclude = ["**/Temp/**", "**/.docs/**", "**/.venv/**", "pyproject.toml"]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

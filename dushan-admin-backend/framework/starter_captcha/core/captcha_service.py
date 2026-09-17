@@ -10,7 +10,6 @@ from loguru import logger
 from pydantic import ValidationError
 
 from framework.starter_cache.core.cache_handler import CacheHandler
-from framework.starter_cache.exception.cache_exception import CacheException
 from framework.starter_captcha.config.captcha_settings import CaptchaSettings
 from framework.starter_captcha.core.captcha_provider import CaptchaProvider
 from framework.starter_captcha.core.captcha_store import CaptchaStore
@@ -60,23 +59,14 @@ class CaptchaService:
             "purposes": self.settings.purposes,
         }
 
-    def open(self, provider: CaptchaProvider | None = None) -> None:
-        """应用资源步骤显式调用；可传入实现同一契约的 Provider 扩展。"""
+    @contextmanager
+    def startup(self, provider: CaptchaProvider | None = None):
+        """先由 Starter 完成缓存装配，再创建本服务持有的提供器及生成资源。"""
         if self._closed or self._provider is not None:
             raise CaptchaException(Codes.UNAVAILABLE)
         if not self.settings.enabled:
             raise CaptchaException(Codes.DISABLED)
-        # Cache 管理连接池，验证码只能复用已就绪的客户端。
-        try:
-            for ttl in (
-                self.settings.challenge_ttl_seconds,
-                self.settings.verification_ttl_seconds,
-                self.settings.generation_window_seconds,
-            ):
-                self.store.cache.resolve_ttl_seconds(self.store.key, ttl)
-            self.store.cache.get_client(self.store.key)
-        except CacheException as error:
-            raise CaptchaException(Codes.CACHE_UNAVAILABLE, cause=error) from error
+        yield
         if provider is not None:
             self._provider = provider
         elif self.settings.provider in ("block_puzzle", "click_word"):

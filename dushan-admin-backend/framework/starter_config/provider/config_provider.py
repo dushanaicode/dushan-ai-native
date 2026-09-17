@@ -7,6 +7,7 @@ from threading import RLock
 from types import UnionType
 from typing import TypeVar, Union, get_args, get_origin
 
+from loguru import logger
 from pydantic import BaseModel, ValidationError
 
 from framework.common.security.sanitizer import Sanitizer
@@ -42,6 +43,7 @@ class ConfigProvider:
         *,
         external_values: Mapping[str, object] | None = None,
     ) -> None:
+        logger.info("【ConfigStarter 】开始注册并绑定应用配置模型")
         self._bootstrap = bootstrap
         self._options = bootstrap.get_config(ConfigSettings, prefix="CONFIG_")
         self._lock = RLock()
@@ -78,6 +80,9 @@ class ConfigProvider:
             names.add(metadata.name)
             prefixes[metadata.env_prefix] = metadata.name
             self._metadata[model] = metadata
+        logger.info(
+            "【ConfigStarter 】模型声明校验完成：{} 个，开始合并配置源", len(self._metadata)
+        )
         yaml_values, yaml_sources = bootstrap.get_yaml_snapshot()
         self._layers = {source: ({}, {}) for source in ConfigSourceEnum}
         self._layers[ConfigSourceEnum.YAML] = (self._flatten(yaml_values), yaml_sources)
@@ -93,6 +98,9 @@ class ConfigProvider:
             model: ConfigValues.tree(layer[0]) for model, layer in self._environment_layers.items()
         }
         self._configs, self._origins = self._build(self._layers)
+        logger.info(
+            "【ConfigStarter 】配置绑定完成：{} 个模型，版本 {}", len(self._configs), self._revision
+        )
 
     @property
     def model_classes(self) -> tuple[type[BaseModel], ...]:

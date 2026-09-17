@@ -3,6 +3,7 @@ import io
 from dataclasses import dataclass
 from typing import Literal
 
+from framework.common.contracts.snowflake_id import SnowflakeId
 from framework.starter_excel.model.conversion_context import ConversionContext
 from framework.starter_excel.spi.name_provider import NameProvider
 
@@ -20,9 +21,8 @@ class IdsConverter:
         return provider
 
     async def to_excel(self, value: list[int] | set[int], context: ConversionContext) -> str:
-        ids = sorted(value) if isinstance(value, set) else list(dict.fromkeys(value))
-        if any(type(value) is not int for value in ids):
-            raise ValueError("部门或岗位 ID 必须是整数")
+        normalized = [int(SnowflakeId.format(item)) for item in value]
+        ids = sorted(set(normalized)) if isinstance(value, set) else list(dict.fromkeys(normalized))
         names = context.lookups.setdefault((self.kind, "names"), {})
         missing = [value for value in ids if value not in names]
         if missing:

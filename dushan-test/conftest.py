@@ -1,10 +1,18 @@
+import os
 from pathlib import Path
 
 import pytest
 import yaml
 
 from fixtures.config_factory import ConfigFactory
+from fixtures.http_route_coverage import HttpRouteCoverage
 from fixtures.scanner_fixtures import module_package as module_package
+
+
+def pytest_sessionfinish(session, exitstatus):
+    path = os.environ.get("DUSHAN_HTTP_REPORT")
+    if path:
+        HttpRouteCoverage.save(path)
 
 
 @pytest.fixture

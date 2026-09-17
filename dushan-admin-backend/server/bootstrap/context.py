@@ -54,6 +54,7 @@ class AppBootstrapContext:
     logging_owner: str = field(default_factory=lambda: uuid4().hex)
     logger: "Logger" = field(init=False)
     logging_starter: LoggingStarter | None = None
+    before_ready: list[tuple[str, Callable[[], Awaitable[None]]]] = field(default_factory=list)
     before_drain: list[Callable[[], Awaitable[None]]] = field(default_factory=list)
 
     def __post_init__(self) -> None:

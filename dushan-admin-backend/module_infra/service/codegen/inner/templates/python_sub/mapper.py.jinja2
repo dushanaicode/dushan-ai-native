@@ -1,0 +1,30 @@
+from __future__ import annotations
+from sqlalchemy import select, delete as sa_delete
+
+from framework.starter_database.repository.base_mapper import BaseMapper
+from framework.starter_di.decorators.components import mapper
+from {{ package_name }}.dal.dataobject.{{ business_name }}.{{ business_name }}_do import {{ class_name }}DO
+
+
+@mapper
+class {{ class_name }}Mapper(BaseMapper[{{ class_name }}DO]):
+
+    def __init__(self):
+        super().__init__({{ class_name }}DO)
+
+    {% if sub_join_field_name %}
+    async def select_list_by_{{ sub_join_field_name }}(self, {{ sub_join_field_name }}: int) -> list[{{ class_name }}DO]:
+        {{ ('根据' + sub_join_column.column_comment if sub_join_column else '关联字段' + '查询列表') | pyrepr }}
+        stmt = select({{ class_name }}DO).where(
+            {{ class_name }}DO.{{ sub_join_field_name }} == {{ sub_join_field_name }},
+            {{ class_name }}DO.deleted.is_(False)
+        )
+        return list((await self.read(stmt)).scalars().all())
+
+    async def delete_by_{{ sub_join_field_name }}(self, {{ sub_join_field_name }}: int) -> None:
+        {{ ('根据' + sub_join_column.column_comment if sub_join_column else '关联字段' + '删除') | pyrepr }}
+        stmt = sa_delete({{ class_name }}DO).where(
+            {{ class_name }}DO.{{ sub_join_field_name }} == {{ sub_join_field_name }}
+        )
+        await self.soft_delete_by_condition({{ class_name }}DO.{{ sub_join_field_name }} == {{ sub_join_field_name }})
+    {% endif %}

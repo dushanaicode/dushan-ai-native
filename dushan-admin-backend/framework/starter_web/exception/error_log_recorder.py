@@ -29,7 +29,7 @@ class ErrorLogRecorder:
         try:
             await self._writer(request, SafeExceptionDiagnostics.snapshot(exc), error_code, msg)
         except Exception as e:
-            logger.debug(
+            logger.warning(
                 "记录错误日志失败（不影响响应）\n{}",
                 "".join(ExceptionTraceFormatter.format(e)),
             )

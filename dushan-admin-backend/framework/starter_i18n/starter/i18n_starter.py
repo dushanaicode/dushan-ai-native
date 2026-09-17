@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from loguru import logger
+
 from framework.starter_i18n.core.i18n_locale_root import I18nLocaleRoot
 from framework.starter_i18n.core.i18n_options import I18nOptions
 from framework.starter_i18n.core.loader import I18nLoader
@@ -25,6 +27,7 @@ class I18nStarter:
         message_keys: tuple[str, ...] = (),
     ) -> I18nTranslator:
         """解析资源路径并完成首次加载，按配置选择是否启用热更新。"""
+        logger.info("【I18nStarter 】开始装配国际化资源")
         message_keys = tuple(dict.fromkeys((*message_keys, *options.required_message_keys)))
         roots: list[I18nLocaleRoot] = []
         if options.include_builtin:
@@ -43,10 +46,16 @@ class I18nStarter:
             )
         loader = I18nLoader(options=options, locale_roots=tuple(roots))
         parser = AcceptLanguageParser(options)
+        if options.enabled:
+            logger.info("【I18nStarter 】资源范围已登记：{} 个，开始加载语言目录", len(roots))
         if options.enabled and options.hot_reload:
             reloader = I18nReloader(loader, message_keys=message_keys)
+            logger.info("【I18nStarter 】初始化完成，资源热更新已启用")
             return I18nTranslator(reloader.catalog, parser, reloader=reloader)
         catalog = loader.load()
         if options.enabled:
             I18nValidator.validate(catalog, message_keys)
+            logger.info("【I18nStarter 】初始化完成，资源热更新未启用")
+        else:
+            logger.info("【I18nStarter 】国际化未启用，使用原始消息键")
         return I18nTranslator(catalog, parser)

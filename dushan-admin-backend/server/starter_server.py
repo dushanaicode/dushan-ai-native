@@ -87,7 +87,7 @@ def create_app(
                 if not application.state.web_routes.published:
                     application.state.web_routes.seal()
                 await application.state.bootstrap.logger.complete()
-                BannerStep.show_startup_info(application.state.bootstrap)
+                await BannerStep.show_startup_info(application.state.bootstrap)
                 yield
         finally:
             application.state.web_routes.unseal()
@@ -107,6 +107,7 @@ def create_app(
     )
     exception_handler = GlobalExceptionHandler(debug=settings.debug)
     application.state.application_context = None
+    application.state.cache = None
     application.state.database = None
     application.state.monitor = None
     application.state.auth = None
@@ -125,6 +126,12 @@ def create_app(
     web = configuration.web
     # add_middleware 逆序包裹：协议 → CORS → 请求 → 准入 → DI → Monitor → 异常 → GZip → DB → body。
     application.add_middleware(BodyLimitMiddleware, settings=web)
+    if "infra" in configuration.modules.enabled:
+        from module_infra.framework.logger.infra_access_log_middleware import (
+            InfraAccessLogMiddleware,
+        )
+
+        application.add_middleware(InfraAccessLogMiddleware)
     application.add_middleware(DatabaseMiddleware)
     application.add_middleware(TenantSelectorMiddleware)
     if web.gzip_enabled:
@@ -177,6 +184,22 @@ def create_app(
     )
     application.include_router(health_router)
     application.state.web_logging_owner = application.state.bootstrap.logging_owner
+    if (
+        "module_system" in configuration.modules.packages
+        and "system" in configuration.modules.enabled
+    ):
+        from module_system.router import routers as system_routers
+
+        for router in system_routers:
+            application.state.web_routes.include(RouterRegistration(router))
+    if (
+        "module_infra" in configuration.modules.packages
+        and "infra" in configuration.modules.enabled
+    ):
+        from module_infra.router import routers as infra_routers
+
+        for router in infra_routers:
+            application.state.web_routes.include(RouterRegistration(router))
     for registration in routers:
         application.state.web_routes.include(registration)
     return application

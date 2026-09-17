@@ -16,6 +16,13 @@ class ConditionBuilder(RowStatementFilter):
     def condition(self, config, operation, *, orm=False, entity=None):
         if config.public and config.tenant_column is None:
             return true()
+        if config.public:
+            identity = self.service.security.current() or self.service.security.current_workload()
+            if identity is None or identity.tenant_id is None:
+                raise DataPermissionException("missing")
+            return self._column(config, config.tenant_column, orm, entity) == bindparam(
+                "_dushan_dp_tenant", identity.tenant_id, unique=True
+            )
         frame = self.service.current()
         if frame.identity.tenant_id is None:
             return false()
@@ -34,7 +41,7 @@ class ConditionBuilder(RowStatementFilter):
         ):
             if name is not None and values:
                 size = self.service.settings.in_clause_chunk_size
-                ordered = sorted(values)
+                ordered = sorted(config.scope_values(name, values))
                 conditions.extend(
                     self._column(config, name, orm, entity).in_(
                         bindparam(

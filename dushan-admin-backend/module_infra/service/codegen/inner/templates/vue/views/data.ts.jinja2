@@ -1,0 +1,229 @@
+import type { VbenFormSchema } from '#/adapter/form';
+import type { VxeTableGridOptions } from '#/adapter/vxe-table';
+
+{% if not is_tree %}
+import { type OnActionClickFn } from '#/adapter/vxe-table';
+import { hasAccessByCodes } from '@vben/access';
+{% endif %}
+{% set has_dict = [] %}
+{% for column in columns %}{% if column.dict_type %}{% if has_dict.append(1) %}{% endif %}{% endif %}{% endfor %}
+{% if has_dict %}
+import { DICT_TYPE, getDictOptions } from '#/utils';
+{% endif %}
+
+/** 新增/修改的表单 schema */
+export function useFormSchema(): VbenFormSchema[] {
+  return [
+    {
+      component: 'Input',
+      fieldName: 'id',
+      dependencies: {
+        triggerFields: [''],
+        show: () => false,
+      },
+    },
+    {% for column in create_columns %}
+    {% if column.field_name not in ['creator', 'create_time', 'updater', 'update_time', 'deleted'] %}
+    {
+      fieldName: '{{ column.field_name | camel_case }}',
+      label: '{{ column.column_comment }}',
+      {% if column.dict_type %}
+      {# 有字典类型，强制用 Select #}
+      component: 'Select',
+      componentProps: {
+        placeholder: '请选择{{ column.column_comment }}',
+        allowClear: true,
+        options: getDictOptions(DICT_TYPE.{{ column.dict_type | upper }}{% if column.field_type == 'int' %}, 'number'{% endif %}),
+      },
+      {% elif column.field_name.endswith('_id') and column.field_type == 'int' %}
+      component: 'Input',
+      {% elif column.html_type == 'select' %}
+      component: 'Select',
+      componentProps: {
+        placeholder: '请选择{{ column.column_comment }}',
+        allowClear: true,
+      },
+      {% elif column.html_type == 'radio' %}
+      component: 'RadioGroup',
+      componentProps: {
+        options: getDictOptions(DICT_TYPE.{{ column.dict_type | upper }}, 'number'),
+        buttonStyle: 'solid',
+        optionType: 'button',
+      },
+      {% elif column.html_type == 'datetime' %}
+      component: 'DatePicker',
+      componentProps: {
+        placeholder: '请选择{{ column.column_comment }}',
+      },
+      {% elif column.html_type == 'textarea' %}
+      component: 'Textarea',
+      componentProps: {
+        placeholder: '请输入{{ column.column_comment }}',
+      },
+      {% elif column.field_type == 'int' and 'sort' in column.field_name %}
+      {#  int 类型 + 字段名包含 sort，用 InputNumber #}
+      component: 'InputNumber',
+      componentProps: {
+        placeholder: '请输入{{ column.column_comment }}',
+      },
+      {% else %}
+      component: 'Input',
+      componentProps: {
+        placeholder: '请输入{{ column.column_comment }}',
+      },
+      {% endif %}
+      {% if not column.nullable %}
+      rules: 'required',
+      {% endif %}
+    },
+    {% endif %}
+    {% endfor %}
+  ];
+}
+
+{% if not is_tree %}
+/** 搜索表单 schema */
+export function useGridFormSchema(): VbenFormSchema[] {
+  return [
+    {% for column in list_columns %}
+    {% if column.field_name not in ['id', 'creator', 'create_time', 'updater', 'update_time', 'deleted'] %}
+    {
+      fieldName: '{{ column.field_name | camel_case }}',
+      label: '{{ column.column_comment }}',
+      {% if column.dict_type %}
+      {# 有字典类型，优先用 Select #}
+      component: 'Select',
+      componentProps: {
+        placeholder: '请选择{{ column.column_comment }}',
+        clearable: true,
+        options: getDictOptions(DICT_TYPE.{{ column.dict_type | upper }}{% if column.field_type == 'int' %}, 'number'{% endif %}),
+      },
+      {% elif column.field_name.endswith('_id') and column.field_type == 'int' %}
+      component: 'Input',
+      {% elif column.html_type == 'select' %}
+      component: 'Select',
+      componentProps: {
+        placeholder: '请选择{{ column.column_comment }}',
+        clearable: true,
+      },
+      {% elif column.html_type == 'datetime' %}
+      component: 'RangePicker',
+      {% else %}
+      component: 'Input',
+      componentProps: {
+        placeholder: '请输入{{ column.column_comment }}',
+        clearable: true,
+      },
+      {% endif %}
+    },
+    {% endif %}
+    {% endfor %}
+  ];
+}
+{% endif %}
+
+/** 表格列 */
+{% if is_tree %}
+export function useGridColumns(): VxeTableGridOptions['columns'] {
+{% else %}
+export function useGridColumns<T>(
+  onActionClick: OnActionClickFn<T>,
+): VxeTableGridOptions['columns'] {
+{% endif %}
+  return [
+    { type: 'checkbox', width: 40 },
+    {% for column in list_result_columns %}
+    {% if column.field_name not in ['id', 'creator', 'create_time', 'updater', 'update_time', 'deleted'] %}
+    {
+      field: '{{ column.field_name | camel_case }}',
+      title: '{{ column.column_comment }}',
+      minWidth: 120,
+      {% if is_tree and tree_name_column and column.field_name == tree_name_column.field_name %}
+      treeNode: true,
+      align: 'left',
+      fixed: 'left',
+      {% endif %}
+      {% if column.dict_type %}
+      cellRender: { name: 'CellDict', props: { type: DICT_TYPE.{{ column.dict_type | upper }} } },
+      {% endif %}
+      {% if column.field_type == 'datetime' %}
+      formatter: 'formatDateTime',
+      {% endif %}
+    },
+    {% endif %}
+    {% endfor %}
+    {
+      field: 'createTime',
+      title: '创建时间',
+      minWidth: 180,
+      formatter: 'formatDateTime',
+    },
+    {% if is_tree %}
+    {
+      title: '操作',
+      width: 220,
+      fixed: 'right',
+      slots: { default: 'actions' },
+    },
+    {% else %}
+    {
+      field: 'operation',
+      title: '操作',
+      width: 200,
+      fixed: 'right',
+      align: 'center',
+      cellRender: {
+        attrs: {
+          nameField: 'id',
+          onClick: onActionClick,
+        },
+        name: 'CellOperation',
+        options: [
+          {
+            code: 'edit',
+            show: hasAccessByCodes(['{{ module_name }}:{{ business_name }}:update']),
+          },
+          {
+            code: 'delete',
+            show: hasAccessByCodes(['{{ module_name }}:{{ business_name }}:delete']),
+          },
+        ],
+      },
+    },
+    {% endif %}
+  ];
+}
+
+{% if is_sub %}
+{% for sub in sub_tables %}
+/** {{ sub.table.class_comment or sub.table.table_comment }} 子表列 */
+export function useSub{{ sub.table.class_name }}GridColumns(): VxeTableGridOptions['columns'] {
+  return [
+    {% for column in sub.columns %}
+    {% if column.field_name not in ['id', 'creator', 'create_time', 'updater', 'update_time', 'deleted'] %}
+    {% if sub.sub_join_column and column.field_name == sub.sub_join_column.field_name %}
+    {% else %}
+    {
+      field: '{{ column.field_name | camel_case }}',
+      title: '{{ column.column_comment }}',
+      minWidth: 120,
+      {% if column.dict_type %}
+      cellRender: { name: 'CellDict', props: { type: DICT_TYPE.{{ column.dict_type | upper }} } },
+      {% endif %}
+      {% if column.field_type == 'datetime' %}
+      formatter: 'formatDateTime',
+      {% endif %}
+    },
+    {% endif %}
+    {% endif %}
+    {% endfor %}
+    {
+      field: 'createTime',
+      title: '创建时间',
+      minWidth: 180,
+      formatter: 'formatDateTime',
+    },
+  ];
+}
+{% endfor %}
+{% endif %}

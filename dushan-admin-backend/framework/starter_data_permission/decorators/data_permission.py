@@ -3,15 +3,27 @@ from framework.starter_database.model.model_scanner import ModelScanner
 
 
 def data_permission(
-    *, tenant_column="tenant_id", membership_column=None, department_column=None, resource=None
+    *,
+    permission_type,
+    user_id_column=None,
+    dept_id_column=None,
+    description="",
+    tenant_column="tenant_id",
+    resource=None,
 ):
-    """显式声明受保护模型；列名使用 Table column key，支持 ORM 属性重命名。"""
+    """声明本人、部门或二者的记录范围；归属列支持整数及字符串 ID。"""
+    expected = {"user_scope": (True, False), "dept_scope": (False, True), "both": (True, True)}
+    if permission_type not in expected or expected[permission_type] != (
+        user_id_column is not None,
+        dept_id_column is not None,
+    ):
+        raise ValueError("数据权限类型与用户/部门归属列不一致")
 
     def mark(model):
         if "__data_permission__" in vars(model):
             raise ValueError("模型不能重复声明数据权限")
         model.__data_permission__ = DataPermissionModel(
-            model, False, tenant_column, membership_column, department_column, resource
+            model, False, tenant_column, user_id_column, dept_id_column, resource
         )
         return ModelScanner.mark(model)
 

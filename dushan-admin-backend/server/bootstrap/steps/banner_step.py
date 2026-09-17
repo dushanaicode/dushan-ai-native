@@ -7,7 +7,7 @@ class BannerStep:
     """在应用成功就绪后显示最后一份摘要；字符横幅由启动器提前打印。"""
 
     @staticmethod
-    def show_startup_info(ctx: AppBootstrapContext) -> None:
+    async def show_startup_info(ctx: AppBootstrapContext) -> None:
         """从真实配置和已完成的应用定义快照构造摘要。"""
         settings = ctx.settings
         enabled = (
@@ -31,4 +31,4 @@ class BannerStep:
                 name for name in ctx.module_settings.enabled if name not in enabled
             ),
         )
-        BannerApplicationRunner(ctx.banner_settings).print_startup_complete(info)
+        await BannerApplicationRunner(ctx.banner_settings).print_startup_complete(info)

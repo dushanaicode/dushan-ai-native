@@ -14,6 +14,7 @@ class BannerSettings(BaseModel):
     show_startup_info: bool
     author: str
     documentation_url: str
+    show_mascot: bool = True
 
     @field_validator("documentation_url")
     @classmethod

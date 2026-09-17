@@ -67,7 +67,7 @@ class MQRuntime:
         self.background_error_types = []
         self.completed = self.duplicates = self.rejected = self.observation_failures = 0
         self.peak_inflight = self.cancelling = 0
-        self._start_task = self._close_task = self._quiesce_task = None
+        self._close_task = self._quiesce_task = None
 
     async def call(self, awaitable):
         with self.log_guard.quiet():
@@ -76,31 +76,49 @@ class MQRuntime:
 
     async def open(self):
         self.phase = "starting"
+        logger.info("【MQStarter 】开始初始化消息传输：{}", self.settings.backend.value)
         self.log_guard.open()
         definitions = [handler.__mq_consumer__ for handler in self.registry.active()]
         await self.call(self.backend.open(definitions))
-        self._start_task = asyncio.create_task(self._start(), context=Context(), name="mq-start")
+        logger.info("【MQStarter 】传输资源初始化完成，等待宿主激活消费者")
 
-    async def _start(self):
+    async def activate(self):
+        """等待订阅就绪或接收失败，结果直接返回宿主，不以后台启动掩盖失败。"""
+        if self.phase != "starting" or self.application.state is not ApplicationStateEnum.READY:
+            raise MQException("closed")
+        self._activation_failure = asyncio.get_running_loop().create_future()
+        subscriptions = asyncio.gather(*(event.wait() for event in self.backend.ready.values()))
         try:
-            await self.application.wait_until_ready()
+            logger.info("【MQStarter 】开始激活消费者，等待全部订阅就绪")
             for handler in self.registry.active():
                 key = handler.__mq_consumer__.key
                 self.actors[key] = asyncio.create_task(
                     self._consume(handler), context=Context(), name="mq:" + key
                 )
             await self.call(
-                asyncio.gather(*(event.wait() for event in self.backend.ready.values()))
+                asyncio.wait(
+                    (subscriptions, self._activation_failure), return_when=asyncio.FIRST_COMPLETED
+                )
             )
-            if self.phase == "starting":
-                self.phase = "ready"
-        except asyncio.CancelledError:
-            raise
-        except Exception as error:
+            if self._activation_failure.done():
+                raise self._activation_failure.result()
+            if (
+                self.phase != "starting"
+                or self.paused
+                or any(task.done() for task in self.actors.values())
+            ):
+                raise MQException("closed")
+            self.phase = "ready"
+            logger.info("【MQStarter 】激活完成：{} 个消费者接收循环已就绪", len(self.actors))
+        except BaseException as error:
             self.phase = "failed"
-            self.background_error_types.append(type(error).__name__)
-            logger.error("MQ 消费启动失败 error_type={}", type(error).__name__)
+            if isinstance(error, Exception):
+                self.background_error_types.append(type(error).__name__)
+            raise
         finally:
+            subscriptions.cancel()
+            await asyncio.gather(subscriptions, return_exceptions=True)
+            self._activation_failure.cancel()
             self.ready.set()
 
     async def wait_ready(self):
@@ -138,11 +156,19 @@ class MQRuntime:
         except StopAsyncIteration:
             if self.phase in {"starting", "ready"} and self._quiesce_task is None:
                 self.paused.add(key)
-                logger.error("MQ 接收连接已结束 key={}", key)
+                if self.phase == "starting":
+                    if not self._activation_failure.done():
+                        self._activation_failure.set_result(MQException("closed"))
+                else:
+                    logger.error("MQ 接收连接已结束 key={}", key)
         except Exception as error:
             self.paused.add(key)
-            self.background_error_types.append(type(error).__name__)
-            logger.error("MQ 接收已停止 key={} error_type={}", key, type(error).__name__)
+            if self.phase == "starting":
+                if not self._activation_failure.done():
+                    self._activation_failure.set_result(error)
+            else:
+                self.background_error_types.append(type(error).__name__)
+                logger.error("MQ 接收已停止 key={} error_type={}", key, type(error).__name__)
         finally:
             with self.log_guard.quiet():
                 await stream.aclose()
@@ -213,9 +239,6 @@ class MQRuntime:
 
     async def _quiesce(self):
         errors = []
-        if self._start_task is not None:
-            self._start_task.cancel()
-            await asyncio.gather(self._start_task, return_exceptions=True)
         try:
             await self.call(self.backend.stop_receiving())
         except Exception as error:

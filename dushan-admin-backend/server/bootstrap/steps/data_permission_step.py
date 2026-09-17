@@ -2,34 +2,32 @@ from contextlib import asynccontextmanager
 
 from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
 from framework.starter_data_permission.config.data_permission_settings import DataPermissionSettings
-from framework.starter_data_permission.core.data_permission_policy import DataPermissionPolicy
-from framework.starter_data_permission.core.data_permission_registry import DataPermissionRegistry
-from framework.starter_data_permission.core.data_permission_service import DataPermissionService
-from framework.starter_data_permission.spi.data_exemption_provider import DataExemptionProvider
+from framework.starter_data_permission.starter.data_permission_starter import DataPermissionStarter
 from framework.starter_security.config.security_settings import SecuritySettings
-from server.bootstrap.context import AppBootstrapContext
+from framework.starter_tenant.core.tenant_model_discovery import TenantModelDiscovery
 
 
 class DataPermissionStep:
-    """使用应用定义快照装配；不创建全局 Session 监听或业务权限样例。"""
+    """先检查应用依赖，再交给 Starter 绑定数据访问策略。"""
 
     @staticmethod
     @asynccontextmanager
-    async def run(ctx: AppBootstrapContext):
+    async def run(ctx):
         definitions = ctx.definitions
         configuration = definitions.configuration
         if DataPermissionSettings not in configuration.model_classes:
+            ctx.logger.info("【DataPermissionStarter 】配置模型未装配，跳过启动")
             yield
             return
         settings = configuration.get_config(DataPermissionSettings)
-        models = [
-            component
-            for component in definitions.scan_result.get_components()
-            if "__table__" in vars(component) or "__data_permission__" in vars(component)
-        ]
+        models = TenantModelDiscovery.collect(
+            tuple(module.definition.package for module in definitions.modules),
+            definitions.scan_result.get_components(),
+        )
         if not settings.enabled:
             if any("__data_permission__" in vars(component) for component in models):
                 raise ValueError("声明数据访问策略的模型要求启用 Data Permission")
+            ctx.logger.info("【DataPermissionStarter 】数据权限未启用")
             yield
             return
         application = definitions.application_context
@@ -41,23 +39,20 @@ class DataPermissionStep:
             and ctx.app.state.cache is None
         ):
             raise ValueError("数据权限要求 DI、Database、Security 及已配置的缓存资源就绪")
-        registry = DataPermissionRegistry(models)
-        service = application.container.get(DataPermissionService)
-        service.exemptions = application.container.get_optional(DataExemptionProvider)
-        policy = DataPermissionPolicy(registry, service)
+        starter = application.container.get(DataPermissionStarter)
         primary = None
-        with ctx.app.state.database.use_session_policy(policy):
-            try:
-                yield
-            except BaseException as error:
-                primary = error
-            finally:
-                error, cancellation = await CleanupUtils.run_cancellation_safe_cleanup(
-                    service.close, "数据权限执行排空"
-                )
-                CleanupUtils.raise_collected_cleanup_errors(
-                    "数据权限关闭失败",
-                    [] if error is None else [error],
-                    primary_error=primary,
-                    caller_cancellation=cancellation,
-                )
+        try:
+            starter.open(models, ctx.app.state.database)
+            yield
+        except BaseException as error:
+            primary = error
+        finally:
+            error, cancellation = await CleanupUtils.run_cancellation_safe_cleanup(
+                starter.close, "数据权限执行排空"
+            )
+            CleanupUtils.raise_collected_cleanup_errors(
+                "数据权限关闭失败",
+                [] if error is None else [error],
+                primary_error=primary,
+                caller_cancellation=cancellation,
+            )

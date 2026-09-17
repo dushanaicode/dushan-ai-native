@@ -185,7 +185,7 @@ class GlobalExceptionHandler:
         try:
             self.trace_reporter.on_error(SafeExceptionDiagnostics.snapshot(exc))
         except Exception as e:
-            logger.debug("异常链路追踪记录失败：{}", "".join(ExceptionTraceFormatter.format(e)))
+            logger.warning("异常链路追踪记录失败：{}", "".join(ExceptionTraceFormatter.format(e)))
 
     def _translate_message(
         self,

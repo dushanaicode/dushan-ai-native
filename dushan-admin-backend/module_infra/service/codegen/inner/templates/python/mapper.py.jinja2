@@ -1,0 +1,48 @@
+from __future__ import annotations
+from sqlalchemy import select
+
+from framework.common.page.schemas.page_result import PageResult
+from framework.starter_database.repository.base_mapper import BaseMapper
+from framework.starter_di.decorators.components import mapper
+from {{ package_name }}.dal.dataobject.{{ business_name }}.{{ business_name }}_do import {{ class_name }}DO
+{% if not is_tree %}
+from {{ package_name }}.controller.admin.{{ business_name }}.vo.{{ business_name }}_page_req_vo import {{ class_name }}PageReqVO
+{% endif %}
+
+
+@mapper
+class {{ class_name }}Mapper(BaseMapper[{{ class_name }}DO]):
+
+    def __init__(self):
+        super().__init__({{ class_name }}DO)
+
+    {% if is_tree %}
+    async def select_list(self) -> list[{{ class_name }}DO]:
+        {{ ('查询' + class_comment + '列表（全量，树形结构用）') | pyrepr }}
+        stmt = select({{ class_name }}DO).where({{ class_name }}DO.deleted.is_(False))
+        {% if tree_parent_column %}
+        stmt = stmt.order_by({{ class_name }}DO.{{ tree_parent_column.field_name }}.asc())
+        {% endif %}
+        result = await self.read(stmt)
+        return list(result.scalars().all())
+    {% else %}
+    async def select_page(self, req_vo: {{ class_name }}PageReqVO) -> PageResult[{{ class_name }}DO]:
+        {{ ('分页查询' + class_comment) | pyrepr }}
+        stmt = select({{ class_name }}DO).where({{ class_name }}DO.deleted.is_(False))
+        {% for column in list_columns %}
+        {% if column.field_name not in ['id', 'creator', 'create_time', 'updater', 'update_time', 'deleted'] %}
+        {% if column.list_operation_condition == 'LIKE' %}
+        if req_vo.{{ column.field_name }}:
+            stmt = stmt.where({{ class_name }}DO.{{ column.field_name }}.ilike(f"%{req_vo.{{ column.field_name }}}%"))
+        {% elif column.list_operation_condition == 'BETWEEN' %}
+        if req_vo.{{ column.field_name }} and len(req_vo.{{ column.field_name }}) >= 2:
+            stmt = stmt.where({{ class_name }}DO.{{ column.field_name }}.between(req_vo.{{ column.field_name }}[0], req_vo.{{ column.field_name }}[1]))
+        {% else %}
+        if req_vo.{{ column.field_name }} is not None:
+            stmt = stmt.where({{ class_name }}DO.{{ column.field_name }} == req_vo.{{ column.field_name }})
+        {% endif %}
+        {% endif %}
+        {% endfor %}
+        stmt = stmt.order_by({{ class_name }}DO.id.desc())
+        return await self.paginate_query(stmt, req_vo)
+    {% endif %}

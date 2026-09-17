@@ -35,9 +35,7 @@ class LoggerConfigurator:
     # 标准日志格式
     COMMON_FORMAT = (
         "{time:YYYY-MM-DD HH:mm:ss.SSS} | {level:<8} | {process.id}:{thread.id} | "
-        "request={extra[request_id]} trace={extra[trace_id]} span={extra[span_id]} tenant={extra[tenant_id]} "
-        "account={extra[account_id]} membership={extra[membership_id]} realm={extra[realm]} "
-        "ip={extra[client_ip]} | "
+        "{extra[context_text]}"
         "{message} - {name}:{function}:{line}{extra[exception_trace]}"
     )
 
@@ -52,9 +50,7 @@ class LoggerConfigurator:
     CONSOLE_FORMAT = (
         "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
         "<level>{level: <8}</level> | "
-        "request={extra[request_id]} trace={extra[trace_id]} span={extra[span_id]} tenant={extra[tenant_id]} "
-        "account={extra[account_id]} membership={extra[membership_id]} realm={extra[realm]} "
-        "ip={extra[client_ip]} | "
+        "{extra[context_text]}"
         "<level>{message}</level> - "
         "<cyan>{name}:{function}:{line}</cyan>{extra[exception_trace]}"
     )
@@ -228,6 +224,21 @@ class LoggerConfigurator:
         for key, value in cls._get_context_fields().items():
             record["extra"].setdefault(key, value)
         record["extra"] = Sanitizer.sanitize_log_value(record["extra"])
+        context = " ".join(
+            f"{label}={record['extra'][key]}"
+            for key, label in (
+                ("request_id", "request"),
+                ("trace_id", "trace"),
+                ("span_id", "span"),
+                ("tenant_id", "tenant"),
+                ("account_id", "account"),
+                ("membership_id", "membership"),
+                ("realm", "realm"),
+                ("client_ip", "ip"),
+            )
+            if record["extra"][key] not in (None, "", cls.CONTEXT_EMPTY)
+        )
+        record["extra"]["context_text"] = context + " | " if context else ""
 
     def _sanitize_record_filter(self, record) -> bool:
         """在受管 sink 格式化前执行最终清理，阻断后置 patcher 旁路。"""
@@ -408,7 +419,10 @@ class LoggerConfigurator:
         owned_logger = logger.bind(logging_owner=self.owner_id)
         if log_config.loadtest_mode:
             owned_logger.warning(
-                "压测模式已开启：文件日志已关闭，控制台级别=WARNING，目录：{}", self._log_dir
+                "【LoggingStarter 】压测模式已开启：文件日志已关闭，控制台级别=WARNING，目录：{}",
+                self._log_dir,
             )
         else:
-            owned_logger.debug("日志配置完成，目录：{}，环境：{}", self._log_dir, env.value)
+            owned_logger.debug(
+                "【LoggingStarter 】日志配置完成，目录：{}，环境：{}", self._log_dir, env.value
+            )

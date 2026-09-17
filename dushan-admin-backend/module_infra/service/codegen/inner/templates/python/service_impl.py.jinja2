@@ -1,0 +1,108 @@
+from __future__ import annotations
+from framework.common.exception.exceptions.illegal_argument_exception import IllegalArgumentException
+from framework.common.page.schemas.page_result import PageResult
+from framework.starter_database.decorators.transactional import transactional
+from framework.starter_di.decorators.components import service
+from framework.starter_di.decorators.inject import Inject
+from {{ package_name }}.controller.admin.{{ business_name }}.vo.{{ business_name }}_save_req_vo import {{ class_name }}SaveReqVO
+{% if not is_tree %}
+from {{ package_name }}.controller.admin.{{ business_name }}.vo.{{ business_name }}_page_req_vo import {{ class_name }}PageReqVO
+{% endif %}
+from {{ package_name }}.dal.dataobject.{{ business_name }}.{{ business_name }}_do import {{ class_name }}DO
+from {{ package_name }}.dal.mapper.{{ business_name }}.{{ business_name }}_mapper import {{ class_name }}Mapper
+from {{ package_name }}.service.{{ business_name }}.{{ business_name }}_service import {{ class_name }}Service
+{% if is_sub %}
+{% for sub in sub_tables %}
+from {{ package_name }}.dal.mapper.{{ sub.table.business_name }}.{{ sub.table.business_name }}_mapper import {{ sub.table.class_name }}Mapper
+{% endfor %}
+{% endif %}
+
+
+@service(interface={{ class_name }}Service)
+class {{ class_name }}ServiceImpl({{ class_name }}Service):
+    {{ (class_comment + '服务实现类') | pyrepr }}
+
+    {{ business_name }}_mapper: {{ class_name }}Mapper = Inject()
+    {% if is_sub %}
+    {% for sub in sub_tables %}
+    {{ sub.table.business_name }}_mapper: {{ sub.table.class_name }}Mapper = Inject()
+    {% endfor %}
+    {% endif %}
+
+    @transactional
+    async def create_{{ business_name }}(self, create_req_vo: {{ class_name }}SaveReqVO) -> int:
+        {{ ('创建' + class_comment) | pyrepr }}
+        {{ business_name }} = {{ class_name }}DO(**create_req_vo.model_dump(by_alias=False))
+        await self.{{ business_name }}_mapper.insert({{ business_name }})
+        return {{ business_name }}.id
+
+    @transactional
+    async def update_{{ business_name }}(self, update_req_vo: {{ class_name }}SaveReqVO) -> None:
+        {{ ('更新' + class_comment) | pyrepr }}
+        await self._validate_{{ business_name }}_exists(update_req_vo.id)
+        update_obj = {{ class_name }}DO(**update_req_vo.model_dump(by_alias=False))
+        await self.{{ business_name }}_mapper.update_by_id(update_obj)
+
+    @transactional
+    async def delete_{{ business_name }}(self, id: int) -> None:
+        {{ ('删除' + class_comment) | pyrepr }}
+        await self._validate_{{ business_name }}_exists(id)
+        await self.{{ business_name }}_mapper.delete_by_id(id)
+        {% if is_sub %}
+        # 级联删除子表数据
+        {% for sub in sub_tables %}
+        {% if sub.sub_join_column %}
+        await self.{{ sub.table.business_name }}_mapper.delete_by_{{ sub.sub_join_column.field_name }}(id)
+        {% endif %}
+        {% endfor %}
+        {% endif %}
+
+    @transactional
+    async def delete_{{ business_name }}_batch(self, ids: list[int]) -> int:
+        {{ ('批量删除' + class_comment) | pyrepr }}
+        items = await self.{{ business_name }}_mapper.select_by_ids(ids)
+        if len(items) != len(ids):
+            raise IllegalArgumentException(msg={{ (class_comment + '不存在') | pyrepr }})
+        {% if is_sub %}
+        # 级联删除子表数据
+        for _id in ids:
+            {% for sub in sub_tables %}
+            {% if sub.sub_join_column %}
+            await self.{{ sub.table.business_name }}_mapper.delete_by_{{ sub.sub_join_column.field_name }}(_id)
+            {% endif %}
+            {% endfor %}
+        {% endif %}
+        return await self.{{ business_name }}_mapper.delete_by_ids(ids)
+
+    async def get_{{ business_name }}(self, id: int) -> {{ class_name }}DO | None:
+        {{ ('获取' + class_comment) | pyrepr }}
+        return await self.{{ business_name }}_mapper.select_by_id(id)
+
+    {% if is_tree %}
+    async def get_{{ business_name }}_list(self) -> list[{{ class_name }}DO]:
+        {{ ('获取' + class_comment + '列表') | pyrepr }}
+        return await self.{{ business_name }}_mapper.select_list()
+    {% else %}
+    async def get_{{ business_name }}_page(self, page_req_vo: {{ class_name }}PageReqVO) -> PageResult[{{ class_name }}DO]:
+        {{ ('分页查询' + class_comment) | pyrepr }}
+        return await self.{{ business_name }}_mapper.select_page(page_req_vo)
+    {% endif %}
+
+    {% if is_sub %}
+    {% for sub in sub_tables %}
+    async def get_{{ sub.table.business_name }}_list_by_{{ business_name }}_id(self, {{ business_name }}_id: int) -> list:
+        {{ ('根据' + class_comment + '编号获取' + sub.table.class_comment or sub.table.table_comment + '列表') | pyrepr }}
+        {% if sub.sub_join_column %}
+        return await self.{{ sub.table.business_name }}_mapper.select_list_by_{{ sub.sub_join_column.field_name }}({{ business_name }}_id)
+        {% else %}
+        raise NotImplementedError("请配置子表关联字段")
+        {% endif %}
+    {% endfor %}
+    {% endif %}
+
+    async def _validate_{{ business_name }}_exists(self, id: int) -> {{ class_name }}DO:
+        {{ ('校验' + class_comment + '是否存在') | pyrepr }}
+        {{ business_name }} = await self.{{ business_name }}_mapper.select_by_id(id)
+        if not {{ business_name }}:
+            raise IllegalArgumentException(msg={{ (class_comment + '不存在') | pyrepr }})
+        return {{ business_name }}

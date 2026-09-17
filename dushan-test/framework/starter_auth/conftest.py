@@ -7,6 +7,7 @@ import pytest
 from framework.starter_auth.config.configured_auth_clients import ConfiguredAuthClients
 from framework.starter_auth.core.auth_provider_registry import AuthProviderRegistry
 from framework.starter_auth.core.auth_service import AuthService
+from framework.starter_auth.starter.auth_starter import AuthStarter
 from framework.starter_cache.core.cache_handler import CacheHandler
 from framework.starter_cache.lock.distributed_lock import DistributedLock
 from server.starter_server import create_app
@@ -33,7 +34,7 @@ async def harness(config_dir):
         },
     }
     app = create_app(base_dir=config_dir(values), environ={})
-    services = []
+    starters = []
     namespaces = []
     async with app.router.lifespan_context(app):
         with app.state.application_context.execution():
@@ -49,15 +50,16 @@ async def harness(config_dir):
                 service = AuthService(
                     config, ConfiguredAuthClients(config), AuthProviderRegistry(), cache, locks
                 )
-                services.append(service)
-                await service.open(transport=transport, components=components)
+                starter = AuthStarter(service)
+                starters.append(starter)
+                await starter.open(transport=transport, components=components)
                 return service
 
             try:
                 yield build, app, cache
             finally:
-                for service in services:
-                    await service.close()
+                for starter in starters:
+                    await starter.close()
                 client = app.state.cache.get_client("default")
                 for namespace in namespaces:
                     keys = [key async for key in client.scan_iter(match=f"auth:*:{namespace}:*")]

@@ -1,0 +1,106 @@
+from fastapi import APIRouter,Depends,Query,Request
+from framework.common.contracts.snowflake_id import SnowflakeIdInput,SnowflakeIdStr
+from framework.common.schemas.request.id_list_req_vo import IdListReqVO
+from framework.common.page.schemas.page_result import PageResult
+from framework.common.page.config.page_settings import PageSettings
+from framework.starter_di.decorators.di_dependency import DiDependency
+from framework.starter_security.enums.security_realm import SecurityRealm
+from framework.starter_web.routing.route_policy import RoutePolicy
+from framework.starter_web.response.result import Result
+from framework.starter_web.response.file_result import FileResult
+from framework.starter_web.utils.request_utils import RequestUtils
+from framework.starter_excel.writer.excel_writer import ExcelWriter
+from framework.starter_excel.model.excel_providers import ExcelProviders
+from framework.starter_excel.spi.dict_data_provider import DictDataProvider
+from {{ package_name }}.service.{{ business_name }}.{{ business_name }}_service import {{ class_name }}Service
+from {{ package_name }}.controller.admin.{{ business_name }}.vo.{{ business_name }}_save_req_vo import {{ class_name }}SaveReqVO
+from {{ package_name }}.controller.admin.{{ business_name }}.vo.{{ business_name }}_resp_vo import {{ class_name }}RespVO
+{% if not is_tree %}
+from {{ package_name }}.controller.admin.{{ business_name }}.vo.{{ business_name }}_page_req_vo import {{ class_name }}PageReqVO
+{% endif %}
+
+{{ business_name }}_controller=APIRouter(prefix="/{{ business_name | replace('_','-') }}")
+
+class {{ class_name }}Controller:
+    @staticmethod
+    @{{ business_name }}_controller.post("/create")
+    @RoutePolicy(permissions=("{{ module_name }}:{{ business_name }}:create",),tenant_required=True,realm=SecurityRealm.TENANT)
+    async def create(request:{{ class_name }}SaveReqVO,service:{{ class_name }}Service=Depends(DiDependency({{ class_name }}Service)))->Result[SnowflakeIdStr]:
+        return Result.success(await service.create_{{ business_name }}(request))
+
+    @staticmethod
+    @{{ business_name }}_controller.put("/update")
+    @RoutePolicy(permissions=("{{ module_name }}:{{ business_name }}:update",),tenant_required=True,realm=SecurityRealm.TENANT)
+    async def update(request:{{ class_name }}SaveReqVO,service:{{ class_name }}Service=Depends(DiDependency({{ class_name }}Service)))->Result[bool]:
+        await service.update_{{ business_name }}(request)
+        return Result.success(True)
+
+    @staticmethod
+    @{{ business_name }}_controller.delete("/delete")
+    @RoutePolicy(permissions=("{{ module_name }}:{{ business_name }}:delete",),tenant_required=True,realm=SecurityRealm.TENANT)
+    async def delete(id:SnowflakeIdInput=Query(...),service:{{ class_name }}Service=Depends(DiDependency({{ class_name }}Service)))->Result[bool]:
+        await service.delete_{{ business_name }}(id)
+        return Result.success(True)
+
+    @staticmethod
+    @{{ business_name }}_controller.delete("/delete-list")
+    @RoutePolicy(permissions=("{{ module_name }}:{{ business_name }}:delete",),tenant_required=True,realm=SecurityRealm.TENANT)
+    async def delete_list(req_vo:IdListReqVO=Query(),service:{{ class_name }}Service=Depends(DiDependency({{ class_name }}Service)))->Result[int]:
+        return Result.success(await service.delete_{{ business_name }}_batch(req_vo.ids))
+
+    @staticmethod
+    @{{ business_name }}_controller.get("/get")
+    @RoutePolicy(permissions=("{{ module_name }}:{{ business_name }}:query",),tenant_required=True,realm=SecurityRealm.TENANT)
+    async def get(id:SnowflakeIdInput=Query(...),service:{{ class_name }}Service=Depends(DiDependency({{ class_name }}Service)))->Result[{{ class_name }}RespVO]:
+        row=await service.get_{{ business_name }}(id)
+        return Result.success(None if row is None else {{ class_name }}RespVO.model_validate(row))
+
+{% if is_tree %}
+    @staticmethod
+    @{{ business_name }}_controller.get("/list")
+    @RoutePolicy(permissions=("{{ module_name }}:{{ business_name }}:query",),tenant_required=True,realm=SecurityRealm.TENANT)
+    async def get_list(service:{{ class_name }}Service=Depends(DiDependency({{ class_name }}Service)))->Result[list[{{ class_name }}RespVO]]:
+        return Result.success([{{ class_name }}RespVO.model_validate(row) for row in await service.get_{{ business_name }}_list()])
+
+    @staticmethod
+    @{{ business_name }}_controller.get("/simple-list")
+    @RoutePolicy(tenant_required=True,realm=SecurityRealm.TENANT)
+    async def simple_list(service:{{ class_name }}Service=Depends(DiDependency({{ class_name }}Service)))->Result[list[{{ class_name }}RespVO]]:
+        return Result.success([{{ class_name }}RespVO.model_validate(row) for row in await service.get_{{ business_name }}_list()])
+{% else %}
+    @staticmethod
+    @{{ business_name }}_controller.get("/page")
+    @RoutePolicy(permissions=("{{ module_name }}:{{ business_name }}:query",),tenant_required=True,realm=SecurityRealm.TENANT)
+    async def page(request:Request,service:{{ class_name }}Service=Depends(DiDependency({{ class_name }}Service)))->Result[PageResult[{{ class_name }}RespVO]]:
+        query=RequestUtils.validate_with_auto_list_params(request,{{ class_name }}PageReqVO)
+        return Result.success((await service.get_{{ business_name }}_page(query)).convert({{ class_name }}RespVO))
+{% endif %}
+{% if enable_export %}
+    @staticmethod
+    @{{ business_name }}_controller.get("/export-fields")
+    @RoutePolicy(permissions=("{{ module_name }}:{{ business_name }}:export",),tenant_required=True,realm=SecurityRealm.TENANT)
+    async def export_fields()->Result[list[dict[str,str]]]:
+        return Result.success(ExcelWriter.export_fields({{ class_name }}RespVO))
+
+    @staticmethod
+    @{{ business_name }}_controller.get("/export-excel")
+    @RoutePolicy(permissions=("{{ module_name }}:{{ business_name }}:export",),tenant_required=True,realm=SecurityRealm.TENANT)
+    async def export(request:Request,fields:list[str]|None=Query(None),service:{{ class_name }}Service=Depends(DiDependency({{ class_name }}Service)),writer:ExcelWriter=Depends(DiDependency(ExcelWriter)),files:FileResult=Depends(DiDependency(FileResult)),pages:PageSettings=Depends(DiDependency(PageSettings)),dictionaries:DictDataProvider=Depends(DiDependency(DictDataProvider))):
+{% if is_tree %}
+        rows=await service.get_{{ business_name }}_list()
+{% else %}
+        query=RequestUtils.validate_with_auto_list_params(request,{{ class_name }}PageReqVO)
+        query.enable_fetch_all(max_rows=min(pages.fetch_all_max_rows,writer.settings.max_export_rows))
+        rows=(await service.get_{{ business_name }}_page(query)).items
+{% endif %}
+        data=await writer.write("数据",{{ class_name }}RespVO,[{{ class_name }}RespVO.model_validate(row) for row in rows],fields=fields,providers=ExcelProviders(dictionaries=dictionaries))
+        return files.excel_stream(data,file_name="{{ business_name }}.xlsx")
+{% endif %}
+{% for sub in sub_tables %}
+    @staticmethod
+    @{{ business_name }}_controller.get("/{{ sub.table.business_name | replace('_','-') }}/list-by-{{ business_name | replace('_','-') }}-id")
+    @RoutePolicy(permissions=("{{ module_name }}:{{ business_name }}:query",),tenant_required=True,realm=SecurityRealm.TENANT)
+    async def get_{{ sub.table.business_name }}(id:SnowflakeIdInput=Query(...),service:{{ class_name }}Service=Depends(DiDependency({{ class_name }}Service)))->Result[list[dict]]:
+        rows=await service.get_{{ sub.table.business_name }}_list_by_{{ business_name }}_id(id)
+        return Result.success([{column.key:str(getattr(row,column.key)) if column.key=='id' or column.key.endswith('_id') else getattr(row,column.key) for column in row.__table__.columns if column.key not in {'tenant_id','deleted'}} for row in rows])
+{% endfor %}

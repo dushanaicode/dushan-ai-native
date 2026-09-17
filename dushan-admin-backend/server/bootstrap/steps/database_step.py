@@ -14,10 +14,12 @@ class DatabaseStep:
     async def run(ctx: AppBootstrapContext):
         definitions = ctx.definitions
         if DatabaseSettings not in definitions.configuration.model_classes:
+            ctx.logger.info("【DatabaseStarter 】配置模型未装配，跳过启动")
             yield
             return
         settings = definitions.configuration.get_config(DatabaseSettings)
         if not settings.enabled:
+            ctx.logger.info("【DatabaseStarter 】数据库未启用")
             yield
             return
         if definitions.application_context is None:
@@ -41,3 +43,4 @@ class DatabaseStep:
                 primary_error=primary,
                 caller_cancellation=cancellation,
             )
+            ctx.logger.info("【DatabaseStarter 】数据库资源已关闭")

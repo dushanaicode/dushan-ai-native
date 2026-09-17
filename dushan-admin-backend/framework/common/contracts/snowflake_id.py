@@ -41,9 +41,21 @@ class SnowflakeId:
             return "0"
         return cls.format(value)
 
+    @classmethod
+    def parse_reference(cls, value: object) -> int:
+        """父节点及系统套餐的请求引用允许字符串零，仍拒绝 JSON number。"""
+        if not isinstance(value, str):
+            raise ValueError("请求引用 ID 必须是十进制字符串")
+        return int(cls.format_cursor(value))
+
 
 SnowflakeIdStr = Annotated[str, BeforeValidator(SnowflakeId.format)]
 SnowflakeIdInput = Annotated[
     int, BeforeValidator(SnowflakeId.parse_input), WithJsonSchema(ID_SCHEMA)
 ]
 SnowflakeCursorStr = Annotated[str, BeforeValidator(SnowflakeId.format_cursor)]
+SnowflakeReferenceInput = Annotated[
+    int,
+    BeforeValidator(SnowflakeId.parse_reference),
+    WithJsonSchema({"type": "string", "pattern": "^(0|[1-9][0-9]{0,18})$"}),
+]

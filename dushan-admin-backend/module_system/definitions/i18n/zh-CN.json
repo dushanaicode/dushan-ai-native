@@ -1,0 +1,205 @@
+{
+  "system": {
+    "auth": {
+      "login_bad_credentials": "登录失败，账号密码不正确",
+      "login_user_disabled": "登录失败，账号被禁用",
+      "login_captcha_code_error": "验证码验证失败",
+      "third_login_not_bind": "未绑定账号，需要进行绑定",
+      "token_expired": "Token 已经过期",
+      "mobile_not_exists": "手机号不存在",
+      "register_captcha_code_error": "注册验证码验证失败",
+      "invalid_token_code": "非法令牌格式",
+      "token_not_found": "访问令牌不存在"
+    },
+    "menu": {
+      "name_duplicate": "已经存在该名字的菜单",
+      "parent_not_exists": "父菜单不存在",
+      "parent_error": "不能设置自己为父菜单",
+      "not_exists": "菜单不存在",
+      "exists_children": "存在子菜单，无法删除",
+      "parent_not_dir_or_menu": "父菜单的类型必须是目录或者菜单",
+      "exists_children_menu": "存在子菜单，无法删除，请先删除子菜单后重试"
+    },
+    "role": {
+      "not_exists": "角色不存在",
+      "name_duplicate": "已经存在名为【{}】的角色",
+      "code_duplicate": "已经存在编码为【{}】的角色",
+      "can_not_update_system_type": "不能操作类型为系统内置的角色",
+      "is_disable": "名字为【{}】的角色已被禁用",
+      "admin_code_error": "编码【{}】不能使用"
+    },
+    "user": {
+      "username_exists": "用户账号已经存在",
+      "mobile_exists": "手机号已经存在",
+      "email_exists": "邮箱已经存在",
+      "not_exists": "用户不存在",
+      "import_list_is_empty": "导入用户数据不能为空！",
+      "password_failed": "用户密码校验失败",
+      "is_disable": "名字为【{}】的用户已被禁用",
+      "type_not_exists": "无效用户类型",
+      "count_max": "创建用户失败，原因：超过租户最大租户配额({})！",
+      "import_init_password": "初始密码不能为空",
+      "mobile_not_exists": "该手机号尚未注册",
+      "register_disabled": "注册功能已关闭",
+      "kickout_device_not_owner": "没有权限操作不属于自己的设备"
+    },
+    "dept": {
+      "name_duplicate": "已经存在该名字的部门",
+      "parent_not_exists": "父级部门不存在",
+      "not_found": "当前部门不存在",
+      "exists_children": "存在子部门，无法删除",
+      "parent_error": "不能设置自己为父部门",
+      "exists_user": "部门中存在员工，无法删除",
+      "not_enable": "部门({})不处于开启状态，不允许选择",
+      "parent_is_child": "不能设置自己的子部门为父部门"
+    },
+    "post": {
+      "not_found": "当前岗位不存在",
+      "not_enable": "岗位({}) 不处于开启状态，不允许选择",
+      "name_duplicate": "已经存在该名字的岗位",
+      "code_duplicate": "已经存在该标识的岗位"
+    },
+    "dict_type": {
+      "not_exists": "当前字典类型不存在",
+      "not_enable": "字典类型不处于开启状态，不允许选择",
+      "name_duplicate": "已经存在该名字的字典类型",
+      "type_duplicate": "已经存在该类型的字典类型",
+      "has_children": "无法删除，该字典类型还有字典数据"
+    },
+    "dict_data": {
+      "not_exists": "当前字典数据不存在",
+      "not_enable": "字典数据({})不处于开启状态，不允许选择",
+      "value_duplicate": "已经存在该值的字典数据"
+    },
+    "notice": {
+      "not_found": "当前通知公告不存在",
+      "not_enable": "当前通知公告已禁用",
+      "can_not_update_system_type": "不能操作内置通知模板"
+    },
+    "announcement": {
+      "not_found": "公告不存在",
+      "status_error": "公告状态错误",
+      "publish_time_required": "定时发布需要设置发布时间",
+      "publish_time_invalid": "发布时间必须大于当前时间"
+    },
+    "sms_channel": {
+      "not_exists": "短信渠道不存在",
+      "disable": "短信渠道不处于开启状态，不允许选择",
+      "has_children": "无法删除，该短信渠道还有短信模板",
+      "scene_not_found": "验证码场景【{}】查找不到配置",
+      "code_immutable": "短信渠道创建后不能更换厂商，请创建新渠道"
+    },
+    "sms_template": {
+      "not_exists": "短信模板不存在",
+      "code_duplicate": "已经存在编码为【{}】的短信模板",
+      "api_error": "短信 API 模板调用失败，原因是：{}",
+      "api_audit_checking": "短信 API 模版无法使用，原因：审批中",
+      "api_audit_fail": "短信 API 模版无法使用，原因：审批不通过，{}",
+      "api_not_found": "短信 API 模版无法使用，原因：模版不存在",
+      "api_audit_unknown": "短信模板({}) 审核状态({}) 不正确",
+      "can_not_update_builtin": "不能操作内置短信模板"
+    },
+    "sms_send": {
+      "mobile_not_exists": "手机号不存在",
+      "template_param_miss": "模板参数({})缺失",
+      "template_not_exists": "短信模板不存在",
+      "mobile_invalid": "手机号格式不正确"
+    },
+    "sms_code": {
+      "not_found": "验证码不存在",
+      "expired": "验证码已过期",
+      "used": "验证码已使用",
+      "not_correct": "验证码不正确",
+      "exceed_send_max_per_day": "超过每日短信发送数量",
+      "send_too_fast": "短信发送过于频繁"
+    },
+    "tenant": {
+      "not_exists": "租户不存在",
+      "disable": "名字为【{}】的租户已被禁用",
+      "expire": "名字为【{}】的租户已过期",
+      "can_not_update_system": "系统租户不能进行修改、删除等操作",
+      "name_duplicate": "名字为【{}】的租户已存在",
+      "website_duplicate": "域名为【{}】的租户已存在",
+      "role_not_match": "角色({})的租户({})不匹配"
+    },
+    "tenant_package": {
+      "not_exists": "租户套餐不存在",
+      "used": "租户正在使用该套餐，请给租户重新设置套餐后再尝试删除",
+      "disable": "名字为【{}】的租户套餐已被禁用",
+      "name_duplicate": "已经存在该名字的租户套餐"
+    },
+    "oauth2_client": {
+      "not_exists": "OAuth2 客户端不存在",
+      "exists": "OAuth2 客户端编号已存在",
+      "disable": "OAuth2 客户端已禁用",
+      "grant_type_not_exists": "不支持该授权类型",
+      "scope_over": "授权范围过大",
+      "redirect_uri_not_match": "无效 redirect_uri: {}",
+      "client_secret_error": "无效 client_secret: {}"
+    },
+    "oauth2_grant": {
+      "client_id_mismatch": "client_id 不匹配",
+      "redirect_uri_mismatch": "redirect_uri 不匹配",
+      "state_mismatch": "state 不匹配",
+      "client_user_type_mismatch": "客户端不支持该用户类型授权",
+      "not_client_type": "该客户端不允许使用客户端凭证模式"
+    },
+    "oauth2_code": {
+      "not_exists": "code 不存在",
+      "expire": "code 已过期"
+    },
+    "mail_account": {
+      "not_exists": "邮箱账号不存在",
+      "relate_template_exists": "无法删除，该邮箱账号还有邮件模板"
+    },
+    "mail_template": {
+      "not_exists": "邮件模版不存在",
+      "code_exists": "邮件模版 code({}) 已存在"
+    },
+    "mail_send": {
+      "template_param_miss": "模板参数({})缺失",
+      "mail_not_exists": "邮箱不存在"
+    },
+    "notice_template": {
+      "not_exists": "站内信模版不存在",
+      "code_duplicate": "已经存在编码为【{}】的站内信模板"
+    },
+    "notice_send": {
+      "template_param_miss": "模板参数({})缺失",
+      "batch_param_mismatch": "批量发送参数不匹配，用户数量({})与参数列表数量({})不一致",
+      "user_not_exists": "发送失败，用户不存在",
+      "template_disabled": "发送失败，站内信模板已禁用"
+    },
+    "sdk": {
+      "channel_not_found": "SDK渠道不存在"
+    },
+    "captcha": {
+      "type_invalid": "无效的验证码类型【{}】",
+      "not_found_or_expired": "验证码已过期",
+      "verification_failed": "验证码验证失败",
+      "service_unavailable": "验证码服务暂时不可用",
+      "verification_frequent": "请求过于频繁，请{}秒后重试",
+      "failed_too_many_attempts": "错误尝试次数过多，账户被锁定，请{}秒后重试",
+      "verification_param_miss": "缺少必要的验证码参数"
+    },
+    "ip_area": {
+      "not_found": "IP 地区信息未找到"
+    },
+    "social": {
+      "weixin_mini_app_order_shipping_error": "微信小程序订单发货同步失败：{}",
+      "weixin_mini_app_order_confirm_receive_error": "微信小程序订单确认收货同步失败：{}",
+      "client_not_exists": "社交客户端配置不存在",
+      "client_not_supported": "不支持的社交类型：{}",
+      "client_unique": "社交客户端配置已存在：{}",
+      "client_auth_failure": "社交客户端认证失败：{}",
+      "user_auth_failure": "社交用户认证失败：{}",
+      "user_not_found": "社交用户不存在",
+      "wechat_mp_js_sdk_signature_error": "微信公众号 JSAPI 签名失败：{}",
+      "weixin_mini_app_phone_code_error": "微信小程序获取手机号失败：{}",
+      "weixin_mini_app_qrcode_error": "微信小程序获取二维码失败：{}",
+      "weixin_mini_app_subscribe_template_error": "微信小程序获取订阅模板失败：{}",
+      "weixin_mini_app_subscribe_message_error": "微信小程序发送订阅消息失败：{}",
+      "platform_not_exist": "社交平台【{}】不存在"
+    }
+  }
+}

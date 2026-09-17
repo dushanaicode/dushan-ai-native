@@ -1,0 +1,52 @@
+from __future__ import annotations
+from typing import Protocol, runtime_checkable
+
+from framework.common.page.schemas.page_result import PageResult
+from {{ package_name }}.controller.admin.{{ business_name }}.vo.{{ business_name }}_save_req_vo import {{ class_name }}SaveReqVO
+{% if not is_tree %}
+from {{ package_name }}.controller.admin.{{ business_name }}.vo.{{ business_name }}_page_req_vo import {{ class_name }}PageReqVO
+{% endif %}
+from {{ package_name }}.dal.dataobject.{{ business_name }}.{{ business_name }}_do import {{ class_name }}DO
+
+
+@runtime_checkable
+class {{ class_name }}Service(Protocol):
+    {{ (class_comment + '服务接口') | pyrepr }}
+
+    async def create_{{ business_name }}(self, create_req_vo: {{ class_name }}SaveReqVO) -> int:
+        {{ ('创建' + class_comment) | pyrepr }}
+        ...
+
+    async def update_{{ business_name }}(self, update_req_vo: {{ class_name }}SaveReqVO) -> None:
+        {{ ('更新' + class_comment) | pyrepr }}
+        ...
+
+    async def delete_{{ business_name }}(self, id: int) -> None:
+        {{ ('删除' + class_comment) | pyrepr }}
+        ...
+
+    async def delete_{{ business_name }}_batch(self, ids: list[int]) -> int:
+        {{ ('批量删除' + class_comment) | pyrepr }}
+        ...
+
+    async def get_{{ business_name }}(self, id: int) -> {{ class_name }}DO | None:
+        {{ ('获取' + class_comment) | pyrepr }}
+        ...
+
+    {% if is_tree %}
+    async def get_{{ business_name }}_list(self) -> list[{{ class_name }}DO]:
+        {{ ('获取' + class_comment + '列表') | pyrepr }}
+        ...
+    {% else %}
+    async def get_{{ business_name }}_page(self, page_req_vo: {{ class_name }}PageReqVO) -> PageResult[{{ class_name }}DO]:
+        {{ ('分页查询' + class_comment) | pyrepr }}
+        ...
+    {% endif %}
+
+    {% if is_sub %}
+    {% for sub in sub_tables %}
+    async def get_{{ sub.table.business_name }}_list_by_{{ business_name }}_id(self, {{ business_name }}_id: int) -> list:
+        {{ ('根据' + class_comment + '编号获取' + sub.table.class_comment or sub.table.table_comment + '列表') | pyrepr }}
+        ...
+    {% endfor %}
+    {% endif %}

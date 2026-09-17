@@ -25,7 +25,11 @@ def test_real_server_health(engine, config_dir, tmp_path):
         port = reservation.getsockname()[1]
     name = ConfigFactory.values()["server"]["name"]
     root = config_dir(
-        {"server": {"name": name, "port": port, "reload": False}, engine: {"workers": 2}}
+        {
+            "server": {"name": name, "port": port, "reload": False},
+            "banner": {"show_worship": True},
+            engine: {"workers": 2},
+        }
     )
     env = dict(
         os.environ,

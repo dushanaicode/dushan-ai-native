@@ -1,0 +1,76 @@
+{
+  "infra": {
+    "job": {
+      "not_exists": "Scheduled job does not exist",
+      "handler_exists": "Job handler already exists",
+      "change_status_invalid": "Only allowed to change to enabled or disabled status",
+      "change_status_equals": "Job is already in this status, no change needed",
+      "update_only_normal_status": "Only enabled jobs can be modified",
+      "cron_expression_valid": "Invalid CRON expression",
+      "handler_bean_not_exists": "Job handler bean does not exist",
+      "handler_bean_type_error": "Job handler bean type is incorrect",
+      "update_fail": "Failed to update scheduler job",
+      "status_update_fail": "Failed to update scheduler job status",
+      "trigger_fail": "Failed to manually trigger job execution",
+      "sync_fail_scheduler": "Unable to retrieve scheduler job list"
+    },
+    "log": {
+      "error_log_not_found": "API error log does not exist",
+      "error_log_processed": "API error log has already been processed"
+    },
+    "file": {
+      "path_exists": "File path already exists",
+      "not_exists": "File does not exist",
+      "is_empty": "File is empty",
+      "node_not_exists": "File node does not exist",
+      "node_already_exists": "A file node with the same name already exists",
+      "node_parent_not_exists": "Parent node does not exist",
+      "node_parent_not_folder": "Parent node is not a folder",
+      "node_cannot_move_to_child": "Cannot move a node to its child node",
+      "config_not_exists": "File configuration does not exist",
+      "config_delete_fail_master": "This file configuration cannot be deleted because it is the master configuration",
+      "config_has_file": "Files exist under this configuration, cannot delete"
+    },
+    "cache": {
+      "get_monitor_info_error": "Failed to get cache monitor information",
+      "delete_failed": "Failed to delete cache data",
+      "flushdb_failed": "Failed to flush all data in the current cache database"
+    },
+    "mq": {
+      "definition_not_exists": "MQ message definition does not exist",
+      "definition_topic_exists": "MQ topic is already used by another definition",
+      "definition_consumer_exists": "MQ consumer is already used by another definition",
+      "definition_change_status_invalid": "Only allowed to change to enabled or paused status",
+      "definition_change_status_equals": "MQ message definition is already in this status, no change needed",
+      "message_not_exists": "MQ message instance does not exist",
+      "message_resend_fail_status_wrong": "Resend failed, only failed or pending messages can be resent"
+    },
+    "data_source": {
+      "not_exists": "Data source configuration does not exist",
+      "name_duplicate": "A data source named [{}] already exists",
+      "test_failed": "Data source connection test failed: {}",
+      "delete_default": "Cannot delete the default data source",
+      "activate_failed": "Failed to activate data source: {}"
+    },
+    "config": {
+      "data_not_exists": "Configuration does not exist",
+      "data_key_duplicate": "Configuration key is duplicated",
+      "can_not_delete_system_type": "Cannot delete system built-in configuration",
+      "get_value_error_if_visible": "Failed to get configuration: not allowed to access hidden configuration",
+      "type_not_exists": "Configuration type does not exist",
+      "type_name_duplicate": "Configuration type name already exists",
+      "type_code_duplicate": "Configuration type code already exists",
+      "type_has_children": "Configuration type has data, cannot delete",
+      "type_not_enable": "Configuration type is not enabled"
+    },
+    "codegen": {
+      "table_not_exists": "Code generation table definition does not exist",
+      "import_table_exists": "Imported table already exists",
+      "column_not_exists": "Code generation column definition does not exist",
+      "sync_none_change": "Sync failed, no changes in table structure",
+      "import_columns_null": "Import failed, table has no columns",
+      "table_comment_is_null": "Database table description is empty",
+      "sync_columns_null": "Sync failed, table has no columns in database"
+    }
+  }
+}

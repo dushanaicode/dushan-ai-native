@@ -1,0 +1,11 @@
+from framework.common.enums.base_enum import BaseEnum
+
+
+class SocialTypeEnum(BaseEnum):
+    ALIPAY = (10, "ALIPAY")
+    DINGTALK = (20, "DINGTALK")
+    WECHAT_ENTERPRISE = (30, "WECHAT_ENTERPRISE")
+    WECHAT_MP = (31, "WECHAT_MP")
+    WECHAT_OPEN = (32, "WECHAT_OPEN")
+    WECHAT_MINI_PROGRAM = (33, "WECHAT_MINI_PROGRAM")
+    WECHAT_ENTERPRISE_V2 = (34, "WECHAT_ENTERPRISE_V2")

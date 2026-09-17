@@ -4,6 +4,7 @@ from functools import partial, update_wrapper
 
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.routing import APIRoute, _iter_routes_with_context
+from loguru import logger
 
 from framework.starter_di.decorators.di_dependency import DiDependency
 from framework.starter_web.routing.authenticated_websocket_route import AuthenticatedWebSocketRoute
@@ -62,16 +63,23 @@ class RouteRegistrar:
     def seal(self) -> None:
         if self._sealed:
             raise RuntimeError("Web 路由已经发布")
+        logger.info("【WebStarter 】开始审计路由冲突与访问策略")
         RouteAudit.validate(self.app.routes)
         snapshot = RouteSnapshot(
             self.access_provider, self._host_routes, self.stream_policy, self.policy_validator
         ).build(self.app.routes, getattr(self.app.router, RoutePolicy.ATTRIBUTE, None))
         RouteAudit.validate(snapshot)
+        logger.info("【WebStarter 】路由与访问策略校验通过，开始发布不可变快照")
         self._declarations = self.app.router.routes
         self.app.router.routes = PublishedRoutes(snapshot)
         self.app.router._mark_routes_changed()
         self.app.openapi_schema = None
         self._sealed = True
+        count = 0
+        for route, _ in _iter_routes_with_context(self.app.routes):
+            if isinstance(route, APIRoute):
+                count += len(route.methods)
+        logger.info("【WebStarter 】路由发布完成：HTTP 操作 {} 个", count)
 
     def register_websocket(self, path, endpoint, *, authorizer, policy, name=None):
         """在正式发布前登记受保护 WebSocket；同样审计重复、遮蔽及最终策略。"""
@@ -102,9 +110,16 @@ class RouteRegistrar:
         self._sealed = False
 
     def register_controllers(self, controllers: Iterable[type]) -> None:
+        logger.info("【WebStarter 】开始注册活动 Controller")
         candidate = APIRouter(route_class=WebRoute)
         for cls in controllers:
             metadata = vars(cls)[ControllerMetadata.ATTRIBUTE]
+            logger.debug(
+                "【WebStarter 】Controller={}.{} prefix={}",
+                cls.__module__,
+                cls.__qualname__,
+                metadata.prefix,
+            )
             controller_policy = None
             for base in reversed(cls.__mro__):
                 inherited = vars(base).get(ControllerMetadata.ATTRIBUTE)

@@ -274,7 +274,7 @@ async def tenant_case(tenant_target, config_dir, module_package, tmp_path, reque
     source = SOURCE.format(
         suffix=suffix,
         public="@public_data(tenant_column=None)" if permissions else "",
-        protected='@data_permission(membership_column="membership_id", department_column="dept_id")'
+        protected='@data_permission(permission_type="both", user_id_column="membership_id", dept_id_column="dept_id")'
         if permissions
         else "",
     )

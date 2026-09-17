@@ -5,7 +5,7 @@ from framework.starter_database.model.base_do import BaseDO
 
 
 class TenantBaseDO(BaseDO):
-    """共享表中的租户数据基类；具体模型仍显式使用 tenant_model 声明。
+    """共享表中的租户数据基类；具体子类由应用注册器按继承关系识别。
 
     tenant_id 取租户主键雪花 ID 的字符串形式，定长 19 位，因此列宽取 32 而不是
     传输层 IdentityId 允许的 256——每张租户表都要建 (tenant_id, …) 复合索引，

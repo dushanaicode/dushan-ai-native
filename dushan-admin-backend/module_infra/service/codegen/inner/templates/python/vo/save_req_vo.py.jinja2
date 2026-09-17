@@ -1,0 +1,17 @@
+from datetime import datetime
+from decimal import Decimal
+from typing import Annotated
+from pydantic import Field
+from framework.common.schemas.base_vo import BaseVO
+from framework.common.schemas.base_request_vo import BaseRequestVO
+from framework.common.contracts.snowflake_id import SnowflakeIdInput,SnowflakeIdStr,SnowflakeReferenceInput,SnowflakeCursorStr
+from framework.starter_excel.model.excel_column import ExcelColumn
+from framework.starter_excel.converter.dict_converter import DictConverter
+
+class {{ class_name }}SaveReqVO(BaseRequestVO):
+    id: SnowflakeIdInput | None = None
+{% for column in create_columns %}
+{% if column.field_name not in ['id','creator','create_time','updater','update_time','deleted','tenant_id'] %}
+    {{ column.field_name }}: Annotated[{{ column | request_type }}{{ ' | None' if column.nullable else '' }},Field({{ 'None' if column.nullable else '...' }},description={{ column.column_comment | pyrepr }}) ]
+{% endif %}
+{% endfor %}

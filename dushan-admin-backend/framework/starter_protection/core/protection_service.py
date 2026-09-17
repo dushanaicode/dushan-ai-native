@@ -37,9 +37,29 @@ class ProtectionService:
             raise ProtectionException(Codes.CLOSED)
         self.runtime.observer = observer
         if self.settings.enabled:
+            logger.info("【ProtectionStarter 】开始初始化保护能力")
             # Cache 已探活；此处验证原子脚本权限，不预加载或维护第二份全局 SHA 缓存。
             await self.runtime.eval("protection", "open", "probe", "return 1")
+            logger.info("【ProtectionStarter 】Redis 原子脚本权限验证通过")
+            logger.info(
+                "【ProtectionStarter 】能力装配：限流={}，分布式锁={}，幂等={}",
+                self.settings.rate_limit_enabled,
+                self.settings.lock_enabled,
+                self.settings.idempotency_enabled,
+            )
+            logger.debug(
+                "【ProtectionStarter 】客户端={} 键前缀={} IO超时={}s 最大在途操作={}",
+                self.settings.client_name,
+                self.settings.key_prefix,
+                self.settings.io_timeout_seconds,
+                self.settings.max_inflight,
+            )
         self.runtime.state = "ready"
+        logger.info(
+            "【ProtectionStarter 】初始化完成"
+            if self.settings.enabled
+            else "【ProtectionStarter 】保护能力未启用"
+        )
 
     async def health(self) -> str:
         with self.runtime.operation():

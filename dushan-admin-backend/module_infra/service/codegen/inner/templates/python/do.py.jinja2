@@ -1,0 +1,73 @@
+from datetime import datetime
+from decimal import Decimal
+
+from sqlalchemy import Computed, Index, Numeric, Float, LargeBinary, JSON, BigInteger, Integer, SmallInteger, String, Boolean, DateTime, JSON
+from sqlalchemy.orm import Mapped, mapped_column
+
+{% if tenant_aware %}
+from framework.starter_tenant.entity.tenant_base_do import TenantBaseDO
+{% else %}
+from framework.starter_tenant.entity.global_control_do import GlobalControlDO
+from framework.starter_tenant.decorators.tenant_model import global_model
+{% endif %}
+
+
+{% if not tenant_aware %}
+@global_model
+{% endif %}
+class {{ class_name }}DO({{ 'TenantBaseDO' if tenant_aware else 'GlobalControlDO' }}):
+    {{ (class_comment) | pyrepr }}
+    __tablename__ = {{ table_name | pyrepr }}
+    __table_args__ = ({% if tenant_aware %}Index({{ ('ix_' + table_name + '_tenant') | pyrepr }}, 'tenant_id'), {% endif %}{**{{ 'TenantBaseDO' if tenant_aware else 'GlobalControlDO' }}.__table_args__, 'comment': {{ class_comment | pyrepr }}},)
+
+    {% for column in normal_columns %}
+    {% if column.field_name not in ['creator', 'create_time', 'updater', 'update_time', 'deleted'] and (column.field_name != 'tenant_id' or not tenant_aware) %}
+    {% if column.computed_expression %}
+    {{ column.field_name }}: Mapped[{{ column | storage_type }} | None] = mapped_column({{ column.column_name | pyrepr }},{{ column | computed_type }},Computed({{ column.computed_expression | pyrepr }},persisted={{ column.computed_persisted }}),comment={{ column.column_comment | pyrepr }})
+    {% elif column.data_type == 'tinyint' %}
+    {% if column.field_type == 'bool' %}
+    {{ column.field_name }}: Mapped[{{ 'bool | None' if column.nullable else 'bool' }}] = mapped_column({{ column.column_name | pyrepr }},
+        Boolean, {{ 'nullable=True' if column.nullable else 'nullable=False' }}, comment={{ column.column_comment | pyrepr }}
+    )
+    {% else %}
+    {{ column.field_name }}: Mapped[{{ 'int | None' if column.nullable else 'int' }}] = mapped_column({{ column.column_name | pyrepr }},
+        SmallInteger, {{ 'nullable=True' if column.nullable else 'nullable=False' }}, comment={{ column.column_comment | pyrepr }}
+    )
+    {% endif %}
+    {% elif column.data_type == 'smallint' %}
+    {{ column.field_name }}: Mapped[{{ 'int | None' if column.nullable else 'int' }}] = mapped_column({{ column.column_name | pyrepr }},
+        SmallInteger, {{ 'nullable=True' if column.nullable else 'nullable=False' }}, comment={{ column.column_comment | pyrepr }}
+    )
+    {% elif column.data_type == 'int' %}
+    {{ column.field_name }}: Mapped[{{ 'int | None' if column.nullable else 'int' }}] = mapped_column({{ column.column_name | pyrepr }},
+        Integer, {{ 'nullable=True' if column.nullable else 'nullable=False' }}, comment={{ column.column_comment | pyrepr }}
+    )
+    {% elif column.data_type == 'bigint' %}
+    {{ column.field_name }}: Mapped[{{ 'int | None' if column.nullable else 'int' }}] = mapped_column({{ column.column_name | pyrepr }},
+        BigInteger, {{ 'nullable=True' if column.nullable else 'nullable=False' }}, comment={{ column.column_comment | pyrepr }}
+    )
+    {% elif column.data_type == 'datetime' or column.data_type == 'timestamp' %}
+    {{ column.field_name }}: Mapped[{{ 'datetime | None' if column.nullable else 'datetime' }}] = mapped_column({{ column.column_name | pyrepr }},
+        DateTime, {{ 'nullable=True' if column.nullable else 'nullable=False' }}, comment={{ column.column_comment | pyrepr }}
+    )
+    {% elif column.data_type == 'json' or column.field_type == 'json' %}
+    {{ column.field_name }}: Mapped[{{ 'dict | None' if column.nullable else 'dict' }}] = mapped_column({{ column.column_name | pyrepr }},
+        JSON, {{ 'nullable=True' if column.nullable else 'nullable=False' }}, comment={{ column.column_comment | pyrepr }}
+    )
+    {% elif column.field_type in ['Decimal','float','bytes'] %}
+    {{ column.field_name }}: Mapped[{{ column.field_type }}{{ ' | None' if column.nullable else '' }}] = mapped_column({{ column.column_name | pyrepr }},{{ 'Numeric(18,4)' if column.field_type=='Decimal' else 'Float' if column.field_type=='float' else 'LargeBinary' }},nullable={{ column.nullable }},comment={{ column.column_comment | pyrepr }})
+    {% elif column.field_type == 'bool' %}
+    {{ column.field_name }}: Mapped[{{ 'bool | None' if column.nullable else 'bool' }}] = mapped_column({{ column.column_name | pyrepr }},
+        Boolean, {{ 'nullable=True' if column.nullable else 'nullable=False' }}, comment={{ column.column_comment | pyrepr }}
+    )
+    {% elif column.field_type == 'str' %}
+    {{ column.field_name }}: Mapped[{{ 'str | None' if column.nullable else 'str' }}] = mapped_column({{ column.column_name | pyrepr }},
+        String({{ column.column_size or 255 }}), {{ 'nullable=True' if column.nullable else 'nullable=False' }}, comment={{ column.column_comment | pyrepr }}
+    )
+    {% else %}
+    {{ column.field_name }}: Mapped[{{ 'str | None' if column.nullable else 'str' }}] = mapped_column({{ column.column_name | pyrepr }},
+        String(255), {{ 'nullable=True' if column.nullable else 'nullable=False' }}, comment={{ column.column_comment | pyrepr }}
+    )
+    {% endif %}
+    {% endif %}
+    {% endfor %}

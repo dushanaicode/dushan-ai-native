@@ -27,10 +27,12 @@ class CacheStep:
     async def run(ctx: AppBootstrapContext):
         definitions = ctx.definitions
         if CacheSettings not in definitions.configuration.model_classes:
+            ctx.logger.info("【CacheStarter 】配置模型未装配，跳过启动")
             yield
             return
         settings = definitions.configuration.get_config(CacheSettings)
         if not settings.enabled:
+            ctx.logger.info("【CacheStarter 】缓存未启用")
             yield
             return
         if definitions.application_context is None:

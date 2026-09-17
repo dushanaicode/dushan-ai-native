@@ -2,6 +2,7 @@ import tomllib
 from graphlib import CycleError, TopologicalSorter
 from pathlib import Path
 
+from loguru import logger
 from pydantic import ValidationError
 
 from framework.common.exception.exceptions.configuration_exception import ConfigurationException
@@ -17,6 +18,7 @@ class ModuleLoader:
     @classmethod
     def load(cls, settings: ModuleSettings) -> tuple[ResolvedModule, ...]:
         """全部声明验证成功后，按确定的依赖顺序返回启用模块。"""
+        logger.info("【ModuleStarter 】开始加载模块声明")
         declarations: dict[str, ResolvedModule] = {}
         for package in sorted(settings.packages):
             root = PackageLocator.locate(package, package=True).parent
@@ -35,6 +37,14 @@ class ModuleLoader:
                         msg=f"模块包范围重叠: {package} 与 {existing.definition.package}"
                     )
             declarations[definition.name] = ResolvedModule(definition, root)
+            logger.debug(
+                "【ModuleStarter 】模块={} package={} requires={} root={}",
+                definition.name,
+                definition.package,
+                definition.requires,
+                root,
+            )
+        logger.info("【ModuleStarter 】模块声明校验完成：{} 个", len(declarations))
         unknown = set(settings.enabled) - declarations.keys()
         if unknown:
             raise ConfigurationException(msg=f"启用模块未声明: {', '.join(sorted(unknown))}")
@@ -53,6 +63,7 @@ class ModuleLoader:
             raise ConfigurationException(
                 msg="模块依赖存在循环: " + ", ".join(sorted(graph)), cause=error
             ) from error
+        logger.info("【ModuleStarter 】加载完成，启用顺序：{}", ", ".join(order))
         return tuple(declarations[name] for name in order)
 
     @staticmethod
