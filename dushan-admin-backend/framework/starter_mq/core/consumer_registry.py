@@ -1,3 +1,5 @@
+from loguru import logger
+
 from framework.starter_mq.core.backend_capabilities import BackendCapabilities
 from framework.starter_mq.enums.exhausted_policy import ExhaustedPolicy
 from framework.starter_mq.enums.message_mode import MessageMode
@@ -9,6 +11,7 @@ class ConsumerRegistry:
     """启动时一次验证声明和覆盖；不从存储里的类名重建可执行对象。"""
 
     def __init__(self, settings, handlers):
+        logger.info("【MQStarter 】开始校验消费者声明")
         self.settings = settings
         self.handlers = {}
         self.limits = {}
@@ -27,8 +30,18 @@ class ConsumerRegistry:
                     raise MQException("declaration")
                 bindings.add(binding)
             self.handlers[definition.key] = handler
+            logger.debug(
+                "【MQStarter 】消费者={} destination={} group={} mode={} handler={}.{}",
+                definition.key,
+                definition.destination,
+                definition.group,
+                definition.mode.value,
+                handler.__module__,
+                handler.__qualname__,
+            )
         if len(self.handlers) > settings.max_consumers:
             raise MQException("declaration")
+        logger.info("【MQStarter 】消费者声明校验完成：{} 个", len(self.handlers))
 
     def _validate(self, definition):
         try:
@@ -79,6 +92,18 @@ class ConsumerRegistry:
             ):
                 raise MQException("declaration")
             self.limits[key] = (enabled, concurrency, prefetch)
+            logger.debug(
+                "【MQStarter 】消费者={} enabled={} concurrency={} prefetch={}",
+                key,
+                enabled,
+                concurrency,
+                prefetch,
+            )
+        logger.info(
+            "【MQStarter 】消费者运行配置已绑定：启用 {} 个，停用 {} 个",
+            len(self.active()),
+            len(self.handlers) - len(self.active()),
+        )
 
     def active(self):
         return [handler for key, handler in self.handlers.items() if self.limits[key][0]]

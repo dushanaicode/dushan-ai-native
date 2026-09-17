@@ -24,9 +24,21 @@ class DataPermissionPolicy(RowAccessRule):
     def validate_row(self, config, row, operation):
         if config.public and config.tenant_column is None:
             return
+        if config.public:
+            identity = self.service.security.current() or self.service.security.current_workload()
+            if (
+                identity is None
+                or identity.tenant_id is None
+                or row.get(config.tenant_column) != identity.tenant_id
+            ):
+                raise DataPermissionException("write")
+            return
         frame = self.service.current()
         for name in config.authority_columns:
-            if name not in row or (row[name] is not None and not isinstance(row[name], str)):
+            if name not in row or (
+                row[name] is not None
+                and type(row[name]) is not config.table.c[name].type.python_type
+            ):
                 raise DataPermissionException("write")
         if (
             frame.identity.tenant_id is None
@@ -41,8 +53,10 @@ class DataPermissionPolicy(RowAccessRule):
             return
         if not (
             config.membership_column is not None
-            and row[config.membership_column] in frame.grant.membership_ids
+            and row[config.membership_column]
+            in config.scope_values(config.membership_column, frame.grant.membership_ids)
             or config.department_column is not None
-            and row[config.department_column] in frame.grant.department_ids
+            and row[config.department_column]
+            in config.scope_values(config.department_column, frame.grant.department_ids)
         ):
             raise DataPermissionException("write")

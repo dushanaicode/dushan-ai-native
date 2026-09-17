@@ -427,7 +427,7 @@ async def mq_sql_case(mq_sql_target, mq_sql_options, config_dir, module_package,
             TENANT_SOURCE.format(
                 suffix="mq" + suffix,
                 public="@public_data(tenant_column=None)" if permissions else "",
-                protected='@data_permission(membership_column="membership_id", department_column="dept_id")'
+                protected='@data_permission(permission_type="both", user_id_column="membership_id", dept_id_column="dept_id")'
                 if permissions
                 else "",
             ),

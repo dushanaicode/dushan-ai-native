@@ -121,7 +121,9 @@ class LoggingStarter:
         if self._shutdown_task is not None and not self._shutdown_task.done():
             raise RuntimeError("日志仍在关闭，请等待输出清理完成后再初始化")
         if self._initialized:
-            logger.bind(logging_owner=self._configurator.owner_id).debug("日志系统已初始化，跳过")
+            logger.bind(logging_owner=self._configurator.owner_id).debug(
+                "【LoggingStarter 】日志系统已初始化，跳过"
+            )
             return
 
         self._shutdown_task = None
@@ -129,8 +131,20 @@ class LoggingStarter:
         self._shutdown_observer = None
         try:
             self._configurator.configure_logging(log_settings, app_env=app_env)
+            logger.bind(logging_owner=self._configurator.owner_id).info(
+                "【LoggingStarter 】开始启用日志服务"
+            )
+            logger.bind(logging_owner=self._configurator.owner_id).info(
+                "【LoggingStarter 】日志输出接管完成，脱敏与上下文注入已启用"
+            )
             self._initialized = True
-            logger.bind(logging_owner=self._configurator.owner_id).info("日志系统初始化完成")
+            logger.bind(logging_owner=self._configurator.owner_id).info(
+                "【LoggingStarter 】初始化完成：控制台={}，文件={}",
+                log_settings.get_effective_console_level().value,
+                ",".join(sorted(item.value for item in log_settings.file_active_types))
+                if log_settings.get_effective_file_enabled()
+                else "关闭",
+            )
         except Exception as e:
             self._initialized = False
             try:

@@ -1,0 +1,11 @@
+name = "infra"
+package = "module_infra"
+scan_roots = ["config", "definitions.constants", "dal", "convert", "service", "spi", "api", "framework", "job", "util"]
+definitions = []
+requires = ["framework", "system"]
+required_message_keys = []
+
+[[resource_roots]]
+path = "definitions/i18n"
+scope = "infra"
+required = true

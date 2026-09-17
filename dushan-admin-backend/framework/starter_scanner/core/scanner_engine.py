@@ -1,6 +1,8 @@
 from pathlib import Path
 from time import perf_counter
 
+from loguru import logger
+
 from framework.common.importing.package_locator import PackageLocator
 from framework.starter_scanner.config.scanner_config import ScannerConfig
 from framework.starter_scanner.core.component_collector import ComponentCollector
@@ -36,6 +38,7 @@ class ScannerEngine:
             ScanRecorder(self.config.diagnostic_limit) if self.config.diagnostics_enabled else None
         )
         if not self.config.enabled or self.config.component_types == ():
+            logger.info("【ScannerStarter 】自动扫描未启用或未选择组件类型，跳过源码扫描")
             if recorder is not None:
                 recorder.skip(
                     "automatic_disabled" if not self.config.enabled else "empty_type_filter", ""
@@ -43,6 +46,7 @@ class ScannerEngine:
             return ScanResult(
                 (), (), perf_counter() - started, None if recorder is None else recorder.snapshot()
             )
+        logger.info("【ScannerStarter 】开始扫描：{} 个扫描根", len(roots))
         files: dict[str, tuple[str, Path]] = {}
         for root in roots:
             reason = self._filter.reason(root.package, traverse=True)
@@ -59,6 +63,7 @@ class ScannerEngine:
             self._collect_files(root.module, root.package, path, path, files, recorder)
         if recorder is not None:
             recorder.phases["enumeration"] = perf_counter() - started
+        logger.info("【ScannerStarter 】文件枚举完成：{} 个，开始校验导入来源", len(files))
         validation_started = perf_counter()
         physical: dict[Path, str] = {}
         for name, (_, path) in sorted(files.items()):
@@ -75,6 +80,7 @@ class ScannerEngine:
                 )
         if recorder is not None:
             recorder.phases["validation"] = perf_counter() - validation_started
+        logger.info("【ScannerStarter 】来源校验通过，开始导入源码并收集组件定义")
         definitions: list[ComponentDefinition] = []
         for name, (owner, path) in sorted(files.items()):
             import_started = perf_counter() if recorder is not None else 0.0
@@ -90,11 +96,18 @@ class ScannerEngine:
                 recorder.imported(name, perf_counter() - import_started)
             collection_started = perf_counter() if recorder is not None else 0.0
             found = self._collector.collect(module, owner, path)
+            # logger.debug("【ScannerStarter 】已扫描 {}，发现 {} 个定义", name, len(found))
             definitions.extend(found)
             if recorder is not None:
                 recorder.phases["collection"] += perf_counter() - collection_started
                 if not found:
                     recorder.skip("no_matching_definitions", name)
+        logger.info(
+            "【ScannerStarter 】扫描完成：文件 {} 个，定义 {} 个，耗时 {:.1f}ms",
+            len(files),
+            len(definitions),
+            (perf_counter() - started) * 1000,
+        )
         return ScanResult(
             tuple(definitions),
             tuple(path for _, path in (files[name] for name in sorted(files))),

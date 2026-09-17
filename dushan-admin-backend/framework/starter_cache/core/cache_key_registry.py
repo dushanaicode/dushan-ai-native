@@ -50,7 +50,7 @@ class CacheKeyRegistry:
         self._validate_colocation(collected)
         self._keys = collected
         self._registered = True
-        logger.info("缓存键登记完成，容器声明 {} 个前缀", len(collected))
+        logger.info("【CacheStarter 】缓存键登记完成：{} 个前缀", len(collected))
 
     @staticmethod
     def _collect(collected: dict[str, CacheKey], source: str, cache_key: CacheKey) -> None:

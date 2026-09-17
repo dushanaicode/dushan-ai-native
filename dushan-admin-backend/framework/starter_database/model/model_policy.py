@@ -30,9 +30,10 @@ class ModelPolicy:
 
     def bind(self, session) -> None:
         session.access_policies = tuple(self.session_policies)
+        # 行级策略要验证最终主键和审计值，先补齐框架负责生成的字段。
+        event.listen(session, "before_flush", self.before_flush)
         for policy in session.access_policies:
             policy.bind(session)
-        event.listen(session, "before_flush", self.before_flush)
         event.listen(session, "after_flush", self.after_flush)
         event.listen(session, "do_orm_execute", self.before_execute, retval=True)
 

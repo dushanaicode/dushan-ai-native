@@ -18,6 +18,7 @@ class MQService:
 
     def __init__(self):
         self.runtime = None
+        self.declarations = ()
 
     def require_runtime(self):
         if self.runtime is None or self.runtime.phase not in {"starting", "ready"}:

@@ -8,6 +8,7 @@ from fixtures.public_web_app import create_public_app
 from framework.starter_auth.core.auth_service import AuthService
 from framework.starter_auth.exception.auth_error_codes import AuthErrorCodes as Codes
 from framework.starter_auth.exception.auth_exception import AuthException
+from framework.starter_auth.starter.auth_starter import AuthStarter
 from framework.starter_cache.core.cache_key_registry import CacheKeyRegistry
 from framework.starter_di.decorators.di_dependency import DiDependency
 
@@ -61,6 +62,7 @@ async def test_application_di_named_cache_and_callback(config_dir):
         service._transport = transport
         with app.state.application_context.execution():
             assert app.state.application_context.get_bean(AuthService) is service
+            assert app.state.application_context.get_bean(AuthStarter).service is service
             registry = app.state.application_context.get_bean(CacheKeyRegistry)
             assert registry.is_registered
             assert service.store.key.client_name == "auth_store"

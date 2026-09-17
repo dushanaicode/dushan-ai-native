@@ -5,6 +5,7 @@ from threading import RLock
 from urllib.parse import urlsplit
 from uuid import uuid4
 
+from loguru import logger
 from opentelemetry import context, trace
 from opentelemetry.context import Context
 from opentelemetry.trace import SpanKind
@@ -70,7 +71,9 @@ class MonitorService:
         self.diagnostics.logger = diagnostic_logger
         if not self.settings.enabled:
             self._state = "disabled"
+            logger.info("【MonitorStarter 】链路追踪未启用")
             return
+        logger.info("【MonitorStarter 】开始初始化链路追踪资源")
         self._state = "starting"
         try:
             from opentelemetry.sdk.resources import Resource
@@ -101,6 +104,7 @@ class MonitorService:
                 shutdown_on_exit=False,
             )
             SdkLogGuard.acquire()
+            logger.info("【MonitorStarter 】TracerProvider 与采样策略已装配")
             self._guard_owned = True
             with SdkLogGuard.quiet():
                 self._exporter = exporter if exporter is not None else self._create_exporter()
@@ -111,7 +115,19 @@ class MonitorService:
                 self._processor = MonitorSpanProcessor(bounded, settings)
                 self._provider.add_span_processor(self._processor)
             self._tracer = self._provider.get_tracer("dushan.monitor", settings.service_version)
+            logger.info(
+                "【MonitorStarter 】导出器已装配：{}",
+                type(self._exporter).__qualname__ if self._exporter is not None else "未启用",
+            )
+            logger.debug(
+                "【MonitorStarter 】服务={} version={} sampler={} sample_ratio={}",
+                settings.service_name,
+                settings.service_version,
+                settings.sampler,
+                settings.sample_ratio,
+            )
             self._state = "ready"
+            logger.info("【MonitorStarter 】初始化完成：{}", settings.service_name)
         except BaseException as error:
             self._state = "failed"
             if isinstance(error, Exception):

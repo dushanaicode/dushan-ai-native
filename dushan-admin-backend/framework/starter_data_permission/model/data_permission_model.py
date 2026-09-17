@@ -46,8 +46,23 @@ class DataPermissionModel:
         if len(set(self.authority_columns)) != len(self.authority_columns):
             raise ValueError("租户与归属列不能复用")
         for name in self.authority_columns:
-            if name not in table.c or table.c[name].type.python_type is not str:
-                raise ValueError("权限列必须匹配 Native 身份的字符串 ID 契约")
+            allowed = (str,) if name == self.tenant_column else (int, str)
+            if name not in table.c or table.c[name].type.python_type not in allowed:
+                raise ValueError("租户列必须为字符串，用户/部门归属列必须为整数或字符串")
+
+    def scope_values(self, column, values):
+        """在已声明列的边界转换身份 ID，拒绝非规范或越界整数。"""
+        if self.table.c[column].type.python_type is str:
+            return values
+        converted = set()
+        for value in values:
+            if not value.isascii() or not value.isdecimal():
+                raise ValueError("整数归属列要求十进制身份 ID")
+            identifier = int(value)
+            if str(identifier) != value or not 0 < identifier <= 2**63 - 1:
+                raise ValueError("整数归属 ID 必须是规范的正 int64")
+            converted.add(identifier)
+        return frozenset(converted)
 
     @property
     def authority_columns(self):

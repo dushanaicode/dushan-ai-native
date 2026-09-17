@@ -1,0 +1,56 @@
+-- {{ class_comment }}表结构 SQL
+-- ----------------------------
+-- Table: {{ table_name }} ({{ table.table_comment }})
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS `{{ table_name }}` (
+{% for column in columns %}
+{% if column.computed_expression %}
+    `{{ column.column_name }}` {{ column.data_type | upper }} GENERATED ALWAYS AS ({{ column.computed_expression }}) {{ 'STORED' if column.computed_persisted else 'VIRTUAL' }},
+{% elif column.primary_key %}
+    `{{ column.column_name }}` BIGINT NOT NULL COMMENT '{{ column.column_comment }}',
+{% elif column.field_name == 'creator' %}
+    `{{ column.column_name }}` VARCHAR(64) DEFAULT '' COMMENT '{{ column.column_comment }}',
+{% elif column.field_name == 'create_time' %}
+    `{{ column.column_name }}` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '{{ column.column_comment }}',
+{% elif column.field_name == 'updater' %}
+    `{{ column.column_name }}` VARCHAR(64) DEFAULT '' COMMENT '{{ column.column_comment }}',
+{% elif column.field_name == 'update_time' %}
+    `{{ column.column_name }}` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '{{ column.column_comment }}',
+{% elif column.field_name == 'deleted' %}
+    `{{ column.column_name }}` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '{{ column.column_comment }}',
+{% elif column.data_type == 'varchar' %}
+    `{{ column.column_name }}` VARCHAR({{ column.column_size or 255 }}) {{ 'NOT NULL' if not column.nullable else 'DEFAULT NULL' }} COMMENT '{{ column.column_comment }}',
+{% elif column.data_type == 'char' %}
+    `{{ column.column_name }}` CHAR({{ column.column_size or 1 }}) {{ 'NOT NULL' if not column.nullable else 'DEFAULT NULL' }} COMMENT '{{ column.column_comment }}',
+{% elif column.data_type == 'bigint' %}
+    `{{ column.column_name }}` BIGINT {{ 'NOT NULL' if not column.nullable else 'DEFAULT NULL' }} COMMENT '{{ column.column_comment }}',
+{% elif column.data_type == 'int' %}
+    `{{ column.column_name }}` INT {{ 'NOT NULL' if not column.nullable else 'DEFAULT NULL' }} COMMENT '{{ column.column_comment }}',
+{% elif column.data_type == 'tinyint' %}
+    `{{ column.column_name }}` TINYINT {{ 'NOT NULL' if not column.nullable else 'DEFAULT NULL' }} COMMENT '{{ column.column_comment }}',
+{% elif column.data_type == 'smallint' %}
+    `{{ column.column_name }}` SMALLINT {{ 'NOT NULL' if not column.nullable else 'DEFAULT NULL' }} COMMENT '{{ column.column_comment }}',
+{% elif column.data_type == 'decimal' %}
+    `{{ column.column_name }}` DECIMAL({{ column.column_size or '10,2' }}) {{ 'NOT NULL' if not column.nullable else 'DEFAULT NULL' }} COMMENT '{{ column.column_comment }}',
+{% elif column.data_type == 'datetime' %}
+    `{{ column.column_name }}` DATETIME {{ 'NOT NULL' if not column.nullable else 'DEFAULT NULL' }} COMMENT '{{ column.column_comment }}',
+{% elif column.data_type == 'date' %}
+    `{{ column.column_name }}` DATE {{ 'NOT NULL' if not column.nullable else 'DEFAULT NULL' }} COMMENT '{{ column.column_comment }}',
+{% elif column.data_type == 'text' %}
+    `{{ column.column_name }}` TEXT {{ 'DEFAULT NULL' if column.nullable else '' }} COMMENT '{{ column.column_comment }}',
+{% elif column.data_type == 'longtext' %}
+    `{{ column.column_name }}` LONGTEXT {{ 'DEFAULT NULL' if column.nullable else '' }} COMMENT '{{ column.column_comment }}',
+{% elif column.data_type == 'json' %}
+    `{{ column.column_name }}` JSON DEFAULT NULL COMMENT '{{ column.column_comment }}',
+{% elif column.data_type == 'bit' %}
+    `{{ column.column_name }}` BIT(1) {{ 'NOT NULL DEFAULT b\'0\'' if not column.nullable else 'DEFAULT NULL' }} COMMENT '{{ column.column_comment }}',
+{% elif column.data_type == 'double' %}
+    `{{ column.column_name }}` DOUBLE {{ 'NOT NULL' if not column.nullable else 'DEFAULT NULL' }} COMMENT '{{ column.column_comment }}',
+{% elif column.data_type == 'float' %}
+    `{{ column.column_name }}` FLOAT {{ 'NOT NULL' if not column.nullable else 'DEFAULT NULL' }} COMMENT '{{ column.column_comment }}',
+{% else %}
+    `{{ column.column_name }}` {{ column.data_type | upper }} {{ 'NOT NULL' if not column.nullable else 'DEFAULT NULL' }} COMMENT '{{ column.column_comment }}',
+{% endif %}
+{% endfor %}
+    PRIMARY KEY (`{{ primary_columns[0].column_name if primary_columns else 'id' }}`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='{{ table.table_comment }}';

@@ -16,7 +16,7 @@ def test_app_initialization_prints_summary_without_repeating_logo(config_dir, mo
     def start(self):
         pytest.fail("应用工作进程不应重复打印启动器横幅")
 
-    def complete(self, info):
+    async def complete(self, info):
         assert application.state.bootstrap.logging_starter.initialized
         assert application.state.bootstrap.exception_handler.translator is not None
         assert application.state.bootstrap.ready
@@ -30,7 +30,9 @@ def test_app_initialization_prints_summary_without_repeating_logo(config_dir, mo
     with TestClient(application) as client:
         assert client.get("/health").status_code == 200
     assert len(events) == 1
-    assert events[0].version == "2.0" and events[0].enabled_modules == ("framework",)
+    # 启用模块随 application.yaml 的 modules.enabled 变化，这里比对配置而不是写死清单。
+    enabled = frozenset(ConfigFactory.values()["modules"]["enabled"])
+    assert events[0].version == "2.0" and frozenset(events[0].enabled_modules) == enabled
     assert application.state.bootstrap.config_sources["banner.author"] == "环境变量 BANNER_AUTHOR"
     assert all(step.name != "启动信息" for step in APP_BOOTSTRAP_STEPS)
 
@@ -52,9 +54,11 @@ def test_project_name_and_runtime_details_are_printed_once_at_completion(config_
 
 def test_startup_failure_does_not_emit_completion_information(config_dir, monkeypatch):
     completed = []
-    monkeypatch.setattr(
-        BannerApplicationRunner, "print_startup_complete", lambda self, info: completed.append(info)
-    )
+
+    async def complete(self, info):
+        completed.append(info)
+
+    monkeypatch.setattr(BannerApplicationRunner, "print_startup_complete", complete)
     app = create_public_app(
         base_dir=config_dir({"i18n": {"required_message_keys": ["missing.required"]}}), environ={}
     )

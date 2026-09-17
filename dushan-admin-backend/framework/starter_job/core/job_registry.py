@@ -1,3 +1,4 @@
+from loguru import logger
 from pydantic import ValidationError
 
 from framework.starter_job.cron.cron_schedule import CronSchedule
@@ -6,6 +7,7 @@ from framework.starter_job.exception.job_exception import JobException
 
 class JobRegistry:
     def __init__(self, handlers, timezone):
+        logger.info("【JobStarter 】开始校验并注册任务处理器")
         self.handlers = {}
         self.timezone = timezone
         for handler in handlers:
@@ -13,6 +15,13 @@ class JobRegistry:
             if declaration.key in self.handlers:
                 raise JobException("handler")
             self.handlers[declaration.key] = handler
+            # logger.debug(
+            #     "【JobStarter 】处理器 {} -> {}.{}",
+            #     declaration.key,
+            #     handler.__module__,
+            #     handler.__qualname__,
+            # )
+        logger.info("【JobStarter 】处理器注册完成：{} 个", len(self.handlers))
 
     def require(self, key):
         if key not in self.handlers:

@@ -36,7 +36,7 @@ from framework.starter_security.spi.token_provider import TokenProvider
 from framework.starter_security.spi.permission_provider import PermissionProvider
 from framework.starter_security.spi.tenant_access_provider import TenantAccessProvider
 
-@data_permission(membership_column="membership_id")
+@data_permission(permission_type="user_scope", user_id_column="membership_id")
 class Record(BaseDO):
     __tablename__ = "{table_name}"
     metadata = MetaData()

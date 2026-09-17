@@ -116,6 +116,7 @@ class DiContainer:
                     error_code=DiErrorCodes.NOT_READY, msg="DI 已禁用或此容器已经开始过生命周期"
                 )
             self._state = ContainerStateEnum.STARTING
+        logger.info("【DiStarter 】开始构建依赖注入容器")
         frame = ExecutionFrame(LifecyclePhaseEnum.INITIALIZE)
         token = self._lifecycle_context.set(frame)
         try:
@@ -126,6 +127,7 @@ class DiContainer:
             selection.select(self._components)
             self._plan = BindingPlan(selection, self.configuration, self._instances)
             self._log_selection(selection)
+            logger.info("【DiStarter 】依赖计划校验通过，开始注册绑定")
             injector = Injector(auto_bind=False)
             self._injector = injector
             for key, instance in self._instances.items():
@@ -133,6 +135,12 @@ class DiContainer:
             for model in self.configuration.model_classes:
                 injector.binder.bind(model, to=ConfigModelProvider(self.configuration, model))
             for key, binding in self._plan.bindings.items():
+                # logger.debug(
+                #     "【DiStarter 】绑定 {} -> {}，scope={}",
+                #     key,
+                #     binding.implementation,
+                #     binding.scope.value,
+                # )
                 injector.binder.bind(
                     key,
                     to=ComponentProvider(self, binding),
@@ -141,15 +149,22 @@ class DiContainer:
             for interface, bindings in self._plan.providers.items():
                 for binding in bindings:
                     injector.binder.multibind(interface, to=ListBindingProvider(binding.key))
+            logger.info("【DiStarter 】绑定注册完成，开始初始化单例及生命周期钩子")
             for component in self._plan.order:
                 binding = self._plan.by_implementation[component]
                 if binding.scope is ComponentScopeEnum.SINGLETON:
                     instance = injector.get(binding.key)
                     for name in self._plan.hooks[component][LifecyclePhaseEnum.INITIALIZE]:
+                        logger.debug("【DiStarter 】初始化钩子 {}.{}", component.__qualname__, name)
                         await self._invoke_hook(instance, name, LifecyclePhaseEnum.INITIALIZE)
                     self._ready_types.add(component)
             with self._condition:
                 self._state = ContainerStateEnum.READY
+            logger.info(
+                "【DiStarter 】容器初始化完成：绑定 {} 个，已初始化单例 {} 个",
+                len(self._plan.bindings),
+                len(self._ready_types),
+            )
         except BaseException as primary:
             with self._condition:
                 self._state = ContainerStateEnum.STOPPING
@@ -250,17 +265,15 @@ class DiContainer:
             for item in selection.diagnostics
             if item.outcome is not BindingOutcomeEnum.SELECTED
         ]
-        if not skipped:
-            return
         logger.info(
-            "DI 候选 {} 个，选中 {} 个，未绑定 {} 个；详情见 DiContainer.get_binding_diagnostics()",
+            "【DiStarter 】候选选择完成：候选 {} 个，选中 {} 个，按条件或默认实现规则跳过 {} 个",
             len(selection.diagnostics),
             len(selection.bindings),
             len(skipped),
         )
         for item in skipped:
             logger.debug(
-                "DI 候选未绑定：{} -> {}（{}：{}）",
+                "【DiStarter 】候选跳过：{} -> {}（{}：{}）",
                 item.component,
                 item.key,
                 item.outcome.label,

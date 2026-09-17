@@ -25,7 +25,6 @@ from framework.starter_auth.model.authorization_request import AuthorizationRequ
 from framework.starter_auth.oidc.oidc_verifier import OidcVerifier
 from framework.starter_auth.spi.auth_client_provider import AuthClientProvider
 from framework.starter_cache.core.cache_handler import CacheHandler
-from framework.starter_cache.exception.cache_exception import CacheException
 from framework.starter_cache.lock.distributed_lock import DistributedLock
 from framework.starter_di.decorators.components import framework
 from framework.starter_di.enums.component_scope_enum import ComponentScopeEnum
@@ -63,32 +62,18 @@ class AuthService:
         self._idle.set()
         self._close_task = None
 
-    async def open(self, *, components=(), transport=None):
+    @asynccontextmanager
+    async def startup(self, *, transport=None):
+        """向 Starter 提供一次装配窗口，成功退出后才允许授权操作。"""
         if self._phase != "new":
             raise AuthException(Codes.UNAVAILABLE)
         if not self.settings.enabled:
             raise AuthException(Codes.DISABLED)
         self._phase = "starting"
         self._loop = asyncio.get_running_loop()
-        self.registry.discover(components, allow_loopback_http=self.settings.allow_loopback_http)
-        for config in self.settings.clients:
-            if config.enabled:
-                provider = self.registry.get(config.source)
-                provider.validate_client(config, self.settings)
-                provider(config, None, self.credentials, None).validate_endpoints(self.settings)
-        try:
-            for key, ttl in zip(
-                self.settings.cache_keys(),
-                (self.settings.state_ttl_seconds, self.settings.credential_ttl_seconds),
-            ):
-                self.store.cache.resolve_ttl_seconds(key, ttl)
-                self.store.cache.get_client(key)
-        except CacheException as error:
-            raise AuthException(Codes.CACHE, cause=error) from error
-        self.registry.seal()
+        yield
         self._transport = transport
         self._phase = "ready"
-        logger.info("第三方授权资源就绪，已注册 {} 个授权源", len(self.registry.capabilities()))
 
     @asynccontextmanager
     async def _operation(self, source, operation):
@@ -309,7 +294,9 @@ class AuthService:
     @staticmethod
     def _closed(task):
         if not task.cancelled() and task.exception() is not None:
-            logger.error("第三方授权资源关闭失败：{}", type(task.exception()).__name__)
+            logger.error(
+                "【AuthStarter 】第三方授权资源关闭失败：{}", type(task.exception()).__name__
+            )
 
     @property
     def is_ready(self):

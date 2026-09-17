@@ -310,10 +310,15 @@ async def permission_case(permission_target, config_dir, tmp_path, request):
     )
     Item.children = relationship(Child, lazy="selectin")
     Item = data_permission(
-        membership_column=None if model_scope == "department" else "membership_id",
-        department_column=None if model_scope == "membership" else "dept_id",
+        permission_type={"department": "dept_scope", "membership": "user_scope", "both": "both"}[
+            model_scope
+        ],
+        user_id_column=None if model_scope == "department" else "membership_id",
+        dept_id_column=None if model_scope == "membership" else "dept_id",
     )(Item)
-    Child = data_permission(membership_column="membership_id", department_column="dept_id")(Child)
+    Child = data_permission(
+        permission_type="both", user_id_column="membership_id", dept_id_column="dept_id"
+    )(Child)
     rules = Table(
         "dp_rules_" + suffix,
         metadata,

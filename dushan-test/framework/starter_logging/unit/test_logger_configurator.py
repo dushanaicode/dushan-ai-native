@@ -91,6 +91,39 @@ def test_context_fields_publish_explicit_empty_principal_values() -> None:
     }
 
 
+def test_text_logs_hide_missing_context_and_keep_real_identity(tmp_path):
+    configurator = LoggerConfigurator(tmp_path)
+    configurator.configure_logging(
+        ConfigFactory.build(LogSettings, "log", root_dir=str(tmp_path), enable_file_overall=False),
+        app_env="test",
+    )
+    messages, records = [], []
+
+    def capture(message):
+        messages.append(str(message))
+        records.append(dict(message.record["extra"]))
+
+    handler = logger.add(capture, format=LoggerConfigurator.COMMON_FORMAT)
+    try:
+        logger.info("启动完成")
+        token = LogContext.begin_request("request-visible")
+        try:
+            LogContext.set_tenant("1")
+            LogContext.set_principal(42, 142, "tenant")
+            logger.info("业务请求")
+        finally:
+            LogContext.reset(token)
+    finally:
+        logger.remove(handler)
+        configurator.remove_owned_handlers()
+    assert "request=" not in messages[0] and "tenant=" not in messages[0]
+    assert "request=request-visible" in messages[1] and "tenant=1" in messages[1]
+    assert "account=42" in messages[1] and "membership=142" in messages[1]
+    assert "trace=-" not in messages[1] and "ip=-" not in messages[1]
+    assert records[0]["request_id"] == "-"
+    assert records[1]["account_id"] == "42"
+
+
 def test_configurator_uses_protocol_neutral_client_ip_context() -> None:
     """客户端地址由日志上下文传递，不依赖 HTTP 请求。"""
     messages: list[str] = []

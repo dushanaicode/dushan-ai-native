@@ -1,0 +1,12 @@
+name = "system"
+package = "module_system"
+scan_roots = ["definitions.constants", "config", "dal", "service", "spi", "api", "framework", "job", "mq", "util"]
+# 显式定义列表：错误码经 scan_roots 自动发现，这里登记不走扫描的组件，随各层落地逐步补充。
+definitions = []
+requires = ["framework"]
+required_message_keys = []
+
+[[resource_roots]]
+path = "definitions/i18n"
+scope = "system"
+required = true

@@ -1,11 +1,14 @@
 from types import MappingProxyType
 
+from loguru import logger
 from sqlalchemy import Column, Delete, Insert, Table, UniqueConstraint, Update
 from sqlalchemy.orm import Mapper
 from sqlalchemy.sql import visitors
 from sqlalchemy.sql.elements import ColumnClause
 from sqlalchemy.sql.selectable import Select, TableClause
 
+from framework.starter_tenant.entity.tenant_base_do import TenantBaseDO
+from framework.starter_tenant.enums.tenant_model_kind import TenantModelKind
 from framework.starter_tenant.exception.tenant_exception import TenantException
 from framework.starter_tenant.model.tenant_model import TenantModel
 
@@ -14,12 +17,16 @@ class TenantModelRegistry:
     """应用模型的唯一所有权快照；未知表与伪造的同名 Table 均拒绝。"""
 
     def __init__(self, models):
+        logger.info("【TenantStarter 】开始登记租户模型与校验隔离约束")
         entries = {}
         for model in models:
             item = model if isinstance(model, TenantModel) else vars(model).get("__tenant_model__")
+            if item is None and isinstance(model, type) and issubclass(model, TenantBaseDO):
+                item = TenantModel(model, TenantModelKind.TENANT, "tenant_id")
             if not isinstance(item, TenantModel) or item.table.key in entries:
                 raise TenantException("model")
             entries[item.table.key] = item
+
         self.entries = MappingProxyType(entries)
         for item in entries.values():
             unique = [
@@ -39,6 +46,11 @@ class TenantModelRegistry:
                 }
                 if item.public or (item.tenant_column, other.tenant_column) not in pairs:
                     raise TenantException("model")
+        logger.info(
+            "【TenantStarter 】模型校验完成：租户表 {} 个，全局表 {} 个",
+            sum(not item.public for item in entries.values()),
+            sum(item.public for item in entries.values()),
+        )
 
     def require(self, table):
         item = self.entries.get(table.key)

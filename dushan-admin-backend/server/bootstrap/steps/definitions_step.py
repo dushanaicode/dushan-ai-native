@@ -9,17 +9,18 @@ from framework.common.exception.exceptions.configuration_exception import Config
 from framework.common.exception.registry.error_code_registry import ErrorCodeRegistry
 from framework.common.page.core.data_paginator import DataPaginator
 from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
-from framework.starter_config.provider.config_provider import ConfigProvider
+from framework.starter_config.config.config_settings import ConfigSettings
+from framework.starter_config.starter.config_starter import ConfigStarter
 from framework.starter_database.pagination.sql_paginator import SqlPaginator
-from framework.starter_di.context.application_context import ApplicationContext
-from framework.starter_di.core.di_container import DiContainer
+from framework.starter_di.starter.di_starter import DiStarter
+from framework.starter_excel.config.excel_settings import ExcelSettings
+from framework.starter_excel.starter.excel_starter import ExcelStarter
 from framework.starter_i18n.core.i18n_locale_root import I18nLocaleRoot
 from framework.starter_i18n.starter.i18n_starter import I18nStarter
-from framework.starter_module.core.definition_loader import DefinitionLoader
-from framework.starter_module.core.module_loader import ModuleLoader
-from framework.starter_scanner.core.scan_root import ScanRoot
-from framework.starter_scanner.core.scanner_engine import ScannerEngine
+from framework.starter_module.starter.module_starter import ModuleStarter
+from framework.starter_scanner.starter.scanner_starter import ScannerStarter
 from framework.starter_web.exception.validation_error_mapper import ValidationErrorMapper
+from framework.starter_web.response.file_result import FileResult
 from server.bootstrap.application_definitions import ApplicationDefinitions
 from server.bootstrap.context import AppBootstrapContext
 
@@ -30,24 +31,12 @@ class DefinitionsStep:
     @staticmethod
     @asynccontextmanager
     async def run(ctx: AppBootstrapContext) -> AsyncIterator[None]:
-        modules = ModuleLoader.load(ctx.module_settings)
-        roots = tuple(
-            ScanRoot(
-                module.definition.name,
-                module.definition.package
-                if relative == "."
-                else f"{module.definition.package}.{relative}",
-                module.root if relative == "." else module.root.joinpath(*relative.split(".")),
-            )
-            for module in modules
-            for relative in module.definition.scan_roots
-        )
-        result = ScannerEngine(ctx.scanner_config).scan(roots)
-        result = result.merge_explicit(DefinitionLoader.load(modules))
-        configuration = ConfigProvider(
-            ctx.bootstrap_config,
-            result.get_components(component_type=ComponentTypeEnum.CONFIG_MODEL),
-        )
+        ctx.logger.info("【DefinitionsStep 】开始装配模块定义与国际化")
+        modules, roots = ModuleStarter.initialize(ctx.module_settings)
+        result = ScannerStarter.initialize(ctx.scanner_config, roots, modules)
+        config_starter = ConfigStarter()
+        configuration = config_starter.open(ctx.bootstrap_config, result)
+        di_starter = DiStarter()
         application_context = None
         primary: BaseException | None = None
         published = False
@@ -88,25 +77,35 @@ class DefinitionsStep:
             )
             if ctx.di_settings.enabled:
                 instances = {
+                    ConfigSettings: ctx.bootstrap_config.get_config(
+                        ConfigSettings, prefix="CONFIG_"
+                    ),
                     type(ctx.settings): ctx.settings,
                     type(ctx.date_utils): ctx.date_utils,
                     type(ctx.expression_utils): ctx.expression_utils,
                     type(ctx.page_settings): ctx.page_settings,
+                    type(ctx.response_settings): ctx.response_settings,
+                    FileResult: FileResult(ctx.response_settings),
                     DataPaginator: DataPaginator(ctx.page_settings),
                     SqlPaginator: SqlPaginator(ctx.page_settings),
                     type(ctx.bootstrap_config): ctx.bootstrap_config,
                     ErrorCodeRegistry: registry,
                     type(translator): translator,
                 }
-                container = DiContainer(
+                if ExcelSettings in configuration.model_classes:
+                    instances.update(
+                        ExcelStarter.initialize(configuration.get_config(ExcelSettings))
+                    )
+                application_context = await di_starter.open(
                     result.get_components(component_type=ComponentTypeEnum.COMPONENT),
                     configuration=configuration,
                     settings=ctx.di_settings,
                     enabled_modules=frozenset(module.definition.name for module in modules),
                     instances=instances,
                 )
-                application_context = ApplicationContext(container)
-                await application_context.startup()
+            else:
+                ctx.logger.info("【DiStarter 】依赖注入未启用")
+                ctx.logger.info("【ExcelStarter 】未启用 DI，导入导出组件未自动装配")
             snapshot = ApplicationDefinitions(
                 modules, result, registry, translator, configuration, application_context
             )
@@ -116,7 +115,7 @@ class DefinitionsStep:
             ctx.app.state.application_context = application_context
             published = True
             ctx.logger.info(
-                "定义装配完成：模块 {}，文件 {}，组件 {}，配置模型 {}，扫描 {:.1f}ms",
+                "【DefinitionsStep 】定义装配完成：模块 {}，文件 {}，组件 {}，配置模型 {}，扫描 {:.1f}ms",
                 len(modules),
                 len(result.files),
                 len(result.definitions),
@@ -134,11 +133,11 @@ class DefinitionsStep:
                 ctx.definitions = None
                 ctx.app.state.application_context = None
             cleanup_error, cancellation = (None, None)
-            if application_context is not None:
+            if di_starter.application is not None:
                 cleanup_error, cancellation = await CleanupUtils.run_cancellation_safe_cleanup(
-                    application_context.shutdown, "应用 DI 清理"
+                    di_starter.close, "应用 DI 清理"
                 )
-            configuration.close()
+            config_starter.close()
             errors = [] if cleanup_error is None else [cleanup_error]
             if cleanup_error is not None and primary is not None and primary.__cause__ is not None:
                 errors.insert(0, primary.__cause__)

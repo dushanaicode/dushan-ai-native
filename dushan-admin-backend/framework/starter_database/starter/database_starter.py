@@ -30,7 +30,19 @@ class DatabaseStarter:
         self.last_refresh_error: str | None = None
 
     async def open(self) -> None:
+        logger.info("【DatabaseStarter 】开始初始化数据库资源")
         await self.database.open()
+        logger.info(
+            "【DatabaseStarter 】会话与事务管理已装配：ID 策略={}，健康检查={}，副本检查={}",
+            self.database.settings.id_strategy,
+            self.database.settings.health_check_enabled,
+            self.database.settings.replication_check_enabled,
+        )
+        logger.info(
+            "【DatabaseStarter 】初始化完成：静态数据源 {} 个，动态数据源={}",
+            len(self.database.settings.sources),
+            self.database.settings.dynamic_enabled,
+        )
 
     async def attach_source_loader(self, loader: DataSourceConfigProvider) -> None:
         """主库已就绪后接入 Infra 快照，再启动应用拥有的周期协调任务。"""
@@ -41,9 +53,16 @@ class DatabaseStarter:
         if not self.database.is_ready:
             raise RuntimeError("必须在主库就绪后绑定配置提供器")
         self._loader = loader
+        logger.info("【DatabaseStarter 】开始接入动态数据源配置提供器")
         await self.refresh_sources()
         self._refresh_task = asyncio.create_task(
             self._refresh_loop(), context=Context(), name="database-source-refresh"
+        )
+        logger.info("【DatabaseStarter 】动态数据源首次同步完成，定时刷新已登记")
+        logger.debug(
+            "【DatabaseStarter 】数据源提供器={} 刷新间隔={}s",
+            type(loader).__qualname__,
+            self.database.settings.dynamic_refresh_interval_seconds,
         )
 
     async def refresh_sources(self, *, preflight=False) -> int:
@@ -67,7 +86,10 @@ class DatabaseStarter:
                 raise
             except (DatabaseException, SQLAlchemyError, OSError, TimeoutError, ValueError) as error:
                 self.last_refresh_error = type(error).__name__
-                logger.error("动态数据库刷新失败，保留上次快照：{}", self.last_refresh_error)
+                logger.error(
+                    "【DatabaseStarter 】动态数据库刷新失败，保留上次快照：{}",
+                    self.last_refresh_error,
+                )
 
     async def close(self) -> None:
         errors = []

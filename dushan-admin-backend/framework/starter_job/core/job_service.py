@@ -25,15 +25,19 @@ class JobService:
         runtime.registry.validate(definition)
         async with self.database.transaction():
             await runtime.definitions.save_definition(definition)
-            self.database.after_commit(self._changed, required=True, name="job-definition-changed")
+            self.database.after_commit(
+                self.synchronize, required=True, name="job-definition-changed"
+            )
 
     async def delete(self, job_id):
         runtime = self._runtime()
         async with self.database.transaction():
             await runtime.definitions.delete_definition(job_id)
-            self.database.after_commit(self._changed, required=True, name="job-definition-deleted")
+            self.database.after_commit(
+                self.synchronize, required=True, name="job-definition-deleted"
+            )
 
-    async def _changed(self):
+    async def synchronize(self):
         runtime = self._runtime()
         await runtime.requests.notify_changed()
         if runtime.owner:

@@ -233,6 +233,11 @@ class DataPermissionService(DataAccessProvider):
         )
 
     def execution_key(self):
+        if self._frame.get() is None:
+            identity = self.security.current() or self.security.current_workload()
+            if identity is None:
+                raise DataPermissionException("missing")
+            return identity
         frame = self.current()
         return frame, tuple(
             id(item) for item in self._exemptions.get() if item.active and item.frame is frame

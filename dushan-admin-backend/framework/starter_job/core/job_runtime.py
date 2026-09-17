@@ -83,6 +83,7 @@ class JobRuntime:
         ):
             raise JobException("configuration")
         self.phase = "starting"
+        logger.info("【JobStarter 】开始初始化任务运行时")
         self.accepting = True
         if self.settings.owner_enabled:
             key = self.settings.owner_key()
@@ -94,15 +95,51 @@ class JobRuntime:
                 command_timeout_seconds=self.settings.command_timeout_seconds,
             )
             self.owner = await self.lease.acquire()
+            logger.info(
+                "【JobStarter 】调度所有权申请结果：{}",
+                "已取得 owner 租约" if self.owner else "未取得租约，以 client 模式运行",
+            )
             if self.owner:
                 self.scheduler.start(paused=True)
+                logger.info("【JobStarter 】调度器已创建并暂停，开始同步任务定义")
                 self._renew_task = asyncio.create_task(
                     self._renew(), context=Context(), name="job-owner-renew"
                 )
                 await self.reconcile()
+                logger.info("【JobStarter 】任务定义同步完成：启用 {} 个", len(self.plans))
+                for definition in self.plans.values():
+                    logger.debug(
+                        "【JobStarter 】任务 id={} handler={} cron={} fan_out={}",
+                        definition.id,
+                        definition.handler_key,
+                        definition.cron,
+                        definition.fan_out,
+                    )
+        else:
+            logger.info("【JobStarter 】owner 未启用，以 client 模式运行，不加载调度计划")
         self.phase = "waiting" if self.owner else "client"
+        logger.info(
+            "【JobStarter 】资源初始化完成：模式={}，等待宿主激活",
+            "owner" if self.owner else "client",
+        )
+
+    async def activate(self):
+        """由宿主在依赖激活后直接等待；调度器恢复完成才返回。"""
+        if (
+            self.application.state is not ApplicationStateEnum.READY
+            or self.phase not in {"waiting", "client"}
+            or self._loop_task is not None
+        ):
+            raise JobException("closed")
+        if self.owner:
+            self._require_owner()
+            self.scheduler.resume()
+            self.phase = "running"
         self._loop_task = asyncio.create_task(
             self._loop(), context=Context(), name="job-owner-loop"
+        )
+        logger.info(
+            "【JobStarter 】激活完成：{}", "任务调度开始运行" if self.owner else "client 模式已就绪"
         )
 
     def _require_owner(self):
@@ -240,10 +277,6 @@ class JobRuntime:
         return request.request_id
 
     async def _loop(self):
-        await self.application.wait_until_ready()
-        if self.owner:
-            self.scheduler.resume()
-            self.phase = "running"
         next_sync = asyncio.get_running_loop().time() + self.settings.reconciliation_seconds
         while not self._stop.is_set() and self.application.state is ApplicationStateEnum.READY:
             if self.owner and not self.lease.is_valid:
@@ -402,8 +435,6 @@ class JobRuntime:
         if self.scheduler.running:
             self.scheduler.pause()
         self._stop.set()
-        if self._loop_task is not None and self.application.state is ApplicationStateEnum.STARTING:
-            self._loop_task.cancel()
         tasks = [task for task in (self._loop_task,) if task is not None]
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)

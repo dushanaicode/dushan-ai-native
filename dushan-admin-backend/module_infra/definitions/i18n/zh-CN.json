@@ -1,0 +1,76 @@
+{
+  "infra": {
+    "job": {
+      "not_exists": "定时任务不存在",
+      "handler_exists": "定时任务的处理器已经存在",
+      "change_status_invalid": "只允许修改为开启或者关闭状态",
+      "change_status_equals": "定时任务已经处于该状态，无需修改",
+      "update_only_normal_status": "只有开启状态的任务，才可以修改",
+      "cron_expression_valid": "CRON 表达式不正确",
+      "handler_bean_not_exists": "定时任务的处理器 Bean 不存在",
+      "handler_bean_type_error": "定时任务的处理器 Bean 类型不正确",
+      "update_fail": "更新调度器任务失败",
+      "status_update_fail": "更新调度器任务状态失败",
+      "trigger_fail": "手动触发任务执行失败",
+      "sync_fail_scheduler": "无法获取调度器任务列表"
+    },
+    "log": {
+      "error_log_not_found": "API 错误日志不存在",
+      "error_log_processed": "API 错误日志已处理"
+    },
+    "file": {
+      "path_exists": "文件路径已存在",
+      "not_exists": "文件不存在",
+      "is_empty": "文件为空",
+      "node_not_exists": "文件节点不存在",
+      "node_already_exists": "同名文件节点已存在",
+      "node_parent_not_exists": "父节点不存在",
+      "node_parent_not_folder": "父节点不是文件夹",
+      "node_cannot_move_to_child": "不能将节点移动到其子节点下",
+      "config_not_exists": "文件配置不存在",
+      "config_delete_fail_master": "该文件配置不允许删除，原因：它是主配置",
+      "config_has_file": "该配置下存在文件，无法删除"
+    },
+    "cache": {
+      "get_monitor_info_error": "获取缓存监控信息失败",
+      "delete_failed": "删除缓存信息失败",
+      "flushdb_failed": "清除缓存当前数据库中的所有数据失败"
+    },
+    "mq": {
+      "definition_not_exists": "MQ 消息定义不存在",
+      "definition_topic_exists": "MQ Topic 已被其它定义使用",
+      "definition_consumer_exists": "MQ 消费者已被其它定义使用",
+      "definition_change_status_invalid": "只允许修改为开启或者暂停状态",
+      "definition_change_status_equals": "MQ 消息定义已经处于该状态，无需修改",
+      "message_not_exists": "MQ 消息实例不存在",
+      "message_resend_fail_status_wrong": "重发消息失败，只有失败或等待中的消息才能重发"
+    },
+    "data_source": {
+      "not_exists": "数据源配置不存在",
+      "name_duplicate": "已经存在名为【{}】的数据源",
+      "test_failed": "数据源连接测试失败：{}",
+      "delete_default": "不能删除默认数据源",
+      "activate_failed": "激活数据源失败：{}"
+    },
+    "config": {
+      "data_not_exists": "参数配置不存在",
+      "data_key_duplicate": "参数配置 key 重复",
+      "can_not_delete_system_type": "不能删除类型为系统内置的参数配置",
+      "get_value_error_if_visible": "获取参数配置失败，原因：不允许获取不可见配置",
+      "type_not_exists": "配置类型不存在",
+      "type_name_duplicate": "配置类型名称已存在",
+      "type_code_duplicate": "配置类型编码已存在",
+      "type_has_children": "配置类型下存在配置数据，无法删除",
+      "type_not_enable": "配置类型不处于开启状态，不允许选择"
+    },
+    "codegen": {
+      "table_not_exists": "代码生成表定义不存在",
+      "import_table_exists": "导入的表已存在",
+      "column_not_exists": "代码生成字段定义不存在",
+      "sync_none_change": "同步失败，表结构无变化",
+      "import_columns_null": "导入失败，表中无字段",
+      "table_comment_is_null": "数据库表的描述为空",
+      "sync_columns_null": "同步失败，数据库中该表已无字段"
+    }
+  }
+}

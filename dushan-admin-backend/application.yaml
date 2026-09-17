@@ -39,7 +39,7 @@ log:
   enable_json_format: false # 是否额外输出包含上下文字段的 JSONL 日志
   loadtest_mode: false # 压测模式强制关闭文件日志，并将控制台阈值设为 WARNING
   console_level: INFO # TRACE/DEBUG/INFO/SUCCESS/WARNING/ERROR/CRITICAL；NONE 关闭控制台
-  file_active_types: [warning, error] # 启用的文件类型：info、warning、error
+  file_active_types: [info, warning, error] # 启用的文件类型：info、warning、error
   rotation_size: "20 MB" # 单文件达到此大小后轮转
   enqueue: true # 使用队列写入；应用退出时先排空队列
   compression: zip # 轮转或关闭后压缩，null 表示不压缩
@@ -53,8 +53,9 @@ log:
 # ==================== 启动横幅配置 ====================
 banner:
   enabled: true # 展示总开关；常规生命周期日志仍由 log 配置控制
-  show_logo: true # 显示完整 DUSHAN / AI ADMIN / NO BUG 字符横幅
-  show_worship: true # 显示参考实现中的完整祈福图案，可按需关闭
+  show_logo: true # 显示完整 DUSHAN / AI NATIVE / NO BUG 字符横幅
+  show_worship: false # 显示旧版祈福图案，可按需开启
+  show_mascot: true # 显示虚拟形象小猫动画 (TUI Cat Mascot)
   show_startup_info: true # 显示应用版本、环境、监听地址及已开启的接口文档入口
   author: DUSHAN # 展示作者，空字符串表示不显示
   documentation_url: "" # 可选项目文档站地址；空字符串表示不显示，不内置外部站点链接
@@ -62,6 +63,37 @@ banner:
 # ==================== 配置模型与运行覆盖 ====================
 config:
   models: # 模型通过自身环境前缀覆盖字段，例如 DATABASE_ENABLED
+    infra_backup:
+      enabled: false
+      executable: mysqldump # 由部署提供客户端程序；在后端所在宿主或容器内执行
+      output_directory: Temp/infra-backups
+      data_source: primary
+      timeout_seconds: 600
+    system:
+      user_register_enabled: false
+      allow_modify_system_role: false
+      default_client_id: default
+      default_password: null
+      code_expire_seconds: 300
+      approve_expire_seconds: 2592000
+      refresh_cookie_name: system_refresh
+      refresh_cookie_secure: true
+      allowed_origins: []
+      workload_credential: null # 本站后台任务凭据，由部署配置提供
+      message_signing_key: null # MQ 身份证明密钥，至少 32 字节
+      sms_callback_token: null # 厂商回调地址中的校验凭据
+      message_lifetime_seconds: 300
+    sms_captcha:
+      expire_times: 600
+      send_frequency: 60
+      send_maximum_quantity_per_day: 20
+      begin_code: 1000
+      end_code: 9999
+    notification_delivery:
+      delivery_claim_lease_seconds: 300
+      outbox_processing_lease_seconds: 300
+      outbox_terminal_retention_days: 30
+      outbox_batch_size: 100
     websocket:
       enabled: false
       path: /api/ws
@@ -335,7 +367,7 @@ config:
       dynamic_refresh_interval_seconds: 5.0 # 绑定上层配置提供器后的轮询秒数
       soft_delete_enabled: true # 默认过滤 BaseDO 已删除记录
       audit_enabled: true # 自动填充当前作用域账户；UTC 时间始终由模型策略填写
-      id_strategy: database # database 使用数据库自增；snowflake 使用已有 SnowflakeUtils
+      id_strategy: database # framework 可使用自增；启用 system/infra 时必须设为 snowflake 并分配机器号
       snowflake_machine_id: null # snowflake 必须显式分配 0～1023；同机器号不能被多进程同时使用
       after_commit_result_limit: 100 # 最近提交后动作结果的最大条数
     cache:
@@ -414,8 +446,8 @@ di:
 
 # ==================== 模块声明配置 ====================
 modules:
-  packages: [framework] # 允许定位的已安装普通包，各自提供 module.toml；不会执行声明包
-  enabled: [framework] # 按声明 name 启用，[] 表示不启用模块；必要依赖必须同时显式启用
+  packages: [framework, module_system, module_infra] # 允许定位的已安装普通包，各自提供 module.toml；不会执行声明包
+  enabled: [framework] # 配置数据库、安全和缓存后显式加入 system；空列表表示不启用模块
 
 # ==================== Python 定义扫描 ====================
 scanner:

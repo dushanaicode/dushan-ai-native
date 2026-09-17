@@ -1,0 +1,205 @@
+{
+  "system": {
+    "auth": {
+      "login_bad_credentials": "Login failed, incorrect username or password",
+      "login_user_disabled": "Login failed, account is disabled",
+      "login_captcha_code_error": "Captcha verification failed",
+      "third_login_not_bind": "Account not bound, binding is required",
+      "token_expired": "Token has expired",
+      "mobile_not_exists": "Mobile number does not exist",
+      "register_captcha_code_error": "Registration captcha verification failed",
+      "invalid_token_code": "Invalid token format",
+      "token_not_found": "Access token does not exist"
+    },
+    "menu": {
+      "name_duplicate": "A menu with this name already exists",
+      "parent_not_exists": "Parent menu does not exist",
+      "parent_error": "Cannot set self as parent menu",
+      "not_exists": "Menu does not exist",
+      "exists_children": "Has sub-menus and cannot be deleted",
+      "parent_not_dir_or_menu": "Parent menu must be of type directory or menu",
+      "exists_children_menu": "Has sub-menus and cannot be deleted, please remove sub-menus first"
+    },
+    "role": {
+      "not_exists": "Role does not exist",
+      "name_duplicate": "A role named [{}] already exists",
+      "code_duplicate": "A role with code [{}] already exists",
+      "can_not_update_system_type": "Cannot modify system built-in roles",
+      "is_disable": "Role [{}] has been disabled",
+      "admin_code_error": "Code [{}] cannot be used"
+    },
+    "user": {
+      "username_exists": "Username already exists",
+      "mobile_exists": "Mobile number already exists",
+      "email_exists": "Email already exists",
+      "not_exists": "User does not exist",
+      "import_list_is_empty": "Import user data cannot be empty!",
+      "password_failed": "Password verification failed",
+      "is_disable": "User [{}] has been disabled",
+      "type_not_exists": "Invalid user type",
+      "count_max": "Failed to create user: exceeded tenant maximum quota ({})!",
+      "import_init_password": "Initial password cannot be empty",
+      "mobile_not_exists": "This mobile number is not registered",
+      "register_disabled": "Registration is disabled",
+      "kickout_device_not_owner": "No permission to operate on a device that does not belong to you"
+    },
+    "dept": {
+      "name_duplicate": "A department with this name already exists",
+      "parent_not_exists": "Parent department does not exist",
+      "not_found": "Department does not exist",
+      "exists_children": "Has sub-departments and cannot be deleted",
+      "parent_error": "Cannot set self as parent department",
+      "exists_user": "Department has staff and cannot be deleted",
+      "not_enable": "Department ({}) is not enabled",
+      "parent_is_child": "Cannot set a child department as parent"
+    },
+    "post": {
+      "not_found": "Position does not exist",
+      "not_enable": "Position ({}) is not enabled",
+      "name_duplicate": "A position with this name already exists",
+      "code_duplicate": "A position with this code already exists"
+    },
+    "dict_type": {
+      "not_exists": "Dictionary type does not exist",
+      "not_enable": "Dictionary type is not enabled",
+      "name_duplicate": "A dictionary type with this name already exists",
+      "type_duplicate": "A dictionary type of this type already exists",
+      "has_children": "Cannot delete, this dictionary type has dictionary data"
+    },
+    "dict_data": {
+      "not_exists": "Dictionary data does not exist",
+      "not_enable": "Dictionary data ({}) is not enabled",
+      "value_duplicate": "Dictionary data with this value already exists"
+    },
+    "notice": {
+      "not_found": "Notice does not exist",
+      "not_enable": "Notice is disabled",
+      "can_not_update_system_type": "Cannot modify built-in notification templates"
+    },
+    "announcement": {
+      "not_found": "Announcement does not exist",
+      "status_error": "Announcement status error",
+      "publish_time_required": "Scheduled publish requires publish time",
+      "publish_time_invalid": "Publish time must be later than current time"
+    },
+    "sms_channel": {
+      "not_exists": "SMS channel does not exist",
+      "disable": "SMS channel is not enabled",
+      "has_children": "Cannot delete, this SMS channel has SMS templates",
+      "scene_not_found": "Captcha scene [{}] configuration not found",
+      "code_immutable": "The provider of an existing SMS channel cannot be changed; create a new channel"
+    },
+    "sms_template": {
+      "not_exists": "SMS template does not exist",
+      "code_duplicate": "An SMS template with code [{}] already exists",
+      "api_error": "SMS API template call failed: {}",
+      "api_audit_checking": "SMS API template unavailable: under review",
+      "api_audit_fail": "SMS API template unavailable: review rejected, {}",
+      "api_not_found": "SMS API template unavailable: template not found",
+      "api_audit_unknown": "SMS template ({}) audit status ({}) is incorrect",
+      "can_not_update_builtin": "Cannot modify built-in SMS templates"
+    },
+    "sms_send": {
+      "mobile_not_exists": "Mobile number does not exist",
+      "template_param_miss": "Template parameter ({}) is missing",
+      "template_not_exists": "SMS template does not exist",
+      "mobile_invalid": "Invalid mobile number format"
+    },
+    "sms_code": {
+      "not_found": "Verification code does not exist",
+      "expired": "Verification code has expired",
+      "used": "Verification code has been used",
+      "not_correct": "Verification code is incorrect",
+      "exceed_send_max_per_day": "Daily SMS sending limit exceeded",
+      "send_too_fast": "SMS sending too frequently"
+    },
+    "tenant": {
+      "not_exists": "Tenant does not exist",
+      "disable": "Tenant [{}] has been disabled",
+      "expire": "Tenant [{}] has expired",
+      "can_not_update_system": "System tenant cannot be modified or deleted",
+      "name_duplicate": "Tenant [{}] already exists",
+      "website_duplicate": "A tenant with domain [{}] already exists",
+      "role_not_match": "Role ({}) tenant ({}) mismatch"
+    },
+    "tenant_package": {
+      "not_exists": "Tenant package does not exist",
+      "used": "Tenant is using this package, please reassign the package before deleting",
+      "disable": "Tenant package [{}] has been disabled",
+      "name_duplicate": "A tenant package with this name already exists"
+    },
+    "oauth2_client": {
+      "not_exists": "OAuth2 client does not exist",
+      "exists": "OAuth2 client ID already exists",
+      "disable": "OAuth2 client is disabled",
+      "grant_type_not_exists": "Unsupported grant type",
+      "scope_over": "Authorization scope exceeded",
+      "redirect_uri_not_match": "Invalid redirect_uri: {}",
+      "client_secret_error": "Invalid client_secret: {}"
+    },
+    "oauth2_grant": {
+      "client_id_mismatch": "client_id mismatch",
+      "redirect_uri_mismatch": "redirect_uri mismatch",
+      "state_mismatch": "state mismatch",
+      "client_user_type_mismatch": "Client does not support this user type authorization",
+      "not_client_type": "This client does not allow client credentials mode"
+    },
+    "oauth2_code": {
+      "not_exists": "Authorization code does not exist",
+      "expire": "Authorization code has expired"
+    },
+    "mail_account": {
+      "not_exists": "Mail account does not exist",
+      "relate_template_exists": "Cannot delete, this mail account has associated templates"
+    },
+    "mail_template": {
+      "not_exists": "Mail template does not exist",
+      "code_exists": "Mail template code ({}) already exists"
+    },
+    "mail_send": {
+      "template_param_miss": "Template parameter ({}) is missing",
+      "mail_not_exists": "Email address does not exist"
+    },
+    "notice_template": {
+      "not_exists": "Notification template does not exist",
+      "code_duplicate": "A notification template with code [{}] already exists"
+    },
+    "notice_send": {
+      "template_param_miss": "Template parameter ({}) is missing",
+      "batch_param_mismatch": "Batch send parameter mismatch: user count ({}) does not match parameter list count ({})",
+      "user_not_exists": "Send failed, user does not exist",
+      "template_disabled": "Send failed, notification template is disabled"
+    },
+    "sdk": {
+      "channel_not_found": "SDK channel does not exist"
+    },
+    "captcha": {
+      "type_invalid": "Invalid captcha type [{}]",
+      "not_found_or_expired": "Captcha has expired",
+      "verification_failed": "Captcha verification failed",
+      "service_unavailable": "Captcha service temporarily unavailable",
+      "verification_frequent": "Too many requests, please try again in {} seconds",
+      "failed_too_many_attempts": "Too many failed attempts, account locked, please try again in {} seconds",
+      "verification_param_miss": "Missing required captcha parameters"
+    },
+    "ip_area": {
+      "not_found": "IP area information not found"
+    },
+    "social": {
+      "weixin_mini_app_order_shipping_error": "WeChat Mini Program shipping update failed: {}",
+      "weixin_mini_app_order_confirm_receive_error": "WeChat Mini Program receipt confirmation failed: {}",
+      "client_not_exists": "Social client configuration does not exist",
+      "client_not_supported": "Unsupported social type: {}",
+      "client_unique": "Social client configuration already exists: {}",
+      "client_auth_failure": "Social client authentication failed: {}",
+      "user_auth_failure": "Social user authentication failed: {}",
+      "user_not_found": "Social user does not exist",
+      "wechat_mp_js_sdk_signature_error": "WeChat MP JSAPI signature failed: {}",
+      "weixin_mini_app_phone_code_error": "WeChat Mini Program get phone number failed: {}",
+      "weixin_mini_app_qrcode_error": "WeChat Mini Program get QR code failed: {}",
+      "weixin_mini_app_subscribe_template_error": "WeChat Mini Program get subscribe template failed: {}",
+      "weixin_mini_app_subscribe_message_error": "WeChat Mini Program send subscribe message failed: {}",
+      "platform_not_exist": "Social platform [{}] does not exist"
+    }
+  }
+}

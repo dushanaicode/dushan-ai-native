@@ -20,7 +20,7 @@ async def sql_feature(target, tmp_path, module_package):
     source = TENANT_SOURCE.format(
         suffix=namespace,
         public="@public_data(tenant_column=None)",
-        protected='@data_permission(membership_column="membership_id", department_column="dept_id")',
+        protected='@data_permission(permission_type="both", user_id_column="membership_id", dept_id_column="dept_id")',
     )
     lines = source.splitlines()
     removed = set()

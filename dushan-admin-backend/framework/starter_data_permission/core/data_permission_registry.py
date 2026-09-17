@@ -1,5 +1,6 @@
 from types import MappingProxyType
 
+from loguru import logger
 from sqlalchemy import Delete, Insert, Table, Update
 from sqlalchemy.sql import visitors
 from sqlalchemy.sql.elements import ColumnClause
@@ -9,12 +10,15 @@ from framework.starter_data_permission.exception.data_permission_exception impor
     DataPermissionException,
 )
 from framework.starter_data_permission.model.data_permission_model import DataPermissionModel
+from framework.starter_tenant.entity.global_control_do import GlobalControlDO
+from framework.starter_tenant.entity.tenant_base_do import TenantBaseDO
 
 
 class DataPermissionRegistry:
     """只持有当前应用扫描的模型；不查询进程全局 Mapper 注册表。"""
 
     def __init__(self, models):
+        logger.info("【DataPermissionStarter 】开始登记数据权限模型")
         entries = {}
         for model in models:
             config = (
@@ -22,12 +26,22 @@ class DataPermissionRegistry:
                 if isinstance(model, DataPermissionModel)
                 else vars(model).get("__data_permission__")
             )
+            if config is None and isinstance(model, type):
+                if issubclass(model, TenantBaseDO):
+                    config = DataPermissionModel(model, True, "tenant_id")
+                elif issubclass(model, GlobalControlDO):
+                    config = DataPermissionModel(model, True, None)
             if not isinstance(config, DataPermissionModel):
                 raise DataPermissionException("unregistered")
             if config.table.key in entries:
                 raise ValueError("数据权限表重复登记")
             entries[config.table.key] = config
         self.entries = MappingProxyType(entries)
+        logger.info(
+            "【DataPermissionStarter 】模型登记完成：记录范围受控 {} 个，公开范围 {} 个",
+            sum(not item.public for item in entries.values()),
+            sum(item.public for item in entries.values()),
+        )
 
     def require(self, table):
         config = self.entries.get(table.key)

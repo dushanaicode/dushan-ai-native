@@ -14,10 +14,12 @@ class IpStep:
     async def run(ctx: AppBootstrapContext):
         definitions = ctx.definitions
         if IpSettings not in definitions.configuration.model_classes:
+            ctx.logger.info("【IpStarter 】配置模型未装配，跳过启动")
             yield
             return
         settings = definitions.configuration.get_config(IpSettings)
         if not settings.enabled:
+            ctx.logger.info("【IpStarter 】地区与 IP 查询未启用")
             yield
             return
         if definitions.application_context is None:

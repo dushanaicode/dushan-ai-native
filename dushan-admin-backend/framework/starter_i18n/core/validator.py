@@ -17,7 +17,7 @@ class I18nValidator:
             return []
         keys = tuple(dict.fromkeys(key for key in message_keys if key))
         if not keys:
-            logger.info("【I18n】未提供 message_key，跳过翻译完整性校验")
+            logger.debug("【I18nStarter 】未提供 message_key，跳过翻译完整性校验")
             return []
         missing = [
             (message_key, locale)
@@ -27,7 +27,7 @@ class I18nValidator:
         ]
         if not missing:
             logger.info(
-                "【I18n】翻译完整性校验通过: {} 个 key，{} 种语言",
+                "【I18nStarter 】翻译完整性校验通过: {} 个 key，{} 种语言",
                 len(keys),
                 len(options.supported_locales),
             )
@@ -37,7 +37,7 @@ class I18nValidator:
             details += f"\n  ... 及 {len(missing) - 20} 条更多"
         message = f"i18n 完整性校验发现 {len(missing)} 项缺失翻译:\n{details}"
         if options.validation_policy == "error":
-            logger.error("【I18n】{}", message)
+            logger.error("【I18nStarter 】{}", message)
             raise ConfigurationException(msg=message)
-        logger.warning("【I18n】{}", message)
+        logger.warning("【I18nStarter 】{}", message)
         return missing

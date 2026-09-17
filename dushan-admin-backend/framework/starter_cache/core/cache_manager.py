@@ -71,7 +71,7 @@ class CacheManager:
             with self._state_lock:
                 self._active = staging
                 self._phase = CacheLifecyclePhaseEnum.READY
-            logger.info("缓存连接就绪，客户端 {} 个", len(staging.clients))
+            logger.info("【CacheStarter 】Redis 连接池探活通过：{} 个客户端", len(staging.clients))
 
     async def _create_clients(self, staging: CacheResourceSnapshot) -> None:
         """按声明顺序创建资源，先登记所有权再探活，取消也不会丢失引用。"""
@@ -81,6 +81,14 @@ class CacheManager:
             client = self._factory.create_client(pool)
             staging.clients[client_settings.name] = client
             await self._factory.require_ping(client)
+            logger.debug(
+                "【CacheStarter 】客户端={} host={} port={} db={} max_connections={}",
+                client_settings.name,
+                self._settings.host,
+                self._settings.port,
+                client_settings.db,
+                self._settings.max_connections,
+            )
 
     async def _rollback(self, staging: CacheResourceSnapshot, error: BaseException) -> None:
         """启动失败时反向清理未提交资源，并保留清理失败的引用。"""
@@ -145,7 +153,7 @@ class CacheManager:
                 if len(errors) == 1:
                     raise errors[0]
                 raise BaseExceptionGroup("缓存资源关闭失败", errors)
-            logger.info("缓存连接已全部关闭")
+            logger.info("【CacheStarter 】缓存连接已全部关闭")
 
     @staticmethod
     async def _close_snapshot(

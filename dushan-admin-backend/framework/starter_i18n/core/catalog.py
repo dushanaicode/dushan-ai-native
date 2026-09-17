@@ -140,7 +140,7 @@ class I18nCatalog:
                     self._missing_keys.popitem(last=False)
             if self.options.log_missing:
                 logger.warning(
-                    "【I18n】缺失翻译: scope={}, locale={}, key={}", scope, locale, message_key
+                    "【I18n 】缺失翻译: scope={}, locale={}, key={}", scope, locale, message_key
                 )
 
     def get_missing_keys(self) -> set[tuple[str | None, str, str]]:

@@ -85,16 +85,23 @@ class WebSocketRuntime:
 
     async def open(self):
         self.phase = "starting"
+        logger.info(
+            "【WebSocketStarter 】开始初始化 WebSocket 运行时：{}", self.settings.transport.value
+        )
         if self.online is not None:
             await self.call(self.online.open())
             await self.transport.open()
             self._lease = asyncio.create_task(
                 self._renew(), context=Context(), name="websocket-instance"
             )
+            logger.info("【WebSocketStarter 】Redis 在线注册、广播传输与实例续租已启动")
+        else:
+            logger.info("【WebSocketStarter 】已选择进程内消息传输")
         self._heartbeat = asyncio.create_task(
             self._heartbeats(), context=Context(), name="websocket-heartbeats"
         )
         self.phase = "ready"
+        logger.info("【WebSocketStarter 】运行时初始化完成，连接心跳任务已登记")
 
     async def authorize(self, websocket, endpoint):
         task = asyncio.current_task()

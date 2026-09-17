@@ -1,11 +1,15 @@
 import asyncio
+import re
 from contextlib import asynccontextmanager
 
 import httpx
 import pytest
 from fastapi.testclient import TestClient
+from loguru import logger
 
 from fixtures.public_web_app import create_public_app
+from framework.starter_excel.reader.excel_reader import ExcelReader
+from framework.starter_excel.writer.excel_writer import ExcelWriter
 from framework.starter_logging.starter.logging_starter import LoggingStarter
 from server.bootstrap.bootstrapper import BootstrapError
 from server.bootstrap.step_registry import BootstrapStepSpec
@@ -15,6 +19,11 @@ from server.bootstrap.steps.logging_step import configure_logging
 def test_health_and_docs_after_startup(config_dir):
     app = create_public_app(base_dir=config_dir(), environ={})
     with TestClient(app) as client:
+        with app.state.application_context.execution():
+            reader = app.state.application_context.get_bean(ExcelReader)
+            writer = app.state.application_context.get_bean(ExcelWriter)
+            assert reader is app.state.application_context.get_bean(ExcelReader)
+            assert writer is app.state.application_context.get_bean(ExcelWriter)
         response = client.get("/health")
         assert response.status_code == 200
         assert response.json()["data"]["status"] == "ready"
@@ -23,6 +32,57 @@ def test_health_and_docs_after_startup(config_dir):
     assert app.state.bootstrap.ready is False
     assert not hasattr(app.state, "server_settings")
     assert app.state.bootstrap.logging_starter.initialized is False
+
+
+def test_every_framework_component_reports_startup_state_at_info(config_dir):
+    """默认关闭外部资源时也必须显示状态，不能只在 DEBUG 才看得到组件。"""
+    messages = []
+    handler = logger.add(lambda message: messages.append(message.record["message"]), level="INFO")
+    try:
+        app = create_public_app(base_dir=config_dir(), environ={})
+        with TestClient(app):
+            observed = {label.strip() for label in re.findall(r"【([^】]+)】", "\n".join(messages))}
+            expected = {
+                "AuthStarter",
+                "CacheStarter",
+                "CaptchaStarter",
+                "ConfigStarter",
+                "DataPermissionStarter",
+                "DatabaseStarter",
+                "DiStarter",
+                "ExcelStarter",
+                "I18nStarter",
+                "IpStarter",
+                "JobStarter",
+                "LoggingStarter",
+                "ModuleStarter",
+                "MonitorStarter",
+                "MQStarter",
+                "ProtectionStarter",
+                "ScannerStarter",
+                "SecurityStarter",
+                "TenantStarter",
+                "WebStarter",
+                "WebSocketStarter",
+            }
+            assert expected <= observed
+            for label in (
+                "CacheStarter",
+                "CaptchaStarter",
+                "DatabaseStarter",
+                "IpStarter",
+                "JobStarter",
+                "MQStarter",
+                "SecurityStarter",
+                "WebSocketStarter",
+            ):
+                assert any(
+                    f"【{label} 】" in message and "未启用" in message for message in messages
+                )
+            assert any("【AuthStarter 】第三方授权未启用" in message for message in messages)
+            assert not any("【MQStarter 】启动完成" in message for message in messages)
+    finally:
+        logger.remove(handler)
 
 
 async def test_health_is_not_ready_without_lifespan(config_dir):

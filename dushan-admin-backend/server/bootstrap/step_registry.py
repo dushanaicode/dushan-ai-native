@@ -10,6 +10,7 @@ from server.bootstrap.steps.config_step import bind_server_config
 from server.bootstrap.steps.data_permission_step import DataPermissionStep
 from server.bootstrap.steps.database_step import DatabaseStep
 from server.bootstrap.steps.definitions_step import DefinitionsStep
+from server.bootstrap.steps.infra_step import InfraStep
 from server.bootstrap.steps.ip_step import IpStep
 from server.bootstrap.steps.job_step import JobStep
 from server.bootstrap.steps.logging_step import configure_logging
@@ -45,6 +46,7 @@ APP_BOOTSTRAP_STEPS = (
     BootstrapStepSpec("租户隔离", TenantStep.run),
     BootstrapStepSpec("数据权限", DataPermissionStep.run),
     BootstrapStepSpec("本站安全资源", SecurityStep.run),
+    BootstrapStepSpec("业务基础设施接入", InfraStep.run),
     BootstrapStepSpec("任务调度", JobStep.run),
     BootstrapStepSpec("消息队列", MQStep.run),
     BootstrapStepSpec("WebSocket 实时连接", WebSocketStep.run),

@@ -1,4 +1,4 @@
-﻿param(
+param(
     [string]$Python = (Join-Path $PSScriptRoot '.venv/Scripts/python.exe'),
     [switch]$IncludeSmoke
 )
@@ -22,7 +22,7 @@ try {
         [Environment]::SetEnvironmentVariable($name, $settings[$name], 'Process')
     }
     $arguments = @('-B', '-m', 'pytest', '-p', 'pytest_asyncio.plugin', '-c', (Join-Path $PSScriptRoot 'pytest.ini'),
-                  (Join-Path $PSScriptRoot 'server'), (Join-Path $PSScriptRoot 'framework'),
+                  (Join-Path $PSScriptRoot 'server'), (Join-Path $PSScriptRoot 'framework'), (Join-Path $PSScriptRoot 'module_system'), (Join-Path $PSScriptRoot 'module_infra'),
                   '--basetemp', (Join-Path $runRoot 'fixtures'), '-o', ('cache_dir=' + (Join-Path $runRoot 'cache')),
                   '--junitxml', (Join-Path $runRoot 'results.xml'))
     if (-not $IncludeSmoke) { $arguments += @('-m', 'not smoke') }

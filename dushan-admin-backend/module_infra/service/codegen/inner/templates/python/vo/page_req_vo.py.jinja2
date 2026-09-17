@@ -1,0 +1,39 @@
+from typing import Annotated
+from datetime import datetime
+from pydantic import Field
+{% if is_tree %}
+from framework.common.schemas.base_vo import BaseVO
+{% else %}
+from framework.common.page.schemas.page_query import PageQuery
+{% endif %}
+
+
+{% if is_tree %}
+class {{ class_name }}ListReqVO(BaseVO):
+    {{ ('管理后台 - ' + class_comment + '列表查询 Request VO') | pyrepr }}
+    {% for column in list_columns %}
+    {% if column.field_name not in ['id', 'creator', 'create_time', 'updater', 'update_time', 'deleted'] %}
+    {% if column.list_operation_condition == 'BETWEEN' %}
+    {{ column.field_name }}: Annotated[list[datetime] | None, Field(None, exclude=True, description={{ column.column_comment | pyrepr }})]
+    {% elif column.field_type == 'int' %}
+    {{ column.field_name }}: Annotated[int | None, Field(None, description={{ column.column_comment | pyrepr }})]
+    {% else %}
+    {{ column.field_name }}: Annotated[str | None, Field(None, description={{ column.column_comment | pyrepr }})]
+    {% endif %}
+    {% endif %}
+    {% endfor %}
+{% else %}
+class {{ class_name }}PageReqVO(PageQuery):
+    {{ ('管理后台 - ' + class_comment + '分页查询 Request VO') | pyrepr }}
+    {% for column in list_columns %}
+    {% if column.field_name not in ['id', 'creator', 'create_time', 'updater', 'update_time', 'deleted'] %}
+    {% if column.list_operation_condition == 'BETWEEN' %}
+    {{ column.field_name }}: Annotated[list[datetime] | None, Field(None, exclude=True, description={{ column.column_comment | pyrepr }})]
+    {% elif column.field_type == 'int' %}
+    {{ column.field_name }}: Annotated[int | None, Field(None, description={{ column.column_comment | pyrepr }})]
+    {% else %}
+    {{ column.field_name }}: Annotated[str | None, Field(None, description={{ column.column_comment | pyrepr }})]
+    {% endif %}
+    {% endif %}
+    {% endfor %}
+{% endif %}

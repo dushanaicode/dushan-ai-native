@@ -1,0 +1,353 @@
+<script lang="ts" setup>
+
+import type { VxeTableGridOptions } from '#/adapter/vxe-table';
+import type { {{ module_name | pascal_case }}{{ class_name }}Api } from '#/api/{{ module_name }}/{{ business_name | replace('_', '-') }}';
+
+import { ref{% if is_sub %}, watch{% endif %} } from 'vue';
+
+import { Page, useVbenModal } from '@vben/common-ui';
+import { isEmpty } from '@vben/utils';
+
+import { message{% if is_sub %}, Tabs{% endif %} } from 'ant-design-vue';
+
+import { ACTION_ICON, TableAction, useVbenVxeGrid } from '#/adapter/vxe-table';
+{% if is_tree %}
+import { delete{{ class_name }}, delete{{ class_name }}List, get{{ class_name }}List{% if enable_export %}, export{{ class_name }}, getExport{{ class_name }}Fields{% endif %} } from '#/api/{{ module_name }}/{{ business_name | replace('_', '-') }}';
+{% else %}
+import { delete{{ class_name }}, delete{{ class_name }}List, get{{ class_name }}Page{% if enable_export %}, export{{ class_name }}, getExport{{ class_name }}Fields{% endif %}{% if is_sub %}{% for sub in sub_tables %}, get{{ sub.table.class_name }}ListBy{{ class_name }}Id{% endfor %}{% endif %} } from '#/api/{{ module_name }}/{{ business_name | replace('_', '-') }}';
+{% endif %}
+import { $t } from '#/locales';
+{% if enable_export %}
+import { useExportModal } from '#/components/export-table';
+{% endif %}
+
+{% if is_tree %}
+import { useGridColumns } from './data';
+{% elif is_sub %}
+import { useGridFormSchema, useGridColumns{% for sub in sub_tables %}, useSub{{ sub.table.class_name }}GridColumns{% endfor %} } from './data';
+{% else %}
+import { useGridFormSchema, useGridColumns } from './data';
+{% endif %}
+import Form from './modules/form.vue';
+
+const [FormModal, formModalApi] = useVbenModal({
+  connectedComponent: Form,
+  destroyOnClose: true,
+});
+
+{% if enable_export %}
+// 导出相关状态
+const { ExportModal } = useExportModal();
+const exportTableRef = ref();
+{% endif %}
+
+/** 刷新表格 */
+function handleRefresh() {
+  {% if is_tree %}
+  isExpanded.value = false;
+  {% endif %}
+  gridApi.query();
+}
+
+{% if enable_export %}
+/** 导出表格 */
+async function handleExport() {
+  const fields = await getExport{{ class_name }}Fields();
+  {% if not is_tree %}
+  const formValues = await gridApi.formApi.getValues();
+  {% else %}
+  const formValues = {};
+  {% endif %}
+
+  exportTableRef.value?.setData({
+    exportApi: export{{ class_name }},
+    columns: fields,
+    fileName: '{{ class_comment }}.xls',
+    searchParams: formValues,
+  });
+  exportTableRef.value?.open();
+}
+
+/** 导出成功 */
+function handleExportSuccess() {
+  message.success($t('ui.actionMessage.operationSuccess'));
+}
+{% endif %}
+
+/** 创建{{ class_comment }} */
+function handleCreate() {
+  formModalApi.setData({}).open();
+}
+
+/** 编辑{{ class_comment }} */
+function handleEdit(row: {{ module_name | pascal_case }}{{ class_name }}Api.{{ class_name }}) {
+  formModalApi.setData(row).open();
+}
+
+/** 删除{{ class_comment }} */
+async function handleDelete(row: {{ module_name | pascal_case }}{{ class_name }}Api.{{ class_name }}) {
+  const hideLoading = message.loading({
+    content: $t('ui.actionMessage.deleting', [row.id]),
+    key: 'action_key_msg',
+  });
+  try {
+    await delete{{ class_name }}(row.id as number);
+    message.success({
+      content: $t('ui.actionMessage.deleteSuccess'),
+      key: 'action_key_msg',
+    });
+    handleRefresh();
+  } finally {
+    hideLoading();
+  }
+}
+
+/** 批量删除{{ class_comment }} */
+async function handleBatchDelete() {
+  const hideLoading = message.loading($t('ui.actionMessage.deleting'), 0);
+  try {
+    await delete{{ class_name }}List(checkedIds.value);
+    checkedIds.value = [];
+    message.success($t('ui.actionMessage.deleteSuccess'));
+    handleRefresh();
+  } finally {
+    hideLoading();
+  }
+}
+
+// 选中的 ID 列表
+const checkedIds = ref<number[]>([]);
+
+/** 处理复选框变化 */
+function handleRowCheckboxChange({
+  records,
+}: {
+  records: {{ module_name | pascal_case }}{{ class_name }}Api.{{ class_name }}[];
+}) {
+  checkedIds.value = records.map((item) => item.id as number);
+}
+
+{% if is_tree %}
+/** 切换树形展开/收缩状态 */
+const isExpanded = ref(false);
+const expandLoading = ref(false);
+async function toggleExpand() {
+  expandLoading.value = true;
+  try {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await gridApi.grid.setAllTreeExpand(!isExpanded.value);
+    isExpanded.value = !isExpanded.value;
+  } finally {
+    expandLoading.value = false;
+  }
+}
+{% endif %}
+
+{% if is_sub %}
+// ==================== 主子表：选中行 + 子表数据 ====================
+const selectedRowId = ref<number | null>(null);
+{% for sub in sub_tables %}
+const sub{{ sub.table.class_name }}List = ref<any[]>([]);
+{% endfor %}
+
+/** 主表行点击事件 */
+function handleRowClick({ row }: { row: {{ module_name | pascal_case }}{{ class_name }}Api.{{ class_name }} }) {
+  selectedRowId.value = row.id as number;
+}
+
+/** 监听选中行变化，加载子表数据 */
+watch(selectedRowId, async (newId) => {
+  if (!newId) {
+    {% for sub in sub_tables %}
+    sub{{ sub.table.class_name }}List.value = [];
+    {% endfor %}
+    return;
+  }
+  {% for sub in sub_tables %}
+  sub{{ sub.table.class_name }}List.value = await get{{ sub.table.class_name }}ListBy{{ class_name }}Id(newId);
+  {% endfor %}
+});
+{% endif %}
+
+const [Grid, gridApi] = useVbenVxeGrid({
+  {% if not is_tree %}
+  formOptions: {
+    schema: useGridFormSchema(),
+  },
+  {% endif %}
+  gridOptions: {
+    {% if is_tree %}
+    columns: useGridColumns(),
+    {% else %}
+    columns: useGridColumns((params) => {
+      const { code, row } = params;
+      if (code === 'edit') {
+        handleEdit(row);
+      } else if (code === 'delete') {
+        handleDelete(row);
+      }
+    }),
+    {% endif %}
+    height: 'auto',
+    keepSource: true,
+    {% if not is_tree %}
+    proxyConfig: {
+      ajax: {
+        query: async (params) => {
+          return await get{{ class_name }}Page(params);
+        },
+      },
+    },
+    {% else %}
+    pagerConfig: {
+      enabled: false,
+    },
+    proxyConfig: {
+      ajax: {
+        query: async (_params) => {
+          return await get{{ class_name }}List();
+        },
+      },
+    },
+    {% endif %}
+    rowConfig: {
+      keyField: 'id',
+      isHover: true,
+      {% if is_sub %}
+      isCurrent: true,
+      {% endif %}
+    },
+    toolbarConfig: {
+      refresh: true,
+    },
+    {% if is_tree %}
+    treeConfig: {
+      parentField: '{{ tree_parent_column.field_name | camel_case if tree_parent_column else "parentId" }}',
+      rowField: 'id',
+      transform: true,
+      reserve: true,
+    },
+    {% endif %}
+  } as VxeTableGridOptions,
+  gridEvents: {
+    checkboxAll: handleRowCheckboxChange,
+    checkboxChange: handleRowCheckboxChange,
+    {% if is_sub %}
+    cellClick: handleRowClick,
+    {% endif %}
+  },
+});
+
+{% if is_sub %}
+{% for sub in sub_tables %}
+/** {{ sub.table.class_comment or sub.table.table_comment }} 子表 Grid */
+const [Sub{{ sub.table.class_name }}Grid] = useVbenVxeGrid({
+  gridOptions: {
+    columns: useSub{{ sub.table.class_name }}GridColumns(),
+    height: 300,
+    data: sub{{ sub.table.class_name }}List.value,
+    rowConfig: {
+      keyField: 'id',
+      isHover: true,
+    },
+  } as VxeTableGridOptions,
+});
+{% endfor %}
+{% endif %}
+</script>
+
+<template>
+  <Page auto-content-height>
+    <FormModal @success="handleRefresh" />
+    {% if enable_export %}
+    <ExportModal ref="exportTableRef" @success="handleExportSuccess" />
+    {% endif %}
+    <Grid>
+      <template #toolbar-tools>
+        <TableAction
+          :actions="[
+            {
+              label: $t('ui.actionTitle.create', ['{{ class_comment }}']),
+              type: 'primary',
+              icon: ACTION_ICON.ADD,
+              auth: ['{{ module_name }}:{{ business_name }}:create'],
+              onClick: handleCreate,
+            },
+            {% if enable_export %}
+            {
+              label: $t('ui.actionTitle.export'),
+              type: 'primary',
+              icon: ACTION_ICON.DOWNLOAD,
+              auth: ['{{ module_name }}:{{ business_name }}:export'],
+              onClick: handleExport,
+            },
+            {% endif %}
+            {
+              label: $t('ui.actionTitle.deleteBatch'),
+              type: 'primary',
+              danger: true,
+              icon: ACTION_ICON.DELETE,
+              disabled: isEmpty(checkedIds),
+              auth: ['{{ module_name }}:{{ business_name }}:delete'],
+              popConfirm: {
+                title: $t('ui.actionMessage.deleteConfirm', [
+                  `${checkedIds.length}条数据`,
+                ]),
+                confirm: handleBatchDelete,
+              },
+            },
+            {% if is_tree %}
+            {
+              label: isExpanded ? '收缩' : '展开',
+              type: 'primary',
+              loading: expandLoading,
+              onClick: toggleExpand,
+              disabled: expandLoading,
+            },
+            {% endif %}
+          ]"
+        />
+      </template>
+      {% if is_tree %}
+      <template #actions="{ row }">
+        <TableAction
+          :actions="[
+            {
+              label: $t('common.edit'),
+              type: 'link',
+              icon: ACTION_ICON.EDIT,
+              auth: ['{{ module_name }}:{{ business_name }}:update'],
+              onClick: handleEdit.bind(null, row),
+            },
+            {
+              label: $t('common.delete'),
+              type: 'link',
+              danger: true,
+              icon: ACTION_ICON.DELETE,
+              auth: ['{{ module_name }}:{{ business_name }}:delete'],
+              popConfirm: {
+                title: $t('ui.actionMessage.deleteConfirm', [row.id]),
+                confirm: handleDelete.bind(null, row),
+              },
+            },
+          ]"
+        />
+      </template>
+      {% endif %}
+    </Grid>
+
+    {% if is_sub %}
+    <!-- 子表区域 -->
+    <Tabs v-if="selectedRowId" class="mt-4">
+      {% for sub in sub_tables %}
+      <Tabs.TabPane key="{{ sub.table.business_name }}" tab="{{ sub.table.class_comment or sub.table.table_comment }}">
+        <Sub{{ sub.table.class_name }}Grid />
+      </Tabs.TabPane>
+      {% endfor %}
+    </Tabs>
+    <div v-else class="mt-4 text-center text-gray-400">
+      请点击主表行查看子表数据
+    </div>
+    {% endif %}
+  </Page>
+</template>

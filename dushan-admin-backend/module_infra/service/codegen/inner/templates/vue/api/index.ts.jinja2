@@ -1,0 +1,89 @@
+
+{% if enable_export %}
+import type { ExportField } from '#/components/export-table';
+{% endif %}
+
+import { requestClient } from '#/api/request';
+
+export namespace {{ module_name | pascal_case }}{{ class_name }}Api {
+  /** {{ class_comment }}信息 */
+  export type {{ class_name }} = {
+    id?: string;
+    {% for column in list_result_columns %}
+    {% if column.field_name not in ['id', 'creator', 'create_time', 'updater', 'update_time', 'deleted'] %}
+    {{ column.field_name | camel_case }}{% if column.nullable %}?{% endif %}: {{ 'string' if column.field_name.endswith('_id') else 'number' if column.field_type == 'int' else 'boolean' if column.field_type == 'bool' else 'string' }};
+    {% endif %}
+    {% endfor %}
+    createTime: Date;
+  };
+}
+
+{% if is_tree %}
+/** 查询{{ class_comment }}列表 */
+export function get{{ class_name }}List(params?: Record<string, any>) {
+  return requestClient.get<{{ module_name | pascal_case }}{{ class_name }}Api.{{ class_name }}[]>('/{{ module_name }}/{{ business_name | replace('_', '-') }}/list', { params });
+}
+
+/** 查询{{ class_comment }}（精简）列表 */
+export function getSimple{{ class_name }}List() {
+  return requestClient.get<{{ module_name | pascal_case }}{{ class_name }}Api.{{ class_name }}[]>('/{{ module_name }}/{{ business_name | replace('_', '-') }}/simple-list');
+}
+{% else %}
+/** 查询{{ class_comment }}分页 */
+export function get{{ class_name }}Page(params: any) {
+  return requestClient.get('/{{ module_name }}/{{ business_name | replace('_', '-') }}/page', { params });
+}
+{% endif %}
+
+/** 获取{{ class_comment }}详情 */
+export function get{{ class_name }}(id: string) {
+  return requestClient.get<{{ module_name | pascal_case }}{{ class_name }}Api.{{ class_name }}>(`/{{ module_name }}/{{ business_name | replace('_', '-') }}/get?id=${id}`);
+}
+
+/** 新增{{ class_comment }} */
+export function create{{ class_name }}(data: {{ module_name | pascal_case }}{{ class_name }}Api.{{ class_name }}) {
+  return requestClient.post('/{{ module_name }}/{{ business_name | replace('_', '-') }}/create', data);
+}
+
+/** 修改{{ class_comment }} */
+export function update{{ class_name }}(data: {{ module_name | pascal_case }}{{ class_name }}Api.{{ class_name }}) {
+  return requestClient.put('/{{ module_name }}/{{ business_name | replace('_', '-') }}/update', data);
+}
+
+/** 删除{{ class_comment }} */
+export function delete{{ class_name }}(id: string) {
+  return requestClient.delete(`/{{ module_name }}/{{ business_name | replace('_', '-') }}/delete?id=${id}`);
+}
+
+/** 批量删除{{ class_comment }} */
+export function delete{{ class_name }}List(ids: string[]) {
+  return requestClient.delete(
+    '/{{ module_name }}/{{ business_name | replace('_', '-') }}/delete-list',
+    { params: { ids }, paramsSerializer: 'repeat' },
+  );
+}
+
+{% if enable_export %}
+/** 导出{{ class_comment }} */
+export function export{{ class_name }}(params: any) {
+  return requestClient.download('/{{ module_name }}/{{ business_name | replace('_', '-') }}/export-excel', { params });
+}
+
+/** 获取{{ class_comment }}可导出字段列表 */
+export function getExport{{ class_name }}Fields() {
+  return requestClient.get<ExportField[]>(
+    '/{{ module_name }}/{{ business_name | replace('_', '-') }}/export-fields',
+  );
+}
+{% endif %}
+
+{% if is_sub %}
+{% for sub in sub_tables %}
+// ==================== {{ sub.table.class_comment or sub.table.table_comment }} 子表 ====================
+
+/** 获取{{ sub.table.class_comment or sub.table.table_comment }}列表 */
+export function get{{ sub.table.class_name }}ListBy{{ class_name }}Id({{ business_name | camel_case }}id: string) {
+  return requestClient.get(`/{{ module_name }}/{{ business_name | replace('_', '-') }}/{{ sub.table.business_name | replace('_', '-') }}/list-by-{{ business_name | replace('_', '-') }}-id?id=${ {{ business_name | camel_case }}Id}`);
+}
+{% endfor %}
+{% endif %}

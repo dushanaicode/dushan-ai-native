@@ -6,6 +6,8 @@ from contextlib import asynccontextmanager
 from contextvars import Context
 from datetime import datetime, timezone
 
+from loguru import logger
+
 from framework.common.exception.exceptions.base_business_exception import BaseBusinessException
 from framework.common.utils.asyncio.asyncio_utils import AsyncioUtils
 from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
@@ -79,14 +81,33 @@ class SecurityService:
         if self._phase != "new" or not self.settings.enabled:
             raise SecurityException("closed")
         self._phase = "starting"
+        logger.info("【SecurityStarter 】开始初始化本站认证与授权")
         self._tenant, self._messages = tenant, messages
         self._workloads = workloads
         self._data_access = data_access
+        logger.info(
+            "【SecurityStarter 】身份与授权提供器已绑定：租户={}，消息={}，工作负载={}，数据权限={}",
+            tenant is not None,
+            messages is not None,
+            workloads is not None,
+            data_access is not None,
+        )
+        logger.debug(
+            "【SecurityStarter 】TokenProvider={} PermissionProvider={} domains={} default_domain={}",
+            type(self.tokens).__qualname__,
+            type(self.permissions).__qualname__,
+            self.settings.domains,
+            self.settings.default_domain,
+        )
         if self.settings.permission_cache_enabled:
             await self._call(
                 lambda: self.cache.eval_atomic(self.settings.cache_key(), ("probe",), "return 1")
             )
+            logger.info("【SecurityStarter 】权限缓存原子脚本验证通过")
+        else:
+            logger.info("【SecurityStarter 】权限缓存未启用")
         self._phase = "ready"
+        logger.info("【SecurityStarter 】初始化完成：认证域={}", ",".join(self.settings.domains))
 
     @asynccontextmanager
     async def _operation(self):
@@ -673,6 +694,31 @@ class SecurityService:
             async with self._tenant_scope(self._tenant.enter_workload(identity, capability)):
                 async with self._data_scope(identity):
                     yield
+
+    @asynccontextmanager
+    async def authorized_workload(
+        self, source: str, *, capability: str, tenant_id: str | None, domain: str | None = None
+    ):
+        """在当前受管执行中绑定服务身份，用于登录写入等固定服务器入口。"""
+        async with self._operation():
+            with self.context._scope():
+                if self._workloads is None or not source or not capability:
+                    raise SecurityException("configuration")
+                selected_domain = self._domain(RoutePolicy(domain=domain))
+                identity = await self._call(
+                    lambda: self._workloads.authenticate(
+                        source,
+                        application_id=self.settings.application_id,
+                        domain=selected_domain,
+                        capability=capability,
+                        tenant_id=tenant_id,
+                    )
+                )
+                self._validate_workload(identity, selected_domain, source, capability)
+                if identity.tenant_id != tenant_id:
+                    raise SecurityException("invalid")
+                async with self._workload_scope(identity, capability):
+                    yield identity
 
     async def run_workload(
         self,

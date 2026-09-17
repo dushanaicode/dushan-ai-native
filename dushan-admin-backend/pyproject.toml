@@ -9,6 +9,8 @@ dynamic = ["dependencies"]
 [tool.poetry.dependencies]
 # 主项目只关联已经存在的模块；模块依赖由各自的 pyproject.toml 维护。
 framework = { path = "./framework", develop = true }
+module-system = { path = "./module_system", develop = true }
+module-infra = { path = "./module_infra", develop = true }
 
 [tool.poetry.group.core.dependencies]
 # 应用工厂、配置、日志上下文和 ASGI 引擎直接使用的依赖。
@@ -38,7 +40,7 @@ force-exclude = true
 select = ["E4", "E7", "E9", "F", "I"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["app", "framework", "fixtures", "server"]
+known-first-party = ["app", "framework", "fixtures", "module_system", "module_infra", "server"]
 
 [tool.ruff.lint.per-file-ignores]
 # 启动入口必须先禁用字节码写入，再导入项目模块；保留此执行顺序。
