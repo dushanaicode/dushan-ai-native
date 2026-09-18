@@ -129,6 +129,35 @@ describe('sSE', () => {
     expect(headers?.get('accept')).toBe('text/event-stream');
   });
 
+  it('should not send headers that interceptors set to nullish values', async () => {
+    (client.instance.interceptors.request as any).handlers.push({
+      fulfilled: async (config: any) => {
+        config.headers.Authorization = null;
+        config.headers['x-gone'] = undefined;
+        config.headers['x-off'] = false;
+        return config;
+      },
+    });
+
+    const fetchMock = createFetchMock(['data']);
+    vi.stubGlobal('fetch', fetchMock);
+
+    await sse.requestSSE('/sse');
+
+    const init = fetchMock.mock?.calls?.[0]?.[1] as RequestInit;
+    const headers = init?.headers as Headers;
+    expect(headers.has('authorization')).toBe(false);
+    expect(headers.has('x-gone')).toBe(false);
+    expect(headers.has('x-off')).toBe(false);
+  });
+
+  it('should attach status to http errors for upper-layer handling', async () => {
+    vi.stubGlobal('fetch', createFetchMock([], false));
+    await expect(sse.requestSSE('/bad')).rejects.toMatchObject({
+      status: 500,
+    });
+  });
+
   it('should throw error when no reader', async () => {
     vi.stubGlobal(
       'fetch',

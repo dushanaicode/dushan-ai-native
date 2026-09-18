@@ -41,7 +41,30 @@ server {
   # 文档上传场景的明确值；后续出现具体上传接口且需要更大体积时再按实际需求调整。
   client_max_body_size 20m;
 
-  # 反代同源 /api，与开发代理的剥离前缀语义保持一致（/api/xxx -> 后端 /xxx）。
+  location = /admin-api {
+    return 308 /admin-api/;
+  }
+
+  # 管理接口保留 /admin-api 前缀，与后端路由及认证 Cookie Path 一致。
+  location ^~ /admin-api/ {
+    # API_UPSTREAM 只填协议+主机[:端口]，不带路径或末尾斜杠，以保留完整请求 URI。
+    proxy_pass ${API_UPSTREAM};
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    proxy_buffering off;
+    proxy_cache off;
+    proxy_read_timeout 3600s;
+    proxy_send_timeout 3600s;
+    proxy_redirect off;
+  }
+
+  # WebSocket 的同源 /api 通道继续剥离代理前缀（/api/ws -> 后端 /ws）。
   location = /api {
     proxy_pass ${API_UPSTREAM}/;
     proxy_http_version 1.1;
@@ -91,7 +114,7 @@ server {
     add_header Cache-Control 'public, max-age=31536000, immutable';
   }
 
-  # SPA 页面路由回退；/api/ 与哈希资源目录已在上面用更具体的 location 处理，不会落到这里
+  # SPA 页面路由回退；管理接口、WebSocket 与哈希资源目录由上面的 location 处理。
   location / {
     try_files $uri $uri/ /index.html;
   }

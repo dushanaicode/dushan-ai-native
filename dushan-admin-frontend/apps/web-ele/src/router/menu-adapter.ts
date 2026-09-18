@@ -43,6 +43,9 @@ export function parseMenus(value: unknown): MenuNode[] {
   return z.array(menuSchema).parse(value);
 }
 
+/** 菜单配置可以指向本次构建未包含的页面，用上游的"即将上线"页承接。 */
+const COMING_SOON_PAGE = '/_core/fallback/coming-soon.vue';
+
 export function menusToRoutes(
   menus: MenuNode[],
   pageMap: ComponentRecordType,
@@ -52,6 +55,8 @@ export function menusToRoutes(
   const pages = new Set(
     Object.keys(pageMap).map((key) => `/${key.replace(/^\.\.\/views\//, '')}`),
   );
+  if (!pages.has(COMING_SOON_PAGE))
+    throw new TypeError(`兜底页面未登记：${COMING_SOON_PAGE}`);
   const ids = new Set<string>();
   const paths = new Set(reservedPaths);
   function convert(
@@ -100,9 +105,11 @@ export function menusToRoutes(
         if (node.kind === 'group' && !layoutMap.RouterView)
           throw new TypeError('RouterView 尚未登记');
         if (node.kind === 'page') {
-          if (!node.component || !pages.has(node.component))
-            throw new TypeError(`菜单组件未登记：${node.id}`);
-          route.component = node.component;
+          // 菜单存在数据库、超管拿到全部菜单，构建里缺页面不能让整棵树失败导致无法登录。
+          route.component =
+            node.component && pages.has(node.component)
+              ? node.component
+              : COMING_SOON_PAGE;
         }
         if (node.kind === 'link' || node.kind === 'iframe') {
           if (!node.url) throw new TypeError(`菜单 URL 缺失：${node.id}`);

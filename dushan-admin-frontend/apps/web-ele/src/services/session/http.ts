@@ -77,6 +77,7 @@ export function configureSessionRequests(
 export function configureSessionStreaming(
   client: RequestClient,
   getSession: () => SessionCoordinator,
+  refreshEnabled: () => boolean,
 ) {
   const request = client.requestSSE;
   client.requestSSE = async (url, data, options) => {
@@ -86,14 +87,15 @@ export function configureSessionStreaming(
     const unsubscribe = session.subscribe((next) => {
       if (next.generation !== context.generation) controller.abort();
     });
-    try {
-      return await request(url, data, {
+    const signal = AbortSignal.any([
+      session.signal,
+      controller.signal,
+      ...(options?.signal ? [options.signal] : []),
+    ]);
+    const attempt = () =>
+      request(url, data, {
         ...options,
-        signal: AbortSignal.any([
-          session.signal,
-          controller.signal,
-          ...(options?.signal ? [options.signal] : []),
-        ]),
+        signal,
         onEnd() {
           session.assertCurrent(context);
           options?.onEnd?.();
@@ -108,6 +110,24 @@ export function configureSessionStreaming(
           session.assertCurrent(context);
         },
       });
+    try {
+      try {
+        return await attempt();
+      } catch (error) {
+        // 流式请求不经 axios 响应拦截器；401 在此进入同一条刷新契约后重试一次，
+        // 重试走请求拦截器自动携带新令牌（刷新不改代次，context 仍然有效）。
+        // 401 有两种载体：传输层 status 字段与 200 响应体的 code 字段。
+        if (
+          !refreshEnabled() ||
+          ((error as { status?: number }).status !== 401 &&
+            !isAuthenticationFailure(error))
+        ) {
+          throw error;
+        }
+        await session.refresh(context);
+        session.assertCurrent(context);
+        return await attempt();
+      }
     } finally {
       unsubscribe();
     }

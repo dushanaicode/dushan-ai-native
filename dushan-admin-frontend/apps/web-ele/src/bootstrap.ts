@@ -25,6 +25,7 @@ import {
   reportNavigationFailure,
 } from './router/session-access';
 import { installAnalytics, useAnalyticsConfig } from './services/analytics';
+import { installDictionary } from './services/dictionary/install';
 import { installRealtime } from './services/realtime';
 import { setupSession } from './services/session/runtime';
 import { useAuthStore } from './store';
@@ -70,6 +71,7 @@ async function bootstrap(namespace: string, realtimePorts?: RealtimePorts) {
   });
   app.onUnmount(() => session.dispose());
   import.meta.hot?.dispose(() => session.dispose());
+  installDictionary(app, session);
   installRealtime({
     app,
     namespace,

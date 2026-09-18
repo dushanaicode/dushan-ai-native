@@ -35,9 +35,11 @@ setupVbenVxeTable({
         proxyConfig: {
           autoLoad: true,
           response: {
-            result: 'items',
+            // 分页契约以 items 为准；历史接口返回 list 时按同名字段回退读取，
+            // 两种形状共用 total。
+            result: ({ data }) => data?.items ?? data?.list ?? [],
             total: 'total',
-            list: 'items',
+            list: ({ data }) => data?.items ?? data?.list ?? [],
           },
           showActiveMsg: true,
           showResponseMsg: false,

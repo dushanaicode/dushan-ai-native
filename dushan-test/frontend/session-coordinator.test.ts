@@ -6,6 +6,7 @@ import {
   RequestClient,
 } from '@vben/request';
 
+import { BusinessError } from '../../dushan-admin-frontend/apps/web-ele/src/api/business-error';
 import {
   isAuthenticationFailure,
   nativeResponseInterceptor,
@@ -197,7 +198,7 @@ describe('实际 Axios 请求与刷新边界', () => {
     client.requestSSE = () => {
       throw failure;
     };
-    configureSessionStreaming(client, () => session);
+    configureSessionStreaming(client, () => session, () => true);
     await expect(client.requestSSE('/events')).rejects.toBe(failure);
     expect(release).toHaveBeenCalledTimes(1);
     session.dispose();
@@ -215,7 +216,7 @@ describe('实际 Axios 请求与刷新边界', () => {
         await pending.promise;
         options?.onEnd?.();
       };
-      configureSessionStreaming(client, () => session);
+      configureSessionStreaming(client, () => session, () => true);
       const request = Promise.allSettled([
         client.requestSSE('/events', undefined, { onEnd }),
       ]);
@@ -230,6 +231,51 @@ describe('实际 Axios 请求与刷新边界', () => {
       expect(onEnd).not.toHaveBeenCalled();
       session.dispose();
     }
+  });
+
+  it('流式401先刷新再以新令牌重试一次；关闭刷新时原样失败', async () => {
+    const make = (failure: () => Error) => {
+      const shared = createShared();
+      const session = shared.create();
+      const client = new RequestClient();
+      const seen: (null | string)[] = [];
+      client.requestSSE = async () => {
+        // 模拟底层 SSE：每次请求都先跑 axios 请求拦截器取 Authorization。
+        const config: any = { headers: {} };
+        for (const handler of (client.instance.interceptors.request as any)
+          .handlers) {
+          await handler.fulfilled(config);
+        }
+        seen.push(config.headers.Authorization ?? null);
+        if (config.headers.Authorization === 'Bearer new') return 'ok';
+        throw failure();
+      };
+      configureSessionRequests(client, () => session, () => true);
+      return { client, seen, session, shared };
+    };
+    const http401 = () =>
+      Object.assign(new Error('HTTP error! status: 401'), { status: 401 });
+    const code401 = () =>
+      new BusinessError(
+        { code: 401, data: null, error: null, message: '未登录' },
+        { url: '/events' },
+      );
+
+    for (const failure of [http401, code401]) {
+      const on = make(failure);
+      configureSessionStreaming(on.client, () => on.session, () => true);
+      expect(await on.client.requestSSE('/events')).toBe('ok');
+      expect(on.shared.refresh).toHaveBeenCalledTimes(1);
+      expect(on.seen).toEqual(['Bearer old', 'Bearer new']);
+    }
+
+    const off = make(http401);
+    configureSessionStreaming(off.client, () => off.session, () => false);
+    await expect(off.client.requestSSE('/events')).rejects.toMatchObject({
+      status: 401,
+    });
+    expect(off.shared.refresh).not.toHaveBeenCalled();
+    expect(off.seen).toEqual(['Bearer old']);
   });
 
   it('公共包刷新失败不会向等待队列发出空令牌重放', async () => {
@@ -302,13 +348,17 @@ describe('实际 Axios 请求与刷新边界', () => {
       ['/always', 'get', {}, 2, 1],
       ['/write', 'post', {}, 1, 1],
       ['/allowed', 'post', { allowAuthReplay: true }, 2, 1],
-      ['/auth/refresh', 'get', {}, 1, 0],
-      ['/auth/login', 'get', {}, 1, 0],
-      ['/auth/logout', 'get', {}, 1, 0],
+      ['/system/auth/refresh-token', 'get', {}, 1, 0],
+      ['/system/auth/login', 'get', {}, 1, 0],
+      ['/system/auth/logout', 'get', {}, 1, 0],
+      ['/infra/auth/login', 'get', {}, 2, 1],
     ] as const) {
       const shared = createShared();
       const session = shared.create();
-      const client = new RequestClient({ responseReturn: 'data' });
+      const client = new RequestClient({
+        baseURL: '/admin-api',
+        responseReturn: 'data',
+      });
       configureSessionRequests(
         client,
         () => session,

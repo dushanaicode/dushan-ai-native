@@ -6,7 +6,13 @@ import { Page, useVbenDrawer } from '@vben/common-ui';
 import { ElButton, ElCard, ElCheckbox, ElMessage } from 'element-plus';
 
 import { useVbenForm } from '#/adapter/form';
-import { getAllMenusApi } from '#/api';
+import { getPermissionInfoApi } from '#/api';
+
+// 演示用数据源：当前身份的授权菜单树
+async function fetchMenus() {
+  const { menus } = await getPermissionInfoApi();
+  return menus;
+}
 
 const [Form, formApi] = useVbenForm({
   commonConfig: {
@@ -35,14 +41,14 @@ const [Form, formApi] = useVbenForm({
       // 对应组件的参数
       componentProps: {
         // 菜单接口转options格式
-        afterFetch: (data: { name: string; path: string }[]) => {
+        afterFetch: (data: { path: string; title: string }[]) => {
           return data.map((item: any) => ({
-            label: item.name,
+            label: item.title,
             value: item.path,
           }));
         },
         // 菜单接口
-        api: getAllMenusApi,
+        api: fetchMenus,
       },
       // 字段名
       fieldName: 'api',
@@ -54,10 +60,10 @@ const [Form, formApi] = useVbenForm({
       // 对应组件的参数
       componentProps: {
         // 菜单接口
-        api: getAllMenusApi,
+        api: fetchMenus,
         childrenField: 'children',
         // 菜单接口转options格式
-        labelField: 'name',
+        labelField: 'title',
         valueField: 'path',
       },
       // 字段名

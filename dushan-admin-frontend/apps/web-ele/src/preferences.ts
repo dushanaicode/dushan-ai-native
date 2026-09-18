@@ -2,6 +2,8 @@ import { defineOverridesPreferences } from '@vben/preferences';
 
 import { projectLinks } from '#/services/doc-links';
 
+export const applicationAccessMode = 'mixed';
+
 /**
  * @description 项目配置文件
  * 只需要覆盖项目中的一部分配置，不需要的配置不用覆盖，会自动使用默认配置
@@ -10,6 +12,9 @@ import { projectLinks } from '#/services/doc-links';
 export const overridesPreferences = defineOverridesPreferences({
   // overrides
   app: {
+    // 后端菜单（System/Infra）与本地路由（dashboard/profile/demos）合并：
+    // 后端菜单种子没有首页节点，纯 backend 模式会让 defaultHomePath 落到 404。
+    accessMode: applicationAccessMode,
     name: import.meta.env.VITE_APP_TITLE,
   },
   copyright: {

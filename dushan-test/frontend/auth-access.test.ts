@@ -21,7 +21,6 @@ const stubs = vi.hoisted(() => ({
   login: vi.fn(),
   logout: vi.fn(),
   info: vi.fn(),
-  codes: vi.fn(),
   notify: vi.fn(),
   generate: vi.fn(),
   session: undefined as unknown as SessionCoordinator,
@@ -29,8 +28,7 @@ const stubs = vi.hoisted(() => ({
 vi.mock('#/api', () => ({
   loginApi: stubs.login,
   logoutApi: stubs.logout,
-  getUserInfoApi: stubs.info,
-  getAccessCodesApi: stubs.codes,
+  getPermissionInfoApi: stubs.info,
 }));
 vi.mock('#/locales', () => ({ $t: (key: string) => key }));
 vi.mock('#/services/session/runtime', () => ({
@@ -70,13 +68,16 @@ const user: UserInfo = {
   token: '',
 };
 const cleanups: Array<() => void> = [];
+/** 后端 /system/auth/get-permission-info 的一次响应：身份、权限码与授权菜单同源。 */
+function permissionInfo(roles: string[] = ['admin']) {
+  return { user: { ...user, roles }, permissions: ['read'], menus: [] };
+}
 
 beforeEach(() => {
   vi.resetAllMocks();
   stubs.login.mockResolvedValue({ accessToken: 'new-token' });
   stubs.logout.mockResolvedValue(undefined);
-  stubs.info.mockResolvedValue(user);
-  stubs.codes.mockResolvedValue(['read']);
+  stubs.info.mockResolvedValue(permissionInfo());
   stubs.generate.mockImplementation(
     async ({ router, roles }: { roles: string[]; router: Router }) => {
       const name = roles.includes('admin') ? 'admin' : 'member';
@@ -172,12 +173,12 @@ describe('实际认证 store 与路由边界', () => {
     expect(tabs.renderRouteView).toBe(true);
     session.replace('other-user');
     expect(tabs.renderRouteView).toBe(false);
-    const pending = Promise.withResolvers<UserInfo>();
+    const pending = Promise.withResolvers<ReturnType<typeof permissionInfo>>();
     stubs.info.mockReturnValue(pending.promise);
     const navigation = router.push('/member');
     await Promise.resolve();
     expect(tabs.renderRouteView).toBe(false);
-    pending.resolve({ ...user, roles: ['member'] });
+    pending.resolve(permissionInfo(['member']));
     await navigation;
     expect(tabs.renderRouteView).toBe(true);
     expect(router.hasRoute('admin')).toBe(false);
@@ -281,7 +282,7 @@ describe('实际认证 store 与路由边界', () => {
     await router.push('/admin');
     expect(stubs.generate).toHaveBeenCalledOnce();
     expect(access.isAccessChecked).toBe(true);
-    stubs.info.mockResolvedValue({ ...user, roles: ['member'] });
+    stubs.info.mockResolvedValue(permissionInfo(['member']));
     changeExternal();
     await router.push('/member');
     expect(stubs.generate).toHaveBeenCalledTimes(2);

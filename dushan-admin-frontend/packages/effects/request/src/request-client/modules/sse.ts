@@ -58,8 +58,13 @@ class SSE {
 
     const merged = new Headers();
     Object.entries(
-      (axiosConfig.headers ?? {}) as Record<string, string>,
-    ).forEach(([k, v]) => merged.set(k, String(v)));
+      (axiosConfig.headers ?? {}) as Record<string, unknown>,
+    ).forEach(([k, v]) => {
+      // 与 axios 语义一致：拦截器写 null/undefined/false 表示删除该头，
+      // 不能字面化成 "null"/"undefined" 发出去（如未登录时的 Authorization）。
+      if (v === null || v === undefined || v === false) return;
+      merged.set(k, String(v));
+    });
     if (requestOptions?.headers) {
       new Headers(requestOptions.headers).forEach((v, k) => merged.set(k, v));
     }
@@ -89,7 +94,11 @@ class SSE {
 
     const response = await fetch(safeJoinUrl(baseUrl, url), requestInit);
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      // 状态码交给上层判定（如会话层按 401 触发刷新重试）。
+      throw Object.assign(new Error(`HTTP error! status: ${response.status}`), {
+        status: response.status,
+        response,
+      });
     }
     try {
       await requestOptions?.onResponse?.(response);

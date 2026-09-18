@@ -1,5 +1,7 @@
 import type { Recordable, UserInfo } from '@vben/types';
 
+import type { MenuNode } from '../router/menu-adapter';
+
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 
@@ -10,7 +12,7 @@ import { useAccessStore, useTabbarStore, useUserStore } from '@vben/stores';
 import { ElNotification } from 'element-plus';
 import { defineStore } from 'pinia';
 
-import { getAccessCodesApi, getUserInfoApi, loginApi, logoutApi } from '#/api';
+import { getPermissionInfoApi, loginApi, logoutApi } from '#/api';
 import { $t } from '#/locales';
 
 import { getSession } from '../services/session/runtime';
@@ -21,10 +23,14 @@ export const useAuthStore = defineStore('auth', () => {
   const tabbarStore = useTabbarStore();
   const router = useRouter();
   const loginLoading = ref(false);
+  // 后端把菜单与身份放在同一响应；守卫在 userInfo 已存在时会跳过 fetchUserInfo，
+  // 因此菜单在此按代次持有，由 clearSessionAccess 一并清除。
+  const accessMenus = ref<MenuNode[] | undefined>();
   let loginPromise: Promise<{ userInfo: UserInfo }> | undefined;
   let logoutPromise: Promise<void> | undefined;
 
   function clearSessionAccess() {
+    accessMenus.value = undefined;
     tabbarStore.$reset();
     tabbarStore.renderRouteView = false;
     userStore.$reset();
@@ -63,12 +69,8 @@ export const useAuthStore = defineStore('auth', () => {
       session.assertCurrent(scope);
       session.replace(accessToken);
       scope = session.capture();
-      const [userInfo, accessCodes] = await Promise.all([
-        fetchUserInfo(),
-        getAccessCodesApi(),
-      ]);
+      const userInfo = await fetchUserInfo();
       session.assertCurrent(scope);
-      accessStore.setAccessCodes(accessCodes);
       accessStore.setLoginExpired(false);
       if (wasExpired) {
         // URL 保持不变，但权限树已经撤销，需要重新判定当前页面是否可达。
@@ -96,12 +98,13 @@ export const useAuthStore = defineStore('auth', () => {
   function logout(redirect = true) {
     if (logoutPromise) return logoutPromise;
     const session = getSession();
-    const authenticated = session.capture().token !== null;
+    // 先取令牌再清本地：后端只在请求带 Authorization 时撤销服务端会话族。
+    const token = session.capture().token;
     session.replace(null);
     const scope = session.capture();
     logoutPromise = (async () => {
       try {
-        if (authenticated) await logoutApi();
+        if (token !== null) await logoutApi(token);
       } finally {
         if (session.capture().generation === scope.generation) {
           accessStore.setLoginExpired(false);
@@ -146,10 +149,19 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function fetchUserInfo() {
     const scope = getSession().capture();
-    const userInfo = await getUserInfoApi();
+    const info = await getPermissionInfoApi();
     getSession().assertCurrent(scope);
-    userStore.setUserInfo(userInfo);
-    return userInfo;
+    accessMenus.value = info.menus;
+    accessStore.setAccessCodes(info.permissions);
+    userStore.setUserInfo(info.user);
+    return info.user;
+  }
+
+  /** 供 generateAccess 取用本代次的授权菜单；缺失说明装配顺序被破坏，直接失败。 */
+  function requireAccessMenus() {
+    if (accessMenus.value === undefined)
+      throw new Error('尚未获取授权菜单，无法生成路由');
+    return accessMenus.value;
   }
 
   function $reset() {
@@ -165,6 +177,7 @@ export const useAuthStore = defineStore('auth', () => {
     loginLoading,
     logout,
     refreshAccess,
+    requireAccessMenus,
     syncExternalSession,
   };
 });
