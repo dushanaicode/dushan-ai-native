@@ -1,6 +1,6 @@
 # 生产部署说明
 
-本目录只发布 `web-ele` 一个应用；镜像内的 nginx 只做静态资源托管与 `/api` 反向代理，不内置认证、租户或业务逻辑。
+本目录只发布 `web-ele` 一个应用；镜像内的 nginx 托管静态资源，代理 `/admin-api` 管理接口及 `/api` WebSocket 通道，不内置认证、租户或业务逻辑。
 
 ## 构建
 
@@ -24,14 +24,18 @@ docker run -d -p 8010:8080 -e API_UPSTREAM=http://backend:48080 --name dushan-ad
 
 容器内监听 `8080`；上面的示例把宿主机 `8010`映射到容器 `8080`，可按部署环境改成实际需要的宿主机端口。
 
-## `/api` 路径语义
+## 管理接口路径语义
 
-与开发代理（`apps/web-ele/vite.config.ts` 的 `server.proxy['/api']`）保持一致：浏览器请求同源 `/api/...`，nginx 剥离 `/api` 前缀后转发到 `API_UPSTREAM`（例如 `/api/health` -> `http://backend:48080/health`）；后端返回的错误原样透传，不会被 SPA 回退成 `index.html`。页面与接口同源，静态资源响应不添加 `Access-Control-Allow-Origin` 等跨域头。
+开发和生产均配置 `VITE_GLOB_API_URL=/admin-api`。开发代理（`apps/web-ele/vite.config.ts` 的 `server.proxy['/admin-api']`）与 nginx 都保留完整路径：`/admin-api/system/auth/login` -> `http://backend:48080/admin-api/system/auth/login`。nginx 的 `proxy_pass ${API_UPSTREAM}` 不附加末尾斜杠。
+
+浏览器地址与后端认证 Cookie 的 `Path=/admin-api/system/auth` 匹配，刷新和退出请求可携带 Cookie。后端错误原样透传，不会被 SPA 回退成 `index.html`。页面与接口同源，静态资源响应不添加跨域头。
+
+WebSocket 保留独立的 `/api/` 通道，代理剥离此前缀（`/api/ws` -> `http://backend:48080/ws`）；管理 API 客户端不使用该前缀。
 
 ## WebSocket、SSE 与上传
 
-- `/api/` 反代已设置 `Upgrade`/`Connection` 头并按 `$http_upgrade` 做协议升级，支持 WebSocket。
-- 同一 `/api/` 位置关闭了代理缓冲（`proxy_buffering off`）并把读写超时设置为 3600 秒，避免 SSE 长连接被提前截断或缓冲导致事件延迟下发。
+- `/admin-api/` 与 `/api/` 反代均设置 `Upgrade`/`Connection` 头，按 `$http_upgrade` 做协议升级。
+- 两处均关闭代理缓冲（`proxy_buffering off`），读写超时为 3600 秒，支持 SSE 与 WebSocket 长连接。
 - `client_max_body_size` 固定为 `20m`：当前 Native 后端尚无具体的文件上传契约，先给一个覆盖常见图片/文档上传的明确值；后续有实际更大体积的上传接口时，按需调整这一个数值即可。
 
 ## 静态资源缓存

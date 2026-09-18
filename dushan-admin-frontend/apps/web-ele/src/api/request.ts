@@ -38,7 +38,11 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
     () => preferences.app.enableRefreshToken,
   );
   configureNativeStreaming(client);
-  configureSessionStreaming(client, getSession);
+  configureSessionStreaming(
+    client,
+    getSession,
+    () => preferences.app.enableRefreshToken,
+  );
   client.addResponseInterceptor(
     errorMessageResponseInterceptor((message, error) => {
       if (error instanceof SessionChangedError) return;

@@ -6,11 +6,8 @@ import type {
 import { generateAccessible } from '@vben/access';
 import { preferences } from '@vben/preferences';
 
-import { ElMessage } from 'element-plus';
-
-import { getAllMenusApi } from '#/api';
 import { BasicLayout, IFrameView } from '#/layouts';
-import { $t } from '#/locales';
+import { useAuthStore } from '#/store';
 
 import { getSession } from '../services/session/runtime';
 import { menusToRoutes } from './menu-adapter';
@@ -33,12 +30,9 @@ async function generateAccess(options: GenerateMenuAndRoutesOptions) {
   return await generateAccessible(preferences.app.accessMode, {
     ...options,
     router: scopedRouter(options.router, () => session.assertCurrent(scope)),
+    // 菜单与身份来自同一次 /system/auth/get-permission-info，由 auth store 按代次持有。
     fetchMenuListAsync: async () => {
-      ElMessage({
-        duration: 1500,
-        message: `${$t('common.loadingMenu')}...`,
-      });
-      const menus = await getAllMenusApi();
+      const menus = useAuthStore().requireAccessMenus();
       session.assertCurrent(scope);
       return menusToRoutes(
         menus,

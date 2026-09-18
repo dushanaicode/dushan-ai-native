@@ -82,23 +82,24 @@ describe('业务响应与Vben请求接入', () => {
     expect(adapter).toHaveBeenCalledTimes(4);
   });
 
-  it.each(['/auth/login', '/auth/refresh', '/auth/logout'])(
-    '认证端点%s不会触发自身刷新',
-    (url) => {
-      const response = {
-        config: { url },
-        data: envelope(401),
-        headers: {},
-        status: 200,
-        statusText: 'OK',
-      };
-      expect(
-        isAuthenticationFailure(
-          new BusinessError(response.data, response.config, response as never),
-        ),
-      ).toBe(false);
-    },
-  );
+  it.each([
+    '/system/auth/login',
+    '/system/auth/refresh-token',
+    '/system/auth/logout',
+  ])('认证端点%s不会触发自身刷新', (url) => {
+    const response = {
+      config: { url },
+      data: envelope(401),
+      headers: {},
+      status: 200,
+      statusText: 'OK',
+    };
+    expect(
+      isAuthenticationFailure(
+        new BusinessError(response.data, response.config, response as never),
+      ),
+    ).toBe(false);
+  });
 
   it('权限不足不刷新，HTTP传输故障也不伪造为业务登录失效', () => {
     const response = {
@@ -114,6 +115,30 @@ describe('业务响应与Vben请求接入', () => {
       ),
     ).toBe(false);
     expect(isAuthenticationFailure({ response: { status: 401 } })).toBe(false);
+  });
+
+  it('业务端点即使路径含 auth 字样也按登录失效处理，排除名单只认后端真实端点名', () => {
+    for (const url of [
+      '/system/oauth2/token/page',
+      '/system/auth-policy/list',
+      '/system/user/auth/refresh-token-config',
+      '/infra/auth/login',
+      '/system/user/auth/logout',
+      '/system/auth/login/records',
+    ]) {
+      const response = {
+        config: { url },
+        data: envelope(401),
+        headers: {},
+        status: 200,
+        statusText: 'OK',
+      };
+      expect(
+        isAuthenticationFailure(
+          new BusinessError(response.data, response.config, response as never),
+        ),
+      ).toBe(true);
+    }
   });
 
   it.each(

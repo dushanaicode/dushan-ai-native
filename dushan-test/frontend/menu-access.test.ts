@@ -50,7 +50,11 @@ it('导航与外部同步错误不记录请求凭据，调用方仍收到原错�
     router.options.history.destroy();
   }
 });
-const pageMap = { '../views/page.vue': async () => ({ default: Page }) };
+const comingSoon = '/_core/fallback/coming-soon.vue';
+const pageMap = {
+  '../views/page.vue': async () => ({ default: Page }),
+  '../views/_core/fallback/coming-soon.vue': async () => ({ default: Page }),
+};
 const layouts = {
   IFrameView: async () => Page,
   RouterView: async () => Page,
@@ -189,7 +193,6 @@ describe('菜单纯函数与协议边界', () => {
     expect(routes[1]?.meta.iframeSrc).toBe('https://example.com/frame');
     expect(routes[1]?.component).toBe('IFrameView');
     for (const invalid of [
-      [menu({ component: '/missing.vue' })],
       [menu({ kind: 'iframe', url: 'javascript:alert(1)' })],
       [menu({ kind: 'link', url: 'https://user:password@example.com' })],
       [menu({ path: '/auth/login' })],
@@ -199,6 +202,40 @@ describe('菜单纯函数与协议边界', () => {
       expect(() =>
         menusToRoutes(invalid, pageMap, layouts, reserved),
       ).toThrow();
+  });
+
+  it('菜单指向本次构建未包含的页面时降级为即将上线页，其余节点不受影响', () => {
+    const routes = menusToRoutes(
+      [
+        menu({ id: 'built', path: '/built' }),
+        menu({ id: 'unbuilt', path: '/unbuilt', component: '/missing.vue' }),
+        menu({ id: 'empty', path: '/empty', component: undefined }),
+      ],
+      pageMap,
+      layouts,
+      reserved,
+    );
+    expect(routes.map((route) => route.component)).toEqual([
+      '/page.vue',
+      comingSoon,
+      comingSoon,
+    ]);
+    expect(routes.map((route) => route.meta?.title)).toEqual([
+      '页面',
+      '页面',
+      '页面',
+    ]);
+  });
+
+  it('兜底页面自身没有登记时立即失败，不静默生成无组件路由', () => {
+    expect(() =>
+      menusToRoutes(
+        [menu({})],
+        { '../views/page.vue': async () => ({ default: Page }) },
+        layouts,
+        reserved,
+      ),
+    ).toThrow('兜底页面未登记');
   });
 
   it('外部跳转参数只允许应用内路径，拒绝数组、外站和无效编码', () => {

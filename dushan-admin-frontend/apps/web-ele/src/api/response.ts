@@ -130,10 +130,14 @@ export function nativeResponseInterceptor() {
 /** 识别业务码和 HTTP 401，认证端点不递归刷新。 */
 export function isAuthenticationFailure(error: unknown): boolean {
   if (!(error instanceof BusinessError) && !isAxiosError(error)) return false;
+  // Axios 分开保存 baseURL 与 url，这里比较接口调用传入的确定路径。
+  const url = error.config?.url;
   return (
     (error instanceof BusinessError ? error.code : error.response?.status) ===
       401 &&
-    !/\/auth\/(?:login|logout|refresh)(?:[/?]|$)/.test(error.config?.url ?? '')
+    url !== '/system/auth/login' &&
+    url !== '/system/auth/logout' &&
+    url !== '/system/auth/refresh-token'
   );
 }
 
