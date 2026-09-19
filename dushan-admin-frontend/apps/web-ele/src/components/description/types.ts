@@ -2,7 +2,7 @@ import type { CSSProperties, MaybeRefOrGetter, VNode } from 'vue';
 
 import type { DescriptionsProps } from '@vben/common-ui';
 
-export type DescriptionData = Record<string, unknown>;
+export type DescriptionData = Record<string, any>;
 export interface DescriptionItemSchema {
   field?: string;
   label: string | VNode;

@@ -1,69 +1,30 @@
 <script lang="ts" setup>
 import type { VbenFormSchema } from '@vben/common-ui';
-import type { BasicOption } from '@vben/types';
+import type { Recordable } from '@vben/types';
 
-import { computed, markRaw } from 'vue';
+import { computed, ref } from 'vue';
 
-import { AuthenticationLogin, SliderCaptcha, z } from '@vben/common-ui';
+import { AuthenticationLogin, z } from '@vben/common-ui';
 import { $t } from '@vben/locales';
 
+import { ElMessage } from 'element-plus';
+
+import { UnifiedCaptcha as UnifiedCaptchaComponent } from '#/components';
+import { createCaptchaPorts } from '#/services/captcha/ports';
 import { useAuthStore } from '#/store';
 
 defineOptions({ name: 'Login' });
 
 const authStore = useAuthStore();
-
-const MOCK_USER_OPTIONS: BasicOption[] = [
-  {
-    label: 'Super',
-    value: 'vben',
-  },
-  {
-    label: 'Admin',
-    value: 'admin',
-  },
-  {
-    label: 'User',
-    value: 'jack',
-  },
-];
+const captchaRef = ref<InstanceType<typeof UnifiedCaptchaComponent>>();
+const captchaPorts = createCaptchaPorts();
 
 const formSchema = computed((): VbenFormSchema[] => {
   return [
     {
-      component: 'VbenSelect',
-      componentProps: {
-        options: MOCK_USER_OPTIONS,
-        placeholder: $t('authentication.selectAccount'),
-      },
-      fieldName: 'selectAccount',
-      label: $t('authentication.selectAccount'),
-      rules: z
-        .string()
-        .min(1, { message: $t('authentication.selectAccount') })
-        .optional()
-        .default('vben'),
-    },
-    {
       component: 'VbenInput',
       componentProps: {
         placeholder: $t('authentication.usernameTip'),
-      },
-      dependencies: {
-        trigger(values, form) {
-          if (values.selectAccount) {
-            const findUser = MOCK_USER_OPTIONS.find(
-              (item) => item.value === values.selectAccount,
-            );
-            if (findUser) {
-              form.setValues({
-                password: '123456',
-                username: findUser.value,
-              });
-            }
-          }
-        },
-        triggerFields: ['selectAccount'],
       },
       fieldName: 'username',
       label: $t('authentication.username'),
@@ -78,21 +39,39 @@ const formSchema = computed((): VbenFormSchema[] => {
       label: $t('authentication.password'),
       rules: z.string().min(1, { message: $t('authentication.passwordTip') }),
     },
-    {
-      component: markRaw(SliderCaptcha),
-      fieldName: 'captcha',
-      rules: z.boolean().refine((value) => value, {
-        message: $t('authentication.verifyRequiredTip'),
-      }),
-    },
   ];
 });
+
+/**
+ * 提交前先完成人机验证：后端验证码关闭时 acquire 立即返回 null，
+ * 开启时弹出对话框，通过后将 verification 凭证随登录参数提交。
+ */
+async function handleSubmit(values: Recordable<any>) {
+  let verification;
+  try {
+    verification = await captchaRef.value?.verify();
+  } catch {
+    // 用户取消与加载失败均由组件 error 事件呈现，此处静默中止提交
+    return;
+  }
+  await authStore.authLogin({
+    ...values,
+    verification: verification?.verification,
+  });
+}
 </script>
 
 <template>
   <AuthenticationLogin
     :form-schema="formSchema"
     :loading="authStore.loginLoading"
-    @submit="authStore.authLogin"
+    @submit="handleSubmit"
+  />
+  <UnifiedCaptchaComponent
+    ref="captchaRef"
+    :ports="captchaPorts"
+    purpose="login"
+    mode="dialog"
+    @error="() => ElMessage.error('验证码加载失败')"
   />
 </template>
