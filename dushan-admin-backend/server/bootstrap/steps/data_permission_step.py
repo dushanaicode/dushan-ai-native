@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 
-from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
+from framework.common.utils.cleanup_utils import CleanupUtils
 from framework.starter_data_permission.config.data_permission_settings import DataPermissionSettings
 from framework.starter_data_permission.starter.data_permission_starter import DataPermissionStarter
 from framework.starter_security.config.security_settings import SecuritySettings

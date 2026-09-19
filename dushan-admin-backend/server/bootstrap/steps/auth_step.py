@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 
 from framework.common.enums.component_type_enum import ComponentTypeEnum
-from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
+from framework.common.utils.cleanup_utils import CleanupUtils
 from framework.starter_auth.config.auth_settings import AuthSettings
 from framework.starter_auth.starter.auth_starter import AuthStarter
 from server.bootstrap.context import AppBootstrapContext

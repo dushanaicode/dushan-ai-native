@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from framework.common.page.schemas.page_query import PageQuery
-from framework.common.page.schemas.page_result import PageResult
+from framework.common.page import PageQuery, PageResult
 from module_infra.controller.admin.cache.vo.cache.cache_db_info_resp_vo import CacheDbInfoRespVO
 from module_infra.controller.admin.cache.vo.cache.cache_info_resp_vo import CacheInfoRespVO
 from module_infra.controller.admin.cache.vo.cache.cache_key_detail_resp_vo import (

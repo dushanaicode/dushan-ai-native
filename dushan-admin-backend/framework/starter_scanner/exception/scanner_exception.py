@@ -1,6 +1,6 @@
 from framework.common.enums.log_level_enum import LogLevelEnum
 from framework.common.exception.exceptions.server_exception import ServerException
-from framework.starter_scanner.exception.scanner_error_codes import ScannerErrorCodes
+from framework.starter_scanner.definitions.constants.scanner_error_codes import ScannerErrorCodes
 
 
 class ScannerException(ServerException):

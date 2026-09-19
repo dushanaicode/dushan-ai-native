@@ -1,6 +1,10 @@
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
-from framework.starter_security.spi.message_security_provider import MessageSecurityProvider
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
+from framework.starter_security.public import (
+    MessageSecurityProvider,
+)
 from module_system.service.auth.system_message_service import SystemMessageService
 
 

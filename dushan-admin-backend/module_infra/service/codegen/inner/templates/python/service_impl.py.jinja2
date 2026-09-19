@@ -1,9 +1,9 @@
 from __future__ import annotations
-from framework.common.exception.exceptions.illegal_argument_exception import IllegalArgumentException
-from framework.common.page.schemas.page_result import PageResult
-from framework.starter_database.decorators.transactional import transactional
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
+from framework.common.exception import IllegalArgumentException
+from framework.common.page import PageResult
+from framework.starter_database.public import transactional
+from framework.starter_di.public import service
+from framework.starter_di.public import Inject
 from {{ package_name }}.controller.admin.{{ business_name }}.vo.{{ business_name }}_save_req_vo import {{ class_name }}SaveReqVO
 {% if not is_tree %}
 from {{ package_name }}.controller.admin.{{ business_name }}.vo.{{ business_name }}_page_req_vo import {{ class_name }}PageReqVO

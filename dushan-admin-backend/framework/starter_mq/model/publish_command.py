@@ -3,7 +3,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel
 
-from framework.starter_mq.enums.message_mode import MessageMode
+from framework.starter_mq.definitions.enums.message_mode import MessageMode
 
 
 @dataclass(frozen=True, slots=True)

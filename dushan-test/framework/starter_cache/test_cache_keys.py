@@ -4,7 +4,7 @@ from pydantic import ValidationError
 from fixtures.cache_fixtures import cache_settings
 from framework.starter_cache.core.cache_key_registry import CacheKeyRegistry
 from framework.starter_cache.core.cache_key_resolver import CacheKeyResolver
-from framework.starter_cache.exception.cache_config_exception import CacheConfigException
+from framework.starter_cache.exception.cache_exception import CacheException
 from framework.starter_cache.model.cache_key import CacheKey
 from framework.starter_cache.model.cache_key_container import CacheKeyContainer
 
@@ -54,20 +54,20 @@ def test_registry_tolerates_an_application_without_any_declared_key():
 
 def test_registry_rejects_duplicate_prefix_across_containers():
     registry = CacheKeyRegistry()
-    with pytest.raises(CacheConfigException, match="重复声明"):
+    with pytest.raises(CacheException, match="重复声明"):
         registry.register([container(A=key("a")), container(B=key("a"))], settings())
 
 
 @pytest.mark.parametrize("other", ["a:b", "a:b:c"])
 def test_registry_rejects_prefixes_that_contain_each_other(other):
     registry = CacheKeyRegistry()
-    with pytest.raises(CacheConfigException, match="互相包含"):
+    with pytest.raises(CacheException, match="互相包含"):
         registry.register([container(A=key("a"), B=key(other))], settings())
 
 
 def test_registry_rejects_keys_pointing_at_an_unconfigured_client():
     registry = CacheKeyRegistry()
-    with pytest.raises(CacheConfigException, match="未配置的客户端"):
+    with pytest.raises(CacheException, match="未配置的客户端"):
         registry.register([container(A=key("a", client_name="absent"))], settings())
 
 
@@ -77,7 +77,7 @@ def test_registry_rejects_colocation_group_split_across_clients():
         B=key("b", client_name="second", colocation_group="session"),
     )
     registry = CacheKeyRegistry()
-    with pytest.raises(CacheConfigException, match="共置组路由不一致"):
+    with pytest.raises(CacheException, match="共置组路由不一致"):
         registry.register([declaration], settings())
 
 
@@ -93,7 +93,7 @@ def test_registry_accepts_colocation_group_on_one_client():
 def test_registry_refuses_to_register_twice():
     registry = CacheKeyRegistry()
     registry.register([], settings())
-    with pytest.raises(CacheConfigException, match="不能重复登记"):
+    with pytest.raises(CacheException, match="不能重复登记"):
         registry.register([], settings())
 
 
@@ -108,20 +108,20 @@ def test_registry_validates_application_resource_keys_with_static_keys():
 @pytest.mark.parametrize("name", ["a", "a:b"])
 def test_resource_keys_cannot_overlap_static_keys(name):
     registry = CacheKeyRegistry()
-    with pytest.raises(CacheConfigException, match="重复声明|互相包含"):
+    with pytest.raises(CacheException, match="重复声明|互相包含"):
         registry.register([container(A=key("a"))], settings(), resource_keys=[key(name)])
     assert not registry.is_registered and not registry.get_all()
 
 
 def test_resource_keys_cannot_reference_unconfigured_clients():
     registry = CacheKeyRegistry()
-    with pytest.raises(CacheConfigException, match="未配置的客户端"):
+    with pytest.raises(CacheException, match="未配置的客户端"):
         registry.register([], settings(), resource_keys=[key("a", client_name="absent")])
 
 
 def test_resource_keys_must_obey_colocation_with_static_keys():
     registry = CacheKeyRegistry()
-    with pytest.raises(CacheConfigException, match="共置组路由不一致"):
+    with pytest.raises(CacheException, match="共置组路由不一致"):
         registry.register(
             [container(A=key("a", colocation_group="session"))],
             settings(),

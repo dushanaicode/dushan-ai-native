@@ -7,8 +7,8 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
 from sqlalchemy.sql.elements import TextClause
 
-from framework.common.utils.asyncio.asyncio_utils import AsyncioUtils
-from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
+from framework.common.utils.asyncio_utils import AsyncioUtils
+from framework.common.utils.cleanup_utils import CleanupUtils
 from framework.starter_database.exception.database_error_translator import DatabaseErrorTranslator
 
 

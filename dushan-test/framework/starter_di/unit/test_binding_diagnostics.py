@@ -10,9 +10,9 @@ from framework.starter_di.core.di_container import DiContainer
 from framework.starter_di.decorators.components import service
 from framework.starter_di.decorators.conditional import conditional
 from framework.starter_di.decorators.inject import Inject
-from framework.starter_di.enums.binding_outcome_enum import BindingOutcomeEnum
-from framework.starter_di.enums.container_state_enum import ContainerStateEnum
-from framework.starter_di.exception.di_error_codes import DiErrorCodes
+from framework.starter_di.definitions.constants.di_error_codes import DiErrorCodes
+from framework.starter_di.definitions.enums.binding_outcome_enum import BindingOutcomeEnum
+from framework.starter_di.definitions.enums.container_state_enum import ContainerStateEnum
 from framework.starter_di.exception.di_exception import DiException
 
 pytestmark = pytest.mark.unit

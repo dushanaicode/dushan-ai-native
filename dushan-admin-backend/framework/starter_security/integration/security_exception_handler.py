@@ -1,5 +1,6 @@
 from fastapi import Request
 
+from framework.starter_security.definitions.constants.security_error_codes import SecurityErrorCodes
 from framework.starter_security.exception.security_exception import SecurityException
 from framework.starter_web.exception.exception_handler import GlobalExceptionHandler
 
@@ -12,10 +13,15 @@ class SecurityExceptionHandler:
 
     async def handle(self, request: Request, error: SecurityException):
         response = await self.handler.handle_business_exception(request, error)
-        if error.http_status == 401:
+        if error.is_authentication_error:
             response.headers["WWW-Authenticate"] = (
-                "Bearer" if error.reason == "missing" else 'Bearer error="invalid_token"'
+                "Bearer"
+                if error.error_code is SecurityErrorCodes.MISSING
+                else 'Bearer error="invalid_token"'
             )
-        elif error.http_status == 403:
+        elif error.error_code.code in {
+            SecurityErrorCodes.DENIED.code,
+            SecurityErrorCodes.ORIGIN.code,
+        }:
             response.headers["WWW-Authenticate"] = 'Bearer error="insufficient_scope"'
         return response

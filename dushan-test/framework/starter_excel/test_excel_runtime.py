@@ -17,8 +17,8 @@ from pydantic import BaseModel, field_validator
 
 from fixtures.config_factory import ConfigFactory
 from framework.starter_excel.config.excel_settings import ExcelSettings
-from framework.starter_excel.exception.excel_error import ExcelError
-from framework.starter_excel.exception.excel_error_codes import ExcelErrorCodes
+from framework.starter_excel.definitions.constants.excel_error_codes import ExcelErrorCodes
+from framework.starter_excel.exception.excel_exception import ExcelException
 from framework.starter_excel.handler.excel_upload_validator import ExcelUploadValidator
 from framework.starter_excel.model.excel_column import ExcelColumn
 from framework.starter_excel.reader import excel_reader as reader_module
@@ -70,7 +70,7 @@ async def test_named_sheet_and_missing_sheet_restore_borrowed_stream():
     source = upload()
     assert await reader.read(source, TextRow) == [TextRow(text="active")]
     assert await reader.read(source, TextRow, sheet_name="指定表") == [TextRow(text="selected")]
-    with pytest.raises(ExcelError) as caught:
+    with pytest.raises(ExcelException) as caught:
         await reader.read(source, TextRow, sheet_name="不存在")
     assert caught.value.error_code == ExcelErrorCodes.VALIDATION
     assert "工作表不存在" in caught.value.msg
@@ -311,7 +311,7 @@ def test_vba_resource_and_physical_encryption_flags_are_rejected():
     macro = io.BytesIO(content)
     with ZipFile(macro, "a") as archive:
         archive.writestr("xl/vbaProject.bin", b"test-vba-payload")
-    with pytest.raises(ExcelError) as caught:
+    with pytest.raises(ExcelException) as caught:
         ExcelUploadValidator(settings()).validate(
             SimpleNamespace(file=macro, filename="macro.xlsx", content_type=None)
         )
@@ -327,7 +327,7 @@ def test_vba_resource_and_physical_encryption_flags_are_rejected():
     )
     assert struct.unpack_from("<H", encrypted, 6)[0] & 1
     assert struct.unpack_from("<H", encrypted, central + 8)[0] & 1
-    with pytest.raises(ExcelError) as caught:
+    with pytest.raises(ExcelException) as caught:
         ExcelUploadValidator(settings()).validate(
             SimpleNamespace(
                 file=io.BytesIO(encrypted), filename="encrypted.xlsx", content_type=None

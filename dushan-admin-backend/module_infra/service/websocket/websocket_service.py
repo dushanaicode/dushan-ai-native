@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from typing import Any, Protocol, runtime_checkable
 
-from framework.starter_websocket.model.online_connection import OnlineConnection
+from framework.starter_websocket.public import (
+    OnlineConnection,
+)
 from module_infra.controller.admin.websocket.vo.websocket_message_vo import WebsocketMessageVO
 
 

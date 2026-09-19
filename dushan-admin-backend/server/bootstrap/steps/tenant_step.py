@@ -1,9 +1,10 @@
 from contextlib import asynccontextmanager
 
-from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
+from framework.common.utils.cleanup_utils import CleanupUtils
 from framework.starter_tenant.config.tenant_settings import TenantSettings
 from framework.starter_tenant.core.tenant_model_discovery import TenantModelDiscovery
 from framework.starter_tenant.core.tenant_model_registry import TenantModelRegistry
+from framework.starter_tenant.definitions.constants.tenant_error_codes import TenantErrorCodes
 from framework.starter_tenant.exception.tenant_exception import TenantException
 from framework.starter_tenant.starter.tenant_starter import TenantStarter
 
@@ -27,7 +28,7 @@ class TenantStep:
         if application is None:
             TenantModelRegistry(models)
             if models:
-                raise TenantException("configuration")
+                raise TenantException(TenantErrorCodes.CONFIGURATION)
             ctx.logger.info("【TenantStarter 】未启用 DI，运行时未装配")
             yield
             return

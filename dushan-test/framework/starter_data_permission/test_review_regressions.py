@@ -5,7 +5,7 @@ import pytest
 from sqlalchemy import delete, exists, func, insert, select, text, union_all, update
 from sqlalchemy.orm import aliased, column_property
 
-from framework.starter_data_permission.enums.data_scope import DataScope
+from framework.starter_data_permission.definitions.enums.data_scope import DataScope
 from framework.starter_data_permission.exception.data_permission_exception import (
     DataPermissionException,
 )

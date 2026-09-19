@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 
-from framework.starter_mq.enums.message_mode import MessageMode
+from framework.starter_mq.definitions.enums.message_mode import MessageMode
 from framework.starter_mq.model.message_envelope import MessageEnvelope
 
 

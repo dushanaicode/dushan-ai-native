@@ -1,6 +1,10 @@
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
-from framework.starter_security.context.security_context import SecurityContext
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
+from framework.starter_security.public import (
+    SecurityContext,
+)
 from module_system.dal.mapper.notification.notice_message_mapper import (
     NoticeMessageMapper,
 )

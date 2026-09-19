@@ -4,8 +4,8 @@ from contextvars import Context, ContextVar
 import anyio
 import pytest
 
-from framework.common.utils.asyncio.asyncio_utils import AsyncioUtils
-from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
+from framework.common.utils.asyncio_utils import AsyncioUtils
+from framework.common.utils.cleanup_utils import CleanupUtils
 
 pytestmark = pytest.mark.unit
 

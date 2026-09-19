@@ -1,5 +1,3 @@
-from http import HTTPStatus
-
 from framework.common.enums.log_level_enum import LogLevelEnum
 from framework.common.exception.constants.global_error_code_constants import (
     GlobalErrorCodeConstants,
@@ -12,4 +10,3 @@ class ModelValidatorException(BaseBusinessException, ValueError):
 
     default_error_code = GlobalErrorCodeConstants.VALIDATION_ERROR
     log_level = LogLevelEnum.INFO
-    http_status = HTTPStatus.UNPROCESSABLE_ENTITY

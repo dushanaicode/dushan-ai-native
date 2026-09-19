@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from framework.common.enums.base_enum import BaseEnum
+from framework.common.enums import BaseEnum
 from module_infra.framework.file.core.client.abstract_file_client import AbstractFileClient
 from module_infra.framework.file.core.client.db.db_file_client import DBFileClient
 from module_infra.framework.file.core.client.db.db_file_client_config import DBFileClientConfig

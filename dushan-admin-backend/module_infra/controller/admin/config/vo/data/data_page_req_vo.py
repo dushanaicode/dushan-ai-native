@@ -3,10 +3,10 @@ from typing import Annotated
 
 from pydantic import Field
 
-from framework.common.contracts.snowflake_id import (
+from framework.common.contracts import (
     SnowflakeIdInput,
 )
-from framework.common.page.schemas.page_query import PageQuery
+from framework.common.page import PageQuery
 from module_infra.definitions.enums.config.config_module_enum import ConfigModuleEnum
 
 

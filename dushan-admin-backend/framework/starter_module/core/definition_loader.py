@@ -4,7 +4,7 @@ from framework.common.importing.package_locator import PackageLocator
 from framework.starter_module.core.resolved_module import ResolvedModule
 from framework.starter_scanner.core.component_collector import ComponentCollector
 from framework.starter_scanner.core.scan_result import ScanResult
-from framework.starter_scanner.exception.scanner_error_codes import ScannerErrorCodes
+from framework.starter_scanner.definitions.constants.scanner_error_codes import ScannerErrorCodes
 from framework.starter_scanner.exception.scanner_exception import ScannerException
 
 

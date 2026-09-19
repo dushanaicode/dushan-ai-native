@@ -1,5 +1,5 @@
 from framework.starter_database.model.model_scanner import ModelScanner
-from framework.starter_tenant.enums.tenant_model_kind import TenantModelKind
+from framework.starter_tenant.definitions.enums.tenant_model_kind import TenantModelKind
 from framework.starter_tenant.model.tenant_model import TenantModel
 
 

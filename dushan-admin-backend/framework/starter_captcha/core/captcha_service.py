@@ -13,7 +13,9 @@ from framework.starter_cache.core.cache_handler import CacheHandler
 from framework.starter_captcha.config.captcha_settings import CaptchaSettings
 from framework.starter_captcha.core.captcha_provider import CaptchaProvider
 from framework.starter_captcha.core.captcha_store import CaptchaStore
-from framework.starter_captcha.exception.captcha_error_codes import CaptchaErrorCodes as Codes
+from framework.starter_captcha.definitions.constants.captcha_error_codes import (
+    CaptchaErrorCodes as Codes,
+)
 from framework.starter_captcha.exception.captcha_exception import CaptchaException
 from framework.starter_captcha.model.captcha_answer import CaptchaAnswer
 from framework.starter_captcha.model.captcha_challenge import CaptchaChallenge
@@ -23,7 +25,7 @@ from framework.starter_captcha.provider.captcha_http_client import CaptchaHttpCl
 from framework.starter_captcha.provider.local_captcha_provider import LocalCaptchaProvider
 from framework.starter_captcha.provider.tencent_captcha_provider import TencentCaptchaProvider
 from framework.starter_di.decorators.components import framework
-from framework.starter_di.enums.component_scope_enum import ComponentScopeEnum
+from framework.starter_di.definitions.enums.component_scope_enum import ComponentScopeEnum
 from framework.starter_monitor.core.monitor_service import MonitorService
 
 

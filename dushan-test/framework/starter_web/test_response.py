@@ -152,17 +152,15 @@ def test_error_details_cannot_supply_debug_output(debug, with_exception):
     assert supplied.debug == {"internal_note": "untrusted-diagnostic"}
 
 
-@pytest.mark.parametrize(
-    "error_code",
-    [
-        GlobalErrorCodeConstants.SUCCESS,
-        ErrorCode(code=123, description="redirect", message_key="test.redirect", http_status=302),
-    ],
-)
-def test_error_response_rejects_success_and_non_error_http_status(error_code):
-    """错误响应入口不能误发成功码或重定向状态。"""
+def test_error_response_rejects_success_and_uses_application_code():
+    """中间件拒绝成功码，非零应用码始终使用普通 JSON HTTP 200。"""
     with pytest.raises(ValueError):
-        MiddlewareResult().error_response(error_code)
+        MiddlewareResult().error_response(GlobalErrorCodeConstants.SUCCESS)
+    response = MiddlewareResult().error_response(
+        ErrorCode(code=700123, description="操作失败", message_key="test.failure")
+    )
+    assert response.status_code == 200
+    assert json.loads(response.body)["code"] == 700123
 
 
 def test_memory_download_preserves_buffer_and_enforces_policy():

@@ -3,10 +3,9 @@ from typing import Annotated, Any
 
 from pydantic import Field, field_validator
 
-from framework.common.enums.status_enum import StatusEnum
-from framework.common.page.schemas.page_query import PageQuery
-from framework.common.validator.in_enum import InEnum
-from framework.common.validator.size import Size
+from framework.common.enums import StatusEnum
+from framework.common.page import PageQuery
+from framework.common.validator import InEnum, Size
 
 
 class DictDataPageReqVO(PageQuery):

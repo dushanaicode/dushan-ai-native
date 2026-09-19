@@ -7,7 +7,6 @@ from pydantic import ValidationError
 from framework.starter_ip.config.ip_settings import IpSettings
 from framework.starter_ip.core.client_ip_resolver import ClientIpResolver
 from framework.starter_ip.core.ip2region_database import Ip2RegionDatabase
-from framework.starter_ip.exception.ip_address_family_not_enabled import IpAddressFamilyNotEnabled
 from framework.starter_ip.exception.ip_exception import IpException
 from framework.starter_ip.provider.ip2region_ip_location_provider import Ip2RegionIpLocationProvider
 from framework.starter_ip.service.ip_location_service import IpLocationService
@@ -37,9 +36,9 @@ def test_only_selected_family_is_read_and_validated(families, loaded, monkeypatc
             if family in loaded:
                 assert database.search(ip)
             else:
-                with pytest.raises(IpAddressFamilyNotEnabled) as failure:
+                with pytest.raises(IpException) as failure:
                     database.search(ip)
-                assert failure.value.family == family
+                assert failure.value.context["family"] == family
     finally:
         database.close()
     assert database._searchers is None

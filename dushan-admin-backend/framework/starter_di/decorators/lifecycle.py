@@ -1,6 +1,6 @@
 import inspect
 
-from framework.starter_di.enums.lifecycle_phase_enum import LifecyclePhaseEnum
+from framework.starter_di.definitions.enums.lifecycle_phase_enum import LifecyclePhaseEnum
 
 
 def post_construct_hook(method):

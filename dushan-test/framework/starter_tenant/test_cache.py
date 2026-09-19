@@ -1,8 +1,10 @@
 import pytest
 
 from framework.starter_cache.core.cache_handler import CacheHandler
-from framework.starter_cache.enums.cache_namespace import CacheNamespace
-from framework.starter_cache.enums.lock_release_outcome_enum import LockReleaseOutcomeEnum
+from framework.starter_cache.definitions.enums.cache_namespace import CacheNamespace
+from framework.starter_cache.definitions.enums.lock_release_outcome_enum import (
+    LockReleaseOutcomeEnum,
+)
 from framework.starter_cache.lock.redis_lease_lock import RedisLeaseLock
 from framework.starter_cache.model.cache_key import CacheKey
 from framework.starter_tenant.exception.tenant_exception import TenantException

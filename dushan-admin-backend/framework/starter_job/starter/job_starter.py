@@ -4,11 +4,12 @@ from framework.starter_cache.core.cache_handler import CacheHandler
 from framework.starter_di.context.application_context import ApplicationContext
 from framework.starter_di.core.candidate_selection import CandidateSelection
 from framework.starter_di.decorators.components import starter
-from framework.starter_di.enums.binding_outcome_enum import BindingOutcomeEnum
+from framework.starter_di.definitions.enums.binding_outcome_enum import BindingOutcomeEnum
 from framework.starter_job.config.job_settings import JobSettings
 from framework.starter_job.core.job_registry import JobRegistry
 from framework.starter_job.core.job_runtime import JobRuntime
 from framework.starter_job.core.job_service import JobService
+from framework.starter_job.definitions.constants.job_error_codes import JobErrorCodes
 from framework.starter_job.exception.job_exception import JobException
 from framework.starter_job.spi.job_definition_provider import JobDefinitionProvider
 from framework.starter_job.spi.job_record_provider import JobRecordProvider
@@ -46,9 +47,9 @@ class JobStarter:
             logger.info("【JobStarter 】任务调度未启用")
             return None
         if database is None or cache is None or security is None:
-            raise JobException("configuration")
+            raise JobException(JobErrorCodes.CONFIGURATION)
         if self.settings.owner_enabled and not reload and workers != 1:
-            raise JobException("configuration")
+            raise JobException(JobErrorCodes.CONFIGURATION)
         self.runtime = JobRuntime(
             self.settings,
             self.application,

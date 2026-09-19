@@ -3,12 +3,12 @@ from typing import Annotated, Any
 
 from pydantic import Field, field_validator
 
-from framework.common.contracts.snowflake_id import (
+from framework.common.contracts import (
     SnowflakeIdInput,
 )
-from framework.common.enums.status_enum import StatusEnum
-from framework.common.page.schemas.page_query import PageQuery
-from framework.common.validator.in_enum import InEnum
+from framework.common.enums import StatusEnum
+from framework.common.page import PageQuery
+from framework.common.validator import InEnum
 
 
 class MailTemplatePageReqVO(PageQuery):

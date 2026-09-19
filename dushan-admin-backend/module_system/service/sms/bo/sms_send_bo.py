@@ -1,6 +1,6 @@
 from typing import Any
 
-from framework.common.schemas.base_bo import BaseBO
+from framework.common.schemas import BaseBO
 
 
 class SmsSendBO(BaseBO):

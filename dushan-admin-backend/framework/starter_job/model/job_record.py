@@ -1,7 +1,7 @@
 from pydantic import AwareDatetime, BaseModel, ConfigDict
 
-from framework.starter_job.enums.job_state import JobState
-from framework.starter_job.enums.job_trigger_kind import JobTriggerKind
+from framework.starter_job.definitions.enums.job_state import JobState
+from framework.starter_job.definitions.enums.job_trigger_kind import JobTriggerKind
 
 
 class JobRecord(BaseModel):

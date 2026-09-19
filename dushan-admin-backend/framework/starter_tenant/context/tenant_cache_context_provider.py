@@ -1,6 +1,6 @@
 from framework.starter_cache.spi.tenant_context_provider import TenantContextProvider
 from framework.starter_di.decorators.components import framework
-from framework.starter_di.enums.component_scope_enum import ComponentScopeEnum
+from framework.starter_di.definitions.enums.component_scope_enum import ComponentScopeEnum
 from framework.starter_tenant.context.tenant_context import TenantContext
 
 

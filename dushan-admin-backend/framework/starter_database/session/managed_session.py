@@ -9,7 +9,7 @@ from sqlalchemy.sql import visitors
 from sqlalchemy.sql.elements import TextClause
 from sqlalchemy.sql.selectable import CompoundSelect
 
-from framework.starter_database.exception.database_error_codes import DatabaseErrorCodes
+from framework.starter_database.definitions.constants.database_error_codes import DatabaseErrorCodes
 from framework.starter_database.exception.database_error_translator import DatabaseErrorTranslator
 from framework.starter_database.exception.database_exception import DatabaseException
 from framework.starter_database.session.managed_result import ManagedResult

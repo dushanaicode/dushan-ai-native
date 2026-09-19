@@ -12,7 +12,7 @@ from fixtures.config_factory import ConfigFactory
 from fixtures.starter_steps import StarterSteps
 from framework.starter_cache.core.cache_handler import CacheHandler
 from framework.starter_cache.core.cache_invalidation_dispatcher import CacheInvalidationDispatcher
-from framework.starter_cache.exception.cache_operation_exception import CacheOperationException
+from framework.starter_cache.exception.cache_exception import CacheException
 from framework.starter_cache.model.cache_entry_invalidation_command import (
     CacheEntryInvalidationCommand,
 )
@@ -203,7 +203,7 @@ async def test_cache_failure_after_commit_is_reported_without_pretending_a_rollb
 
             # 失败原因必须是缓存操作错误，且明确说明数据已经提交。
             leaves, messages = flatten(failure.value)
-            assert any(isinstance(leaf, CacheOperationException) for leaf in leaves)
+            assert any(isinstance(leaf, CacheException) for leaf in leaves)
             assert any("已提交" in message for message in messages)
             # 数据库侧确实已经提交，不能按回滚重试。
             assert await load_value(database, item_type, row_id) == "已提交"

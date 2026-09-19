@@ -3,8 +3,8 @@ from typing import Annotated, Any
 from fastapi import UploadFile
 from pydantic import Field, field_validator
 
-from framework.common.schemas.base_request_vo import BaseRequestVO
-from framework.common.validator.not_null import NotNull
+from framework.common.schemas import BaseRequestVO
+from framework.common.validator import NotNull
 
 
 class FileUploadReqVO(BaseRequestVO):

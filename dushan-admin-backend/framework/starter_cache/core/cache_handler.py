@@ -5,7 +5,6 @@ from redis.asyncio import Redis
 from redis.exceptions import RedisError
 
 from framework.starter_cache.config.cache_settings import CacheSettings
-from framework.starter_cache.constants.cache_lock_defaults import CacheLockDefaults
 from framework.starter_cache.core.cache_generation_coordinator import CacheGenerationCoordinator
 from framework.starter_cache.core.cache_generation_publisher import CacheGenerationPublisher
 from framework.starter_cache.core.cache_key_deleter import CacheKeyDeleter
@@ -13,9 +12,9 @@ from framework.starter_cache.core.cache_key_resolver import CacheKeyResolver
 from framework.starter_cache.core.cache_load_through_coordinator import CacheLoadThroughCoordinator
 from framework.starter_cache.core.cache_manager import CacheManager
 from framework.starter_cache.core.cache_serializer import CacheSerializer
-from framework.starter_cache.exception.cache_config_exception import CacheConfigException
-from framework.starter_cache.exception.cache_error_codes import CacheErrorCodes
-from framework.starter_cache.exception.cache_operation_exception import CacheOperationException
+from framework.starter_cache.definitions.constants.cache_error_codes import CacheErrorCodes
+from framework.starter_cache.definitions.constants.cache_lock_defaults import CacheLockDefaults
+from framework.starter_cache.exception.cache_exception import CacheException
 from framework.starter_cache.model.cache_generation_state import CacheGenerationState
 from framework.starter_cache.model.cache_key import CacheKey
 from framework.starter_cache.model.cache_read_result import CacheReadResult
@@ -63,7 +62,9 @@ class CacheHandler:
         try:
             return await client.eval(script, len(keys), *keys, *args)
         except RedisError as error:
-            raise CacheOperationException(msg="Redis 原子操作失败", cause=error) from error
+            raise CacheException(
+                CacheErrorCodes.OPERATION_FAILED, msg="Redis 原子操作失败", cause=error
+            ) from error
 
     @staticmethod
     def build_full_key(cache_key: CacheKey, identifier: str) -> str:
@@ -99,7 +100,9 @@ class CacheHandler:
         try:
             raw = await client.getdel(full_key)
         except RedisError as error:
-            raise CacheOperationException(msg="Redis GETDEL 操作失败", cause=error) from error
+            raise CacheException(
+                CacheErrorCodes.OPERATION_FAILED, msg="Redis GETDEL 操作失败", cause=error
+            ) from error
         if raw is None:
             return CacheReadResult[Any](hit=False)
         is_current, payload = await self._publisher.decode_if_current(client, raw)
@@ -183,12 +186,10 @@ class CacheHandler:
         if effective is None:
             return None
         if type(effective) is not int or effective <= 0:
-            raise CacheConfigException(
-                error_code=CacheErrorCodes.CONFIG_ERROR, msg="缓存 TTL 必须是正整数秒或 None"
-            )
+            raise CacheException(CacheErrorCodes.CONFIG_ERROR, msg="缓存 TTL 必须是正整数秒或 None")
         if effective > self._settings.max_ttl_seconds:
-            raise CacheConfigException(
-                error_code=CacheErrorCodes.CONFIG_ERROR,
+            raise CacheException(
+                CacheErrorCodes.CONFIG_ERROR,
                 msg=f"缓存 TTL {effective} 秒超过上限 {self._settings.max_ttl_seconds} 秒",
             )
         return effective

@@ -4,9 +4,13 @@ from datetime import datetime, timezone
 
 from sqlalchemy.future import select
 
-from framework.common.page.schemas.page_result import PageResult
-from framework.starter_database.repository.base_mapper import BaseMapper
-from framework.starter_di.decorators.components import mapper
+from framework.common.page import PageResult
+from framework.starter_database.public import (
+    BaseMapper,
+)
+from framework.starter_di.public import (
+    mapper,
+)
 from module_system.controller.admin.oauth2.vo.token.token_access_token_page_req_vo import (
     OAuth2AccessTokenPageReqVO,
 )

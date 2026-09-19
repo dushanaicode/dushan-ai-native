@@ -8,7 +8,9 @@ from typing import override
 
 import psutil
 
-from framework.starter_di.decorators.components import service
+from framework.starter_di.public import (
+    service,
+)
 from module_infra.controller.admin.server.vo.cpu_info_vo import CpuInfoVO
 from module_infra.controller.admin.server.vo.memory_info_vo import MemoryInfoVO
 from module_infra.controller.admin.server.vo.py_info_vo import PyInfoVO

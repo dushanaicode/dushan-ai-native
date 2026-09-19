@@ -6,7 +6,7 @@ from fastapi import APIRouter, Request
 from opentelemetry import context, trace
 from sqlalchemy import Column, Integer, MetaData, String, Table, insert, select
 
-from framework.starter_captcha.exception.captcha_error_codes import CaptchaErrorCodes
+from framework.starter_captcha.definitions.constants.captcha_error_codes import CaptchaErrorCodes
 from framework.starter_captcha.exception.captcha_exception import CaptchaException
 from framework.starter_di.context.get_bean import get_bean
 from framework.starter_monitor.core.monitor_service import MonitorService

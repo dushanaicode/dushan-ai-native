@@ -10,7 +10,9 @@ from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont, ImageSta
 
 from framework.starter_captcha.config.captcha_settings import CaptchaSettings
 from framework.starter_captcha.core.captcha_provider import CaptchaProvider
-from framework.starter_captcha.exception.captcha_error_codes import CaptchaErrorCodes as Codes
+from framework.starter_captcha.definitions.constants.captcha_error_codes import (
+    CaptchaErrorCodes as Codes,
+)
 from framework.starter_captcha.exception.captcha_exception import CaptchaException
 from framework.starter_captcha.model.captcha_answer import CaptchaAnswer
 from framework.starter_captcha.model.captcha_point import CaptchaPoint

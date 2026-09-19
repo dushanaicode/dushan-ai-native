@@ -7,7 +7,8 @@ import pytest
 from fastapi import APIRouter
 from starlette.responses import StreamingResponse
 
-from framework.starter_security.enums.security_realm import SecurityRealm
+from framework.starter_security.definitions.constants.security_error_codes import SecurityErrorCodes
+from framework.starter_security.definitions.enums.security_realm import SecurityRealm
 from framework.starter_security.exception.security_exception import SecurityException
 from framework.starter_security.spi.message_security_provider import MessageSecurityProvider
 from framework.starter_security.spi.tenant_access_provider import TenantAccessProvider
@@ -32,9 +33,9 @@ class TenantContract(TenantAccessProvider):
     @asynccontextmanager
     async def enter(self, session, policy):
         if session.tenant_id != "tenant-1":
-            raise SecurityException("denied")
+            raise SecurityException(SecurityErrorCodes.DENIED)
         if session.realm is SecurityRealm.SUPPORT and policy.permissions != ("support:read",):
-            raise SecurityException("denied")
+            raise SecurityException(SecurityErrorCodes.DENIED)
         token = self.current.set(session.tenant_id)
         self.active += 1
         try:
@@ -65,7 +66,7 @@ class MessageProofs(MessageSecurityProvider):
     async def verify(self, proof, payload, *, application_id, domain, audience):
         value = self.proofs.get(proof)
         if value is None or value[:3] != (application_id, domain, audience) or value[4] != payload:
-            raise SecurityException("invalid")
+            raise SecurityException(SecurityErrorCodes.INVALID)
         del self.proofs[proof]
         return await self.tokens.resolve(value[3], application_id=application_id, domain=domain)
 
@@ -121,10 +122,10 @@ async def test_multi_application_and_domain_boundaries(security_factory):
             first.service is not second.service
             and first.service.tokens is not second.service.tokens
         )
-        assert (await second.get(first_token)).json()["code"] == 401
+        assert (await second.get(first_token)).json()["code"] == SecurityErrorCodes.INVALID.code
         assert (await second.get(second_token)).json()["account"] == "member-1"
         wrong_domain, _ = await second.issue(domain="admin")
-        assert (await second.get(wrong_domain)).json()["code"] == 401
+        assert (await second.get(wrong_domain)).json()["code"] == SecurityErrorCodes.INVALID.code
         with first.application.execution():
             async with first.service.authorized(first_token, RoutePolicy()):
                 with second.application.execution():
@@ -148,8 +149,8 @@ async def test_tenant_source_and_missing_adapter(security_factory):
         assert (await case.get(valid, headers={"tenant_id": "tenant-2"})).json()[
             "tenant"
         ] == "tenant-1"
-        assert (await case.get(foreign)).json()["code"] == 403
-        assert (await case.get(platform)).json()["code"] == 403
+        assert (await case.get(foreign)).json()["code"] == SecurityErrorCodes.DENIED.code
+        assert (await case.get(platform)).json()["code"] == SecurityErrorCodes.DENIED.code
         assert tenant.active == 0 and tenant.current.get() is None
 
 

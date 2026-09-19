@@ -6,7 +6,7 @@ from typing import Any, TypeVar
 
 from framework.starter_di.core.state.state_key import StateKey
 from framework.starter_di.core.state.state_metadata import StateMetadata
-from framework.starter_di.exception.di_error_codes import DiErrorCodes
+from framework.starter_di.definitions.constants.di_error_codes import DiErrorCodes
 from framework.starter_di.exception.di_exception import DiException
 
 T = TypeVar("T")

@@ -1,12 +1,18 @@
 from fastapi import APIRouter, Depends, Query
 
-from framework.common.contracts.snowflake_id import SnowflakeIdStr
-from framework.common.page.schemas.page_result import PageResult
-from framework.common.schemas.request.id_list_req_vo import IdListReqVO
-from framework.starter_di.decorators.di_dependency import DiDependency
-from framework.starter_security.enums.security_realm import SecurityRealm
-from framework.starter_web.response.result import Result
-from framework.starter_web.routing.route_policy import RoutePolicy
+from framework.common.contracts import SnowflakeIdStr
+from framework.common.page import PageResult
+from framework.common.schemas.request import IdListReqVO, IdReqVO, UpdateStatusReqVO
+from framework.starter_di.public import (
+    DiDependency,
+)
+from framework.starter_security.public import (
+    SecurityRealm,
+)
+from framework.starter_web.public import (
+    Result,
+    RoutePolicy,
+)
 from module_system.controller.admin.sms.vo.channel.channel_page_req_vo import SmsChannelPageReqVO
 from module_system.controller.admin.sms.vo.channel.channel_resp_vo import SmsChannelRespVO
 from module_system.controller.admin.sms.vo.channel.channel_save_req_vo import SmsChannelSaveReqVO
@@ -14,8 +20,6 @@ from module_system.controller.admin.sms.vo.channel.channel_simple_resp_vo import
     SmsChannelSimpleRespVO,
 )
 from module_system.dal.dataobject.sms.sms_channel_do import SmsChannelDO
-from module_system.definitions.vo.id_req_vo import IdReqVO
-from module_system.definitions.vo.update_status_req_vo import UpdateStatusReqVO
 from module_system.service.sms.sms_channel_service import SmsChannelService
 
 sms_channel_controller = APIRouter(prefix="/sms/channel", tags=["System - 短信渠道管理"])

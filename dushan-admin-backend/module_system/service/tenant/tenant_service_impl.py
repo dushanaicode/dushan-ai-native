@@ -5,24 +5,32 @@ from typing import override
 
 from sqlalchemy import select
 
-from framework.common.datetime.core.date_utils import DateUtils
-from framework.common.enums.builtin_type_enum import BuiltinTypeEnum
-from framework.common.enums.status_enum import StatusEnum
-from framework.common.exception.exceptions.service_exception import ServiceException
-from framework.common.page.schemas.page_result import PageResult
-from framework.starter_database.decorators.transactional import transactional
-from framework.starter_database.session.session_provider import SessionProvider
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
-from framework.starter_security.core.password_encoder import PasswordEncoder
-from framework.starter_security.enums.security_realm import SecurityRealm
-from framework.starter_security.enums.tenant_access_mode import TenantAccessMode
-from framework.starter_security.exception.security_exception import SecurityException
-from framework.starter_tenant.config.tenant_settings import TenantSettings
-from framework.starter_tenant.context.tenant_context import TenantContext
-from framework.starter_tenant.model.tenant_access_grant import TenantAccessGrant
-from framework.starter_tenant.model.tenant_info import TenantInfo
-from framework.starter_tenant.model.tenant_resource_grant import TenantResourceGrant
+from framework.common.dates import DateUtils
+from framework.common.enums import BuiltinTypeEnum, StatusEnum
+from framework.common.exception import ServiceException
+from framework.common.page import PageResult
+from framework.starter_database.public import (
+    SessionProvider,
+    transactional,
+)
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
+from framework.starter_security.public import (
+    PasswordEncoder,
+    SecurityErrorCodes,
+    SecurityException,
+    SecurityRealm,
+    TenantAccessMode,
+)
+from framework.starter_tenant.public import (
+    TenantAccessGrant,
+    TenantContext,
+    TenantInfo,
+    TenantResourceGrant,
+    TenantSettings,
+)
 from module_system.controller.admin.tenant.vo.tenant.tenant_page_req_vo import TenantPageReqVO
 from module_system.dal.dataobject.permission.permission_user_role_do import UserRoleDO
 from module_system.dal.dataobject.permission.role_do import RoleDO
@@ -277,24 +285,25 @@ class TenantServiceImpl(TenantService):
             identity.realm is not SecurityRealm.TENANT
             or identity.access_mode is not TenantAccessMode.DIRECT_MEMBERSHIP
         ):
-            raise SecurityException("denied")
+            raise SecurityException(SecurityErrorCodes.DENIED, detail="会话类型不支持该操作")
         user = await self.authentication.user_by_id(int(identity.account_id), identity.tenant_id)
-        if (
-            user is None
-            or user.status != StatusEnum.ENABLE.code
-            or str(user.id) != identity.membership_id
-            or (user.credential_revision != identity.credential_revision)
-        ):
-            raise SecurityException("denied")
+        if user is None or str(user.id) != identity.membership_id:
+            raise SecurityException(SecurityErrorCodes.CREDENTIALS)
+        if user.status != StatusEnum.ENABLE.code:
+            raise SecurityException(SecurityErrorCodes.DISABLED)
+        if user.credential_revision != identity.credential_revision:
+            raise SecurityException(SecurityErrorCodes.CREDENTIALS)
         return None
 
     async def authorize_workload(self, identity, capability):
-        if (
-            capability not in WorkloadConstants.RESOURCES
-            or capability not in identity.capabilities
-            or identity.tenant_id is None
-        ):
-            raise SecurityException("denied")
+        if capability not in WorkloadConstants.RESOURCES:
+            raise SecurityException(SecurityErrorCodes.DENIED, detail=f"未登记的能力：{capability}")
+        if capability not in identity.capabilities:
+            raise SecurityException(
+                SecurityErrorCodes.DENIED, detail=f"服务身份缺少该能力：{capability}"
+            )
+        if identity.tenant_id is None:
+            raise SecurityException(SecurityErrorCodes.DENIED, detail="缺少租户上下文")
         return TenantAccessGrant(
             tenant_id=identity.tenant_id,
             source=identity.audience,

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from framework.starter_di.decorators.components import util
+from framework.starter_di.public import (
+    util,
+)
 
 _DB_TYPE_TO_PYTHON_TYPE: dict[str, str] = {
     "bigint": "int",

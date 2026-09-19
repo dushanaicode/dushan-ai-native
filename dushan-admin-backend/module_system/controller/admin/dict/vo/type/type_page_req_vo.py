@@ -3,8 +3,8 @@ from typing import Annotated, Any
 
 from pydantic import Field, field_validator
 
-from framework.common.page.schemas.page_query import PageQuery
-from framework.common.validator.size import Size
+from framework.common.page import PageQuery
+from framework.common.validator import Size
 
 
 class DictTypePageReqVO(PageQuery):

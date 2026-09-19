@@ -14,8 +14,8 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from framework.starter_security.bizlog.biz_log_service import BizLogService
 from framework.starter_security.core.opaque_token import OpaqueToken
 from framework.starter_security.core.security_service import SecurityService
-from framework.starter_security.enums.security_realm import SecurityRealm
-from framework.starter_security.enums.tenant_access_mode import TenantAccessMode
+from framework.starter_security.definitions.enums.security_realm import SecurityRealm
+from framework.starter_security.definitions.enums.tenant_access_mode import TenantAccessMode
 from framework.starter_security.integration.security_access import SecurityAccess
 from framework.starter_security.model.login_session import LoginSession
 from framework.starter_security.model.permission_snapshot import PermissionSnapshot

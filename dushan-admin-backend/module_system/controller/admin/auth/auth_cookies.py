@@ -1,19 +1,19 @@
 from datetime import datetime, timezone
 
-from framework.starter_security.exception.security_exception import SecurityException
+from framework.starter_security.public import (
+    SecurityErrorCodes,
+    SecurityException,
+)
 
 
 class AuthCookies:
     @staticmethod
     def check_origin(request, settings, *, required=False):
         origin = request.headers.get("origin")
-        if (
-            required
-            and origin is None
-            or origin is not None
-            and origin not in settings.allowed_origins
-        ):
-            raise SecurityException("denied")
+        if required and origin is None:
+            raise SecurityException(SecurityErrorCodes.ORIGIN, detail="缺少 Origin 请求头")
+        if origin is not None and origin not in settings.allowed_origins:
+            raise SecurityException(SecurityErrorCodes.ORIGIN, detail=origin)
 
     @staticmethod
     def set_refresh(response, value, settings):

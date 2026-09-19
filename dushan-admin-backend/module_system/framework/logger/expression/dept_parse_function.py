@@ -1,5 +1,7 @@
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
 from module_system.service.dept.dept_service import DeptService
 
 

@@ -1,6 +1,6 @@
 from pydantic import ConfigDict
 
-from framework.common.schemas.base_request_vo import BaseRequestVO
+from framework.common.schemas import BaseRequestVO
 
 
 class OAuth2TokenReqVO(BaseRequestVO):

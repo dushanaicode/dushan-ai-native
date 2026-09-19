@@ -15,8 +15,9 @@ from framework.starter_di.context.application_state_enum import ApplicationState
 from framework.starter_job.core.job_invoker import JobInvoker
 from framework.starter_job.core.tenant_job_runner import TenantJobRunner
 from framework.starter_job.cron.standard_cron_trigger import StandardCronTrigger
-from framework.starter_job.enums.job_state import JobState
-from framework.starter_job.enums.job_trigger_kind import JobTriggerKind
+from framework.starter_job.definitions.constants.job_error_codes import JobErrorCodes
+from framework.starter_job.definitions.enums.job_state import JobState
+from framework.starter_job.definitions.enums.job_trigger_kind import JobTriggerKind
 from framework.starter_job.exception.job_exception import JobException
 from framework.starter_job.model.job_definition import JobDefinition
 from framework.starter_job.model.job_outcome import JobOutcome
@@ -81,7 +82,7 @@ class JobRuntime:
                 self.invoker.security,
             )
         ):
-            raise JobException("configuration")
+            raise JobException(JobErrorCodes.CONFIGURATION)
         self.phase = "starting"
         logger.info("【JobStarter 】开始初始化任务运行时")
         self.accepting = True
@@ -130,7 +131,7 @@ class JobRuntime:
             or self.phase not in {"waiting", "client"}
             or self._loop_task is not None
         ):
-            raise JobException("closed")
+            raise JobException(JobErrorCodes.CLOSED)
         if self.owner:
             self._require_owner()
             self.scheduler.resume()
@@ -144,7 +145,7 @@ class JobRuntime:
 
     def _require_owner(self):
         if not self.owner or self.lease is None or not self.lease.is_valid:
-            raise JobException("owner")
+            raise JobException(JobErrorCodes.OWNER)
 
     def _lose_owner(self, error=None):
         self.owner = False
@@ -179,7 +180,7 @@ class JobRuntime:
                     or len(definitions) > self.settings.max_jobs
                     or any(not isinstance(item, JobDefinition) for item in definitions)
                 ):
-                    raise JobException("configuration")
+                    raise JobException(JobErrorCodes.CONFIGURATION)
             except Exception:
                 self.scheduler.remove_all_jobs()
                 self.plans.clear()
@@ -191,7 +192,7 @@ class JobRuntime:
                 if definition.id in seen:
                     self.scheduler.remove_all_jobs()
                     self.plans.clear()
-                    raise JobException("configuration")
+                    raise JobException(JobErrorCodes.CONFIGURATION)
                 seen.add(definition.id)
                 if not definition.enabled:
                     continue
@@ -202,7 +203,7 @@ class JobRuntime:
                         or self.tenant_runner.tenant is None
                         or not self.tenant_runner.tenant.ready
                     ):
-                        raise JobException("configuration")
+                        raise JobException(JobErrorCodes.CONFIGURATION)
                     incoming[definition.id] = definition.model_copy(deep=True)
                     if self.plans.get(definition.id) != definition:
                         self.scheduler.add_job(
@@ -257,10 +258,10 @@ class JobRuntime:
 
     async def submit_manual(self, job_id):
         if not self.accepting:
-            raise JobException("closed")
+            raise JobException(JobErrorCodes.CLOSED)
         definition = await self._call(lambda: self.definitions.get_definition(job_id))
         if definition is None or not definition.enabled:
-            raise JobException("disabled")
+            raise JobException(JobErrorCodes.DISABLED)
         self.registry.validate(definition)
         now = datetime.now(UTC)
         request = JobRequest(
@@ -365,7 +366,7 @@ class JobRuntime:
         current = await self._call(lambda: self.definitions.get_definition(request.definition.id))
         started = datetime.now(UTC)
         if current is None or not current.enabled or current != request.definition:
-            outcome = JobOutcome(JobState.SKIPPED, error=JobException("snapshot"))
+            outcome = JobOutcome(JobState.SKIPPED, error=JobException(JobErrorCodes.SNAPSHOT))
             await self._record_only(request, outcome, started)
         elif (
             request.trigger is JobTriggerKind.SCHEDULED

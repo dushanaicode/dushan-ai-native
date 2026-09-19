@@ -8,8 +8,8 @@ from fixtures.public_web_app import create_public_app
 from framework.common.enums.component_type_enum import ComponentTypeEnum
 from framework.starter_config.provider.bootstrap_config_error import BootstrapConfigError
 from framework.starter_di.decorators.di_dependency import DiDependency
-from framework.starter_di.enums.container_state_enum import ContainerStateEnum
-from framework.starter_di.exception.di_error_codes import DiErrorCodes
+from framework.starter_di.definitions.constants.di_error_codes import DiErrorCodes
+from framework.starter_di.definitions.enums.container_state_enum import ContainerStateEnum
 from server.bootstrap.bootstrapper import BootstrapError
 
 pytestmark = pytest.mark.unit

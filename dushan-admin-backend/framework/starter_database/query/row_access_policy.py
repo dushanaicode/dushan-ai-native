@@ -21,6 +21,9 @@ from sqlalchemy.sql import visitors
 from sqlalchemy.sql.elements import BindParameter, ClauseElement
 from sqlalchemy.util import immutabledict
 
+from framework.starter_database.definitions.constants.row_access_error_codes import (
+    RowAccessErrorCodes,
+)
 from framework.starter_database.model.model_policy import ModelPolicy
 from framework.starter_database.query.combined_condition_builder import CombinedConditionBuilder
 from framework.starter_database.query.dml_read_sources import DmlReadSources
@@ -44,7 +47,7 @@ class RowAccessPolicy(SessionPolicy):
     def check(self, session):
         for rule, previous in session._row_access_keys.items():
             if previous != rule.scope_key():
-                raise rule.failure("stale")
+                raise rule.failure(RowAccessErrorCodes.STALE)
 
     def _bind_scope(self, session, configs):
         for rule in self.rules:
@@ -101,7 +104,7 @@ class RowAccessPolicy(SessionPolicy):
         if not isinstance(statement, (Insert, Update, Delete)) or not isinstance(
             statement.table, Table
         ):
-            raise self.failure("configuration")
+            raise self.failure(RowAccessErrorCodes.CONFIGURATION)
         if (
             isinstance(statement, (Update, Delete))
             and state.session.autoflush
@@ -140,7 +143,7 @@ class RowAccessPolicy(SessionPolicy):
                 *(column.key for column in config.table.primary_key),
             }
             if columns & forbidden:
-                raise self.failure("write")
+                raise self.failure(RowAccessErrorCodes.WRITE)
         condition = self.builder.condition(config, operation)
         with self._preflight(state.session):
             business = and_(true(), *statement._where_criteria)
@@ -164,7 +167,7 @@ class RowAccessPolicy(SessionPolicy):
                 .with_for_update()
             )
             if state.session.scalar(denied) is not None:
-                raise self.failure("write")
+                raise self.failure(RowAccessErrorCodes.WRITE)
         if isinstance(statement, Delete):
             self._cascades(state.session, config, target)
         state.statement = statement.where(target, condition)
@@ -185,12 +188,12 @@ class RowAccessPolicy(SessionPolicy):
             if isinstance(node, BindParameter) and not node.unique
         }
         if any(name.startswith(("_dushan_dp_", "_dushan_tenant_")) for name in declared):
-            raise self.failure("configuration")
+            raise self.failure(RowAccessErrorCodes.CONFIGURATION)
         if isinstance(statement, (Insert, Update)):
             declared.update(statement.table.c.keys())
         rows = parameters if isinstance(parameters, (list, tuple)) else (parameters,)
         if any(set(row) - declared for row in rows):
-            raise self.failure("configuration")
+            raise self.failure(RowAccessErrorCodes.CONFIGURATION)
 
     def _subqueries(self, expression):
         return self.builder.expression(expression)
@@ -198,7 +201,7 @@ class RowAccessPolicy(SessionPolicy):
     def _cascades(self, session, parent, targets, visited=frozenset()):
         """数据库 FK 级联也必须逐层授权，不能由合法父记录删除隐藏子记录。"""
         if parent.table.key in visited:
-            raise self.failure("configuration")
+            raise self.failure(RowAccessErrorCodes.CONFIGURATION)
         for table in parent.table.metadata.tables.values():
             for constraint in table.foreign_key_constraints:
                 action = (constraint.ondelete or "").upper()
@@ -234,7 +237,7 @@ class RowAccessPolicy(SessionPolicy):
                         )
                         is not None
                     ):
-                        raise self.failure("write")
+                        raise self.failure(RowAccessErrorCodes.WRITE)
                 if affected and action == "CASCADE":
                     self._cascades(session, child, condition, visited | {parent.table.key})
 
@@ -242,7 +245,7 @@ class RowAccessPolicy(SessionPolicy):
         statement = state.statement
         rows = ModelPolicy._insert_rows(statement, state.parameters)
         if not rows:
-            raise self.failure("write")
+            raise self.failure(RowAccessErrorCodes.WRITE)
         for row in rows:
             self._prepare_row(config, row)
             self._validate_row(config, row, "insert")
@@ -253,7 +256,7 @@ class RowAccessPolicy(SessionPolicy):
         if not isinstance(statement, AtomicUpsert):
             return None
         if len(rows) != 1 or set(statement.update_columns) & set(config.authority_columns):
-            raise self.failure("write")
+            raise self.failure(RowAccessErrorCodes.WRITE)
         row = rows[0]
         self._check_conflicts(state.session, config, row)
         secured = statement._generate()
@@ -273,7 +276,7 @@ class RowAccessPolicy(SessionPolicy):
                 .with_for_update()
             )
         if target is None:
-            raise self.failure("write")
+            raise self.failure(RowAccessErrorCodes.WRITE)
         return result
 
     def _check_conflicts(self, session, config, row):
@@ -288,7 +291,7 @@ class RowAccessPolicy(SessionPolicy):
             if all(column.key in row and row[column.key] is not None for column in key):
                 conditions.append(and_(*(column == row[column.key] for column in key)))
         if not conditions:
-            raise self.failure("configuration")
+            raise self.failure(RowAccessErrorCodes.CONFIGURATION)
         conflict = or_(*conditions)
         allowed = self.builder.condition(config, "update")
         with self._preflight(session):
@@ -302,7 +305,7 @@ class RowAccessPolicy(SessionPolicy):
                 )
                 is not None
             ):
-                raise self.failure("write")
+                raise self.failure(RowAccessErrorCodes.WRITE)
             session.execute(select(*table.primary_key).where(conflict).with_for_update()).all()
 
     def before_flush(self, session, flush_context, instances):
@@ -347,7 +350,7 @@ class RowAccessPolicy(SessionPolicy):
                     *(column.key for column in config.table.primary_key),
                 )
                 if any(state.attrs[attributes[name]].history.has_changes() for name in immutable):
-                    raise self.failure("write")
+                    raise self.failure(RowAccessErrorCodes.WRITE)
                 existing[(config.table.key, operation)].append(state.identity)
         for (key, operation), identifiers in existing.items():
             config = self.registry.entries[key]
@@ -360,6 +363,6 @@ class RowAccessPolicy(SessionPolicy):
                     .with_for_update()
                 ).all()
             if len(result) != len(set(identifiers)):
-                raise self.failure("write")
+                raise self.failure(RowAccessErrorCodes.WRITE)
             if operation == "delete":
                 self._cascades(session, config, target)

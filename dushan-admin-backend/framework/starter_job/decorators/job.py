@@ -3,7 +3,7 @@ import re
 from pydantic import BaseModel
 
 from framework.starter_di.decorators.components import framework
-from framework.starter_di.enums.component_scope_enum import ComponentScopeEnum
+from framework.starter_di.definitions.enums.component_scope_enum import ComponentScopeEnum
 from framework.starter_job.handler.job_handler import JobHandler
 from framework.starter_job.model.job_handler_definition import JobHandlerDefinition
 

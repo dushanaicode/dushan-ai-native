@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Protocol
 
-from framework.starter_job.enums.job_state import JobState
+from framework.starter_job.definitions.enums.job_state import JobState
 from framework.starter_job.model.job_request import JobRequest
 
 

@@ -1,7 +1,7 @@
 import asyncio
 from urllib.parse import quote
 
-from framework.common.utils.asyncio.asyncio_utils import AsyncioUtils
+from framework.common.utils import AsyncioUtils
 from module_infra.framework.file.core.client.abstract_file_client import AbstractFileClient
 from module_infra.framework.file.core.client.s3.s3_file_presigned_url_resp_dto import (
     FilePresignedUrlRespDTO,

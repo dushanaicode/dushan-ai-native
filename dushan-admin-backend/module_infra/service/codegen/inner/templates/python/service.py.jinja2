@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
-from framework.common.page.schemas.page_result import PageResult
+from framework.common.page import PageResult
 from {{ package_name }}.controller.admin.{{ business_name }}.vo.{{ business_name }}_save_req_vo import {{ class_name }}SaveReqVO
 {% if not is_tree %}
 from {{ package_name }}.controller.admin.{{ business_name }}.vo.{{ business_name }}_page_req_vo import {{ class_name }}PageReqVO

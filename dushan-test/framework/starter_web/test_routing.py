@@ -7,6 +7,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, SecurityS
 from fastapi.testclient import TestClient
 
 from framework.common.security.request_identity import RequestIdentity
+from framework.starter_security.definitions.constants.security_error_codes import SecurityErrorCodes
 from framework.starter_web.context.request_context import RequestContext
 from framework.starter_web.routing.authenticated_websocket_route import AuthenticatedWebSocketRoute
 from framework.starter_web.routing.decorators import controller, route
@@ -27,7 +28,7 @@ from framework.common.schemas.base_request_vo import BaseRequestVO
 from framework.starter_di.decorators.components import service
 from framework.starter_di.decorators.di_dependency import DiDependency
 from framework.starter_di.decorators.inject import Inject
-from framework.starter_di.enums.component_scope_enum import ComponentScopeEnum
+from framework.starter_di.definitions.enums.component_scope_enum import ComponentScopeEnum
 from framework.starter_web.routing.decorators import controller, route
 from framework.starter_web.routing.route_policy import RoutePolicy
 from framework.starter_web.context.request_context import RequestContext
@@ -250,12 +251,15 @@ def test_security_dependency_openapi_and_tenant_boundary(config_dir):
         missing = client.get("/protected")
         assert missing.status_code == 200 and missing.json()["code"] == 401
         assert missing.headers["www-authenticate"] == "Bearer"
-        for token in ("denied", "no-tenant"):
+        for token, code in (
+            ("denied", 403),
+            ("no-tenant", SecurityErrorCodes.DENIED.code),
+        ):
             assert (
                 client.get("/protected", headers={"Authorization": f"Bearer {token}"}).json()[
                     "code"
                 ]
-                == 403
+                == code
             )
         response = client.get("/protected", headers={"Authorization": "Bearer tenant"})
         assert response.json() == {"principal_id": "alice", "tenant_id": "tenant-a"}

@@ -2,8 +2,8 @@ from fastapi import Path
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 
-from framework.common.contracts.snowflake_id import SnowflakeIdInput
-from framework.common.schemas.base_request_vo import BaseRequestVO
+from framework.common.contracts import SnowflakeIdInput
+from framework.common.schemas import BaseRequestVO
 
 
 class OnlineDeviceReqVO(BaseRequestVO):

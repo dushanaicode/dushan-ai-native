@@ -4,14 +4,16 @@ import time
 from loguru import logger
 from pydantic import ValidationError
 
-from framework.common.utils.asyncio.asyncio_utils import AsyncioUtils
+from framework.common.utils.asyncio_utils import AsyncioUtils
 from framework.starter_mq.core.consumer_invoker import ConsumerInvoker
-from framework.starter_mq.enums.message_mode import MessageMode
-from framework.starter_mq.enums.message_state import MessageState
+from framework.starter_mq.definitions.constants.mq_error_codes import MQErrorCodes
+from framework.starter_mq.definitions.enums.message_mode import MessageMode
+from framework.starter_mq.definitions.enums.message_state import MessageState
 from framework.starter_mq.exception.mq_exception import MQException
 from framework.starter_mq.model.consume_outcome import ConsumeOutcome
 from framework.starter_mq.model.consume_record import ConsumeRecord
 from framework.starter_mq.model.message_context import MessageContext
+from framework.starter_security.definitions.constants.security_error_codes import SecurityErrorCodes
 from framework.starter_security.exception.security_exception import SecurityException
 
 
@@ -40,7 +42,7 @@ class ConsumerRunner:
         if (envelope.attempt == 0 and envelope.consumer_key is not None) or (
             envelope.attempt > 0 and envelope.consumer_key != definition.key
         ):
-            raise MQException("authentication")
+            raise MQException(MQErrorCodes.AUTHENTICATION)
         return envelope
 
     async def run(self, handler_type, delivery):
@@ -54,11 +56,17 @@ class ConsumerRunner:
                 isinstance(error, ValidationError)
                 or (
                     isinstance(error, MQException)
-                    and error.reason in {"invalid", "authentication", "expired"}
+                    and error.error_code
+                    in {MQErrorCodes.INVALID, MQErrorCodes.AUTHENTICATION, MQErrorCodes.EXPIRED}
                 )
                 or (
                     isinstance(error, SecurityException)
-                    and error.reason not in {"unavailable", "configuration", "closed"}
+                    and error.error_code
+                    not in {
+                        SecurityErrorCodes.UNAVAILABLE,
+                        SecurityErrorCodes.CONFIGURATION,
+                        SecurityErrorCodes.CLOSED,
+                    }
                 )
             )
             if not rejected:
@@ -94,7 +102,7 @@ class ConsumerRunner:
             record = await runtime.call(runtime.replay.read(key))
             digest = runtime.codec.digest(envelope)
             if record is not None and record["digest"] != digest:
-                raise MQException("conflict")
+                raise MQException(MQErrorCodes.CONFLICT)
             if record is not None and (
                 record["stage"] == "done" or envelope.attempt < record["attempt"]
             ):
@@ -102,16 +110,16 @@ class ConsumerRunner:
                 runtime.duplicates += 1
                 return "settled"
             if record is not None and envelope.attempt > record["attempt"]:
-                raise MQException("conflict")
+                raise MQException(MQErrorCodes.CONFLICT)
             if record is not None and record["stage"] == "settle":
                 result = await self._settle(definition, envelope, delivery, key, lock, record)
                 return result
             if (record is not None and record["stage"] == "executing") or (
                 record is None and envelope.attempt
             ):
-                outcome = ConsumeOutcome(MessageState.UNKNOWN, MQException("unknown"))
+                outcome = ConsumeOutcome(MessageState.UNKNOWN, MQException(MQErrorCodes.UNKNOWN))
             elif envelope.expires_at < time.time() - runtime.settings.clock_skew_seconds:
-                outcome = ConsumeOutcome(MessageState.REJECTED, MQException("expired"))
+                outcome = ConsumeOutcome(MessageState.REJECTED, MQException(MQErrorCodes.EXPIRED))
             else:
                 record = {"digest": digest, "stage": "executing", "attempt": envelope.attempt}
                 await runtime.call(runtime.replay.write(key, lock, record))

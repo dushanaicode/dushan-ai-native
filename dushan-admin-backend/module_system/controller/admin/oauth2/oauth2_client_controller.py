@@ -1,12 +1,18 @@
 from fastapi import APIRouter, Depends, Query
 
-from framework.common.contracts.snowflake_id import SnowflakeIdStr
-from framework.common.page.schemas.page_result import PageResult
-from framework.common.schemas.request.id_list_req_vo import IdListReqVO
-from framework.starter_di.decorators.di_dependency import DiDependency
-from framework.starter_security.enums.security_realm import SecurityRealm
-from framework.starter_web.response.result import Result
-from framework.starter_web.routing.route_policy import RoutePolicy
+from framework.common.contracts import SnowflakeIdStr
+from framework.common.page import PageResult
+from framework.common.schemas.request import IdListReqVO, IdReqVO, UpdateStatusReqVO
+from framework.starter_di.public import (
+    DiDependency,
+)
+from framework.starter_security.public import (
+    SecurityRealm,
+)
+from framework.starter_web.public import (
+    Result,
+    RoutePolicy,
+)
 from module_system.controller.admin.oauth2.vo.client.oauth2_client_page_req_vo import (
     OAuth2ClientPageReqVO,
 )
@@ -15,8 +21,6 @@ from module_system.controller.admin.oauth2.vo.client.oauth2_client_save_req_vo i
     OAuth2ClientSaveReqVO,
 )
 from module_system.dal.dataobject.oauth2.oauth2_client_do import OAuth2ClientDO
-from module_system.definitions.vo.id_req_vo import IdReqVO
-from module_system.definitions.vo.update_status_req_vo import UpdateStatusReqVO
 from module_system.service.oauth2.oauth2_client_service import OAuth2ClientService
 
 oauth2_client_controller = APIRouter(prefix="/oauth2/client", tags=["System - OAuth2 客户端管理"])

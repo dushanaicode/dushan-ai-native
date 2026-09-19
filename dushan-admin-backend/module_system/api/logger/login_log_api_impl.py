@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from typing import override
 
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
 from module_system.api.logger.dto.login_log_create_req_dto import LoginLogCreateReqDTO
 from module_system.api.logger.login_log_api import LoginLogApi
 from module_system.service.logger.login_log_service import LoginLogService

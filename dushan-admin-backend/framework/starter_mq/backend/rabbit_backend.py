@@ -8,6 +8,7 @@ from aio_pika.exceptions import DeliveryError
 from pamqp.commands import Basic
 
 from framework.starter_mq.backend.message_backend import MessageBackend
+from framework.starter_mq.definitions.constants.mq_error_codes import MQErrorCodes
 from framework.starter_mq.exception.mq_exception import MQException
 from framework.starter_mq.model.delivery import Delivery
 
@@ -66,9 +67,9 @@ class RabbitBackend(MessageBackend):
         product = properties.get("product") if isinstance(properties, dict) else None
         version = properties.get("version") if isinstance(properties, dict) else None
         if not isinstance(product, str) or "rabbitmq" not in product.lower():
-            raise MQException("configuration")
+            raise MQException(MQErrorCodes.CONFIGURATION)
         if not isinstance(version, str) or self._parse_version(version) < MINIMUM_BROKER_VERSION:
-            raise MQException("configuration")
+            raise MQException(MQErrorCodes.CONFIGURATION)
 
     async def _declare(self, name, arguments):
         if name not in self.queues:
@@ -118,9 +119,9 @@ class RabbitBackend(MessageBackend):
                 timeout=self.settings.command_timeout_seconds,
             )
         except DeliveryError as error:
-            raise MQException("confirmation", cause=error) from error
+            raise MQException(MQErrorCodes.CONFIRMATION, cause=error) from error
         if not isinstance(receipt, Basic.Ack):
-            raise MQException("confirmation")
+            raise MQException(MQErrorCodes.CONFIRMATION)
         return "publisher_confirm", str(receipt.delivery_tag)
 
     async def publish(self, destination, mode, body):

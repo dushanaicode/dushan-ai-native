@@ -20,6 +20,7 @@ class Sanitizer:
         "authorization",
         "authorization_header",
         "authorization_code",
+        "set_cookie",
         "cookie",
         "id_token",
         "idtoken",
@@ -59,18 +60,13 @@ class Sanitizer:
         "password_hash",
         "token_hash",
         "身份证",
+        "身份证号",
+        "身份证号码",
         "验证码",
     )
 
-    _SENSITIVE_FIELD_PATTERN = (
-        r"authorization|set[-_]?cookie|cookie|client_secret|clientsecret|"
-        r"access_token|accesstoken|refresh_token|refreshtoken|id_token|idtoken|"
-        r"token|password|secret|api[_-]?key|credential|verification[_-]?code|"
-        r"secret[_-]?(?:key|id)|app[_-]?secret[_-]?key|authorization[_-]?(?:code|header)|"
-        r"verificationcode|sms[_-]?code|smscode|captcha[_-]?code|captchacode|"
-        r"captcha[_-]?verification|captchaverification|point[_-]?json|pointjson|ticket|randstr|"
-        r"id[_-]?card|idcard|identity[_-]?(?:number|no)|identitynumber|identityno|"
-        r"验证码|身份证(?:号|号码)?"
+    _SENSITIVE_FIELD_PATTERN = "|".join(
+        re.escape(keyword).replace("_", "[_-]?") for keyword in _SENSITIVE_KEYWORDS
     )
 
     _SENSITIVE_TEXT_PATTERN = re.compile(

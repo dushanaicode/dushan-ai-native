@@ -2,24 +2,31 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Form, Query, Request
 
-from framework.common.datetime.core.date_utils import DateUtils
-from framework.common.enums.user_type_enum import UserTypeEnum
-from framework.common.exception.constants.global_error_code_constants import (
+from framework.common.dates import DateUtils
+from framework.common.enums import UserTypeEnum
+from framework.common.exception import (
     GlobalErrorCodeConstants,
-)
-from framework.common.exception.exceptions.illegal_argument_exception import (
     IllegalArgumentException,
+    ServiceException,
 )
-from framework.common.exception.exceptions.service_exception import ServiceException
-from framework.common.utils.json.json_utils import JsonUtils
-from framework.starter_di.decorators.di_dependency import DiDependency
-from framework.starter_security.context.security_context import SecurityContext
-from framework.starter_security.enums.security_realm import SecurityRealm
-from framework.starter_security.exception.security_exception import SecurityException
-from framework.starter_tenant.config.tenant_settings import TenantSettings
-from framework.starter_web.response.result import Result
-from framework.starter_web.routing.route_policy import RoutePolicy
-from framework.starter_web.utils.http_utils import HttpUtils
+from framework.common.utils import JsonUtils
+from framework.starter_di.public import (
+    DiDependency,
+)
+from framework.starter_security.public import (
+    SecurityContext,
+    SecurityErrorCodes,
+    SecurityException,
+    SecurityRealm,
+)
+from framework.starter_tenant.public import (
+    TenantSettings,
+)
+from framework.starter_web.public import (
+    HttpUtils,
+    Result,
+    RoutePolicy,
+)
 from module_system.api.oauth2.dto.oauth2_client_dto import OAuth2ClientDTO
 from module_system.controller.admin.oauth2.vo.open.open_access_token_resp_vo import (
     OAuth2OpenAccessTokenRespVO,
@@ -80,7 +87,7 @@ class Oauth2OpenController:
                 )
             credentials = HttpUtils.obtain_basic_authorization(request)
             if credentials is None:
-                raise SecurityException("invalid")
+                raise SecurityException(SecurityErrorCodes.INVALID)
             client_id, client_secret = credentials
             client_do: OAuth2ClientDTO = await oauth2_client_service.validate_client(
                 client_id, client_secret, token_req.grant_type, scopes, token_req.redirect_uri
@@ -126,7 +133,7 @@ class Oauth2OpenController:
         async with workloads.scope("system.auth", tenant_settings.default_tenant_id):
             credentials = HttpUtils.obtain_basic_authorization(request)
             if credentials is None:
-                raise SecurityException("invalid")
+                raise SecurityException(SecurityErrorCodes.INVALID)
             client_id, client_secret = credentials
             client_do: OAuth2ClientDTO = await oauth2_client_service.validate_client(
                 client_id, client_secret, None, None, None
@@ -152,12 +159,12 @@ class Oauth2OpenController:
         async with workloads.scope("system.auth", tenant_settings.default_tenant_id):
             credentials = HttpUtils.obtain_basic_authorization(request)
             if credentials is None:
-                raise SecurityException("invalid")
+                raise SecurityException(SecurityErrorCodes.INVALID)
             client_id, client_secret = credentials
             await oauth2_client_service.validate_client(client_id, client_secret)
             access_token = await oauth2_token_service.check_access_token(token)
             if access_token.client_id != client_id:
-                raise SecurityException("denied")
+                raise SecurityException(SecurityErrorCodes.DENIED, detail="访问令牌与客户端不匹配")
             if not access_token:
                 raise IllegalArgumentException(msg="访问令牌不能为空")
             return Result.success(data=OAuth2OpenConvert.convert2(access_token, token))

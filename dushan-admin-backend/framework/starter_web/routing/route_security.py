@@ -4,6 +4,8 @@ from collections.abc import Callable
 from fastapi import HTTPException, Request, Security
 
 from framework.common.security.request_identity import RequestIdentity
+from framework.starter_security.definitions.constants.security_error_codes import SecurityErrorCodes
+from framework.starter_security.exception.security_exception import SecurityException
 from framework.starter_web.context.request_context import RequestContext
 from framework.starter_web.routing.route_policy import RoutePolicy
 
@@ -33,7 +35,7 @@ class RouteSecurity:
         if not isinstance(identity, RequestIdentity):
             raise TypeError("授权提供者必须返回 RequestIdentity 或 None")
         if self.policy.tenant_required and identity.tenant_id is None:
-            raise HTTPException(403)
+            raise SecurityException(SecurityErrorCodes.DENIED, detail="该接口要求租户上下文")
         context = RequestContext.current()
         if context.connection.app is not request.app:
             raise RuntimeError("请求身份与应用归属不一致")

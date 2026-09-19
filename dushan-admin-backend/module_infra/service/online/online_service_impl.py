@@ -1,5 +1,7 @@
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
 from module_infra.controller.admin.online.vo.online_resp_vo import OnlineInfoRespVO
 from module_infra.service.online.online_service import OnlineService
 from module_system.api.oauth2.oauth2_session_api import OAuth2SessionApi

@@ -1,6 +1,6 @@
 from loguru import logger
 
-from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
+from framework.common.utils.cleanup_utils import CleanupUtils
 from framework.starter_data_permission.core.data_permission_service import DataPermissionService
 from framework.starter_di.context.application_context import ApplicationContext
 from framework.starter_di.decorators.components import starter

@@ -4,12 +4,13 @@ from framework.starter_cache.core.cache_handler import CacheHandler
 from framework.starter_di.context.application_context import ApplicationContext
 from framework.starter_di.core.candidate_selection import CandidateSelection
 from framework.starter_di.decorators.components import starter
-from framework.starter_di.enums.binding_outcome_enum import BindingOutcomeEnum
+from framework.starter_di.definitions.enums.binding_outcome_enum import BindingOutcomeEnum
 from framework.starter_monitor.core.monitor_service import MonitorService
 from framework.starter_mq.config.mq_settings import MQSettings
 from framework.starter_mq.core.consumer_registry import ConsumerRegistry
 from framework.starter_mq.core.mq_runtime import MQRuntime
 from framework.starter_mq.core.mq_service import MQService
+from framework.starter_mq.definitions.constants.mq_error_codes import MQErrorCodes
 from framework.starter_mq.exception.mq_exception import MQException
 from framework.starter_mq.spi.consume_record_provider import ConsumeRecordProvider
 from framework.starter_mq.spi.consumer_override_provider import ConsumerOverrideProvider
@@ -47,9 +48,9 @@ class MQStarter:
             or security is None
             or container.get_optional(MessageSecurityProvider) is None
         ):
-            raise MQException("configuration")
+            raise MQException(MQErrorCodes.CONFIGURATION)
         if self.settings.outbox_enabled and (database is None or job is None):
-            raise MQException("configuration")
+            raise MQException(MQErrorCodes.CONFIGURATION)
         overrides = container.get_optional(ConsumerOverrideProvider)
         changes = {} if overrides is None else await overrides.load()
         registry.apply({**changes, **self.settings.overrides})
@@ -69,7 +70,7 @@ class MQStarter:
             container.get_optional(OutboxProvider) if self.settings.outbox_enabled else None
         )
         if self.settings.outbox_enabled and self.runtime.outbox is None:
-            raise MQException("configuration")
+            raise MQException(MQErrorCodes.CONFIGURATION)
         self.service.runtime = self.runtime
         logger.debug(
             "【MQStarter 】拦截器 {} 个，Outbox={}",

@@ -1,7 +1,7 @@
 from loguru import logger
 
 from framework.starter_di.core.candidate_selection import CandidateSelection
-from framework.starter_di.enums.binding_outcome_enum import BindingOutcomeEnum
+from framework.starter_di.definitions.enums.binding_outcome_enum import BindingOutcomeEnum
 from framework.starter_ip.config.ip_settings import IpSettings
 from framework.starter_web.routing.controller_metadata import ControllerMetadata
 

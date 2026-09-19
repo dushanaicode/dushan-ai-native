@@ -1,6 +1,6 @@
 from pydantic_core import PydanticCustomError
 
-from framework.common.utils.json.json_utils import JsonUtils
+from framework.common.utils.json_utils import JsonUtils
 
 
 class IsJSON:

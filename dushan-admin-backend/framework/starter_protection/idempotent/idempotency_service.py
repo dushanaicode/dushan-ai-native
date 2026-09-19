@@ -2,9 +2,9 @@ from contextlib import asynccontextmanager
 from time import perf_counter
 from uuid import uuid4
 
-from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
+from framework.common.utils.cleanup_utils import CleanupUtils
 from framework.starter_protection.core.protection_runtime import ProtectionRuntime
-from framework.starter_protection.exception.protection_error_codes import (
+from framework.starter_protection.definitions.constants.protection_error_codes import (
     ProtectionErrorCodes as Codes,
 )
 from framework.starter_protection.exception.protection_exception import ProtectionException

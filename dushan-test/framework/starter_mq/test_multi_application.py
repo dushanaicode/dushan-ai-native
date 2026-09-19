@@ -2,6 +2,7 @@ import asyncio
 
 import pytest
 
+from framework.starter_mq.definitions.constants.mq_error_codes import MQErrorCodes
 from framework.starter_mq.exception.mq_exception import MQException
 from framework.starter_mq.model.publish_command import PublishCommand
 
@@ -42,7 +43,7 @@ async def test_stream_capacity_preserves_pending_and_trims_only_acknowledged(mq_
     await case.until(lambda: case.probe.active == 1)
     with pytest.raises(MQException) as error:
         await case.publish(2)
-    assert error.value.reason == "capacity"
+    assert error.value.error_code is MQErrorCodes.CAPACITY
     assert (
         await case.runtime.backend.client.xpending(
             case.runtime.backend.stream("events"), "test-group"

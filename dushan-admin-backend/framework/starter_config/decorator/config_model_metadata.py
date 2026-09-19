@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import ClassVar, Mapping
 
-from framework.starter_config.enums.config_source_enum import ConfigSourceEnum
+from framework.starter_config.definitions.enums.config_source_enum import ConfigSourceEnum
 
 
 @dataclass(frozen=True, slots=True)

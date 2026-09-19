@@ -2,7 +2,7 @@ import math
 
 from jinja2 import Environment, Undefined, nodes
 
-from framework.common.utils.json.json_utils import JsonUtils
+from framework.common.utils.json_utils import JsonUtils
 from framework.starter_security.bizlog.expression.expression_options import ExpressionOptions
 
 

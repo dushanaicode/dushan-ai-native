@@ -2,11 +2,15 @@ from __future__ import annotations
 
 from sqlalchemy import select
 
-from framework.common.enums.status_enum import StatusEnum
-from framework.common.page.schemas.page_result import PageResult
-from framework.common.utils.str.str_utils import StrUtils
-from framework.starter_database.repository.base_mapper import BaseMapper
-from framework.starter_di.decorators.components import mapper
+from framework.common.enums import StatusEnum
+from framework.common.page import PageResult
+from framework.common.utils import StrUtils
+from framework.starter_database.public import (
+    BaseMapper,
+)
+from framework.starter_di.public import (
+    mapper,
+)
 from module_system.controller.admin.social.vo.client.social_client_page_req_vo import (
     SocialClientPageReqVO,
 )

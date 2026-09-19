@@ -1,9 +1,9 @@
 from __future__ import annotations
 from sqlalchemy import select
 
-from framework.common.page.schemas.page_result import PageResult
-from framework.starter_database.repository.base_mapper import BaseMapper
-from framework.starter_di.decorators.components import mapper
+from framework.common.page import PageResult
+from framework.starter_database.public import BaseMapper
+from framework.starter_di.public import mapper
 from {{ package_name }}.dal.dataobject.{{ business_name }}.{{ business_name }}_do import {{ class_name }}DO
 {% if not is_tree %}
 from {{ package_name }}.controller.admin.{{ business_name }}.vo.{{ business_name }}_page_req_vo import {{ class_name }}PageReqVO

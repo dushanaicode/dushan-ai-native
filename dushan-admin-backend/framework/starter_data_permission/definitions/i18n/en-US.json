@@ -1,0 +1,10 @@
+{
+  "data_permission.missing": "The data permission context is missing",
+  "data_permission.denied": "The data scope rejected this access",
+  "data_permission.stale": "The data permission snapshot expired",
+  "data_permission.configuration": "Invalid data permission configuration",
+  "data_permission.provider": "The data permission provider is unavailable",
+  "data_permission.unregistered": "The model has no registered data access policy",
+  "data_permission.write": "The write touches unauthorized rows or columns",
+  "data_permission.closed": "The data permission service is shut down"
+}

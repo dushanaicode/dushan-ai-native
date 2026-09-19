@@ -3,7 +3,9 @@ from datetime import datetime
 from sqlalchemy import Boolean, DateTime, Index, Integer, SmallInteger, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from framework.starter_tenant.entity.tenant_base_do import TenantBaseDO
+from framework.starter_tenant.public import (
+    TenantBaseDO,
+)
 
 
 class AnnouncementDO(TenantBaseDO):

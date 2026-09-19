@@ -2,11 +2,11 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Annotated
 from pydantic import Field
-from framework.common.schemas.base_vo import BaseVO
-from framework.common.schemas.base_request_vo import BaseRequestVO
-from framework.common.contracts.snowflake_id import SnowflakeIdInput,SnowflakeIdStr,SnowflakeReferenceInput,SnowflakeCursorStr
-from framework.starter_excel.model.excel_column import ExcelColumn
-from framework.starter_excel.converter.dict_converter import DictConverter
+from framework.common.schemas import BaseVO
+from framework.common.schemas import BaseRequestVO
+from framework.common.contracts import SnowflakeIdInput,SnowflakeIdStr,SnowflakeReferenceInput,SnowflakeCursorStr
+from framework.starter_excel.public import ExcelColumn
+from framework.starter_excel.public import DictConverter
 
 class {{ class_name }}SaveReqVO(BaseRequestVO):
     id: SnowflakeIdInput | None = None

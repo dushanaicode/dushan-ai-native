@@ -5,21 +5,29 @@ from uuid import uuid4
 
 from sqlalchemy import select
 
-from framework.common.enums.status_enum import StatusEnum
-from framework.common.enums.user_type_enum import UserTypeEnum
-from framework.starter_cache.core.cache_handler import CacheHandler
-from framework.starter_database.decorators.transactional import transactional
-from framework.starter_database.session.session_provider import SessionProvider
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
-from framework.starter_security.config.security_settings import SecuritySettings
-from framework.starter_security.core.opaque_token import OpaqueToken
-from framework.starter_security.enums.security_realm import SecurityRealm
-from framework.starter_security.enums.tenant_access_mode import TenantAccessMode
-from framework.starter_security.exception.security_exception import SecurityException
-from framework.starter_security.model.login_session import LoginSession
-from framework.starter_tenant.config.tenant_settings import TenantSettings
-from framework.starter_tenant.context.tenant_context import TenantContext
+from framework.common.enums import StatusEnum, UserTypeEnum
+from framework.starter_cache.public import CacheHandler
+from framework.starter_database.public import (
+    SessionProvider,
+    transactional,
+)
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
+from framework.starter_security.public import (
+    LoginSession,
+    OpaqueToken,
+    SecurityErrorCodes,
+    SecurityException,
+    SecurityRealm,
+    SecuritySettings,
+    TenantAccessMode,
+)
+from framework.starter_tenant.public import (
+    TenantContext,
+    TenantSettings,
+)
 from module_system.api.oauth2.dto.oauth2_access_token_resp_dto import OAuth2AccessTokenRespDTO
 from module_system.dal.cache.cache_key_constants import SystemCacheKeys
 from module_system.dal.cache.oauth2.oauth2_access_token_redis_dao import OAuth2AccessTokenRedisDAO
@@ -49,13 +57,13 @@ class OAuth2TokenServiceImpl(OAuth2TokenService):
 
     async def _subject(self, user_id, user_type, client):
         if client.user_type is not None and client.user_type != user_type:
-            raise SecurityException("invalid")
+            raise SecurityException(SecurityErrorCodes.INVALID)
         if user_type == UserTypeEnum.ADMIN.code:
             user = await self.authentication.user_by_id(
                 user_id, self.tenant.get_required_tenant_id()
             )
             if user is None or user.status != StatusEnum.ENABLE.code:
-                raise SecurityException("disabled")
+                raise SecurityException(SecurityErrorCodes.DISABLED)
             return user.credential_revision, {
                 "id": user.id,
                 "username": user.username,
@@ -65,7 +73,7 @@ class OAuth2TokenServiceImpl(OAuth2TokenService):
             }
         if user_type == UserTypeEnum.CLIENT.code and user_id == client.id:
             return client.credential_revision, {}
-        raise SecurityException("invalid")
+        raise SecurityException(SecurityErrorCodes.INVALID)
 
     @transactional
     async def create_access_token(
@@ -149,17 +157,17 @@ class OAuth2TokenServiceImpl(OAuth2TokenService):
                 )
             ).scalar_one_or_none()
             if row is None or row.client_id != client_id:
-                failure = SecurityException("invalid")
+                failure = SecurityException(SecurityErrorCodes.INVALID)
             elif row.revoked or row.consumed_time is not None:
                 await self._revoke_family(row.family_id)
-                failure = SecurityException("revoked")
+                failure = SecurityException(SecurityErrorCodes.REVOKED)
             elif row.expires_time <= datetime.now(timezone.utc).replace(tzinfo=None):
-                failure = SecurityException("expired")
+                failure = SecurityException(SecurityErrorCodes.EXPIRED)
             else:
                 revision, info = await self._subject(row.user_id, row.user_type, client)
                 if revision != row.credential_revision:
                     await self._revoke_family(row.family_id)
-                    failure = SecurityException("credentials")
+                    failure = SecurityException(SecurityErrorCodes.CREDENTIALS)
                 else:
                     await self.refresh_tokens.update_by_id(
                         OAuth2RefreshTokenDO(
@@ -240,15 +248,15 @@ class OAuth2TokenServiceImpl(OAuth2TokenService):
             domain=self.settings.default_domain,
         )
         if identity is None:
-            raise SecurityException("invalid")
+            raise SecurityException(SecurityErrorCodes.INVALID)
         if identity.revoked:
-            raise SecurityException("revoked")
+            raise SecurityException(SecurityErrorCodes.REVOKED)
         if not identity.account_enabled:
-            raise SecurityException("disabled")
+            raise SecurityException(SecurityErrorCodes.DISABLED)
         if identity.expires_at <= datetime.now(timezone.utc):
-            raise SecurityException("expired")
+            raise SecurityException(SecurityErrorCodes.EXPIRED)
         if identity.credential_revision != identity.current_credential_revision:
-            raise SecurityException("credentials")
+            raise SecurityException(SecurityErrorCodes.CREDENTIALS)
         return identity
 
     async def check_access_token(self, access_token: str) -> OAuth2AccessTokenDO:
@@ -257,7 +265,7 @@ class OAuth2TokenServiceImpl(OAuth2TokenService):
             identity.token_digest, identity.application_id, identity.domain
         )
         if facts is None or facts["revoked"]:
-            raise SecurityException("revoked")
+            raise SecurityException(SecurityErrorCodes.REVOKED)
         return OAuth2AccessTokenDO(
             **{column.key: facts[column.key] for column in OAuth2AccessTokenDO.__table__.c}
         )
@@ -266,7 +274,7 @@ class OAuth2TokenServiceImpl(OAuth2TokenService):
         try:
             return await self.check_access_token(access_token)
         except SecurityException as error:
-            if error.http_status == 401:
+            if error.is_authentication_error:
                 return None
             raise
 
@@ -316,7 +324,7 @@ class OAuth2TokenServiceImpl(OAuth2TokenService):
             else UserTypeEnum.ADMIN.code
         )
         if user_type is not None and user_type != expected:
-            raise SecurityException("invalid")
+            raise SecurityException(SecurityErrorCodes.INVALID)
         return identity
 
     async def build_user_info(self, user_id: int, user_type: int) -> dict:
@@ -324,7 +332,7 @@ class OAuth2TokenServiceImpl(OAuth2TokenService):
             return {}
         user = await self.authentication.user_by_id(user_id, self.tenant.get_required_tenant_id())
         if user is None:
-            raise SecurityException("invalid")
+            raise SecurityException(SecurityErrorCodes.INVALID)
         return {
             "id": user.id,
             "username": user.username,
@@ -357,10 +365,10 @@ class OAuth2TokenServiceImpl(OAuth2TokenService):
             or result.value["application_id"] != application_id
             or result.value["domain"] != domain
         ):
-            raise SecurityException("invalid")
+            raise SecurityException(SecurityErrorCodes.INVALID)
         session = await self.resolve_session(
             result.value["digest"], application_id=application_id, domain=domain
         )
         if session is None:
-            raise SecurityException("invalid")
+            raise SecurityException(SecurityErrorCodes.INVALID)
         return session

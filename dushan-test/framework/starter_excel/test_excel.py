@@ -22,8 +22,8 @@ from framework.starter_excel.converter.ids_converter import IdsConverter
 from framework.starter_excel.converter.json_converter import JsonConverter
 from framework.starter_excel.converter.money_converter import MoneyConverter
 from framework.starter_excel.core.excel_schema import ExcelSchema
-from framework.starter_excel.exception.excel_error import ExcelError
-from framework.starter_excel.exception.excel_error_codes import ExcelErrorCodes
+from framework.starter_excel.definitions.constants.excel_error_codes import ExcelErrorCodes
+from framework.starter_excel.exception.excel_exception import ExcelException
 from framework.starter_excel.handler.excel_upload_validator import ExcelUploadValidator
 from framework.starter_excel.model.conversion_context import ConversionContext
 from framework.starter_excel.model.excel_column import ExcelColumn
@@ -199,7 +199,7 @@ async def test_template_dropdowns_and_formula_text():
 @pytest.mark.asyncio
 async def test_formula_policy_error_coordinates_and_literal_mode():
     content = xlsx([["文本"], ["=1+1"]])
-    with pytest.raises(ExcelError) as raised:
+    with pytest.raises(ExcelException) as raised:
         await ExcelReader(settings()).read(upload(content), TextRow)
     assert [(issue.row, issue.column, issue.field) for issue in raised.value.issues] == [
         (2, 1, "text")
@@ -224,7 +224,7 @@ async def test_mapping_aliases_nulls_numbers_and_model_errors():
     assert imported[0].mobile == "123456" and imported[0].count == 0
     assert imported[0].enabled is False and imported[0].day is None
     content = xlsx([["布尔", "数量", "电话", "日期"], [True, True, "hello", 45000]])
-    with pytest.raises(ExcelError) as raised:
+    with pytest.raises(ExcelException) as raised:
         await ExcelReader(settings(max_errors=1)).read(upload(content), Row)
     assert len(raised.value.issues) == 1 and raised.value.issues[0].column == 2
 
@@ -232,7 +232,7 @@ async def test_mapping_aliases_nulls_numbers_and_model_errors():
 @pytest.mark.asyncio
 @pytest.mark.parametrize("headers", [["文本", "文本"], ["不存在"], []])
 async def test_invalid_headers(headers):
-    with pytest.raises(ExcelError) as raised:
+    with pytest.raises(ExcelException) as raised:
         await ExcelReader(settings()).read(upload(xlsx([headers])), TextRow)
     assert raised.value.issues[0].row == 1
 
@@ -250,7 +250,7 @@ async def test_unknown_column_policy_and_inherited_export_field_policy():
     assert ExcelWriter.export_fields(Parent) == [{"field": "text", "title": "文本"}]
     assert ExcelWriter.export_fields(Child) == ExcelWriter.export_fields(Parent)
     for fields in ([], ["password"], ["unknown"], ["text", "text"]):
-        with pytest.raises(ExcelError):
+        with pytest.raises(ExcelException):
             ExcelSchema(Child).export_columns(fields)
     imported = await ExcelReader(settings(unknown_columns="ignore")).read(
         upload(xlsx([["未知", "文本"], ["secret", "yes"]])),
@@ -312,7 +312,7 @@ async def test_business_provider_missing_failure_and_duplicate_labels():
     class DictRow(BaseModel):
         value: Annotated[str, ExcelColumn("字典", converter=DictConverter("language"))]
 
-    with pytest.raises(ExcelError) as raised:
+    with pytest.raises(ExcelException) as raised:
         await ExcelWriter(settings()).write("数据", DictRow, [DictRow(value="zh")])
     assert raised.value.issues[0].field == "value"
 
@@ -320,7 +320,7 @@ async def test_business_provider_missing_failure_and_duplicate_labels():
         async def items(self, kind):
             raise OSError("provider unavailable")
 
-    with pytest.raises(ExcelError) as raised:
+    with pytest.raises(ExcelException) as raised:
         await ExcelReader(settings()).read(
             upload(xlsx([["字典"], ["中文"]])),
             DictRow,
@@ -344,14 +344,14 @@ async def test_business_provider_missing_failure_and_duplicate_labels():
     "limit", ["max_upload_size_bytes", "max_archive_entries", "max_uncompressed_size_bytes"]
 )
 def test_upload_resource_limits(limit):
-    with pytest.raises(ExcelError) as raised:
+    with pytest.raises(ExcelException) as raised:
         ExcelUploadValidator(settings(**{limit: 1})).validate(upload(xlsx([["文本"], ["data"]])))
     assert raised.value.error_code == ExcelErrorCodes.LIMIT
 
 
 @pytest.mark.parametrize("filename", ["book.xls", "book.csv", "book.xlsm", ""])
 def test_only_real_xlsx_supported(filename):
-    with pytest.raises(ExcelError):
+    with pytest.raises(ExcelException):
         ExcelUploadValidator(settings()).validate(upload(xlsx([["文本"]]), filename=filename))
 
 
@@ -371,13 +371,13 @@ async def test_untrusted_dimensions_and_sparse_far_coordinates():
             "xl/worksheets/sheet1.xml",
             lambda data: data.replace(b'r="A2"', b'r="' + coordinate + b'"'),
         )
-        with pytest.raises(ExcelError) as raised:
+        with pytest.raises(ExcelException) as raised:
             await ExcelReader(settings()).read(upload(content), TextRow)
         assert raised.value.error_code == ExcelErrorCodes.LIMIT
     content = replace_member(
         normal, "xl/worksheets/sheet1.xml", lambda data: data.replace(b' r="A2"', b"")
     )
-    with pytest.raises(ExcelError) as raised:
+    with pytest.raises(ExcelException) as raised:
         await ExcelReader(settings()).read(upload(content), TextRow)
     assert isinstance(raised.value.__cause__, KeyError)
 
@@ -390,24 +390,24 @@ def test_xml_dtd_and_forged_directory_are_rejected():
         "xl/workbook.xml",
         lambda data: b'<!DOCTYPE workbook [<!ENTITY bomb "explosion">]>' + data,
     )
-    with pytest.raises(ExcelError) as raised:
+    with pytest.raises(ExcelException) as raised:
         ExcelUploadValidator(settings()).validate(upload(content))
     assert raised.value.__cause__ is not None
     forged = bytearray(normal)
     eocd = forged.rfind(b"PK\x05\x06")
     struct.pack_into("<HH", forged, eocd + 8, 1, 1)
-    with pytest.raises(ExcelError, match="XML 无效"):
+    with pytest.raises(ExcelException, match="XML 无效"):
         ExcelUploadValidator(settings()).validate(upload(forged))
 
 
 @pytest.mark.asyncio
 async def test_actual_iteration_and_text_limits():
     normal = xlsx([["文本"], ["1234"]])
-    with pytest.raises(ExcelError):
+    with pytest.raises(ExcelException):
         await ExcelReader(settings(max_cell_text_length=3)).read(upload(normal), TextRow)
-    with pytest.raises(ExcelError):
+    with pytest.raises(ExcelException):
         await ExcelWriter(settings(max_cells=1)).write("数据", TextRow, [TextRow(text="x")])
-    with pytest.raises(ExcelError):
+    with pytest.raises(ExcelException):
         await ExcelReader(settings(max_cells=1)).read(upload(normal), TextRow)
 
 
@@ -482,7 +482,7 @@ async def test_timezone_aware_datetime_is_not_silently_changed():
     class Row(BaseModel):
         at: Annotated[datetime, ExcelColumn("时间")]
 
-    with pytest.raises(ExcelError) as raised:
+    with pytest.raises(ExcelException) as raised:
         await ExcelWriter(settings()).write("数据", Row, [Row(at=datetime.now(timezone.utc))])
     assert raised.value.issues[0].field == "at"
 
@@ -506,7 +506,7 @@ async def test_provider_custom_failure_keeps_position_and_cause():
         ExcelWriter(settings()).write("数据", DictRow, [DictRow(value="zh")], providers=providers),
         ExcelWriter(settings()).template("模板", DictRow, providers=providers),
     ):
-        with pytest.raises(ExcelError) as raised:
+        with pytest.raises(ExcelException) as raised:
             await operation
         assert raised.value.__cause__ is failure
         assert raised.value.issues[0].column == 1 and raised.value.issues[0].field == "value"
@@ -518,13 +518,13 @@ def test_archive_actual_data_crc_duplicate_cells_and_nonseekable_stream():
     position = forged.find(b"PK\x01\x02")
     # 中央目录谎报解压长度，ZipExtFile 的实际内容/CRC 校验必须拒绝。
     struct.pack_into("<L", forged, position + 24, 1)
-    with pytest.raises(ExcelError) as raised:
+    with pytest.raises(ExcelException) as raised:
         ExcelUploadValidator(settings()).validate(upload(forged))
     assert raised.value.__cause__ is not None
     duplicate = replace_member(
         normal, "xl/worksheets/sheet1.xml", lambda data: data.replace(b'r="A2"', b'r="A1"')
     )
-    with pytest.raises(ExcelError) as raised:
+    with pytest.raises(ExcelException) as raised:
         ExcelUploadValidator(settings()).validate(upload(duplicate))
     assert isinstance(raised.value.__cause__, ValueError)
 
@@ -534,7 +534,7 @@ def test_archive_actual_data_crc_duplicate_cells_and_nonseekable_stream():
 
     source = upload(normal)
     source.file = NonSeekable(normal)
-    with pytest.raises(ExcelError, match="定位"):
+    with pytest.raises(ExcelException, match="定位"):
         ExcelUploadValidator(settings()).validate(source)
     assert not source.file.closed
 
@@ -544,7 +544,7 @@ async def test_dropdowns_share_total_cell_budget_and_error_cleanup(monkeypatch):
     class OptionsRow(BaseModel):
         text: Annotated[str, ExcelColumn("文本", options=("a", "b", "c"))]
 
-    with pytest.raises(ExcelError) as raised:
+    with pytest.raises(ExcelException) as raised:
         await ExcelWriter(settings(max_cells=4)).write("数据", OptionsRow, [OptionsRow(text="a")])
     assert raised.value.error_code == ExcelErrorCodes.LIMIT
     closed = []
@@ -555,7 +555,7 @@ async def test_dropdowns_share_total_cell_budget_and_error_cleanup(monkeypatch):
         return original(workbook)
 
     monkeypatch.setattr(Workbook, "close", close)
-    with pytest.raises(ExcelError):
+    with pytest.raises(ExcelException):
         await ExcelWriter(settings()).write("数据", TextRow, [TextRow(text="invalid\x01")])
     assert len(closed) == 1
 
@@ -571,7 +571,7 @@ async def test_settings_and_unique_column_contracts():
         first: Annotated[str, ExcelColumn("重复")]
         second: Annotated[str, ExcelColumn("重复")]
 
-    with pytest.raises(ExcelError):
+    with pytest.raises(ExcelException):
         ExcelSchema(Duplicate)
 
 

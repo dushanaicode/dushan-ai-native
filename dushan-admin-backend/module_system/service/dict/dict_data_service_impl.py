@@ -2,12 +2,16 @@ from __future__ import annotations
 
 from typing import Collection, override
 
-from framework.common.enums.status_enum import StatusEnum
-from framework.common.exception.exceptions.service_exception import ServiceException
-from framework.common.page.schemas.page_result import PageResult
-from framework.starter_database.decorators.transactional import transactional
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
+from framework.common.enums import StatusEnum
+from framework.common.exception import ServiceException
+from framework.common.page import PageResult
+from framework.starter_database.public import (
+    transactional,
+)
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
 from module_system.controller.admin.dict.vo.data.data_page_req_vo import DictDataPageReqVO
 from module_system.controller.admin.dict.vo.data.data_save_req_vo import DictDataSaveReqVO
 from module_system.dal.dataobject.dict.dict_data_do import DictDataDO

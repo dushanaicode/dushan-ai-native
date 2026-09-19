@@ -1,5 +1,3 @@
-from http import HTTPStatus
-
 from framework.common.enums.log_level_enum import LogLevelEnum
 from framework.common.exception.constants.global_error_code_constants import (
     GlobalErrorCodeConstants,
@@ -14,5 +12,5 @@ class ThirdPartyException(BaseBusinessException):
 
     default_error_code = GlobalErrorCodeConstants.SERVICE_UNAVAILABLE
     log_level = LogLevelEnum.ERROR
-    http_status = HTTPStatus.SERVICE_UNAVAILABLE
+    is_system_error = True
     retryable = True

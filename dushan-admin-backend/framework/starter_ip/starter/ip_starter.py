@@ -2,9 +2,9 @@ from pathlib import Path
 
 from loguru import logger
 
-from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
+from framework.common.utils.cleanup_utils import CleanupUtils
 from framework.starter_di.decorators.components import starter
-from framework.starter_di.enums.component_scope_enum import ComponentScopeEnum
+from framework.starter_di.definitions.enums.component_scope_enum import ComponentScopeEnum
 from framework.starter_ip.client.ip_location_http_client import IpLocationHttpClient
 from framework.starter_ip.config.ip_settings import IpSettings
 from framework.starter_ip.core.ip2region_database import Ip2RegionDatabase

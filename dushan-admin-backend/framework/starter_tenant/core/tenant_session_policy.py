@@ -1,5 +1,9 @@
+from framework.starter_database.definitions.constants.row_access_error_codes import (
+    RowAccessErrorCodes,
+)
 from framework.starter_database.query.row_access_rule import RowAccessRule
 from framework.starter_tenant.core.tenant_condition_builder import TenantConditionBuilder
+from framework.starter_tenant.definitions.constants.tenant_error_codes import TenantErrorCodes
 from framework.starter_tenant.exception.tenant_exception import TenantException
 
 
@@ -25,7 +29,13 @@ class TenantSessionPolicy(RowAccessRule):
             return
         self.context.authorize_resource(config.table.key, operation)
         if row[config.tenant_column] != self.context.get_required_tenant_id():
-            raise TenantException("write")
+            raise TenantException(TenantErrorCodes.WRITE)
 
     def failure(self, reason):
-        return TenantException({"configuration": "model", "stale": "expired"}.get(reason, reason))
+        return TenantException(
+            {
+                RowAccessErrorCodes.STALE: TenantErrorCodes.EXPIRED,
+                RowAccessErrorCodes.CONFIGURATION: TenantErrorCodes.MODEL,
+                RowAccessErrorCodes.WRITE: TenantErrorCodes.WRITE,
+            }[reason]
+        )

@@ -1,4 +1,4 @@
-from framework.starter_auth.exception.auth_error_codes import AuthErrorCodes as Codes
+from framework.starter_auth.definitions.constants.auth_error_codes import AuthErrorCodes as Codes
 from framework.starter_auth.exception.auth_exception import AuthException
 from framework.starter_auth.provider.auth_provider import AuthProvider
 from framework.starter_auth.provider.provider_payload import ProviderPayload as Payload

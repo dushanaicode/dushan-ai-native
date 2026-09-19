@@ -4,10 +4,11 @@ import httpx
 import pytest
 
 from framework.common.diagnostics.safe_exception_diagnostics import SafeExceptionDiagnostics
-from framework.starter_auth.exception.auth_error_codes import AuthErrorCodes as Codes
+from framework.starter_auth.definitions.constants.auth_error_codes import AuthErrorCodes as Codes
 from framework.starter_auth.exception.auth_exception import AuthException
 from framework.starter_auth.model.auth_callback import AuthCallback
-from framework.starter_cache.exception.cache_operation_exception import CacheOperationException
+from framework.starter_cache.definitions.constants.cache_error_codes import CacheErrorCodes
+from framework.starter_cache.exception.cache_exception import CacheException
 
 from .support import ACCESS, BINDING, CHANNEL_RESPONSES, SECRET, RecordingTransport, client_config
 
@@ -122,7 +123,7 @@ async def test_cache_failure_is_closed_and_safe(harness, monkeypatch):
     service = await build()
 
     async def fail(*args, **kwargs):
-        raise CacheOperationException(cause=RuntimeError(SECRET))
+        raise CacheException(CacheErrorCodes.OPERATION_FAILED, cause=RuntimeError(SECRET))
 
     monkeypatch.setattr(cache, "eval_atomic", fail)
     with pytest.raises(AuthException) as failure:

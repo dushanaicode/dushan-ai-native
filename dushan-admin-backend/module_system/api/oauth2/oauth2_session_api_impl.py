@@ -1,5 +1,7 @@
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
 from module_system.api.oauth2.dto.oauth2_session_dto import OAuth2SessionDTO
 from module_system.api.oauth2.oauth2_session_api import OAuth2SessionApi
 from module_system.service.oauth2.oauth2_session_service import OAuth2SessionService

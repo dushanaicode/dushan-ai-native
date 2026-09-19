@@ -1,9 +1,11 @@
 import asyncio
 
-from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
-from framework.starter_di.decorators.components import framework
-from framework.starter_di.decorators.inject import Inject
-from framework.starter_di.decorators.lifecycle import pre_destroy_hook
+from framework.common.utils import CleanupUtils
+from framework.starter_di.public import (
+    Inject,
+    framework,
+    pre_destroy_hook,
+)
 from module_infra.dal.mapper.file.file_content_mapper import FileContentMapper
 from module_infra.framework.file.core.client.db.db_file_client import DBFileClient
 from module_infra.framework.file.core.enums.file_storage_enum import FileStorageEnum

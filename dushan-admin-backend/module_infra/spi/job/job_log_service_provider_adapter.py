@@ -1,6 +1,10 @@
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
-from framework.starter_job.spi.job_record_provider import JobRecordProvider
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
+from framework.starter_job.public import (
+    JobRecordProvider,
+)
 from module_infra.service.job.job_log_service import JobLogService
 
 

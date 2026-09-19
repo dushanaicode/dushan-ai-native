@@ -4,7 +4,10 @@ from contextvars import Context
 from loguru import logger
 from redis.exceptions import RedisError
 
-from framework.starter_websocket.exception.socket_exception import SocketException
+from framework.starter_websocket.definitions.constants.websocket_error_codes import (
+    WebSocketErrorCodes,
+)
+from framework.starter_websocket.exception.websocket_exception import WebSocketException
 
 
 class RedisSocketTransport:
@@ -26,7 +29,7 @@ class RedisSocketTransport:
             timeout=self.runtime.settings.command_timeout_seconds
         )
         if confirmation is None or confirmation["type"] != "subscribe":
-            raise SocketException("transport")
+            raise WebSocketException(WebSocketErrorCodes.TRANSPORT)
         subscription.ignore_subscribe_messages = True
         self.connected = True
 
@@ -45,7 +48,7 @@ class RedisSocketTransport:
                     if item is not None:
                         try:
                             envelope = self.runtime.codec.decode_delivery(item["data"])
-                        except SocketException:
+                        except WebSocketException:
                             self.runtime.rejected_envelopes += 1
                             continue
                         self.runtime.receive_delivery(envelope)
@@ -65,7 +68,7 @@ class RedisSocketTransport:
                     await self.runtime.call(self._subscribe())
                 except asyncio.CancelledError:
                     raise
-                except (RedisError, TimeoutError, SocketException) as error:
+                except (RedisError, TimeoutError, WebSocketException) as error:
                     self.runtime.record_error(error)
                     if self.subscription is not None:
                         await self.subscription.aclose()

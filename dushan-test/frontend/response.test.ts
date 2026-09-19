@@ -43,7 +43,9 @@ describe('业务响应与Vben请求接入', () => {
     });
   });
 
-  it('登录过期按业务401刷新，并发请求只刷新一次后各自重试', async () => {
+  it.each([
+    401, 1_004_001, 1_004_002, 1_004_003, 1_004_004, 1_004_005, 1_004_006,
+  ])('认证失效码%s统一刷新，并发请求只刷新一次后各自重试', async (code) => {
     const client = new RequestClient({ responseReturn: 'data' });
     client.addResponseInterceptor(nativeResponseInterceptor());
     const refresh = vi.fn(async () => {
@@ -66,7 +68,7 @@ describe('业务响应与Vben请求接入', () => {
       data:
         config.headers.Authorization === 'Bearer new-token'
           ? envelope(0, config.url)
-          : envelope(401),
+          : envelope(code),
       headers: {},
       status: 200,
       statusText: 'OK',
@@ -101,21 +103,26 @@ describe('业务响应与Vben请求接入', () => {
     ).toBe(false);
   });
 
-  it('权限不足不刷新，HTTP传输故障也不伪造为业务登录失效', () => {
-    const response = {
-      config: { url: '/users' },
-      data: envelope(403),
-      headers: {},
-      status: 200,
-      statusText: 'OK',
-    };
-    expect(
-      isAuthenticationFailure(
-        new BusinessError(response.data, response.config, response as never),
-      ),
-    ).toBe(false);
-    expect(isAuthenticationFailure({ response: { status: 401 } })).toBe(false);
-  });
+  it.each([403, 1_004_007, 1_004_008, 1_004_009, 1_004_010, 1_004_011])(
+    '业务码%s不刷新，传输故障不伪造为业务登录失效',
+    (code) => {
+      const response = {
+        config: { url: '/users' },
+        data: envelope(code),
+        headers: {},
+        status: 200,
+        statusText: 'OK',
+      };
+      expect(
+        isAuthenticationFailure(
+          new BusinessError(response.data, response.config, response as never),
+        ),
+      ).toBe(false);
+      expect(isAuthenticationFailure({ response: { status: 401 } })).toBe(
+        false,
+      );
+    },
+  );
 
   it('业务端点即使路径含 auth 字样也按登录失效处理，排除名单只认后端真实端点名', () => {
     for (const url of [

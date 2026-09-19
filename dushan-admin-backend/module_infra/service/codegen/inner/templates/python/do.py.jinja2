@@ -5,10 +5,10 @@ from sqlalchemy import Computed, Index, Numeric, Float, LargeBinary, JSON, BigIn
 from sqlalchemy.orm import Mapped, mapped_column
 
 {% if tenant_aware %}
-from framework.starter_tenant.entity.tenant_base_do import TenantBaseDO
+from framework.starter_tenant.public import TenantBaseDO
 {% else %}
-from framework.starter_tenant.entity.global_control_do import GlobalControlDO
-from framework.starter_tenant.decorators.tenant_model import global_model
+from framework.starter_tenant.public import GlobalControlDO
+from framework.starter_tenant.public import global_model
 {% endif %}
 
 

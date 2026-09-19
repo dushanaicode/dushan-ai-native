@@ -6,7 +6,9 @@ from urllib.parse import parse_qs
 import httpx
 import pytest
 
-from framework.starter_captcha.exception.captcha_error_codes import CaptchaErrorCodes as Codes
+from framework.starter_captcha.definitions.constants.captcha_error_codes import (
+    CaptchaErrorCodes as Codes,
+)
 from framework.starter_captcha.exception.captcha_exception import CaptchaException
 from framework.starter_captcha.model.captcha_answer import CaptchaAnswer
 from framework.starter_captcha.provider.aliyun_captcha_provider import AliyunCaptchaProvider

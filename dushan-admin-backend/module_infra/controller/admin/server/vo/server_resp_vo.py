@@ -2,7 +2,7 @@ from typing import Annotated
 
 from pydantic import Field
 
-from framework.common.schemas.base_vo import BaseVO
+from framework.common.schemas import BaseVO
 from module_infra.controller.admin.server.vo.cpu_info_vo import CpuInfoVO
 from module_infra.controller.admin.server.vo.memory_info_vo import MemoryInfoVO
 from module_infra.controller.admin.server.vo.py_info_vo import PyInfoVO

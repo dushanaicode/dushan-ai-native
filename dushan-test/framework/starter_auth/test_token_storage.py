@@ -5,7 +5,7 @@ from joserfc import jwt
 from pydantic import SecretStr
 
 from framework.common.diagnostics.safe_exception_diagnostics import SafeExceptionDiagnostics
-from framework.starter_auth.exception.auth_error_codes import AuthErrorCodes as Codes
+from framework.starter_auth.definitions.constants.auth_error_codes import AuthErrorCodes as Codes
 from framework.starter_auth.exception.auth_exception import AuthException
 from framework.starter_auth.model.auth_tokens import AuthTokens
 

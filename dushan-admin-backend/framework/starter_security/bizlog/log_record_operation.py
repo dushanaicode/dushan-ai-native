@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from framework.common.security.request_identity import RequestIdentity
-from framework.starter_security.enums.security_realm import SecurityRealm
+from framework.starter_security.definitions.enums.security_realm import SecurityRealm
 from framework.starter_security.model.request_audit import RequestAudit
 
 

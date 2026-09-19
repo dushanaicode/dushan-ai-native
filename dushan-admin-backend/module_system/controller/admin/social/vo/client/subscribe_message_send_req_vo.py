@@ -1,8 +1,8 @@
 from pydantic import Field, field_validator
 
-from framework.common.contracts.snowflake_id import SnowflakeIdInput
-from framework.common.enums.user_type_enum import UserTypeEnum
-from framework.common.schemas.base_request_vo import BaseRequestVO
+from framework.common.contracts import SnowflakeIdInput
+from framework.common.enums import UserTypeEnum
+from framework.common.schemas import BaseRequestVO
 
 
 class SubscribeMessageSendReqVO(BaseRequestVO):

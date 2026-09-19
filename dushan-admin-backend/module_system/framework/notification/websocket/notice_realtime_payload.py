@@ -1,5 +1,5 @@
-from framework.common.contracts.snowflake_id import SnowflakeIdStr
-from framework.common.schemas.base_vo import BaseVO
+from framework.common.contracts import SnowflakeIdStr
+from framework.common.schemas import BaseVO
 
 
 class NoticeRealtimePayload(BaseVO):

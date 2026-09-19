@@ -4,7 +4,9 @@ from typing import Any
 from sqlalchemy import JSON, BigInteger, DateTime, SmallInteger, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from framework.starter_tenant.entity.tenant_base_do import TenantBaseDO
+from framework.starter_tenant.public import (
+    TenantBaseDO,
+)
 from module_system.definitions.enums.mail.mail_send_status_enum import MailSendStatusEnum
 
 

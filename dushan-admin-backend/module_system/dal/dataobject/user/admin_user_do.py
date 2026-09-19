@@ -14,9 +14,13 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from framework.common.enums.status_enum import StatusEnum
-from framework.starter_data_permission.decorators.data_permission import data_permission
-from framework.starter_tenant.entity.tenant_base_do import TenantBaseDO
+from framework.common.enums import StatusEnum
+from framework.starter_data_permission.public import (
+    data_permission,
+)
+from framework.starter_tenant.public import (
+    TenantBaseDO,
+)
 from module_system.definitions.enums.common.common_sex_enum import CommonSexEnum
 
 

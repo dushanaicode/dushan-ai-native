@@ -1,6 +1,8 @@
 from abc import abstractmethod
 
-from framework.starter_websocket.handler.socket_handler import SocketHandler
+from framework.starter_websocket.public import (
+    SocketHandler,
+)
 from module_infra.framework.websocket.infra_socket_payload import InfraSocketPayload
 
 

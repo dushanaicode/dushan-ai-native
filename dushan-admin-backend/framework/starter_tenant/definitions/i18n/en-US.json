@@ -1,0 +1,12 @@
+{
+  "tenant.missing": "The tenant context is missing",
+  "tenant.unknown": "The tenant does not exist",
+  "tenant.disabled": "The tenant is unavailable",
+  "tenant.denied": "Tenant access is not authorized",
+  "tenant.configuration": "Tenant resources or provider are not ready",
+  "tenant.mode": "The tenant deployment mode does not match the sealed record; switch through the dedicated deployment entry",
+  "tenant.model": "Invalid tenant ownership, unique key or relation constraint on the model",
+  "tenant.write": "The write violates tenant ownership",
+  "tenant.expired": "The tenant execution grant expired",
+  "tenant.closed": "The tenant runtime is shut down"
+}

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pydantic import ConfigDict
 
-from framework.common.schemas.base_vo import BaseVO
+from framework.common.schemas import BaseVO
 
 
 class FileClientConfig(BaseVO):

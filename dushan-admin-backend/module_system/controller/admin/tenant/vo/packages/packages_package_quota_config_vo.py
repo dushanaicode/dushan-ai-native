@@ -2,7 +2,7 @@ from typing import Annotated
 
 from pydantic import Field
 
-from framework.common.schemas.base_request_vo import BaseRequestVO
+from framework.common.schemas import BaseRequestVO
 from module_system.controller.admin.tenant.vo.packages.tenant_package_ai_quota_config_vo import (
     TenantPackageAiQuotaConfigVO,
 )

@@ -5,8 +5,7 @@ import time
 from typing import Any
 from urllib.parse import quote
 
-from framework.common.utils.id.id_utils import IdUtils
-from framework.common.utils.json.json_utils import JsonUtils
+from framework.common.utils import IdUtils, JsonUtils
 from module_system.framework.notification.delivery.delivery_attempt import (
     DeliveryRequestStartedCallback,
 )

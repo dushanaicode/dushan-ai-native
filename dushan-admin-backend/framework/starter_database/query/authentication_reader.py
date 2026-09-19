@@ -1,4 +1,4 @@
-from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
+from framework.common.utils.cleanup_utils import CleanupUtils
 from framework.starter_database.exception.database_error_translator import DatabaseErrorTranslator
 from framework.starter_database.query.authentication_condition_builder import (
     AuthenticationConditionBuilder,

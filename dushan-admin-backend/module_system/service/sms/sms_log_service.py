@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from framework.common.page.schemas.page_result import PageResult
+from framework.common.page import PageResult
 from module_system.controller.admin.sms.vo.log.log_page_req_vo import SmsLogPageReqVO
 from module_system.dal.dataobject.sms.sms_log_do import SmsLogDO
 from module_system.service.sms.bo.sms_log_create_bo import SmsLogCreateBO

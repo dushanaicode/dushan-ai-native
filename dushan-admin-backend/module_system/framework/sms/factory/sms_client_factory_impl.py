@@ -1,5 +1,7 @@
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.lifecycle import pre_destroy_hook
+from framework.starter_di.public import (
+    pre_destroy_hook,
+    service,
+)
 from module_system.framework.sms.client.abstract_sms_client import AbstractSmsClient
 from module_system.framework.sms.client.providers.aliyun_sms_client import AliyunSmsClient
 from module_system.framework.sms.client.providers.debug_ding_talk_sms_client import (

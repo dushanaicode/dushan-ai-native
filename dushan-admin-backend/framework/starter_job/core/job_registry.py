@@ -2,6 +2,7 @@ from loguru import logger
 from pydantic import ValidationError
 
 from framework.starter_job.cron.cron_schedule import CronSchedule
+from framework.starter_job.definitions.constants.job_error_codes import JobErrorCodes
 from framework.starter_job.exception.job_exception import JobException
 
 
@@ -13,7 +14,7 @@ class JobRegistry:
         for handler in handlers:
             declaration = vars(handler)["__job__"]
             if declaration.key in self.handlers:
-                raise JobException("handler")
+                raise JobException(JobErrorCodes.HANDLER)
             self.handlers[declaration.key] = handler
             # logger.debug(
             #     "【JobStarter 】处理器 {} -> {}.{}",
@@ -25,7 +26,7 @@ class JobRegistry:
 
     def require(self, key):
         if key not in self.handlers:
-            raise JobException("handler")
+            raise JobException(JobErrorCodes.HANDLER)
         return self.handlers[key]
 
     def parameters(self, definition):
@@ -35,7 +36,7 @@ class JobRegistry:
                 definition.parameters, strict=True, extra="forbid"
             )
         except ValidationError as error:
-            raise JobException("parameters", cause=error) from error
+            raise JobException(JobErrorCodes.PARAMETERS, cause=error) from error
 
     def validate(self, definition):
         self.parameters(definition)

@@ -1,48 +1,31 @@
-from typing import Literal
-
-from framework.common.exception.constants.global_error_code_constants import (
-    GlobalErrorCodeConstants,
-)
+from framework.common.exception.core.error_code import ErrorCode
 from framework.common.exception.exceptions.base_business_exception import BaseBusinessException
-
-type TenantFailure = Literal[
-    "missing",
-    "unknown",
-    "disabled",
-    "denied",
-    "configuration",
-    "mode",
-    "model",
-    "write",
-    "expired",
-    "closed",
-]
+from framework.starter_tenant.definitions.constants.tenant_error_codes import TenantErrorCodes
 
 
 class TenantException(BaseBusinessException):
     """租户失败只公开稳定原因，不暴露身份、SQL 和 Provider 返回内容。"""
 
-    def __init__(self, reason: TenantFailure, *, cause: Exception | None = None):
-        messages = {
-            "missing": "缺少有效租户上下文",
-            "unknown": "租户不存在",
-            "disabled": "租户不可用",
-            "denied": "租户访问未获授权",
-            "configuration": "租户资源或提供者未就绪",
-            "mode": "租户部署模式与封存记录不一致，请通过独立部署入口切换",
-            "model": "模型租户归属、唯一键或关联约束无效",
-            "write": "写入违反租户归属",
-            "expired": "租户执行授权已失效",
-            "closed": "租户运行时已关闭",
+    _system_error_codes = frozenset(
+        {
+            TenantErrorCodes.CONFIGURATION.code,
+            TenantErrorCodes.MODE.code,
+            TenantErrorCodes.MODEL.code,
+            TenantErrorCodes.CLOSED.code,
         }
-        super().__init__(
-            GlobalErrorCodeConstants.SERVICE_UNAVAILABLE
-            if reason in {"configuration", "mode", "model", "closed"}
-            else GlobalErrorCodeConstants.FORBIDDEN,
-            msg=messages[reason],
-            cause=cause,
-        )
-        self.reason = reason
+    )
+
+    def __init__(
+        self,
+        error_code: ErrorCode,
+        *,
+        cause: Exception | None = None,
+        detail: str | None = None,
+    ):
+        msg = error_code.description
+        if detail:
+            msg = f"{msg}：{detail}"
+        super().__init__(error_code, msg=msg, cause=cause)
 
     def __safe_diagnostic__(self):
-        return TenantException(self.reason)
+        return TenantException(self.error_code)

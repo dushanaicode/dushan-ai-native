@@ -1,6 +1,6 @@
 from pydantic import Field, field_validator
 
-from framework.common.schemas.base_request_vo import BaseRequestVO
+from framework.common.schemas import BaseRequestVO
 from module_system.definitions.enums.social.social_type_enum import SocialTypeEnum
 
 

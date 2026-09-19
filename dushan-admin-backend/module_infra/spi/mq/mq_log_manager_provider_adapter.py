@@ -1,6 +1,10 @@
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
-from framework.starter_mq.spi.consume_record_provider import ConsumeRecordProvider
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
+from framework.starter_mq.public import (
+    ConsumeRecordProvider,
+)
 from module_infra.service.mq.mq_log_service import MqLogService
 
 

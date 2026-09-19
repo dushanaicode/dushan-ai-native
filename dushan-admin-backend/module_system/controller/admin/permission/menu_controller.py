@@ -2,19 +2,23 @@ from operator import attrgetter
 
 from fastapi import APIRouter, Depends, Query
 
-from framework.common.contracts.snowflake_id import SnowflakeIdStr
-from framework.common.enums.status_enum import StatusEnum
-from framework.common.schemas.request.id_list_req_vo import IdListReqVO
-from framework.starter_di.decorators.di_dependency import DiDependency
-from framework.starter_security.enums.security_realm import SecurityRealm
-from framework.starter_web.response.result import Result
-from framework.starter_web.routing.route_policy import RoutePolicy
+from framework.common.contracts import SnowflakeIdStr
+from framework.common.enums import StatusEnum
+from framework.common.schemas.request import IdListReqVO, IdReqVO, UpdateStatusReqVO
+from framework.starter_di.public import (
+    DiDependency,
+)
+from framework.starter_security.public import (
+    SecurityRealm,
+)
+from framework.starter_web.public import (
+    Result,
+    RoutePolicy,
+)
 from module_system.controller.admin.permission.vo.menu.menu_list_req_vo import MenuListReqVO
 from module_system.controller.admin.permission.vo.menu.menu_resp_vo import MenuRespVO
 from module_system.controller.admin.permission.vo.menu.menu_save_vo import MenuSaveVO
 from module_system.controller.admin.permission.vo.menu.menu_simple_resp_vo import MenuSimpleRespVO
-from module_system.definitions.vo.id_req_vo import IdReqVO
-from module_system.definitions.vo.update_status_req_vo import UpdateStatusReqVO
 from module_system.service.permission.menu_service import MenuService
 
 menu_controller = APIRouter(prefix="/permission/menu", tags=["System - 菜单管理"])

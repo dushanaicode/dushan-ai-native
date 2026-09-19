@@ -5,7 +5,8 @@ import pytest
 from sqlalchemy import Column, Integer, MetaData, String, Table, UniqueConstraint
 
 from framework.starter_tenant.core.tenant_model_registry import TenantModelRegistry
-from framework.starter_tenant.enums.tenant_model_kind import TenantModelKind
+from framework.starter_tenant.definitions.constants.tenant_error_codes import TenantErrorCodes
+from framework.starter_tenant.definitions.enums.tenant_model_kind import TenantModelKind
 from framework.starter_tenant.exception.tenant_exception import TenantException
 from framework.starter_tenant.model.tenant_model import TenantModel
 from server.bootstrap.bootstrapper import BootstrapError
@@ -34,6 +35,7 @@ async def test_unmarked_orm_model_fails_startup_even_without_scanner_tag(
     name = "unmarked_tenant_" + uuid4().hex
     source = """from sqlalchemy import MetaData
 from framework.starter_database.model.base_do import BaseDO
+from framework.starter_tenant.definitions.constants.tenant_error_codes import TenantErrorCodes
 class Unmarked(BaseDO):
     metadata=MetaData()
     __tablename__="unmarked"
@@ -53,4 +55,4 @@ class Unmarked(BaseDO):
         async with app.router.lifespan_context(app):
             pass
     assert isinstance(failure.value.__cause__, TenantException)
-    assert failure.value.__cause__.reason == "model"
+    assert failure.value.__cause__.error_code is TenantErrorCodes.MODEL

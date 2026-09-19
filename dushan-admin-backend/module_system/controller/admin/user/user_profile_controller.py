@@ -1,12 +1,19 @@
 from fastapi import APIRouter, Depends
 
-from framework.common.enums.user_type_enum import UserTypeEnum
-from framework.starter_di.decorators.di_dependency import DiDependency
-from framework.starter_security.context.security_context import SecurityContext
-from framework.starter_security.enums.security_realm import SecurityRealm
-from framework.starter_security.exception.security_exception import SecurityException
-from framework.starter_web.response.result import Result
-from framework.starter_web.routing.route_policy import RoutePolicy
+from framework.common.enums import UserTypeEnum
+from framework.starter_di.public import (
+    DiDependency,
+)
+from framework.starter_security.public import (
+    SecurityContext,
+    SecurityErrorCodes,
+    SecurityException,
+    SecurityRealm,
+)
+from framework.starter_web.public import (
+    Result,
+    RoutePolicy,
+)
 from module_system.controller.admin.user.vo.profile.online_device_req_vo import OnlineDeviceReqVO
 from module_system.controller.admin.user.vo.profile.profile_online_device_vo import (
     ProfileOnlineDeviceVO,
@@ -49,7 +56,7 @@ class UserProfileController:
     ) -> Result[UserProfileRespVO]:
         current_user_id: int | None = int(security.require().account_id)
         if current_user_id is None:
-            raise SecurityException("missing")
+            raise SecurityException(SecurityErrorCodes.MISSING)
         user: AdminUserDO | None = await user_service.get_user(current_user_id)
         user_role_ids = await permission_service.get_user_role_id_list_by_user_id(user.id)
         user_roles: list[RoleDO] = await role_service.get_role_list_from_cache(user_role_ids)
@@ -74,7 +81,7 @@ class UserProfileController:
     ) -> Result[bool]:
         user_id: int | None = int(security.require().account_id)
         if user_id is None:
-            raise SecurityException("missing")
+            raise SecurityException(SecurityErrorCodes.MISSING)
         await admin_user_service.update_user_profile(user_id, req_vo)
         await profile_service.create_or_update_profile(user_id, req_vo)
         return Result.success(data=True)
@@ -89,7 +96,7 @@ class UserProfileController:
     ) -> Result[bool]:
         user_id: int | None = int(security.require().account_id)
         if user_id is None:
-            raise SecurityException("missing")
+            raise SecurityException(SecurityErrorCodes.MISSING)
         await admin_user_service.update_user_password_by_vo(user_id, req_vo)
         return Result.success(data=True)
 
@@ -117,6 +124,6 @@ class UserProfileController:
     ) -> Result[bool]:
         current_user_id = int(security.require().account_id)
         if not current_user_id:
-            raise SecurityException("missing")
+            raise SecurityException(SecurityErrorCodes.MISSING)
         await profile_service.kickout_online_device(req_vo.token_id, current_user_id)
         return Result.success(data=True)

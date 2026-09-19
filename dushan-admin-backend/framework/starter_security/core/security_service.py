@@ -9,19 +9,20 @@ from datetime import datetime, timezone
 from loguru import logger
 
 from framework.common.exception.exceptions.base_business_exception import BaseBusinessException
-from framework.common.utils.asyncio.asyncio_utils import AsyncioUtils
-from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
+from framework.common.utils.asyncio_utils import AsyncioUtils
+from framework.common.utils.cleanup_utils import CleanupUtils
 from framework.starter_cache.core.cache_handler import CacheHandler
 from framework.starter_di.context.application_context import ApplicationContext
 from framework.starter_di.decorators.components import framework
 from framework.starter_di.decorators.conditional import conditional
-from framework.starter_di.enums.component_scope_enum import ComponentScopeEnum
+from framework.starter_di.definitions.enums.component_scope_enum import ComponentScopeEnum
 from framework.starter_security.config.security_settings import SecuritySettings
 from framework.starter_security.context.security_context import SecurityContext
 from framework.starter_security.core.opaque_token import OpaqueToken
 from framework.starter_security.core.permission_policy import PermissionPolicy
-from framework.starter_security.enums.security_realm import SecurityRealm
-from framework.starter_security.enums.tenant_access_mode import TenantAccessMode
+from framework.starter_security.definitions.constants.security_error_codes import SecurityErrorCodes
+from framework.starter_security.definitions.enums.security_realm import SecurityRealm
+from framework.starter_security.definitions.enums.tenant_access_mode import TenantAccessMode
 from framework.starter_security.exception.security_exception import SecurityException
 from framework.starter_security.model.login_session import LoginSession
 from framework.starter_security.model.permission_snapshot import PermissionSnapshot
@@ -79,7 +80,7 @@ class SecurityService:
         data_access: DataAccessProvider | None = None,
     ):
         if self._phase != "new" or not self.settings.enabled:
-            raise SecurityException("closed")
+            raise SecurityException(SecurityErrorCodes.CLOSED)
         self._phase = "starting"
         logger.info("【SecurityStarter 】开始初始化本站认证与授权")
         self._tenant, self._messages = tenant, messages
@@ -112,9 +113,9 @@ class SecurityService:
     @asynccontextmanager
     async def _operation(self):
         if self._phase != "ready":
-            raise SecurityException("closed")
+            raise SecurityException(SecurityErrorCodes.CLOSED)
         if ApplicationContext.current() is not self.context.application:
-            raise SecurityException("configuration")
+            raise SecurityException(SecurityErrorCodes.CONFIGURATION)
         self._active += 1
         self._idle.clear()
         try:
@@ -131,16 +132,16 @@ class SecurityService:
         except SecurityException:
             raise
         except BaseBusinessException as error:
-            if 400 <= error.http_status < 500:
+            if not error.is_system_error:
                 raise
-            raise SecurityException("unavailable", cause=error) from error
+            raise SecurityException(SecurityErrorCodes.UNAVAILABLE, cause=error) from error
         except Exception as error:
-            raise SecurityException("unavailable", cause=error) from error
+            raise SecurityException(SecurityErrorCodes.UNAVAILABLE, cause=error) from error
 
     def _domain(self, policy: RoutePolicy) -> str:
         domain = self.settings.default_domain if policy.domain is None else policy.domain
         if domain not in self.settings.domains:
-            raise SecurityException("configuration")
+            raise SecurityException(SecurityErrorCodes.CONFIGURATION)
         return domain
 
     async def _lookup(self, token: str, domain: str) -> LoginSession:
@@ -153,13 +154,13 @@ class SecurityService:
             )
         )
         if session is None:
-            raise SecurityException("invalid")
+            raise SecurityException(SecurityErrorCodes.INVALID)
         if not isinstance(session, LoginSession):
-            raise SecurityException("configuration")
+            raise SecurityException(SecurityErrorCodes.CONFIGURATION)
         if session.application_id != self.settings.application_id or session.domain != domain:
-            raise SecurityException("invalid")
+            raise SecurityException(SecurityErrorCodes.INVALID)
         if not hmac.compare_digest(session.token_digest, digest):
-            raise SecurityException("invalid")
+            raise SecurityException(SecurityErrorCodes.INVALID)
         return session
 
     async def _resolve(self, token: str, domain: str) -> LoginSession:
@@ -169,17 +170,17 @@ class SecurityService:
 
     def _validate(self, session: LoginSession, domain: str) -> None:
         if not isinstance(session, LoginSession):
-            raise SecurityException("configuration")
+            raise SecurityException(SecurityErrorCodes.CONFIGURATION)
         if session.application_id != self.settings.application_id or session.domain != domain:
-            raise SecurityException("invalid")
+            raise SecurityException(SecurityErrorCodes.INVALID)
         if session.expires_at <= datetime.now(timezone.utc):
-            raise SecurityException("expired")
+            raise SecurityException(SecurityErrorCodes.EXPIRED)
         if session.revoked:
-            raise SecurityException("revoked")
+            raise SecurityException(SecurityErrorCodes.REVOKED)
         if not session.account_enabled:
-            raise SecurityException("disabled")
+            raise SecurityException(SecurityErrorCodes.DISABLED)
         if session.credential_revision != session.current_credential_revision:
-            raise SecurityException("credentials")
+            raise SecurityException(SecurityErrorCodes.CREDENTIALS)
 
     @staticmethod
     def binding(session: LoginSession) -> str:
@@ -233,7 +234,7 @@ class SecurityService:
         try:
             snapshot = PermissionSnapshot.model_validate_json(json.dumps(value))
         except (TypeError, ValueError) as error:
-            raise SecurityException("unavailable", cause=error) from error
+            raise SecurityException(SecurityErrorCodes.UNAVAILABLE, cause=error) from error
         self._validate_snapshot(snapshot, session, binding)
         return snapshot
 
@@ -244,7 +245,7 @@ class SecurityService:
             or snapshot.binding != binding
             or snapshot.revision != session.authorization_revision
         ):
-            raise SecurityException("unavailable")
+            raise SecurityException(SecurityErrorCodes.UNAVAILABLE)
 
     async def invalidate_permissions(self, session: LoginSession) -> None:
         """删除明确版本的缓存；版本推进由业务与权限变更原子提交。"""
@@ -253,7 +254,7 @@ class SecurityService:
                 session.application_id != self.settings.application_id
                 or session.domain not in self.settings.domains
             ):
-                raise SecurityException("invalid")
+                raise SecurityException(SecurityErrorCodes.INVALID)
             if self.settings.permission_cache_enabled:
                 await self._call(
                     lambda: self.cache.delete(
@@ -270,20 +271,22 @@ class SecurityService:
             or policy.tenant_required
             or policy.required_capability is not None
         ) and self._tenant is None:
-            raise SecurityException("configuration")
+            raise SecurityException(SecurityErrorCodes.CONFIGURATION)
         if policy.required_capability is not None and not self._tenant.supports(
             policy.required_capability
         ):
-            raise SecurityException("configuration")
+            raise SecurityException(SecurityErrorCodes.CONFIGURATION)
 
     async def _check_policy(self, session: LoginSession, policy: RoutePolicy, *, snapshot=None):
         self.validate_policy(policy)
         if not policy.requires_identity:
-            raise SecurityException("configuration")
+            raise SecurityException(SecurityErrorCodes.CONFIGURATION)
         if policy.realm is not None and session.realm is not policy.realm:
-            raise SecurityException("denied")
+            raise SecurityException(
+                SecurityErrorCodes.DENIED, detail=f"会话域不匹配：要求 {policy.realm.value}"
+            )
         if policy.tenant_required and session.tenant_id is None:
-            raise SecurityException("denied")
+            raise SecurityException(SecurityErrorCodes.DENIED, detail="该接口要求租户上下文")
         if session.realm is SecurityRealm.TENANT:
             allowed = (
                 policy.allowed_tenant_access_modes
@@ -291,29 +294,37 @@ class SecurityService:
                 else frozenset({TenantAccessMode.DIRECT_MEMBERSHIP})
             )
             if session.access_mode not in allowed:
-                raise SecurityException("denied")
+                raise SecurityException(SecurityErrorCodes.DENIED, detail="租户访问模式不允许")
         if session.realm is SecurityRealm.SUPPORT and (
             policy.realm is not SecurityRealm.SUPPORT
             or session.approved_resource != policy.required_support_resource
             or session.approved_action != policy.required_support_action
         ):
-            raise SecurityException("denied")
+            raise SecurityException(SecurityErrorCodes.DENIED, detail="支撑会话不允许访问该资源")
         if (
             policy.required_entitlement is not None
             and policy.required_entitlement not in session.effective_capabilities
         ):
-            raise SecurityException("denied")
+            raise SecurityException(
+                SecurityErrorCodes.DENIED, detail=f"缺少所需能力：{policy.required_entitlement}"
+            )
         if not self._matches(session.scopes, policy.scopes, policy.scope_mode):
-            raise SecurityException("denied")
+            raise SecurityException(
+                SecurityErrorCodes.DENIED, detail=f"授权范围不足：需要 {' '.join(policy.scopes)}"
+            )
         if policy.permissions or policy.roles:
             snapshot = await self._snapshot(session) if snapshot is None else snapshot
             check = (
                 PermissionPolicy.all if policy.permission_mode == "all" else PermissionPolicy.any
             )
             if policy.permissions and not check(snapshot.permissions, policy.permissions):
-                raise SecurityException("denied")
+                raise SecurityException(
+                    SecurityErrorCodes.DENIED, detail=f"缺少权限：{','.join(policy.permissions)}"
+                )
             if not self._matches(snapshot.roles, policy.roles, policy.role_mode):
-                raise SecurityException("denied")
+                raise SecurityException(
+                    SecurityErrorCodes.DENIED, detail=f"缺少角色：{','.join(policy.roles)}"
+                )
 
     @staticmethod
     def _matches(granted, required, mode):
@@ -331,7 +342,7 @@ class SecurityService:
         self.context._install(session)
         if session.tenant_id is not None:
             if self._tenant is None:
-                raise SecurityException("configuration")
+                raise SecurityException(SecurityErrorCodes.CONFIGURATION)
             async with self._tenant_scope(self._tenant.enter(session, policy)):
                 await self._check_policy(session, policy)
                 async with self._data_scope(session):
@@ -354,7 +365,7 @@ class SecurityService:
     async def _tenant_scope(self, manager):
         # Tenant 独占准入与隔离；Security 保护完整退出，不允许其吞掉业务异常。
         if manager is None:
-            raise SecurityException("configuration")
+            raise SecurityException(SecurityErrorCodes.CONFIGURATION)
         await self._call(manager.__aenter__)
         primary = None
         try:
@@ -427,12 +438,12 @@ class SecurityService:
                         )
                     )
                     if current is None:
-                        raise SecurityException("invalid")
+                        raise SecurityException(SecurityErrorCodes.INVALID)
                     self._validate(current, domain)
                     if not hmac.compare_digest(
                         current.token_digest, session.token_digest
                     ) or self.session_version(current) != self.session_version(session):
-                        raise SecurityException("invalid")
+                        raise SecurityException(SecurityErrorCodes.INVALID)
                     session = current
                     async with self._authorized_session(session, policy):
                         return await callback(session, *args, **kwargs)
@@ -467,14 +478,14 @@ class SecurityService:
         async with self._operation():
             session = await self._live_current()
             if self.session_version(session) != self.session_version(self.context.require()):
-                raise SecurityException("invalid")
+                raise SecurityException(SecurityErrorCodes.INVALID)
             snapshot = await self._snapshot(session)
             allowed = set()
             for key, policy in policies.items():
                 try:
                     await self._check_policy(session, policy, snapshot=snapshot)
                 except SecurityException as error:
-                    if error.reason != "denied":
+                    if error.error_code is not SecurityErrorCodes.DENIED:
                         raise
                 else:
                     allowed.add(key)
@@ -501,12 +512,12 @@ class SecurityService:
             )
         )
         if latest is None:
-            raise SecurityException("invalid")
+            raise SecurityException(SecurityErrorCodes.INVALID)
         self._validate(latest, current.domain)
         if latest.token_digest != current.token_digest or self.binding(latest) != self.binding(
             current
         ):
-            raise SecurityException("invalid")
+            raise SecurityException(SecurityErrorCodes.INVALID)
         return latest
 
     async def has_permissions(self, *permissions: str, any_of: bool = False) -> bool:
@@ -541,22 +552,26 @@ class SecurityService:
             session = await self._live_current()
             member = enum_class.get_by_code(code)
             if member is None:
-                raise SecurityException("denied")
+                raise SecurityException(
+                    SecurityErrorCodes.DENIED, detail=f"未登记的权限枚举：{code}"
+                )
             permission = member.permission
             if permission is not None:
                 snapshot = await self._snapshot(session)
                 if not PermissionPolicy.all(snapshot.permissions, (permission,)):
-                    raise SecurityException("denied")
+                    raise SecurityException(
+                        SecurityErrorCodes.DENIED, detail=f"缺少权限：{permission}"
+                    )
 
     async def issue_message(self, payload: bytes, *, audience: str) -> bytes:
         async with self._operation():
             session = self.context.require()
             if session.realm is not SecurityRealm.TENANT:
-                raise SecurityException("denied")
+                raise SecurityException(SecurityErrorCodes.DENIED, detail="仅租户会话可签发消息")
             if self._messages is None or not audience:
-                raise SecurityException("configuration")
+                raise SecurityException(SecurityErrorCodes.CONFIGURATION)
             if not isinstance(payload, bytes):
-                raise SecurityException("invalid")
+                raise SecurityException(SecurityErrorCodes.INVALID)
             return await self._call(
                 lambda: self._messages.issue(session, payload, audience=audience)
             )
@@ -575,13 +590,13 @@ class SecurityService:
             async with self._operation():
                 with self.context._scope():
                     if self._messages is None or not audience:
-                        raise SecurityException("configuration")
+                        raise SecurityException(SecurityErrorCodes.CONFIGURATION)
                     if (
                         not isinstance(proof, bytes)
                         or not 1 <= len(proof) <= 65536
                         or not isinstance(payload, bytes)
                     ):
-                        raise SecurityException("invalid")
+                        raise SecurityException(SecurityErrorCodes.INVALID)
                     domain = self._domain(policy)
                     session = await self._call(
                         lambda: self._messages.verify(
@@ -594,7 +609,9 @@ class SecurityService:
                     )
                     self._validate(session, domain)
                     if session.realm is not SecurityRealm.TENANT:
-                        raise SecurityException("denied")
+                        raise SecurityException(
+                            SecurityErrorCodes.DENIED, detail="仅租户会话可消费消息"
+                        )
                     async with self._authorized_session(session, policy):
                         return await callback(payload, *args, **kwargs)
 
@@ -607,11 +624,13 @@ class SecurityService:
         async with self._operation():
             identity = self.context.current_workload()
             if identity is None or capability not in identity.capabilities:
-                raise SecurityException("denied")
+                raise SecurityException(
+                    SecurityErrorCodes.DENIED, detail=f"服务身份缺少该能力：{capability}"
+                )
             if self._messages is None or not audience:
-                raise SecurityException("configuration")
+                raise SecurityException(SecurityErrorCodes.CONFIGURATION)
             if not isinstance(payload, bytes):
-                raise SecurityException("invalid")
+                raise SecurityException(SecurityErrorCodes.INVALID)
             return await self._call(
                 lambda: self._messages.issue_workload(
                     identity,
@@ -638,13 +657,13 @@ class SecurityService:
             async with self._operation():
                 with self.context._scope():
                     if self._messages is None or not audience or not capability:
-                        raise SecurityException("configuration")
+                        raise SecurityException(SecurityErrorCodes.CONFIGURATION)
                     if (
                         not isinstance(proof, bytes)
                         or not 1 <= len(proof) <= 65536
                         or not isinstance(payload, bytes)
                     ):
-                        raise SecurityException("invalid")
+                        raise SecurityException(SecurityErrorCodes.INVALID)
                     selected_domain = self._domain(RoutePolicy(domain=domain))
                     message = await self._call(
                         lambda: self._messages.verify_workload(
@@ -656,9 +675,12 @@ class SecurityService:
                         )
                     )
                     if not isinstance(message, WorkloadMessage):
-                        raise SecurityException("configuration")
+                        raise SecurityException(SecurityErrorCodes.CONFIGURATION)
                     if message.capability != capability:
-                        raise SecurityException("denied")
+                        raise SecurityException(
+                            SecurityErrorCodes.DENIED,
+                            detail=f"消息能力不匹配：{message.capability}",
+                        )
                     self._validate_workload(message.identity, selected_domain, audience, capability)
                     identity = message.identity.model_copy(
                         update={"capabilities": frozenset({capability})}
@@ -670,17 +692,19 @@ class SecurityService:
 
     def _validate_workload(self, identity, domain, audience, capability):
         if not isinstance(identity, WorkloadIdentity):
-            raise SecurityException("configuration")
+            raise SecurityException(SecurityErrorCodes.CONFIGURATION)
         if (identity.application_id, identity.domain, identity.audience) != (
             self.settings.application_id,
             domain,
             audience,
         ):
-            raise SecurityException("invalid")
+            raise SecurityException(SecurityErrorCodes.INVALID)
         if identity.expires_at <= datetime.now(timezone.utc):
-            raise SecurityException("expired")
+            raise SecurityException(SecurityErrorCodes.EXPIRED)
         if capability not in identity.capabilities:
-            raise SecurityException("denied")
+            raise SecurityException(
+                SecurityErrorCodes.DENIED, detail=f"服务身份缺少该能力：{capability}"
+            )
 
     @asynccontextmanager
     async def _workload_scope(self, identity, capability):
@@ -690,7 +714,7 @@ class SecurityService:
                 yield
         else:
             if self._tenant is None:
-                raise SecurityException("configuration")
+                raise SecurityException(SecurityErrorCodes.CONFIGURATION)
             async with self._tenant_scope(self._tenant.enter_workload(identity, capability)):
                 async with self._data_scope(identity):
                     yield
@@ -703,7 +727,7 @@ class SecurityService:
         async with self._operation():
             with self.context._scope():
                 if self._workloads is None or not source or not capability:
-                    raise SecurityException("configuration")
+                    raise SecurityException(SecurityErrorCodes.CONFIGURATION)
                 selected_domain = self._domain(RoutePolicy(domain=domain))
                 identity = await self._call(
                     lambda: self._workloads.authenticate(
@@ -716,7 +740,7 @@ class SecurityService:
                 )
                 self._validate_workload(identity, selected_domain, source, capability)
                 if identity.tenant_id != tenant_id:
-                    raise SecurityException("invalid")
+                    raise SecurityException(SecurityErrorCodes.INVALID)
                 async with self._workload_scope(identity, capability):
                     yield identity
 
@@ -736,7 +760,7 @@ class SecurityService:
             async with self._operation():
                 with self.context._scope():
                     if self._workloads is None or not source or not capability:
-                        raise SecurityException("configuration")
+                        raise SecurityException(SecurityErrorCodes.CONFIGURATION)
                     selected_domain = self._domain(RoutePolicy(domain=domain))
                     identity = await self._call(
                         lambda: self._workloads.authenticate(
@@ -749,7 +773,7 @@ class SecurityService:
                     )
                     self._validate_workload(identity, selected_domain, source, capability)
                     if identity.tenant_id != tenant_id:
-                        raise SecurityException("invalid")
+                        raise SecurityException(SecurityErrorCodes.INVALID)
                     async with self._workload_scope(identity, capability):
                         return await callback(*args, **kwargs)
 

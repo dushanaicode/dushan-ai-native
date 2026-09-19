@@ -1,7 +1,9 @@
 from framework.starter_cache.core.cache_key_registry import CacheKeyRegistry
 from framework.starter_cache.core.cache_key_resolver import CacheKeyResolver
-from framework.starter_di.decorators.components import util
-from framework.starter_di.decorators.inject import Inject
+from framework.starter_di.public import (
+    Inject,
+    util,
+)
 
 
 @util

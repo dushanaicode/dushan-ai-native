@@ -1,6 +1,6 @@
 from typing import Any
 
-from framework.common.schemas.base_bo import BaseBO
+from framework.common.schemas import BaseBO
 from module_system.dal.dataobject.mail.mail_account_do import MailAccountDO
 from module_system.dal.dataobject.mail.mail_template_do import MailTemplateDO
 

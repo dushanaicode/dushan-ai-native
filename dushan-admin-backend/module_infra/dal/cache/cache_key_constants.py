@@ -1,7 +1,7 @@
-from framework.starter_cache.enums.cache_namespace import CacheNamespace
-from framework.starter_cache.model.cache_key import CacheKey
-from framework.starter_cache.model.cache_key_container import CacheKeyContainer
-from framework.starter_di.decorators.components import framework
+from framework.starter_cache.public import CacheKey, CacheKeyContainer, CacheNamespace
+from framework.starter_di.public import (
+    framework,
+)
 
 
 @framework(providers=[CacheKeyContainer])

@@ -1,19 +1,23 @@
 from fastapi import APIRouter, Depends, Query
 
-from framework.common.contracts.snowflake_id import SnowflakeIdStr
-from framework.common.page.schemas.page_result import PageResult
-from framework.common.schemas.request.id_list_req_vo import IdListReqVO
-from framework.starter_di.decorators.di_dependency import DiDependency
-from framework.starter_security.enums.security_realm import SecurityRealm
-from framework.starter_web.response.result import Result
-from framework.starter_web.routing.route_policy import RoutePolicy
+from framework.common.contracts import SnowflakeIdStr
+from framework.common.page import PageResult
+from framework.common.schemas.request import IdListReqVO, IdReqVO, UpdateStatusReqVO
+from framework.starter_di.public import (
+    DiDependency,
+)
+from framework.starter_security.public import (
+    SecurityRealm,
+)
+from framework.starter_web.public import (
+    Result,
+    RoutePolicy,
+)
 from module_system.controller.admin.notification.vo.notice.notice_page_req_vo import NoticePageReqVO
 from module_system.controller.admin.notification.vo.notice.notice_resp_vo import NoticeRespVO
 from module_system.controller.admin.notification.vo.notice.notice_save_req_vo import NoticeSaveReqVO
 from module_system.controller.admin.notification.vo.notice.notice_send_req_vo import NoticeSendReqVO
 from module_system.dal.dataobject.notification.notice_do import NoticeDO
-from module_system.definitions.vo.id_req_vo import IdReqVO
-from module_system.definitions.vo.update_status_req_vo import UpdateStatusReqVO
 from module_system.service.notification.notice_service import NoticeService
 
 notice_controller = APIRouter(prefix="/notification", tags=["System - 系统通知管理"])

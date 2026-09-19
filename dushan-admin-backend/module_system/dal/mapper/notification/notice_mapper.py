@@ -2,10 +2,14 @@ from __future__ import annotations
 
 from sqlalchemy import func, or_, select
 
-from framework.common.page.schemas.page_result import PageResult
-from framework.common.utils.str.str_utils import StrUtils
-from framework.starter_database.repository.base_mapper import BaseMapper
-from framework.starter_di.decorators.components import mapper
+from framework.common.page import PageResult
+from framework.common.utils import StrUtils
+from framework.starter_database.public import (
+    BaseMapper,
+)
+from framework.starter_di.public import (
+    mapper,
+)
 from module_system.controller.admin.notification.vo.notice.notice_page_req_vo import NoticePageReqVO
 from module_system.dal.dataobject.notification.notice_do import NoticeDO
 

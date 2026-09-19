@@ -2,7 +2,7 @@ from typing import Annotated
 
 from pydantic import Field
 
-from framework.common.schemas.base_request_vo import BaseRequestVO
+from framework.common.schemas import BaseRequestVO
 from module_infra.controller.admin.codegen.vo.codegen_column_update_req_vo import (
     CodegenColumnUpdateReqVO,
 )

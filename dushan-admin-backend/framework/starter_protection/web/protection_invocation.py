@@ -4,7 +4,7 @@ from collections.abc import Callable
 from starlette.requests import Request
 
 from framework.starter_protection.core.protection_service import ProtectionService
-from framework.starter_protection.exception.protection_error_codes import (
+from framework.starter_protection.definitions.constants.protection_error_codes import (
     ProtectionErrorCodes as Codes,
 )
 from framework.starter_protection.exception.protection_exception import ProtectionException

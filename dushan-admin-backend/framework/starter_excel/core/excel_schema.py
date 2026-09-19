@@ -5,8 +5,8 @@ from typing import Any, get_args
 
 from pydantic import BaseModel
 
-from framework.starter_excel.exception.excel_error import ExcelError
-from framework.starter_excel.exception.excel_error_codes import ExcelErrorCodes
+from framework.starter_excel.definitions.constants.excel_error_codes import ExcelErrorCodes
+from framework.starter_excel.exception.excel_exception import ExcelException
 from framework.starter_excel.model.excel_column import ExcelColumn
 
 
@@ -34,20 +34,20 @@ class ExcelSchema:
             if not metadata:
                 continue
             if len(metadata) != 1:
-                raise ExcelError(ExcelErrorCodes.CONFIG, f"字段 {name} 重复声明 ExcelColumn")
+                raise ExcelException(ExcelErrorCodes.CONFIG, f"字段 {name} 重复声明 ExcelColumn")
             column = metadata[0]
             if (
                 not column.title.strip()
                 or column.title != column.title.strip()
                 or column.title in titles
             ):
-                raise ExcelError(ExcelErrorCodes.CONFIG, "Excel 列名必须唯一、非空且无首尾空白")
+                raise ExcelException(ExcelErrorCodes.CONFIG, "Excel 列名必须唯一、非空且无首尾空白")
             if column.options is not None and len(set(column.options)) != len(column.options):
-                raise ExcelError(ExcelErrorCodes.CONFIG, "Excel 静态下拉选项不能重复")
+                raise ExcelException(ExcelErrorCodes.CONFIG, "Excel 静态下拉选项不能重复")
             titles.add(column.title)
             self.columns[name] = column
         if not self.columns:
-            raise ExcelError(ExcelErrorCodes.CONFIG, "模型未声明 ExcelColumn 元数据")
+            raise ExcelException(ExcelErrorCodes.CONFIG, "模型未声明 ExcelColumn 元数据")
 
     def export_columns(self, fields: list[str] | None = None) -> dict[str, ExcelColumn]:
         """只允许声明且可导出的字段；未知或禁止字段明确失败，不静默忽略。"""
@@ -62,10 +62,10 @@ class ExcelSchema:
         }
         if fields is not None:
             if len(fields) != len(set(fields)) or set(fields) - allowed.keys():
-                raise ExcelError(ExcelErrorCodes.CONFIG, "导出字段包含重复、未知或禁止的字段")
+                raise ExcelException(ExcelErrorCodes.CONFIG, "导出字段包含重复、未知或禁止的字段")
             allowed = {name: column for name, column in allowed.items() if name in fields}
         if not allowed:
-            raise ExcelError(ExcelErrorCodes.CONFIG, "没有可导出的字段")
+            raise ExcelException(ExcelErrorCodes.CONFIG, "没有可导出的字段")
         return allowed
 
     def export_fields(self) -> list[dict[str, str]]:

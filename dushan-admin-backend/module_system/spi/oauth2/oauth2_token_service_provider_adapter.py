@@ -1,6 +1,10 @@
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
-from framework.starter_security.spi.token_provider import TokenProvider
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
+from framework.starter_security.public import (
+    TokenProvider,
+)
 from module_system.service.oauth2.oauth2_token_service import OAuth2TokenService
 
 

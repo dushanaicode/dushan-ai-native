@@ -39,9 +39,9 @@ from framework.starter_mq.decorators.message_interceptor import message_intercep
 from framework.starter_mq.handler.message_handler import MessageHandler
 from framework.starter_mq.model.consumer_definition import ConsumerDefinition
 from framework.starter_mq.model.retry_policy import RetryPolicy
-from framework.starter_mq.enums.message_mode import MessageMode
-from framework.starter_mq.enums.exhausted_policy import ExhaustedPolicy
-from framework.starter_mq.enums.tenant_policy import TenantPolicy
+from framework.starter_mq.definitions.enums.message_mode import MessageMode
+from framework.starter_mq.definitions.enums.exhausted_policy import ExhaustedPolicy
+from framework.starter_mq.definitions.enums.tenant_policy import TenantPolicy
 from framework.starter_mq.exception.message_rejected import MessageRejected
 from framework.starter_mq.exception.message_result_unknown import MessageResultUnknown
 from framework.starter_mq.spi.consume_record_provider import ConsumeRecordProvider
@@ -56,6 +56,7 @@ from framework.starter_security.spi.message_security_provider import MessageSecu
 from framework.starter_security.model.workload_identity import WorkloadIdentity
 from framework.starter_security.model.workload_message import WorkloadMessage
 from framework.starter_security.exception.security_exception import SecurityException
+from framework.starter_security.definitions.constants.security_error_codes import SecurityErrorCodes
 from framework.starter_web.routing.route_policy import RoutePolicy
 
 tag=ContextVar("mq_test_tag",default=None)
@@ -85,7 +86,7 @@ class External(ExternalMessageAuthenticator):
             if not hmac.compare_digest(signature,hmac.new(self.SECRET,body,hashlib.sha256).hexdigest().encode()): raise ValueError()
             return MessageEnvelope.model_validate_json(body)
         except (ValueError,TypeError) as error:
-            raise MQException("authentication") from error
+            raise MQException(MQErrorCodes.AUTHENTICATION) from error
 
 definition=ConsumerDefinition(key="controlled",destination="events",mode=MessageMode("__MODE__"),
     message=Payload,group=__GROUP__,retry=RetryPolicy(count=__RETRIES__,delay_seconds=0.2,backoff=2,max_delay_seconds=0.8),
@@ -150,13 +151,13 @@ class Tokens(TokenProvider):
     async def resolve(self,*args,**kwargs): return None
 @service(interface=PermissionProvider)
 class Permissions(PermissionProvider):
-    async def snapshot(self,*args,**kwargs): raise SecurityException("denied")
+    async def snapshot(self,*args,**kwargs): raise SecurityException(SecurityErrorCodes.DENIED)
 @service(interface=WorkloadProvider)
 class Workloads(WorkloadProvider):
     def __init__(self,probe: Probe): self.probe=probe
     async def authenticate(self,source,*,application_id,domain,capability,tenant_id):
         if self.probe.revoked or (source,capability) not in (("mq-test","mq:test"),("mq.outbox","mq:dispatch")):
-            raise SecurityException("denied")
+            raise SecurityException(SecurityErrorCodes.DENIED)
         return WorkloadIdentity(application_id=application_id,domain=domain,service_id=source,
             tenant_id=tenant_id,audience=source,capabilities=frozenset((capability,)),
             expires_at=datetime.now(UTC)+timedelta(minutes=5))
@@ -173,28 +174,28 @@ class Proofs(MessageSecurityProvider):
     def parse(cls,proof):
         encoded,signature=proof.split(b".")
         data=base64.b64decode(encoded,validate=True)
-        if not hmac.compare_digest(hmac.new(cls.SECRET,data,hashlib.sha256).hexdigest().encode(),signature): raise SecurityException("invalid")
+        if not hmac.compare_digest(hmac.new(cls.SECRET,data,hashlib.sha256).hexdigest().encode(),signature): raise SecurityException(SecurityErrorCodes.INVALID)
         return json.loads(data)
     async def issue_workload(self,identity,payload,*,audience,capability):
-        if capability not in identity.capabilities: raise SecurityException("denied")
+        if capability not in identity.capabilities: raise SecurityException(SecurityErrorCodes.DENIED)
         value=identity.model_dump(mode="json"); value["audience"]=audience
         return self.sign(dict(identity=value,capability=capability,body=hashlib.sha256(payload).hexdigest()))
     async def verify_workload(self,proof,payload,*,application_id,domain,audience):
-        if self.probe.auth_failure: raise SecurityException("unavailable")
-        if self.probe.revoked: raise SecurityException("revoked")
+        if self.probe.auth_failure: raise SecurityException(SecurityErrorCodes.UNAVAILABLE)
+        if self.probe.revoked: raise SecurityException(SecurityErrorCodes.REVOKED)
         value=self.parse(proof)
-        if value["body"]!=hashlib.sha256(payload).hexdigest(): raise SecurityException("invalid")
+        if value["body"]!=hashlib.sha256(payload).hexdigest(): raise SecurityException(SecurityErrorCodes.INVALID)
         identity=WorkloadIdentity.model_validate_json(json.dumps(value["identity"]))
-        if (identity.application_id,identity.domain,identity.audience)!=(application_id,domain,audience): raise SecurityException("invalid")
-        if identity.service_id!="mq-test" or value["capability"]!="mq:test": raise SecurityException("denied")
+        if (identity.application_id,identity.domain,identity.audience)!=(application_id,domain,audience): raise SecurityException(SecurityErrorCodes.INVALID)
+        if identity.service_id!="mq-test" or value["capability"]!="mq:test": raise SecurityException(SecurityErrorCodes.DENIED)
         return WorkloadMessage(identity=identity,capability=value["capability"])
     async def issue(self,session,payload,*,audience):
         return self.sign(dict(session=session.model_dump(mode="json"),body=hashlib.sha256(payload).hexdigest(),audience=audience))
     async def verify(self,proof,payload,*,application_id,domain,audience):
         value=self.parse(proof)
-        if value["body"]!=hashlib.sha256(payload).hexdigest() or value["audience"]!=audience: raise SecurityException("invalid")
+        if value["body"]!=hashlib.sha256(payload).hexdigest() or value["audience"]!=audience: raise SecurityException(SecurityErrorCodes.INVALID)
         current=await self.tokens.resolve(value["session"]["token_digest"],application_id=application_id,domain=domain)
-        if current is None or current.model_dump(mode="json")!=value["session"]: raise SecurityException("invalid")
+        if current is None or current.model_dump(mode="json")!=value["session"]: raise SecurityException(SecurityErrorCodes.INVALID)
         return current
 """
 
@@ -291,6 +292,7 @@ async def mq_case(mq_backend, mq_options, module_package, config_dir, tmp_path):
     if mq_options.get("second_consumer"):
         source += """
 from dataclasses import replace
+from framework.starter_mq.definitions.constants.mq_error_codes import MQErrorCodes
 second_definition=replace(definition,key="secondary",destination="other",group="secondary-workers" if definition.group else None)
 @consumer(second_definition)
 class Secondary(Controlled):

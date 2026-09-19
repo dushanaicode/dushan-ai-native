@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from sqlalchemy import Table, inspect
 from sqlalchemy.orm import Mapper
 
-from framework.starter_tenant.enums.tenant_model_kind import TenantModelKind
+from framework.starter_tenant.definitions.enums.tenant_model_kind import TenantModelKind
 
 
 @dataclass(frozen=True, slots=True)

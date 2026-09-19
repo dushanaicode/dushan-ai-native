@@ -1,12 +1,18 @@
 from fastapi import APIRouter, Depends, Query
 
-from framework.common.contracts.snowflake_id import SnowflakeIdStr
-from framework.common.page.schemas.page_result import PageResult
-from framework.common.schemas.request.id_list_req_vo import IdListReqVO
-from framework.starter_di.decorators.di_dependency import DiDependency
-from framework.starter_security.enums.security_realm import SecurityRealm
-from framework.starter_web.response.result import Result
-from framework.starter_web.routing.route_policy import RoutePolicy
+from framework.common.contracts import SnowflakeIdStr
+from framework.common.page import PageResult
+from framework.common.schemas.request import IdListReqVO, IdReqVO, UpdateStatusReqVO
+from framework.starter_di.public import (
+    DiDependency,
+)
+from framework.starter_security.public import (
+    SecurityRealm,
+)
+from framework.starter_web.public import (
+    Result,
+    RoutePolicy,
+)
 from module_system.api.social.dto.social_wxa_subscribe_message_send_req_dto import (
     SocialWxaSubscribeMessageSendReqDTO,
 )
@@ -22,8 +28,6 @@ from module_system.controller.admin.social.vo.client.subscribe_message_send_req_
     SubscribeMessageSendReqVO,
 )
 from module_system.dal.dataobject.social.social_client_do import SocialClientDO
-from module_system.definitions.vo.id_req_vo import IdReqVO
-from module_system.definitions.vo.update_status_req_vo import UpdateStatusReqVO
 from module_system.service.social.social_client_service import SocialClientService
 
 social_client_controller = APIRouter(prefix="/social/client", tags=["System - 社交客户端管理"])

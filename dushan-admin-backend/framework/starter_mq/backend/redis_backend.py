@@ -6,7 +6,8 @@ from uuid import uuid4
 from redis.exceptions import ResponseError
 
 from framework.starter_mq.backend.message_backend import MessageBackend
-from framework.starter_mq.enums.message_mode import MessageMode
+from framework.starter_mq.definitions.constants.mq_error_codes import MQErrorCodes
+from framework.starter_mq.definitions.enums.message_mode import MessageMode
 from framework.starter_mq.exception.mq_exception import MQException
 from framework.starter_mq.model.delivery import Delivery
 
@@ -116,7 +117,7 @@ return 1
             self._ADD, 1, self.stream(destination), body, self.settings.stream_max_length
         )
         if entry is None:
-            raise MQException("capacity")
+            raise MQException(MQErrorCodes.CAPACITY)
         return "stream_entry", entry
 
     async def retry(self, definition, envelope, body):
@@ -129,7 +130,7 @@ return 1
             self.settings.retry_max_length,
         )
         if accepted != 1:
-            raise MQException("capacity")
+            raise MQException(MQErrorCodes.CAPACITY)
 
     async def dead_letter(self, definition, body):
         key = self.dlq(definition)
@@ -148,7 +149,7 @@ return 1
             self.settings.dead_letter_retention_seconds,
         )
         if not entry:
-            raise MQException("confirmation")
+            raise MQException(MQErrorCodes.CONFIRMATION)
 
     def messages(self, definition, prefetch):
         return (
@@ -163,7 +164,7 @@ return 1
         await subscription.subscribe(self.channel(definition.destination))
         confirmation = await subscription.get_message(timeout=self.settings.command_timeout_seconds)
         if confirmation is None or confirmation["type"] != "subscribe":
-            raise MQException("confirmation")
+            raise MQException(MQErrorCodes.CONFIRMATION)
         subscription.ignore_subscribe_messages = True
         self.ready[definition.key].set()
         try:

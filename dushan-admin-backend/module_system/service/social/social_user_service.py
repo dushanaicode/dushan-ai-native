@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from framework.common.page.schemas.page_result import PageResult
+from framework.common.page import PageResult
 from module_system.api.social.dto.social_user_bind_req_dto import SocialUserBindReqDTO
 from module_system.api.social.dto.social_user_resp_dto import SocialUserRespDTO
 from module_system.controller.admin.social.vo.user.user_page_req_vo import SocialUserPageReqVO

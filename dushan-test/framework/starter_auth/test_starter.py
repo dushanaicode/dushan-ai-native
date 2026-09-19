@@ -5,7 +5,7 @@ from fixtures.public_web_app import create_public_app
 from framework.starter_auth.config.configured_auth_clients import ConfiguredAuthClients
 from framework.starter_auth.core.auth_provider_registry import AuthProviderRegistry
 from framework.starter_auth.core.auth_service import AuthService
-from framework.starter_auth.exception.auth_error_codes import AuthErrorCodes as Codes
+from framework.starter_auth.definitions.constants.auth_error_codes import AuthErrorCodes as Codes
 from framework.starter_auth.exception.auth_exception import AuthException
 from framework.starter_auth.starter.auth_starter import AuthStarter
 from framework.starter_cache.lock.distributed_lock import DistributedLock

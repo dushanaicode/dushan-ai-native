@@ -10,5 +10,6 @@
   "cache.invalid_cache_key": "缓存键声明无效",
   "cache.lock_acquire_failed": "无法获取分布式锁",
   "cache.lock_release_failed": "释放分布式锁失败",
+  "cache.lock_contended": "分布式锁竞争未获取",
   "cache.operation_failed": "缓存操作失败"
 }

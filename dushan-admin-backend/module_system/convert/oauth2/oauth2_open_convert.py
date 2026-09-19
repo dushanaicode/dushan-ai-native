@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from framework.common.datetime.core.date_utils import DateUtils
+from framework.common.dates import DateUtils
 from module_system.api.oauth2.dto.oauth2_access_token_resp_dto import OAuth2AccessTokenRespDTO
 from module_system.api.oauth2.dto.oauth2_client_dto import OAuth2ClientDTO
 from module_system.controller.admin.oauth2.vo.open.client import Client

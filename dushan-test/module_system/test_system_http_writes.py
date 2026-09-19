@@ -6,7 +6,10 @@ from fastapi.routing import APIRoute, _iter_routes_with_context
 from httpx import ASGITransport, AsyncClient
 
 from framework.starter_security.core.security_service import SecurityService
-from framework.starter_security.enums.security_realm import SecurityRealm
+from framework.starter_security.definitions.constants.security_error_codes import (
+    SecurityErrorCodes,
+)
+from framework.starter_security.definitions.enums.security_realm import SecurityRealm
 from framework.starter_web.routing.route_policy import RoutePolicy
 from module_system.dal.mapper.notification.notice_mapper import NoticeMapper
 from module_system.framework.sms.client.providers.aliyun_sms_client import AliyunSmsClient
@@ -229,7 +232,7 @@ async def test_crud_and_batch_delete_keep_unselected_rows(
         denied = (
             await public.delete(path + "/delete-list", params=[("ids", item) for item in ids[:2]])
         ).json()
-        assert denied["code"] == 401, (domain, denied)
+        assert denied["code"] == SecurityErrorCodes.MISSING.code, (domain, denied)
     for params in ({}, {"ids": ",".join(ids)}, [("ids", ids[0]), ("ids", "invalid")]):
         invalid = (await admin_client.delete(path + "/delete-list", params=params)).json()
         assert invalid["code"] == 422, (domain, invalid)
@@ -272,7 +275,7 @@ async def test_batch_token_revoke_only_selected_sessions(admin_client, system_ap
         assert len(ids) == 3
         path = "/admin-api/system/oauth2/token/delete-list"
         denied = (await user.delete(path, params={"ids": ids[0]})).json()
-        assert denied["code"] == 401, denied
+        assert denied["code"] == SecurityErrorCodes.MISSING.code, denied
         for params in ({}, {"ids": ",".join(ids)}, {"ids": "invalid"}):
             invalid = (await admin_client.delete(path, params=params)).json()
             assert invalid["code"] == 422, invalid
@@ -280,7 +283,15 @@ async def test_batch_token_revoke_only_selected_sessions(admin_client, system_ap
             await admin_client.delete(path, params=[("ids", value) for value in ids[:2]])
         ).json()
         assert result["code"] == 0 and result["data"] == 2, result
-        for token, expected in zip(tokens, (401, 401, 0), strict=True):
+        for token, expected in zip(
+            tokens,
+            (
+                SecurityErrorCodes.REVOKED.code,
+                SecurityErrorCodes.REVOKED.code,
+                0,
+            ),
+            strict=True,
+        ):
             response = (
                 await user.get(
                     "/admin-api/system/auth/codes", headers={"Authorization": "Bearer " + token}
@@ -442,6 +453,10 @@ async def test_all_protected_system_routes_reject_anonymous(system_app):
                 url = re.sub(r"\{[^}]+\}", "9223372036854775807", path)
                 for method in route.methods:
                     response = (await public.request(method, url, json={})).json()
-                    assert response["code"] == 401, (method, path, response)
+                    assert response["code"] == SecurityErrorCodes.MISSING.code, (
+                        method,
+                        path,
+                        response,
+                    )
                     checked += 1
     assert checked > 200

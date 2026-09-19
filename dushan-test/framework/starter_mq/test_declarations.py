@@ -6,9 +6,10 @@ from pydantic import BaseModel, ValidationError
 from fixtures.config_factory import ConfigFactory
 from framework.starter_mq.config.mq_settings import MQSettings
 from framework.starter_mq.core.consumer_registry import ConsumerRegistry
-from framework.starter_mq.enums.exhausted_policy import ExhaustedPolicy
-from framework.starter_mq.enums.message_mode import MessageMode
-from framework.starter_mq.enums.tenant_policy import TenantPolicy
+from framework.starter_mq.definitions.constants.mq_error_codes import MQErrorCodes
+from framework.starter_mq.definitions.enums.exhausted_policy import ExhaustedPolicy
+from framework.starter_mq.definitions.enums.message_mode import MessageMode
+from framework.starter_mq.definitions.enums.tenant_policy import TenantPolicy
 from framework.starter_mq.exception.mq_exception import MQException
 from framework.starter_mq.model.consumer_definition import ConsumerDefinition
 from framework.starter_mq.model.consumer_override import ConsumerOverride
@@ -59,7 +60,7 @@ def handler(declaration):
 def test_unsupported_semantics_rejected(changes):
     with pytest.raises(MQException) as failure:
         ConsumerRegistry(settings(), [handler(definition(**changes))])
-    assert failure.value.reason == "declaration"
+    assert failure.value.error_code is MQErrorCodes.DECLARATION
 
 
 def test_duplicate_key_and_different_keys_sharing_work_queue_rejected():

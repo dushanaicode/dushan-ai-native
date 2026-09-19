@@ -2,7 +2,9 @@ from loguru import logger
 
 from framework.starter_cache.exception.cache_exception import CacheException
 from framework.starter_captcha.core.captcha_service import CaptchaService
-from framework.starter_captcha.exception.captcha_error_codes import CaptchaErrorCodes as Codes
+from framework.starter_captcha.definitions.constants.captcha_error_codes import (
+    CaptchaErrorCodes as Codes,
+)
 from framework.starter_captcha.exception.captcha_exception import CaptchaException
 from framework.starter_di.decorators.components import starter
 

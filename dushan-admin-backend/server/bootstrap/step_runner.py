@@ -1,8 +1,8 @@
 from contextlib import asynccontextmanager, nullcontext
 
-from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
-from framework.starter_di.enums.lifecycle_phase_enum import LifecyclePhaseEnum
-from framework.starter_di.exception.di_error_codes import DiErrorCodes
+from framework.common.utils.cleanup_utils import CleanupUtils
+from framework.starter_di.definitions.constants.di_error_codes import DiErrorCodes
+from framework.starter_di.definitions.enums.lifecycle_phase_enum import LifecyclePhaseEnum
 from framework.starter_di.exception.di_exception import DiException
 
 

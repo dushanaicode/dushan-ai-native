@@ -1,7 +1,8 @@
 from contextlib import asynccontextmanager
 
-from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
+from framework.common.utils.cleanup_utils import CleanupUtils
 from framework.starter_job.config.job_settings import JobSettings
+from framework.starter_job.definitions.constants.job_error_codes import JobErrorCodes
 from framework.starter_job.exception.job_exception import JobException
 from framework.starter_job.starter.job_starter import JobStarter
 from server.config.application_settings import ApplicationSettings
@@ -21,7 +22,7 @@ class JobStep:
         application = definitions.application_context
         if application is None:
             if settings.enabled:
-                raise JobException("configuration")
+                raise JobException(JobErrorCodes.CONFIGURATION)
             ctx.logger.info("【JobStarter 】任务调度未启用")
             yield
             return

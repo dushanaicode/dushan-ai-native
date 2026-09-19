@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 from framework.starter_di.decorators.components import framework
 from framework.starter_mq.core.backend_capabilities import BackendCapabilities
+from framework.starter_mq.definitions.constants.mq_error_codes import MQErrorCodes
 from framework.starter_mq.exception.mq_exception import MQException
 from framework.starter_mq.model.message_envelope import MessageEnvelope
 from framework.starter_mq.model.prepared_message import PreparedMessage
@@ -22,7 +23,7 @@ class MQService:
 
     def require_runtime(self):
         if self.runtime is None or self.runtime.phase not in {"starting", "ready"}:
-            raise MQException("closed")
+            raise MQException(MQErrorCodes.CLOSED)
         return self.runtime
 
     async def prepare(self, command) -> PreparedMessage:
@@ -30,12 +31,12 @@ class MQService:
         try:
             BackendCapabilities.for_mode(runtime.settings.backend, command.mode)
         except ValueError as error:
-            raise MQException("declaration", cause=error) from error
+            raise MQException(MQErrorCodes.DECLARATION, cause=error) from error
         if not isinstance(command.message, BaseModel):
-            raise MQException("invalid")
+            raise MQException(MQErrorCodes.INVALID)
         payload = command.message.model_dump_json().encode()
         if len(payload) > runtime.settings.max_message_bytes:
-            raise MQException("invalid")
+            raise MQException(MQErrorCodes.INVALID)
         workload = runtime.security.context.current_workload()
         if workload is not None:
             authority, tenant_id = "workload", workload.tenant_id
@@ -44,7 +45,7 @@ class MQService:
             )
         else:
             if command.capability is not None:
-                raise MQException("authentication")
+                raise MQException(MQErrorCodes.AUTHENTICATION)
             identity = runtime.security.context.require()
             authority, tenant_id = "session", identity.tenant_id
             proof = await runtime.security.issue_message(payload, audience=command.destination)
@@ -53,7 +54,7 @@ class MQService:
                 runtime.tenant is None
                 or runtime.tenant.context.get_required_tenant_id() != tenant_id
             ):
-                raise MQException("authentication")
+                raise MQException(MQErrorCodes.AUTHENTICATION)
         now = time.time()
         envelope = MessageEnvelope(
             version=1,
@@ -93,10 +94,10 @@ class MQService:
             async with asyncio.timeout(runtime.settings.command_timeout_seconds):
                 await runtime.publish_slots.acquire()
         except TimeoutError as error:
-            raise MQException("capacity", cause=error) from error
+            raise MQException(MQErrorCodes.CAPACITY, cause=error) from error
         try:
             if runtime.phase != "ready":
-                raise MQException("closed")
+                raise MQException(MQErrorCodes.CLOSED)
             try:
                 confirmation, reference = await runtime.call(
                     runtime.backend.publish(
@@ -111,7 +112,7 @@ class MQService:
                 )
                 raise
             except Exception as error:
-                raise MQException("unknown", cause=error) from error
+                raise MQException(MQErrorCodes.UNKNOWN, cause=error) from error
             return PublishReceipt(envelope.message_id, confirmation, reference)
         finally:
             runtime.publish_slots.release()
@@ -119,7 +120,7 @@ class MQService:
     async def publish_after_commit(self, command) -> str:
         runtime = self.require_runtime()
         if runtime.database is None:
-            raise MQException("configuration")
+            raise MQException(MQErrorCodes.CONFIGURATION)
         prepared = await self.prepare(command)
         runtime.database.after_commit(
             lambda: self.send_prepared(prepared), required=True, name="mq-publish"

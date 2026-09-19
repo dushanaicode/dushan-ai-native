@@ -1,6 +1,10 @@
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
-from framework.starter_security.spi.permission_provider import PermissionProvider
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
+from framework.starter_security.public import (
+    PermissionProvider,
+)
 from module_system.service.permission.permission_service import PermissionService
 
 

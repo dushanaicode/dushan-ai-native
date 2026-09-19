@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from typing import override
 
-from framework.common.exception.constants.global_error_code_constants import (
+from framework.common.exception import (
     GlobalErrorCodeConstants,
+    ServiceException,
 )
-from framework.common.exception.exceptions.service_exception import ServiceException
-from framework.starter_di.decorators.components import service
+from framework.starter_di.public import (
+    service,
+)
 from module_system.service.member.member_service import MemberService
 
 

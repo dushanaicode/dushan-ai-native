@@ -1,7 +1,9 @@
 from loguru import logger
 
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
 from module_system.dal.dataobject.notification.notice_do import NoticeDO
 from module_system.framework.notification.channel.notification_channel_handler import (
     NotificationChannelHandler,

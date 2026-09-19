@@ -2,7 +2,7 @@ from typing import Annotated
 
 from pydantic import Field
 
-from framework.common.schemas.base_vo import BaseVO
+from framework.common.schemas import BaseVO
 from module_system.controller.admin.auth.vo.menu_vo import MenuVO
 from module_system.controller.admin.auth.vo.user_vo import UserVO
 

@@ -1,6 +1,12 @@
-from framework.starter_data_permission.spi.data_exemption_provider import DataExemptionProvider
-from framework.starter_di.decorators.components import service
-from framework.starter_security.model.workload_identity import WorkloadIdentity
+from framework.starter_data_permission.public import (
+    DataExemptionProvider,
+)
+from framework.starter_di.public import (
+    service,
+)
+from framework.starter_security.public import (
+    WorkloadIdentity,
+)
 from module_system.definitions.constants.workload_constants import WorkloadConstants
 
 

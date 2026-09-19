@@ -1,6 +1,10 @@
-from framework.starter_database.spi.data_source_config_provider import DataSourceConfigProvider
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
+from framework.starter_database.public import (
+    DataSourceConfigProvider,
+)
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
 from module_infra.service.data_source.data_source_config_store import DataSourceConfigStore
 
 

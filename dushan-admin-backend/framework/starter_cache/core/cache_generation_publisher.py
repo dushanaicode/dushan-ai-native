@@ -7,14 +7,12 @@ from pydantic import ValidationError
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
 
-from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
-from framework.starter_cache.constants.cache_constants import CacheConstants
+from framework.common.utils.cleanup_utils import CleanupUtils
 from framework.starter_cache.core.cache_generation_coordinator import CacheGenerationCoordinator
 from framework.starter_cache.core.cache_key_deleter import CacheKeyDeleter
-from framework.starter_cache.exception.cache_operation_exception import CacheOperationException
-from framework.starter_cache.exception.cache_serialization_exception import (
-    CacheSerializationException,
-)
+from framework.starter_cache.definitions.constants.cache_constants import CacheConstants
+from framework.starter_cache.definitions.constants.cache_error_codes import CacheErrorCodes
+from framework.starter_cache.exception.cache_exception import CacheException
 from framework.starter_cache.model.cache_generation_publication import CacheGenerationPublication
 from framework.starter_cache.model.cache_generation_state import CacheGenerationState
 from framework.starter_di.decorators.components import framework
@@ -68,9 +66,11 @@ class CacheGenerationPublisher:
             else:
                 result = await client.set(full_key, payload, ex=ttl_seconds)
         except RedisError as error:
-            raise CacheOperationException(msg="Redis SET 操作失败", cause=error) from error
+            raise CacheException(
+                CacheErrorCodes.OPERATION_FAILED, msg="Redis SET 操作失败", cause=error
+            ) from error
         if result is not True:
-            raise CacheOperationException(msg="Redis SET 未返回成功")
+            raise CacheException(CacheErrorCodes.OPERATION_FAILED, msg="Redis SET 未返回成功")
 
     async def publish(
         self,
@@ -100,7 +100,9 @@ class CacheGenerationPublisher:
         try:
             raw = await client.get(full_key)
         except RedisError as error:
-            raise CacheOperationException(msg="Redis GET 操作失败", cause=error) from error
+            raise CacheException(
+                CacheErrorCodes.OPERATION_FAILED, msg="Redis GET 操作失败", cause=error
+            ) from error
         if raw is None:
             return False, None
         is_current, payload = await self.decode_if_current(client, raw)
@@ -123,8 +125,10 @@ class CacheGenerationPublisher:
         try:
             return True, b64decode(publication.payload_base64, validate=True).decode("utf-8")
         except (BinasciiError, ValueError, UnicodeDecodeError) as error:
-            raise CacheSerializationException(
-                msg="缓存 generation 发布载荷无效", cause=error
+            raise CacheException(
+                CacheErrorCodes.SERIALIZATION_FAILED,
+                msg="缓存 generation 发布载荷无效",
+                cause=error,
             ) from error
 
     @classmethod
@@ -194,11 +198,13 @@ class CacheGenerationPublisher:
                 0 if ttl_seconds is None else ttl_seconds,
             )
         except RedisError as error:
-            raise CacheOperationException(
-                msg="Redis generation SET 操作失败", cause=error
+            raise CacheException(
+                CacheErrorCodes.OPERATION_FAILED, msg="Redis generation SET 操作失败", cause=error
             ) from error
         if type(result) is not int or result not in (0, 1):
-            raise CacheOperationException(msg="Redis generation SET 返回值无效")
+            raise CacheException(
+                CacheErrorCodes.OPERATION_FAILED, msg="Redis generation SET 返回值无效"
+            )
         return result == 1
 
     @classmethod
@@ -211,8 +217,10 @@ class CacheGenerationPublisher:
         try:
             publication = CacheGenerationPublication.model_validate_json(payload, strict=True)
         except (ValidationError, ValueError) as error:
-            raise CacheSerializationException(
-                msg="缓存 generation 发布信封无效", cause=error
+            raise CacheException(
+                CacheErrorCodes.SERIALIZATION_FAILED,
+                msg="缓存 generation 发布信封无效",
+                cause=error,
             ) from error
         if (
             not separator
@@ -220,5 +228,7 @@ class CacheGenerationPublisher:
             or token != publication.generation_token
             or token != cls.build_snapshot_token(publication.generation_snapshot)
         ):
-            raise CacheSerializationException(msg="缓存 generation 发布指纹无效")
+            raise CacheException(
+                CacheErrorCodes.SERIALIZATION_FAILED, msg="缓存 generation 发布指纹无效"
+            )
         return publication

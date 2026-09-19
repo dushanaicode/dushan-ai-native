@@ -8,13 +8,11 @@ from time import monotonic
 from loguru import logger
 
 from framework.starter_di.decorators.components import service
-from framework.starter_di.enums.component_scope_enum import ComponentScopeEnum
+from framework.starter_di.definitions.enums.component_scope_enum import ComponentScopeEnum
 from framework.starter_ip.config.ip_settings import IpSettings
 from framework.starter_ip.core.client_ip_resolver import ClientIpResolver
-from framework.starter_ip.exception.ip_address_family_not_enabled import IpAddressFamilyNotEnabled
-from framework.starter_ip.exception.ip_error_code_constants import IpErrorCodeConstants
+from framework.starter_ip.definitions.constants.ip_error_codes import IpErrorCodes
 from framework.starter_ip.exception.ip_exception import IpException
-from framework.starter_ip.exception.ip_provider_error import IpProviderError
 from framework.starter_ip.model.inflight_ip_query import InflightIpQuery
 from framework.starter_ip.model.ip_location import IpLocation
 from framework.starter_ip.spi.ip_location_provider import IpLocationProvider
@@ -61,7 +59,7 @@ class IpLocationService:
 
     async def lookup(self, ip: str) -> IpLocation:
         if not self._opened:
-            raise IpException(IpErrorCodeConstants.NOT_INITIALIZED)
+            raise IpException(IpErrorCodes.NOT_INITIALIZED)
         normalized = ClientIpResolver.normalize_ip(ip)
         if normalized is None:
             raise ValueError("ip 必须是 IPv4 或 IPv6 地址")
@@ -108,7 +106,7 @@ class IpLocationService:
                 return await asyncio.shield(flight.task)
             except asyncio.CancelledError:
                 if not self._opened and not asyncio.current_task().cancelling():
-                    raise IpException(IpErrorCodeConstants.NOT_INITIALIZED) from None
+                    raise IpException(IpErrorCodes.NOT_INITIALIZED) from None
                 raise
             except Exception:
                 flight.error_observed = True
@@ -118,7 +116,7 @@ class IpLocationService:
                 if not flight.waiters:
                     self._cancel_query(flight, "IP 查询没有剩余等待者")
                 self._report_unobserved_error(flight)
-        raise IpException(IpErrorCodeConstants.NOT_INITIALIZED)
+        raise IpException(IpErrorCodes.NOT_INITIALIZED)
 
     def _query_completed(self, ip: str, flight: InflightIpQuery, task: asyncio.Task) -> None:
         flight.deadline_timer.cancel()
@@ -156,7 +154,7 @@ class IpLocationService:
     async def _query_and_cache(self, normalized: str, deadline: float) -> IpLocation:
         result = await self._query(normalized, deadline)
         if not self._opened:
-            raise IpException(IpErrorCodeConstants.NOT_INITIALIZED)
+            raise IpException(IpErrorCodes.NOT_INITIALIZED)
         if not self._inflight[normalized].waiters:
             raise asyncio.CancelledError
         ttl = (
@@ -195,17 +193,23 @@ class IpLocationService:
                     return self._budget_exceeded(ip, failures)
                 try:
                     location = await provider.query(ip, remaining)
-                except IpAddressFamilyNotEnabled as error:
-                    failures.append(f"{provider.name}:ipv{error.family}_not_enabled")
-                    continue
-                except IpProviderError as error:
+                except IpException as error:
+                    # 地址族未启用是模式选择，直接跳过本地库；在线故障按策略决定是否继续。
+                    if error.error_code == IpErrorCodes.FAMILY_NOT_ENABLED:
+                        family = error.context["family"]
+                        failures.append(f"{provider.name}:ipv{family}_not_enabled")
+                        continue
+                    if error.error_code != IpErrorCodes.QUERY_FAILED:
+                        raise
                     if self._settings.online_failure_policy == "raise":
                         raise
-                    failures.append(f"{error.provider}:{error.reason}")
+                    failed_provider = error.context["provider"]
+                    reason = error.context["reason"]
+                    failures.append(f"{failed_provider}:{reason}")
                     logger.warning(
                         "IP Provider 不可用: provider={}, reason={}",
-                        error.provider,
-                        error.reason,
+                        failed_provider,
+                        reason,
                     )
                     continue
                 if loop.time() >= deadline:
@@ -222,7 +226,10 @@ class IpLocationService:
 
     def _budget_exceeded(self, ip: str, failures: list[str]) -> IpLocation:
         if self._settings.online_failure_policy == "raise":
-            raise IpProviderError("chain", "budget_exceeded")
+            raise IpException(
+                IpErrorCodes.QUERY_FAILED,
+                context={"provider": "chain", "reason": "budget_exceeded"},
+            )
         return IpLocation(ip, "unavailable", None, failures=(*failures, "chain:budget_exceeded"))
 
     async def close(self) -> None:

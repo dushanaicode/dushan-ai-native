@@ -4,7 +4,7 @@ from pydantic import SecretStr
 from starlette.datastructures import QueryParams
 
 from framework.starter_auth.core.auth_provider_registry import AuthProviderRegistry
-from framework.starter_auth.exception.auth_error_codes import AuthErrorCodes as Codes
+from framework.starter_auth.definitions.constants.auth_error_codes import AuthErrorCodes as Codes
 from framework.starter_auth.exception.auth_exception import AuthException
 from framework.starter_auth.model.auth_callback import AuthCallback
 from framework.starter_auth.model.provider_capability import ProviderCapability

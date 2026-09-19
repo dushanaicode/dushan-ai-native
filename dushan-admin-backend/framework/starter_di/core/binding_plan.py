@@ -8,9 +8,9 @@ from framework.starter_di.core.candidate_selection import CandidateSelection
 from framework.starter_di.core.component_binding import ComponentBinding
 from framework.starter_di.core.dependency_plan import DependencyPlan
 from framework.starter_di.core.lifecycle_hooks import LifecycleHooks
-from framework.starter_di.enums.component_scope_enum import ComponentScopeEnum
-from framework.starter_di.enums.lifecycle_phase_enum import LifecyclePhaseEnum
-from framework.starter_di.exception.di_error_codes import DiErrorCodes
+from framework.starter_di.definitions.constants.di_error_codes import DiErrorCodes
+from framework.starter_di.definitions.enums.component_scope_enum import ComponentScopeEnum
+from framework.starter_di.definitions.enums.lifecycle_phase_enum import LifecyclePhaseEnum
 from framework.starter_di.exception.di_exception import DiException
 
 

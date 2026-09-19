@@ -12,9 +12,10 @@ from framework.starter_security.model.login_session import LoginSession
 from framework.starter_security.model.permission_snapshot import PermissionSnapshot
 from framework.starter_security.model.workload_identity import WorkloadIdentity
 from framework.starter_security.exception.security_exception import SecurityException
+from framework.starter_security.definitions.constants.security_error_codes import SecurityErrorCodes
 from framework.starter_security.core.security_service import SecurityService
 from framework.starter_security.core.opaque_token import OpaqueToken
-from framework.starter_security.enums.security_realm import SecurityRealm
+from framework.starter_security.definitions.enums.security_realm import SecurityRealm
 from framework.starter_di.decorators.components import service
 from framework.starter_di.context.application_context import ApplicationContext
 from framework.starter_web.routing.route_policy import RoutePolicy
@@ -108,7 +109,7 @@ class Permissions(PermissionProvider):
 @service(interface=WorkloadProvider)
 class Workloads(WorkloadProvider):
     async def authenticate(self,source,*,application_id,domain,capability,tenant_id):
-        if source!="ws-test" or capability not in ("ws:test","websocket:invalidate"): raise SecurityException("denied")
+        if source!="ws-test" or capability not in ("ws:test","websocket:invalidate"): raise SecurityException(SecurityErrorCodes.DENIED)
         return WorkloadIdentity(application_id=application_id,domain=domain,service_id="ws-test",tenant_id=tenant_id,
             audience=source,capabilities=frozenset((capability,)),expires_at=datetime.now(UTC)+timedelta(minutes=5))
 
@@ -117,10 +118,10 @@ class Tickets(WebSocketTicketProvider):
     def __init__(self,tokens: TokenProvider,probe: Probe): self.tokens,self.probe=tokens,probe
     async def consume(self,ticket,*,application_id,domain):
         digest=await self.tokens.client.getdel(self.tokens.prefix+":ticket:"+OpaqueToken.digest(ticket))
-        if digest is None: raise SecurityException("invalid")
+        if digest is None: raise SecurityException(SecurityErrorCodes.INVALID)
         if self.probe.block_handshake: await self.probe.auth_gate.wait()
         session=await self.tokens.resolve(digest,application_id=application_id,domain=domain)
-        if session is None: raise SecurityException("invalid")
+        if session is None: raise SecurityException(SecurityErrorCodes.INVALID)
         return session
 
 class SendInput(BaseModel):

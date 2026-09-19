@@ -2,16 +2,27 @@ import secrets
 
 from fastapi import APIRouter, Depends, Query, Request, Response
 
-from framework.starter_di.decorators.di_dependency import DiDependency
-from framework.starter_protection.ratelimiter.rate_limit_rule import RateLimitRule
-from framework.starter_protection.web.rate_limit import rate_limit
-from framework.starter_security.context.security_context import SecurityContext
-from framework.starter_security.enums.security_realm import SecurityRealm
-from framework.starter_security.exception.security_exception import SecurityException
-from framework.starter_tenant.config.tenant_settings import TenantSettings
-from framework.starter_web.response.result import Result
-from framework.starter_web.routing.access_log_policy import AccessLogPolicy
-from framework.starter_web.routing.route_policy import RoutePolicy
+from framework.starter_di.public import (
+    DiDependency,
+)
+from framework.starter_protection.public import (
+    RateLimitRule,
+    rate_limit,
+)
+from framework.starter_security.public import (
+    SecurityContext,
+    SecurityErrorCodes,
+    SecurityException,
+    SecurityRealm,
+)
+from framework.starter_tenant.public import (
+    TenantSettings,
+)
+from framework.starter_web.public import (
+    AccessLogPolicy,
+    Result,
+    RoutePolicy,
+)
 from module_system.config.system_settings import SystemSettings
 from module_system.controller.admin.auth.auth_cookies import AuthCookies
 from module_system.controller.admin.auth.vo.auth_bind_mobile_req_vo import AuthBindMobileReqVO
@@ -188,7 +199,7 @@ class AuthController:
         AuthCookies.check_origin(request, settings, required=True)
         secret = request.cookies.get(settings.refresh_cookie_name)
         if secret is None:
-            raise SecurityException("missing")
+            raise SecurityException(SecurityErrorCodes.MISSING)
         async with workloads.scope("system.auth", tenant.default_tenant_id):
             value = await auth.refresh_token(secret, settings.default_client_id)
         AuthCookies.set_refresh(response, value, settings)

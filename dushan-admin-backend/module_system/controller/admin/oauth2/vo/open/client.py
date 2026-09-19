@@ -2,8 +2,8 @@ from typing import Annotated, Any
 
 from pydantic import Field, field_validator
 
-from framework.common.schemas.base_vo import BaseVO
-from framework.common.validator.not_empty import NotEmpty
+from framework.common.schemas import BaseVO
+from framework.common.validator import NotEmpty
 
 
 class Client(BaseVO):

@@ -16,7 +16,8 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from framework.starter_security.core.opaque_token import OpaqueToken
 from framework.starter_security.core.security_service import SecurityService
-from framework.starter_security.enums.security_realm import SecurityRealm
+from framework.starter_security.definitions.constants.security_error_codes import SecurityErrorCodes
+from framework.starter_security.definitions.enums.security_realm import SecurityRealm
 from framework.starter_security.model.login_session import LoginSession
 from framework.starter_security.model.permission_snapshot import PermissionSnapshot
 
@@ -193,7 +194,7 @@ def test_real_http_auth_cache_database_and_shutdown(engine, config_dir, tmp_path
                     time.sleep(0.05)
                 missing = client.get("/__security_test/protected")
                 assert (
-                    missing.json()["code"] == 401
+                    missing.json()["code"] == SecurityErrorCodes.MISSING.code
                     and missing.headers["www-authenticate"] == "Bearer"
                 )
                 headers = {"Authorization": "Bearer " + token}
@@ -202,7 +203,8 @@ def test_real_http_auth_cache_database_and_shutdown(engine, config_dir, tmp_path
                 }
                 assert client.post("/__security_test/logout", headers=headers).json()["revoked"]
                 assert (
-                    client.get("/__security_test/protected", headers=headers).json()["code"] == 401
+                    client.get("/__security_test/protected", headers=headers).json()["code"]
+                    == SecurityErrorCodes.REVOKED.code
                 )
                 assert client.post("/__security_test/stop").json()["stopping"]
             process.wait(timeout=15)

@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from framework.common.component.component_metadata import ComponentMetadata
 from framework.common.enums.component_type_enum import ComponentTypeEnum
 from framework.starter_config.decorator.config_model_metadata import ConfigModelMetadata
-from framework.starter_config.enums.config_source_enum import ConfigSourceEnum
+from framework.starter_config.definitions.enums.config_source_enum import ConfigSourceEnum
 
 T = TypeVar("T", bound=type[BaseModel])
 

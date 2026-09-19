@@ -3,14 +3,12 @@ from typing import Annotated, Literal
 
 from pydantic import Field, field_validator
 
-from framework.common.contracts.snowflake_id import (
+from framework.common.contracts import (
     SnowflakeCursorStr,
     SnowflakeIdStr,
 )
-from framework.common.schemas.base_vo import BaseVO
-from framework.common.validator.not_empty import NotEmpty
-from framework.common.validator.not_null import NotNull
-from framework.common.validator.size import Size
+from framework.common.schemas import BaseVO
+from framework.common.validator import NotEmpty, NotNull, Size
 
 
 class MenuRespVO(BaseVO):

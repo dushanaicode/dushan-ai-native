@@ -14,6 +14,7 @@ from framework.starter_security.bizlog.diff_renderer import DiffRenderer
 from framework.starter_security.bizlog.log_record import log_record
 from framework.starter_security.bizlog.log_record_context import LogRecordContext
 from framework.starter_security.bizlog.log_record_spec import LogRecordSpec
+from framework.starter_security.definitions.constants.security_error_codes import SecurityErrorCodes
 from framework.starter_security.exception.security_exception import SecurityException
 from framework.starter_web.routing.route_policy import RoutePolicy
 
@@ -229,7 +230,7 @@ async def test_debug_response_and_logs_hide_raw_provider_secret(security_factory
             response = await case.get(token)
         finally:
             logger.remove(sink)
-        assert response.json()["code"] == 503
+        assert response.json()["code"] == SecurityErrorCodes.UNAVAILABLE.code
         assert "unlabelled-private-token" not in response.text + "".join(messages)
         assert token not in response.text + "".join(messages)
         assert session.account_id not in repr(session)

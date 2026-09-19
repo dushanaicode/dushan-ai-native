@@ -2,8 +2,12 @@ from __future__ import annotations
 
 from sqlalchemy import select
 
-from framework.starter_database.repository.base_mapper import BaseMapper
-from framework.starter_di.decorators.components import mapper
+from framework.starter_database.public import (
+    BaseMapper,
+)
+from framework.starter_di.public import (
+    mapper,
+)
 from module_system.dal.dataobject.oauth2.oauth2_refresh_token_do import OAuth2RefreshTokenDO
 
 

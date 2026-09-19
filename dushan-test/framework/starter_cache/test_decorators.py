@@ -5,7 +5,7 @@ from fixtures.cache_fixtures import app_values, redis_values, requires_redis
 from framework.starter_cache.core.cache_handler import CacheHandler
 from framework.starter_cache.decorators.cache_evict import invalidate
 from framework.starter_cache.decorators.cacheable import cache
-from framework.starter_cache.exception.cache_config_exception import CacheConfigException
+from framework.starter_cache.exception.cache_exception import CacheException
 from server.starter_server import create_app
 
 pytestmark = requires_redis
@@ -136,7 +136,7 @@ async def test_decorator_resolves_components_from_the_current_application(
 
 
 def test_cache_decorator_requires_a_resolvable_return_type(key_module):
-    with pytest.raises(CacheConfigException, match="可解析的返回类型"):
+    with pytest.raises(CacheException, match="可解析的返回类型"):
 
         @cache(key_module.TestCacheKeys.ITEM, ttl_seconds=60)
         async def missing_annotation(value):
@@ -144,7 +144,7 @@ def test_cache_decorator_requires_a_resolvable_return_type(key_module):
 
 
 def test_cache_decorator_rejects_unknown_template_parameters(key_module):
-    with pytest.raises(CacheConfigException, match="未知参数"):
+    with pytest.raises(CacheException, match="未知参数"):
 
         @cache(key_module.TestCacheKeys.ITEM, key="{{absent}}", ttl_seconds=60)
         async def load(value: int) -> int:
@@ -152,19 +152,19 @@ def test_cache_decorator_rejects_unknown_template_parameters(key_module):
 
 
 def test_cache_decorator_rejects_invalid_ttl(key_module):
-    with pytest.raises(CacheConfigException, match="正整数秒"):
+    with pytest.raises(CacheException, match="正整数秒"):
         cache(key_module.TestCacheKeys.ITEM, ttl_seconds=0)
 
 
 def test_invalidate_requires_exactly_one_target(key_module):
-    with pytest.raises(CacheConfigException, match="只能指定"):
+    with pytest.raises(CacheException, match="只能指定"):
         invalidate(key_module.TestCacheKeys.ITEM)
-    with pytest.raises(CacheConfigException, match="只能指定"):
+    with pytest.raises(CacheException, match="只能指定"):
         invalidate(key_module.TestCacheKeys.ITEM, key="a", all_entries=True)
 
 
 def test_decorators_require_a_cache_key_object(key_module):
-    with pytest.raises(CacheConfigException, match="必须传入 CacheKey"):
+    with pytest.raises(CacheException, match="必须传入 CacheKey"):
         cache("plain-prefix")
-    with pytest.raises(CacheConfigException, match="必须传入 CacheKey"):
+    with pytest.raises(CacheException, match="必须传入 CacheKey"):
         invalidate("plain-prefix", all_entries=True)

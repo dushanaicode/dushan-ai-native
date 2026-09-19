@@ -7,7 +7,6 @@ import pytest
 from framework.starter_ip.client.ip_location_http_client import IpLocationHttpClient
 from framework.starter_ip.core.ip2region_database import Ip2RegionDatabase
 from framework.starter_ip.exception.ip_exception import IpException
-from framework.starter_ip.exception.ip_provider_error import IpProviderError
 from framework.starter_ip.provider.pconline_ip_location_provider import PconlineIpLocationProvider
 from framework.starter_ip.provider.vore_ip_location_provider import VoreIpLocationProvider
 from framework.starter_ip.service.area_service import AreaService
@@ -37,7 +36,7 @@ async def test_pconline_gbk_result_status_and_echo(ip_settings):
         data.update(pro="", city="", err="noprovince")
         assert await provider.query("1.2.3.4", 1) is None
         data["ip"] = "8.8.8.8"
-        with pytest.raises(IpProviderError, match="查询失败"):
+        with pytest.raises(IpException, match="查询失败"):
             await provider.query("1.2.3.4", 1)
     finally:
         await client.close()
@@ -57,9 +56,9 @@ async def test_vore_ipv6_schema_and_echo(ip_settings):
     try:
         assert await provider.query("2604:a840:3::a04d", 1) == "United States-California"
         data["code"] = True
-        with pytest.raises(IpProviderError) as failure:
+        with pytest.raises(IpException) as failure:
             await provider.query("2604:a840:3::a04d", 1)
-        assert failure.value.reason == "protocol"
+        assert failure.value.context["reason"] == "protocol"
     finally:
         await client.close()
 
@@ -72,9 +71,9 @@ async def test_http_status_and_response_resource_bounds(ip_settings, status, bod
     settings = ip_settings(online_enabled=True, online_max_response_bytes=100)
     client = create_client(settings, lambda request: httpx.Response(status, content=body))
     try:
-        with pytest.raises(IpProviderError) as failure:
+        with pytest.raises(IpException) as failure:
             await client.get("sample", "https://example.org", params={}, timeout_seconds=1)
-        assert failure.value.reason == reason
+        assert failure.value.context["reason"] == reason
     finally:
         underlying = client._client
         await client.close()
@@ -111,9 +110,9 @@ async def test_stream_is_closed_at_body_limit_and_compression_is_rejected(ip_set
     stream = ObservedStream()
     client = create_client(settings, lambda request: httpx.Response(200, stream=stream))
     try:
-        with pytest.raises(IpProviderError) as failure:
+        with pytest.raises(IpException) as failure:
             await client.get("sample", "https://example.org", params={}, timeout_seconds=1)
-        assert failure.value.reason == "response_too_large" and stream.closed
+        assert failure.value.context["reason"] == "response_too_large" and stream.closed
     finally:
         await client.close()
 
@@ -124,9 +123,9 @@ async def test_stream_is_closed_at_body_limit_and_compression_is_rejected(ip_set
         ),
     )
     try:
-        with pytest.raises(IpProviderError) as failure:
+        with pytest.raises(IpException) as failure:
             await compressed.get("sample", "https://example.org", params={}, timeout_seconds=1)
-        assert failure.value.reason == "content_encoding"
+        assert failure.value.context["reason"] == "content_encoding"
     finally:
         await compressed.close()
 

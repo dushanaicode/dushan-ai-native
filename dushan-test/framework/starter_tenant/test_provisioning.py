@@ -1,7 +1,7 @@
 import pytest
 from sqlalchemy import func, select
 
-from framework.starter_security.enums.security_realm import SecurityRealm
+from framework.starter_security.definitions.enums.security_realm import SecurityRealm
 from framework.starter_tenant.exception.tenant_exception import TenantException
 from framework.starter_tenant.model.tenant_provisioning_request import TenantProvisioningRequest
 from framework.starter_web.routing.route_policy import RoutePolicy

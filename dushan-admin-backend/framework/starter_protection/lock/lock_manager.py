@@ -2,13 +2,15 @@ import asyncio
 from contextlib import asynccontextmanager
 from time import perf_counter
 
-from framework.common.utils.asyncio.asyncio_utils import AsyncioUtils
-from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
-from framework.starter_cache.enums.lock_release_outcome_enum import LockReleaseOutcomeEnum
+from framework.common.utils.asyncio_utils import AsyncioUtils
+from framework.common.utils.cleanup_utils import CleanupUtils
+from framework.starter_cache.definitions.enums.lock_release_outcome_enum import (
+    LockReleaseOutcomeEnum,
+)
 from framework.starter_cache.exception.cache_exception import CacheException
 from framework.starter_cache.lock.redis_lease_lock import RedisLeaseLock
 from framework.starter_protection.core.protection_runtime import ProtectionRuntime
-from framework.starter_protection.exception.protection_error_codes import (
+from framework.starter_protection.definitions.constants.protection_error_codes import (
     ProtectionErrorCodes as Codes,
 )
 from framework.starter_protection.exception.protection_exception import ProtectionException

@@ -1,9 +1,12 @@
 from contextlib import asynccontextmanager
 
-from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
+from framework.common.utils.cleanup_utils import CleanupUtils
 from framework.starter_ip.config.ip_settings import IpSettings
 from framework.starter_websocket.config.websocket_settings import WebSocketSettings
-from framework.starter_websocket.exception.socket_exception import SocketException
+from framework.starter_websocket.definitions.constants.websocket_error_codes import (
+    WebSocketErrorCodes,
+)
+from framework.starter_websocket.exception.websocket_exception import WebSocketException
 from framework.starter_websocket.starter.websocket_starter import WebSocketStarter
 from server.config.application_settings import ApplicationSettings
 from server.enums.server_engine_enum import ServerEngineEnum
@@ -25,7 +28,7 @@ class WebSocketStep:
             return
         application = definitions.application_context
         if application is None:
-            raise SocketException("configuration")
+            raise WebSocketException(WebSocketErrorCodes.CONFIGURATION)
         root = ctx.bootstrap_config.get_config(ApplicationSettings)
         workers = (
             root.granian.workers

@@ -4,7 +4,7 @@ from contextvars import ContextVar
 from framework.common.security.sanitizer import Sanitizer
 from framework.starter_di.context.application_context import ApplicationContext
 from framework.starter_di.decorators.components import framework
-from framework.starter_di.enums.component_scope_enum import ComponentScopeEnum
+from framework.starter_di.definitions.enums.component_scope_enum import ComponentScopeEnum
 from framework.starter_security.bizlog.log_record_frame import LogRecordFrame
 
 

@@ -9,11 +9,16 @@ from joserfc import jwt
 from joserfc.errors import JoseError
 from joserfc.jwk import OctKey
 
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
-from framework.starter_security.exception.security_exception import SecurityException
-from framework.starter_security.model.workload_identity import WorkloadIdentity
-from framework.starter_security.model.workload_message import WorkloadMessage
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
+from framework.starter_security.public import (
+    SecurityErrorCodes,
+    SecurityException,
+    WorkloadIdentity,
+    WorkloadMessage,
+)
 from module_system.config.system_settings import SystemSettings
 from module_system.service.auth.system_message_service import SystemMessageService
 from module_system.service.auth.system_workload_service import SystemWorkloadService
@@ -29,7 +34,7 @@ class SystemMessageServiceImpl(SystemMessageService):
     def _key(self):
         secret = self.settings.message_signing_key
         if secret is None or len(secret.get_secret_value()) < 32:
-            raise SecurityException("configuration")
+            raise SecurityException(SecurityErrorCodes.CONFIGURATION)
         return secret.get_secret_value()
 
     def _issue(self, identity, payload, audience, **claims):
@@ -66,11 +71,11 @@ class SystemMessageServiceImpl(SystemMessageService):
                 kind={"essential": True},
             ).validate(claims)
         except (JoseError, UnicodeDecodeError) as error:
-            raise SecurityException("invalid", cause=error) from error
+            raise SecurityException(SecurityErrorCodes.INVALID, cause=error) from error
         if claims["domain"] != domain or not hmac.compare_digest(
             claims["payload"], hashlib.sha256(payload).hexdigest()
         ):
-            raise SecurityException("invalid")
+            raise SecurityException(SecurityErrorCodes.INVALID)
         return claims
 
     async def issue(self, session, payload, *, audience):
@@ -86,17 +91,19 @@ class SystemMessageServiceImpl(SystemMessageService):
     async def verify(self, proof, payload, *, application_id, domain, audience):
         claims = self._verify(proof, payload, application_id, domain, audience)
         if claims["kind"] != "session":
-            raise SecurityException("invalid")
+            raise SecurityException(SecurityErrorCodes.INVALID)
         session = await self.tokens.resolve_session(
             claims["digest"], application_id=application_id, domain=domain
         )
         if session is None or session.family_id != claims["family"]:
-            raise SecurityException("invalid")
+            raise SecurityException(SecurityErrorCodes.INVALID)
         return session
 
     async def issue_workload(self, identity, payload, *, audience, capability):
         if capability not in identity.capabilities:
-            raise SecurityException("denied")
+            raise SecurityException(
+                SecurityErrorCodes.DENIED, detail=f"服务身份缺少该能力：{capability}"
+            )
         return self._issue(
             identity,
             payload,
@@ -110,7 +117,7 @@ class SystemMessageServiceImpl(SystemMessageService):
     async def verify_workload(self, proof, payload, *, application_id, domain, audience):
         claims = self._verify(proof, payload, application_id, domain, audience)
         if claims["kind"] != "workload":
-            raise SecurityException("invalid")
+            raise SecurityException(SecurityErrorCodes.INVALID)
         current = await self.workloads.authenticate(
             claims["source"],
             application_id=application_id,

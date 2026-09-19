@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from framework.common.enums.user_type_enum import UserTypeEnum
-from framework.starter_security.model.login_session import LoginSession
+from framework.common.enums import UserTypeEnum
+from framework.starter_security.public import (
+    LoginSession,
+)
 from module_system.controller.admin.user.vo.profile.profile_online_device_vo import (
     ProfileOnlineDeviceVO,
 )

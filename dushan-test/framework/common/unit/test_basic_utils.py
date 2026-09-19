@@ -5,10 +5,10 @@ from pydantic import BaseModel
 
 from framework.common.page.schemas.page_result import PageResult
 from framework.common.schemas.base_vo import BaseVO
-from framework.common.utils.collection.conversion_utils import ConversionUtils
-from framework.common.utils.json.json_utils import JsonUtils
-from framework.common.utils.str.str_utils import StrUtils
-from framework.common.utils.validation.validation_utils import ValidationUtils
+from framework.common.utils.conversion_utils import ConversionUtils
+from framework.common.utils.json_utils import JsonUtils
+from framework.common.utils.str_utils import StrUtils
+from framework.common.utils.validation_utils import ValidationUtils
 
 pytestmark = pytest.mark.unit
 

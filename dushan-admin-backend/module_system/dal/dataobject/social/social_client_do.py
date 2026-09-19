@@ -4,8 +4,10 @@ from sqlalchemy import JSON, Computed, Index, SmallInteger, String, UniqueConstr
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import expression
 
-from framework.common.enums.status_enum import StatusEnum
-from framework.starter_tenant.entity.tenant_base_do import TenantBaseDO
+from framework.common.enums import StatusEnum
+from framework.starter_tenant.public import (
+    TenantBaseDO,
+)
 
 
 class SocialClientDO(TenantBaseDO):

@@ -6,6 +6,10 @@ import pytest
 from fastapi.routing import APIRoute, _iter_routes_with_context
 from httpx import ASGITransport, AsyncClient
 
+from framework.starter_security.definitions.constants.security_error_codes import (
+    SecurityErrorCodes,
+)
+from framework.starter_tenant.definitions.constants.tenant_error_codes import TenantErrorCodes
 from framework.starter_web.routing.route_policy import RoutePolicy
 from module_infra.router import routers
 
@@ -24,7 +28,7 @@ async def verify_batch(client, app, connection, domain, table, ids):
         transport=ASGITransport(app=app), base_url="http://testserver"
     ) as public:
         denied = (await public.delete(path, params=[("ids", value) for value in ids[:2]])).json()
-        assert denied["code"] == 401, (domain, denied)
+        assert denied["code"] == SecurityErrorCodes.MISSING.code, (domain, denied)
     for params in ({}, {"ids": ",".join(ids)}, [("ids", ids[0]), ("ids", "invalid")]):
         rejected = (await client.delete(path, params=params)).json()
         assert rejected["code"] == 422, (domain, rejected)
@@ -161,7 +165,7 @@ async def test_config_batch_delete_cannot_remove_foreign_tenant_data(admin_clien
     result = (
         await admin_client.delete("/admin-api/infra/config/delete-list", params={"ids": identifier})
     ).json()
-    assert result["code"] == 403, result
+    assert result["code"] == TenantErrorCodes.WRITE.code, result
     with infra_database[2].cursor() as cursor:
         cursor.execute("SELECT value,deleted FROM infra_config_data WHERE id=%s", (identifier,))
         assert cursor.fetchone() == ("retained", 0)
@@ -183,6 +187,10 @@ async def test_all_protected_infra_routes_reject_anonymous(infra_app):
                 url = re.sub(r"\{[^}]+\}", "9223372036854775807", path)
                 for method in route.methods:
                     response = (await public.request(method, url, json={})).json()
-                    assert response["code"] == 401, (method, path, response)
+                    assert response["code"] == SecurityErrorCodes.MISSING.code, (
+                        method,
+                        path,
+                        response,
+                    )
                     checked += 1
     assert checked > 100

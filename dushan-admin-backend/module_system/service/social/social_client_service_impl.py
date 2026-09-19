@@ -8,18 +8,29 @@ from typing import override
 
 import httpx
 
-from framework.common.exception.exceptions.service_exception import ServiceException
-from framework.common.page.schemas.page_result import PageResult
-from framework.starter_auth.core.auth_service import AuthService
-from framework.starter_auth.model.auth_result import AuthResult
-from framework.starter_auth.spi.auth_client_provider import AuthClientProvider
-from framework.starter_cache.core.cache_handler import CacheHandler
-from framework.starter_database.decorators.transactional import transactional
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
-from framework.starter_security.config.security_settings import SecuritySettings
-from framework.starter_security.exception.security_exception import SecurityException
-from framework.starter_web.context.request_context import RequestContext
+from framework.common.exception import ServiceException
+from framework.common.page import PageResult
+from framework.starter_auth.public import (
+    AuthClientProvider,
+    AuthResult,
+    AuthService,
+)
+from framework.starter_cache.public import CacheHandler
+from framework.starter_database.public import (
+    transactional,
+)
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
+from framework.starter_security.public import (
+    SecurityErrorCodes,
+    SecurityException,
+    SecuritySettings,
+)
+from framework.starter_web.public import (
+    RequestContext,
+)
 from module_system.api.social.dto.social_wx_qrcode_req_dto import SocialWxQrcodeReqDTO
 from module_system.api.social.dto.social_wxa_order_notify_confirm_receive_req_dto import (
     SocialWxaOrderNotifyConfirmReceiveReqDTO,
@@ -425,14 +436,14 @@ class SocialClientServiceImpl(SocialClientService):
         source = self._get_source_type(social_type)
         client = await self.clients.get_client(application, source)
         if client is None or redirect_uri != client.redirect_uri:
-            raise SecurityException("invalid")
+            raise SecurityException(SecurityErrorCodes.INVALID)
         authorization = await self.auth.begin(application, source, binding=binding)
         return authorization
 
     async def get_auth_user(self, social_type, user_type, code, state) -> AuthResult:
         binding = RequestContext.current().connection.cookies.get("system_social_binding")
         if binding is None:
-            raise SecurityException("invalid")
+            raise SecurityException(SecurityErrorCodes.INVALID)
         return await self.auth.complete(
             self._application_id(user_type),
             self._get_source_type(social_type),

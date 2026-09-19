@@ -1,8 +1,10 @@
 from datetime import datetime, timezone
 from math import ceil
 
-from framework.starter_cache.repository.base_cache_dao import BaseCacheDAO
-from framework.starter_di.decorators.components import dao
+from framework.starter_cache.public import BaseCacheDAO
+from framework.starter_di.public import (
+    dao,
+)
 from module_system.dal.cache.cache_key_constants import SystemCacheKeys
 from module_system.dal.dataobject.oauth2.oauth2_access_token_do import OAuth2AccessTokenDO
 

@@ -1,8 +1,8 @@
 import pytest
 from sqlalchemy import select, update
 
-from framework.starter_security.enums.security_realm import SecurityRealm
-from framework.starter_security.enums.tenant_access_mode import TenantAccessMode
+from framework.starter_security.definitions.enums.security_realm import SecurityRealm
+from framework.starter_security.definitions.enums.tenant_access_mode import TenantAccessMode
 from framework.starter_tenant.exception.tenant_exception import TenantException
 from framework.starter_web.routing.route_policy import RoutePolicy
 

@@ -5,10 +5,12 @@ import uuid
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
 
-from framework.common.utils.asyncio.asyncio_utils import AsyncioUtils
-from framework.starter_cache.enums.lock_release_outcome_enum import LockReleaseOutcomeEnum
-from framework.starter_cache.exception.cache_error_codes import CacheErrorCodes
-from framework.starter_cache.exception.cache_lock_exception import CacheLockException
+from framework.common.utils.asyncio_utils import AsyncioUtils
+from framework.starter_cache.definitions.constants.cache_error_codes import CacheErrorCodes
+from framework.starter_cache.definitions.enums.lock_release_outcome_enum import (
+    LockReleaseOutcomeEnum,
+)
+from framework.starter_cache.exception.cache_exception import CacheException
 
 _ACQUIRE_RETRY_INTERVAL_SECONDS = 0.05
 _MAX_LEASE_MILLISECONDS = (1 << 63) - 1
@@ -104,7 +106,9 @@ class RedisLeaseLock:
                 )
         except (RedisError, TimeoutError) as error:
             self._lease_deadline = None
-            raise CacheLockException(msg="Redis 续租失败", cause=error) from error
+            raise CacheException(
+                CacheErrorCodes.LOCK_ACQUIRE_FAILED, msg="Redis 续租失败", cause=error
+            ) from error
         if result != 1:
             self._lease_deadline = None
             return False
@@ -114,7 +118,7 @@ class RedisLeaseLock:
     async def acquire(self) -> bool:
         """在等待上界内用 SET NX PX 获取租约，超时返回 False 而不是抛错。"""
         if self._acquire_started:
-            raise CacheLockException(msg="锁实例不支持重复获取")
+            raise CacheException(CacheErrorCodes.LOCK_ACQUIRE_FAILED, msg="锁实例不支持重复获取")
         self._acquire_started = True
         loop = asyncio.get_running_loop()
         deadline = loop.time() + self._wait_seconds
@@ -126,7 +130,9 @@ class RedisLeaseLock:
                         self._key, self._owner_token, nx=True, px=self._lease_milliseconds
                     )
             except (RedisError, TimeoutError) as error:
-                raise CacheLockException(msg="Redis 获取租约锁失败", cause=error) from error
+                raise CacheException(
+                    CacheErrorCodes.LOCK_ACQUIRE_FAILED, msg="Redis 获取租约锁失败", cause=error
+                ) from error
             if acquired:
                 self._acquired = True
                 # 以发起请求的时刻计算到期时间，保证估计值不晚于 Redis 端的真实到期。
@@ -140,9 +146,7 @@ class RedisLeaseLock:
     async def release(self) -> LockReleaseOutcomeEnum:
         """屏蔽调用方取消，直到原子释放得到终态，避免留下没人释放的锁。"""
         if not self._acquired:
-            raise CacheLockException(
-                error_code=CacheErrorCodes.LOCK_RELEASE_FAILED, msg="锁实例尚未获取或已释放"
-            )
+            raise CacheException(CacheErrorCodes.LOCK_RELEASE_FAILED, msg="锁实例尚未获取或已释放")
         return await AsyncioUtils.run_cancellation_shielded(self._release_once())
 
     async def _release_once(self) -> LockReleaseOutcomeEnum:
@@ -159,8 +163,8 @@ class RedisLeaseLock:
                     LockReleaseOutcomeEnum.LOST_OWNER.code,
                 )
         except (RedisError, TimeoutError) as error:
-            raise CacheLockException(
-                error_code=CacheErrorCodes.LOCK_RELEASE_FAILED,
+            raise CacheException(
+                CacheErrorCodes.LOCK_RELEASE_FAILED,
                 msg="Redis 释放租约锁失败",
                 cause=error,
             ) from error
@@ -176,10 +180,12 @@ class RedisLeaseLock:
         因此这里直接拒绝而不是让调用方带着失效的锁继续跑。
         """
         if not self._acquired or self._lease_deadline is None:
-            raise CacheLockException(msg="锁实例尚未持有有效租约")
+            raise CacheException(CacheErrorCodes.LOCK_ACQUIRE_FAILED, msg="锁实例尚未持有有效租约")
         critical_deadline = asyncio.get_running_loop().time() + critical_section_timeout_seconds
         if critical_deadline >= self._lease_deadline:
-            raise CacheLockException(msg="剩余租约不足以覆盖临界区执行上界")
+            raise CacheException(
+                CacheErrorCodes.LOCK_ACQUIRE_FAILED, msg="剩余租约不足以覆盖临界区执行上界"
+            )
         return critical_deadline
 
     @staticmethod
@@ -189,21 +195,21 @@ class RedisLeaseLock:
             try:
                 code = result.decode("utf-8")
             except UnicodeDecodeError as error:
-                raise CacheLockException(
-                    error_code=CacheErrorCodes.LOCK_RELEASE_FAILED,
+                raise CacheException(
+                    CacheErrorCodes.LOCK_RELEASE_FAILED,
                     msg="Redis 返回未知的锁释放结果",
                     cause=error,
                 ) from error
         elif isinstance(result, str):
             code = result
         else:
-            raise CacheLockException(
-                error_code=CacheErrorCodes.LOCK_RELEASE_FAILED, msg="Redis 返回未知的锁释放结果"
+            raise CacheException(
+                CacheErrorCodes.LOCK_RELEASE_FAILED, msg="Redis 返回未知的锁释放结果"
             )
         outcome = LockReleaseOutcomeEnum.get_by_code(code)
         if outcome is None:
-            raise CacheLockException(
-                error_code=CacheErrorCodes.LOCK_RELEASE_FAILED, msg="Redis 返回未知的锁释放结果"
+            raise CacheException(
+                CacheErrorCodes.LOCK_RELEASE_FAILED, msg="Redis 返回未知的锁释放结果"
             )
         return outcome
 
@@ -212,17 +218,23 @@ class RedisLeaseLock:
         """换算成 Redis 可接受的正 64 位毫秒值，向上取整避免租约短于声明值。"""
         milliseconds = lease_seconds * 1000
         if not math.isfinite(milliseconds) or milliseconds > _MAX_LEASE_MILLISECONDS:
-            raise CacheLockException(msg="lease_seconds 超出 Redis 租约范围")
+            raise CacheException(
+                CacheErrorCodes.LOCK_ACQUIRE_FAILED, msg="lease_seconds 超出 Redis 租约范围"
+            )
         return math.ceil(milliseconds)
 
     @staticmethod
     def validate_seconds(value: float, field_name: str, *, allow_zero: bool) -> float:
         """拒绝永久租约、无限等待和非有限数字。"""
         if isinstance(value, bool) or not isinstance(value, (int, float)):
-            raise CacheLockException(msg=f"{field_name} 必须是有限数字")
+            raise CacheException(
+                CacheErrorCodes.LOCK_ACQUIRE_FAILED, msg=f"{field_name} 必须是有限数字"
+            )
         normalized = float(value)
         lower_bound_valid = normalized >= 0 if allow_zero else normalized > 0
         if not math.isfinite(normalized) or not lower_bound_valid:
             comparator = ">= 0" if allow_zero else "> 0"
-            raise CacheLockException(msg=f"{field_name} 必须有限且 {comparator}")
+            raise CacheException(
+                CacheErrorCodes.LOCK_ACQUIRE_FAILED, msg=f"{field_name} 必须有限且 {comparator}"
+            )
         return normalized

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from framework.starter_mq.enums.message_state import MessageState
+from framework.starter_mq.definitions.enums.message_state import MessageState
 
 
 @dataclass(frozen=True, slots=True)

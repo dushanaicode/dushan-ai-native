@@ -3,6 +3,9 @@ from uuid import uuid4
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from framework.starter_security.definitions.constants.security_error_codes import (
+    SecurityErrorCodes,
+)
 from module_infra.definitions.constants.error_code_constants import ErrorCodeConstants
 from module_system.mq.message.mail.mail_send_message import MailSendMessage
 
@@ -376,7 +379,7 @@ async def test_real_message_delivery_and_safe_observation(admin_client, infra_ap
     import asyncio
 
     from framework.starter_security.core.security_service import SecurityService
-    from framework.starter_security.enums.security_realm import SecurityRealm
+    from framework.starter_security.definitions.enums.security_realm import SecurityRealm
     from framework.starter_web.routing.route_policy import RoutePolicy
     from module_system.dal.dataobject.mail.mail_account_do import MailAccountDO
     from module_system.dal.dataobject.mail.mail_log_do import MailLogDO
@@ -557,7 +560,7 @@ async def test_excel_exports(admin_client, path, infra_app):
             transport=ASGITransport(app=infra_app), base_url="http://testserver"
         ) as anonymous:
             rejected = (await anonymous.get("/admin-api/infra/config/page")).json()
-            assert rejected["code"] == 401, rejected
+            assert rejected["code"] == SecurityErrorCodes.MISSING.code, rejected
     response = await admin_client.get("/admin-api/infra/" + path + "/export-excel")
     assert response.status_code == 200, response.text[:200]
     assert response.content.startswith(b"PK"), response.text[:300]
@@ -572,7 +575,9 @@ async def test_unauthorized_access_and_foreign_tenant_file(infra_app, infra_data
     async with AsyncClient(
         transport=ASGITransport(app=infra_app), base_url="http://testserver"
     ) as public:
-        assert (await public.get("/admin-api/infra/file/config/page")).json()["code"] == 401
+        assert (await public.get("/admin-api/infra/file/config/page")).json()[
+            "code"
+        ] == SecurityErrorCodes.MISSING.code
         response = (await public.get("/admin-api/infra/file/999999999999/get/secret.txt")).json()
         assert response["code"] != 0, response
     response = (

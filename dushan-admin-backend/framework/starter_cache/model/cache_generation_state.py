@@ -3,7 +3,9 @@ from typing import Annotated
 from pydantic import ConfigDict, Field, StringConstraints
 
 from framework.common.schemas.base_bo import BaseBO
-from framework.starter_cache.enums.cache_generation_state_enum import CacheGenerationStateEnum
+from framework.starter_cache.definitions.enums.cache_generation_state_enum import (
+    CacheGenerationStateEnum,
+)
 
 type GenerationText = Annotated[str, StringConstraints(strict=True, min_length=1)]
 

@@ -1,7 +1,7 @@
 from collections import defaultdict
 from datetime import timezone
 
-from framework.common.datetime.core.date_utils import DateUtils
+from framework.common.dates import DateUtils
 from module_system.controller.admin.auth.vo.auth_login_resp_vo import AuthLoginRespVO
 from module_system.controller.admin.auth.vo.auth_permission_info_resp_vo import (
     AuthPermissionInfoRespVO,

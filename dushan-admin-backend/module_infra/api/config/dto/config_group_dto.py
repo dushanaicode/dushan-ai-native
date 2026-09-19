@@ -2,8 +2,8 @@ from typing import Annotated
 
 from pydantic import Field
 
-from framework.common.contracts.snowflake_id import SnowflakeIdStr
-from framework.common.schemas.base_dto import BaseDTO
+from framework.common.contracts import SnowflakeIdStr
+from framework.common.schemas import BaseDTO
 from module_infra.api.config.dto.config_item_dto import ConfigItemDTO
 
 

@@ -1,5 +1,8 @@
 from sqlalchemy import and_
 
+from framework.starter_database.definitions.constants.row_access_error_codes import (
+    RowAccessErrorCodes,
+)
 from framework.starter_database.query.row_statement_filter import RowStatementFilter
 
 
@@ -7,7 +10,7 @@ class CombinedConditionBuilder(RowStatementFilter):
     """先组合全部读条件再重写，写入预检查不会读取另一策略隐藏的数据。"""
 
     def __init__(self, registry, rules):
-        super().__init__(registry, lambda: rules[0].failure("configuration"))
+        super().__init__(registry, lambda: rules[0].failure(RowAccessErrorCodes.CONFIGURATION))
         self.rules = rules
 
     def condition(self, config, operation, *, orm=False, entity=None):

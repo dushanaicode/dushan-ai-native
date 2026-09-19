@@ -6,7 +6,7 @@ from dmSQLAlchemy.dmasync import DMDialectAsync_dmasync
 from sqlalchemy import types as sqltypes
 from sqlalchemy.util import await_only
 
-from framework.common.utils.asyncio.asyncio_utils import AsyncioUtils
+from framework.common.utils.asyncio_utils import AsyncioUtils
 from framework.starter_database.dialects.dm_async_dbapi import DmAsyncDbapi
 
 

@@ -3,7 +3,9 @@ import asyncio
 import pytest
 from redis.exceptions import ConnectionError as RedisConnectionError
 
-from framework.starter_captcha.exception.captcha_error_codes import CaptchaErrorCodes as Codes
+from framework.starter_captcha.definitions.constants.captcha_error_codes import (
+    CaptchaErrorCodes as Codes,
+)
 from framework.starter_captcha.exception.captcha_exception import CaptchaException
 
 

@@ -1,4 +1,4 @@
-from framework.common.schemas.base_vo import BaseVO
+from framework.common.schemas import BaseVO
 from module_system.framework.social.model.watermark import Watermark
 
 

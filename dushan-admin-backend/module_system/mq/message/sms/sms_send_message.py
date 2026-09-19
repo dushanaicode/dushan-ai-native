@@ -2,8 +2,8 @@ from typing import Any, ClassVar
 
 from pydantic import Field, field_validator
 
-from framework.common.schemas.base_bo import BaseBO
-from framework.common.validator.not_null import NotNull
+from framework.common.schemas import BaseBO
+from framework.common.validator import NotNull
 
 
 class SmsSendMessage(BaseBO):

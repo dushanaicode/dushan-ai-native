@@ -3,8 +3,9 @@ from collections.abc import AsyncIterable, Iterable
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
 
-from framework.starter_cache.constants.cache_constants import CacheConstants
-from framework.starter_cache.exception.cache_operation_exception import CacheOperationException
+from framework.starter_cache.definitions.constants.cache_constants import CacheConstants
+from framework.starter_cache.definitions.constants.cache_error_codes import CacheErrorCodes
+from framework.starter_cache.exception.cache_exception import CacheException
 from framework.starter_di.decorators.components import framework
 
 _DELETE_IF_VALUE_MATCHES = """
@@ -38,7 +39,9 @@ class CacheKeyDeleter:
                 deleted += await self._delete_chunk(client, chunk)
             return deleted
         except RedisError as error:
-            raise CacheOperationException(msg="Redis 缓存键删除失败", cause=error) from error
+            raise CacheException(
+                CacheErrorCodes.OPERATION_FAILED, msg="Redis 缓存键删除失败", cause=error
+            ) from error
 
     async def delete_stream(self, client: Redis, full_keys: AsyncIterable[str]) -> int:
         """边扫描边删除，不把整个键集合读进内存。"""
@@ -54,7 +57,9 @@ class CacheKeyDeleter:
                 deleted += await self._delete_chunk(client, chunk)
             return deleted
         except RedisError as error:
-            raise CacheOperationException(msg="Redis 缓存键流式删除失败", cause=error) from error
+            raise CacheException(
+                CacheErrorCodes.OPERATION_FAILED, msg="Redis 缓存键流式删除失败", cause=error
+            ) from error
 
     async def delete_matching(self, client: Redis, pattern: str) -> int:
         """按模式扫描并删除匹配的物理键。"""
@@ -68,9 +73,13 @@ class CacheKeyDeleter:
         try:
             result = await client.eval(_DELETE_IF_VALUE_MATCHES, 1, full_key, expected)
         except RedisError as error:
-            raise CacheOperationException(msg="Redis 缓存发布补偿删除失败", cause=error) from error
+            raise CacheException(
+                CacheErrorCodes.OPERATION_FAILED, msg="Redis 缓存发布补偿删除失败", cause=error
+            ) from error
         if type(result) is not int or result not in (0, 1):
-            raise CacheOperationException(msg="Redis 缓存发布补偿删除返回值无效")
+            raise CacheException(
+                CacheErrorCodes.OPERATION_FAILED, msg="Redis 缓存发布补偿删除返回值无效"
+            )
         return result
 
     @staticmethod
@@ -81,7 +90,11 @@ class CacheKeyDeleter:
                 pipeline.delete(full_key)
             results = await pipeline.execute()
         if not isinstance(results, list) or len(results) != len(chunk):
-            raise CacheOperationException(msg="Redis 删除 Pipeline 返回形状无效")
+            raise CacheException(
+                CacheErrorCodes.OPERATION_FAILED, msg="Redis 删除 Pipeline 返回形状无效"
+            )
         if any(type(result) is not int or result not in (0, 1) for result in results):
-            raise CacheOperationException(msg="Redis 删除 Pipeline 返回值无效")
+            raise CacheException(
+                CacheErrorCodes.OPERATION_FAILED, msg="Redis 删除 Pipeline 返回值无效"
+            )
         return sum(results)

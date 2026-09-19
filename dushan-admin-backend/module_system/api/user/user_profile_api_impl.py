@@ -4,8 +4,10 @@ from typing import override
 
 from loguru import logger
 
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
 from module_system.api.dept.dept_api import DeptApi
 from module_system.api.dept.post_api import PostApi
 from module_system.api.user.dto.user_profile_resp_dto import UserProfileRespDTO

@@ -2,7 +2,7 @@ import asyncio
 
 from dmSQLAlchemy.dmasync import AsyncAdapt_dmasync_cursor
 
-from framework.common.utils.asyncio.asyncio_utils import AsyncioUtils
+from framework.common.utils.asyncio_utils import AsyncioUtils
 
 
 class DmAsyncCursor(AsyncAdapt_dmasync_cursor):

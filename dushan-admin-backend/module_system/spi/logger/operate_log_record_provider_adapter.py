@@ -1,6 +1,10 @@
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
-from framework.starter_security.bizlog.log_record_provider import LogRecordProvider
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
+from framework.starter_security.public import (
+    LogRecordProvider,
+)
 from module_system.service.logger.operate_log_service import OperateLogService
 
 

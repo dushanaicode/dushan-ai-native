@@ -1,8 +1,10 @@
 import asyncio
 from time import perf_counter
 
-from framework.common.utils.asyncio.asyncio_utils import AsyncioUtils
-from framework.starter_cache.enums.lock_release_outcome_enum import LockReleaseOutcomeEnum
+from framework.common.utils.asyncio_utils import AsyncioUtils
+from framework.starter_cache.definitions.enums.lock_release_outcome_enum import (
+    LockReleaseOutcomeEnum,
+)
 from framework.starter_cache.exception.cache_exception import CacheException
 from framework.starter_cache.lock.redis_lease_lock import RedisLeaseLock
 from framework.starter_protection.core.protection_runtime import ProtectionRuntime

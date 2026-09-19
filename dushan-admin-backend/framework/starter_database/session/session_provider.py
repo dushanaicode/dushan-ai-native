@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from loguru import logger
 from sqlalchemy.exc import SQLAlchemyError
 
-from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
+from framework.common.utils.cleanup_utils import CleanupUtils
 from framework.starter_database.config.database_settings import DatabaseSettings
 from framework.starter_database.connection.data_source_registry import DataSourceRegistry
 from framework.starter_database.connection.replication_status import ReplicationStatus

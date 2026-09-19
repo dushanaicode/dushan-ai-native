@@ -23,8 +23,8 @@ from starlette.requests import Request
 
 from framework.common.diagnostics.exception_trace_formatter import ExceptionTraceFormatter
 from framework.common.diagnostics.safe_exception_diagnostics import SafeExceptionDiagnostics
+from framework.starter_database.definitions.constants.database_error_codes import DatabaseErrorCodes
 from framework.starter_database.exception.after_commit_exception import AfterCommitException
-from framework.starter_database.exception.database_error_codes import DatabaseErrorCodes
 from framework.starter_database.exception.database_error_translator import DatabaseErrorTranslator
 from framework.starter_database.exception.database_exception import DatabaseException
 from framework.starter_database.session.managed_async_session import ManagedAsyncSession

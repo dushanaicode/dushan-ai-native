@@ -2,10 +2,11 @@ import asyncio
 import hashlib
 from datetime import UTC, datetime, timedelta
 
-from framework.common.utils.asyncio.asyncio_utils import AsyncioUtils
+from framework.common.utils.asyncio_utils import AsyncioUtils
 from framework.starter_di.decorators.components import framework
 from framework.starter_mq.core.mq_service import MQService
-from framework.starter_mq.enums.outbox_state import OutboxState
+from framework.starter_mq.definitions.constants.mq_error_codes import MQErrorCodes
+from framework.starter_mq.definitions.enums.outbox_state import OutboxState
 from framework.starter_mq.exception.mq_exception import MQException
 from framework.starter_mq.model.outbox_record import OutboxRecord
 
@@ -24,7 +25,7 @@ class OutboxService:
             or runtime.outbox is None
             or runtime.database is None
         ):
-            raise MQException("configuration")
+            raise MQException(MQErrorCodes.CONFIGURATION)
         return runtime, runtime.outbox
 
     async def enqueue(self, command) -> str:
@@ -59,7 +60,7 @@ class OutboxService:
         settings = runtime.settings
         selected_limit = settings.outbox_batch_size if limit is None else limit
         if not 1 <= selected_limit <= settings.outbox_batch_size:
-            raise MQException("invalid")
+            raise MQException(MQErrorCodes.INVALID)
         counts = {state.value: 0 for state in OutboxState}
         for _ in range(1 if record_id is not None else selected_limit):
             # 逐条认领，避免一个批次尾部在轮到发布前租约就已过期。
@@ -78,7 +79,7 @@ class OutboxService:
                 or record.claim_expires_at is None
                 or record.claim_expires_at <= datetime.now(UTC)
             ):
-                raise MQException("lease")
+                raise MQException(MQErrorCodes.LEASE)
             receipt = None
             error = None
             state = OutboxState.PUBLISHED
@@ -100,10 +101,11 @@ class OutboxService:
                 raise
             except MQException as failure:
                 error = failure
-                if failure.reason == "unknown":
+                if failure.error_code is MQErrorCodes.UNKNOWN:
                     state = OutboxState.UNKNOWN
                 elif (
-                    failure.reason in {"capacity", "closed", "confirmation"}
+                    failure.error_code
+                    in {MQErrorCodes.CAPACITY, MQErrorCodes.CLOSED, MQErrorCodes.CONFIRMATION}
                     and record.attempts < settings.outbox_max_attempts
                 ):
                     state = OutboxState.PENDING

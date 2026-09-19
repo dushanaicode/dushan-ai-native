@@ -8,6 +8,9 @@ from time import monotonic
 from framework.starter_cache.core.cache_handler import CacheHandler
 from framework.starter_data_permission.config.data_permission_settings import DataPermissionSettings
 from framework.starter_data_permission.core.data_scope_resolver import DataScopeResolver
+from framework.starter_data_permission.definitions.constants.data_permission_error_codes import (
+    DataPermissionErrorCodes,
+)
 from framework.starter_data_permission.exception.data_permission_exception import (
     DataPermissionException,
 )
@@ -20,10 +23,10 @@ from framework.starter_data_permission.spi.data_permission_provider import DataP
 from framework.starter_di.context.application_context import ApplicationContext
 from framework.starter_di.decorators.components import framework
 from framework.starter_di.decorators.conditional import conditional
-from framework.starter_di.enums.component_scope_enum import ComponentScopeEnum
+from framework.starter_di.definitions.enums.component_scope_enum import ComponentScopeEnum
 from framework.starter_security.context.security_context import SecurityContext
 from framework.starter_security.core.security_service import SecurityService
-from framework.starter_security.enums.tenant_access_mode import TenantAccessMode
+from framework.starter_security.definitions.enums.tenant_access_mode import TenantAccessMode
 from framework.starter_security.model.login_session import LoginSession
 from framework.starter_security.spi.data_access_provider import DataAccessProvider
 
@@ -63,7 +66,7 @@ class DataPermissionService(DataAccessProvider):
         except DataPermissionException:
             raise
         except Exception as error:
-            raise DataPermissionException("provider", cause=error) from error
+            raise DataPermissionException(DataPermissionErrorCodes.PROVIDER, cause=error) from error
 
     def _identifier(self, identity):
         parts = [
@@ -82,9 +85,9 @@ class DataPermissionService(DataAccessProvider):
             if identity.access_mode is TenantAccessMode.DIRECT_MEMBERSHIP:
                 revision = await self.resolver.provider.revision(identity)
                 if not isinstance(revision, str):
-                    raise DataPermissionException("configuration")
+                    raise DataPermissionException(DataPermissionErrorCodes.CONFIGURATION)
                 if revision != identity.authorization_revision:
-                    raise DataPermissionException("stale")
+                    raise DataPermissionException(DataPermissionErrorCodes.STALE)
             return DataPermissionSnapshot(
                 binding=binding, revision=identity.authorization_revision, grant=grant
             ).model_dump(mode="json")
@@ -106,25 +109,25 @@ class DataPermissionService(DataAccessProvider):
         try:
             snapshot = DataPermissionSnapshot.model_validate_json(json.dumps(value))
         except (ValueError, TypeError) as error:
-            raise DataPermissionException("provider", cause=error) from error
+            raise DataPermissionException(DataPermissionErrorCodes.PROVIDER, cause=error) from error
         if snapshot.binding != binding or snapshot.revision != identity.authorization_revision:
-            raise DataPermissionException("provider")
+            raise DataPermissionException(DataPermissionErrorCodes.PROVIDER)
         return snapshot.grant
 
     @asynccontextmanager
     async def enter(self, identity):
         if self._closed:
-            raise DataPermissionException("closed")
+            raise DataPermissionException(DataPermissionErrorCodes.CLOSED)
         binding = ApplicationContext.current_execution()
         if binding.application is not self.security.application:
-            raise DataPermissionException("configuration")
+            raise DataPermissionException(DataPermissionErrorCodes.CONFIGURATION)
         current = (
             self.security.current()
             if isinstance(identity, LoginSession)
             else self.security.current_workload()
         )
         if current is not identity:
-            raise DataPermissionException("missing")
+            raise DataPermissionException(DataPermissionErrorCodes.MISSING)
         self._active += 1
         self._idle.clear()
         token = self._frame.set(None)
@@ -149,21 +152,21 @@ class DataPermissionService(DataAccessProvider):
     def current(self) -> DataPermissionFrame:
         frame = self._frame.get()
         if frame is None or not frame.active or not frame.binding.active:
-            raise DataPermissionException("missing")
+            raise DataPermissionException(DataPermissionErrorCodes.MISSING)
         if (
             frame.binding is not ApplicationContext.current_execution()
             or frame.binding.application is not self.security.application
         ):
-            raise DataPermissionException("missing")
+            raise DataPermissionException(DataPermissionErrorCodes.MISSING)
         current = (
             self.security.current()
             if isinstance(frame.identity, LoginSession)
             else self.security.current_workload()
         )
         if current is not frame.identity:
-            raise DataPermissionException("missing")
+            raise DataPermissionException(DataPermissionErrorCodes.MISSING)
         if monotonic() >= frame.expires_at:
-            raise DataPermissionException("stale")
+            raise DataPermissionException(DataPermissionErrorCodes.STALE)
         return frame
 
     def require_membership_access(self, membership_id: str) -> str:
@@ -171,20 +174,20 @@ class DataPermissionService(DataAccessProvider):
         if frame.identity.tenant_id is None or not (
             frame.grant.tenant_all or membership_id in frame.grant.membership_ids
         ):
-            raise DataPermissionException("denied")
+            raise DataPermissionException(DataPermissionErrorCodes.DENIED)
         return frame.identity.tenant_id
 
     def require_tenant_all_access(self) -> str:
         frame = self.current()
         if frame.identity.tenant_id is None or not frame.grant.tenant_all:
-            raise DataPermissionException("denied")
+            raise DataPermissionException(DataPermissionErrorCodes.DENIED)
         return frame.identity.tenant_id
 
     async def invalidate(self, identity: LoginSession) -> None:
         """权限更新后失效旧版本；其他执行仍遵循固定快照的有效期上限。"""
         self.current()
         if identity.application_id != self.current().identity.application_id:
-            raise DataPermissionException("denied")
+            raise DataPermissionException(DataPermissionErrorCodes.DENIED)
         if self.settings.cache_enabled:
             await self._call(
                 lambda: self.cache.delete(self.settings.cache_key(), self._identifier(identity))
@@ -205,14 +208,14 @@ class DataPermissionService(DataAccessProvider):
             or not reason.strip()
             or len(reason) > 256
         ):
-            raise DataPermissionException("configuration")
+            raise DataPermissionException(DataPermissionErrorCodes.CONFIGURATION)
         if self.exemptions is None or frame.identity.tenant_id is None:
-            raise DataPermissionException("denied")
+            raise DataPermissionException(DataPermissionErrorCodes.DENIED)
         allowed = await self._call(
             lambda: self.exemptions.authorize(frame.identity, resource, operation, reason)
         )
         if allowed is not True:
-            raise DataPermissionException("denied")
+            raise DataPermissionException(DataPermissionErrorCodes.DENIED)
         self.current()
         exemption = DataExemption(frame, resource, operation)
         token = self._exemptions.set((*self._exemptions.get(), exemption))
@@ -236,7 +239,7 @@ class DataPermissionService(DataAccessProvider):
         if self._frame.get() is None:
             identity = self.security.current() or self.security.current_workload()
             if identity is None:
-                raise DataPermissionException("missing")
+                raise DataPermissionException(DataPermissionErrorCodes.MISSING)
             return identity
         frame = self.current()
         return frame, tuple(

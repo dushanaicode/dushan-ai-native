@@ -2,6 +2,7 @@ import hashlib
 import re
 import secrets
 
+from framework.starter_security.definitions.constants.security_error_codes import SecurityErrorCodes
 from framework.starter_security.exception.security_exception import SecurityException
 
 
@@ -15,5 +16,5 @@ class OpaqueToken:
     @staticmethod
     def digest(token: str) -> str:
         if not isinstance(token, str) or re.fullmatch(r"[A-Za-z0-9_-]{32,256}", token) is None:
-            raise SecurityException("invalid")
+            raise SecurityException(SecurityErrorCodes.INVALID)
         return hashlib.sha256(token.encode("ascii")).hexdigest()

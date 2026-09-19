@@ -6,7 +6,10 @@ from urllib.parse import parse_qsl
 from starlette.datastructures import Headers
 
 from framework.starter_ip.core.client_ip_resolver import ClientIpResolver
-from framework.starter_websocket.exception.socket_exception import SocketException
+from framework.starter_websocket.definitions.constants.websocket_error_codes import (
+    WebSocketErrorCodes,
+)
+from framework.starter_websocket.exception.websocket_exception import WebSocketException
 from framework.starter_websocket.model.socket_handshake import SocketHandshake
 
 
@@ -46,9 +49,9 @@ class SocketAuthenticator:
             if key.lower() not in {b"cookie", b"authorization", b"sec-websocket-protocol"}
         ]
         if not runtime.accepting:
-            raise SocketException("closed")
+            raise WebSocketException(WebSocketErrorCodes.CLOSED)
         if self.pending >= runtime.settings.max_pending_handshakes:
-            raise SocketException("capacity")
+            raise WebSocketException(WebSocketErrorCodes.CAPACITY)
         self.pending += 1
         try:
             async with asyncio.timeout(runtime.settings.handshake_timeout_seconds):
@@ -57,7 +60,7 @@ class SocketAuthenticator:
                     key.lower().replace("-", "").replace("_", "") in self._FORBIDDEN
                     for key in headers
                 ):
-                    raise SocketException("policy")
+                    raise WebSocketException(WebSocketErrorCodes.POLICY)
                 try:
                     pairs = parse_qsl(
                         raw_query.decode("ascii"),
@@ -66,18 +69,18 @@ class SocketAuthenticator:
                         max_num_fields=4,
                     )
                 except (ValueError, UnicodeError) as error:
-                    raise SocketException("protocol", cause=error) from error
+                    raise WebSocketException(WebSocketErrorCodes.PROTOCOL, cause=error) from error
                 params = dict(pairs)
                 if len(pairs) != len(params) or set(params) != {"ticket", "audience"}:
-                    raise SocketException("policy")
+                    raise WebSocketException(WebSocketErrorCodes.POLICY)
                 if re.fullmatch(r"[A-Za-z0-9_-]{16,512}", params["ticket"]) is None:
-                    raise SocketException("authentication")
+                    raise WebSocketException(WebSocketErrorCodes.AUTHENTICATION)
                 origin = headers.getlist("origin")
                 if len(origin) != 1 or origin[0] not in runtime.settings.allowed_origins:
-                    raise SocketException("policy")
+                    raise WebSocketException(WebSocketErrorCodes.POLICY)
                 requested = websocket.scope["subprotocols"]
                 if any(value not in runtime.settings.subprotocols for value in requested):
-                    raise SocketException("policy")
+                    raise WebSocketException(WebSocketErrorCodes.POLICY)
                 protocol = next(
                     (value for value in runtime.settings.subprotocols if value in requested), None
                 )

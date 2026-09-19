@@ -3,11 +3,11 @@ from typing import Annotated, Any
 
 from pydantic import Field, field_validator
 
-from framework.common.contracts.snowflake_id import (
+from framework.common.contracts import (
     SnowflakeIdInput,
 )
-from framework.common.page.schemas.page_query import PageQuery
-from framework.common.validator.email import Email
+from framework.common.page import PageQuery
+from framework.common.validator import Email
 
 
 class MailLogPageReqVO(PageQuery):

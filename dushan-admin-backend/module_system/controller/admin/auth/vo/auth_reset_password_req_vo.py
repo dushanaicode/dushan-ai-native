@@ -2,10 +2,8 @@ from typing import Annotated, Any
 
 from pydantic import Field, field_validator
 
-from framework.common.schemas.base_request_vo import BaseRequestVO
-from framework.common.validator.mobile import Mobile
-from framework.common.validator.not_empty import NotEmpty
-from framework.common.validator.size import Size
+from framework.common.schemas import BaseRequestVO
+from framework.common.validator import Mobile, NotEmpty, Size
 
 
 class AuthResetPasswordReqVO(BaseRequestVO):

@@ -4,9 +4,7 @@ import pytest
 
 from fixtures.cache_fixtures import app_values, redis_values, requires_redis
 from framework.starter_cache.core.cache_handler import CacheHandler
-from framework.starter_cache.exception.cache_serialization_exception import (
-    CacheSerializationException,
-)
+from framework.starter_cache.exception.cache_exception import CacheException
 from server.starter_server import create_app
 
 pytestmark = requires_redis
@@ -211,7 +209,7 @@ async def test_serialization_failure_inside_load_is_not_silently_swallowed(cache
     async def load():
         return object()
 
-    with pytest.raises(CacheSerializationException):
+    with pytest.raises(CacheException):
         await cache.get_or_load(keys.TestCacheKeys.ITEM, "unserializable", load, 60)
 
 

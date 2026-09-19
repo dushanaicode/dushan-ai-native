@@ -1,4 +1,4 @@
-from framework.common.enums.user_type_enum import UserTypeEnum
+from framework.common.enums import UserTypeEnum
 
 
 class LogUserTypeConverter:

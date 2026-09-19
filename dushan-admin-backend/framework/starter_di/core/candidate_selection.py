@@ -7,8 +7,8 @@ from framework.starter_di.config.di_settings import DiSettings
 from framework.starter_di.core.binding_diagnostic import BindingDiagnostic
 from framework.starter_di.core.component_binding import ComponentBinding
 from framework.starter_di.decorators.di_component_metadata import DiComponentMetadata
-from framework.starter_di.enums.binding_outcome_enum import BindingOutcomeEnum
-from framework.starter_di.exception.di_error_codes import DiErrorCodes
+from framework.starter_di.definitions.constants.di_error_codes import DiErrorCodes
+from framework.starter_di.definitions.enums.binding_outcome_enum import BindingOutcomeEnum
 from framework.starter_di.exception.di_exception import DiException
 
 

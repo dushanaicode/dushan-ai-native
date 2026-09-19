@@ -18,10 +18,12 @@ from server.config.application_settings import ApplicationSettings
 
 pytestmark = pytest.mark.unit
 
+# show_mascot 是横幅喵有意保留的代码默认值（兼容无该键的旧配置），其余字段仍要求 YAML 必填。
 CONFIG_FIELDS = [
     (group, name)
     for group, field in ApplicationSettings.model_fields.items()
     for name in field.annotation.model_fields
+    if (group, name) != ("banner", "show_mascot")
 ]
 
 

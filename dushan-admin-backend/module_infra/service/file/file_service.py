@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from framework.common.page.schemas.page_result import PageResult
+from framework.common.page import PageResult
 from module_infra.controller.admin.file.vo.file.file_create_req_vo import FileCreateReqVO
 from module_infra.controller.admin.file.vo.file.file_list_objects_resp_vo import (
     FileListObjectsRespVO,

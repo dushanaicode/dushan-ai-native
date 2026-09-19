@@ -2,18 +2,15 @@ from typing import Annotated, Any
 
 from pydantic import Field, field_validator, model_validator
 
-from framework.common.contracts.snowflake_id import (
+from framework.common.contracts import (
     SnowflakeIdInput,
 )
-from framework.common.exception.exceptions.model_validator_exception import ModelValidatorException
-from framework.common.schemas.base_request_vo import BaseRequestVO
-from framework.common.validator.email import Email
-from framework.common.validator.length import Length
-from framework.common.validator.mobile import Mobile
-from framework.common.validator.not_empty import NotEmpty
-from framework.common.validator.pattern import Pattern
-from framework.common.validator.size import Size
-from framework.starter_security.bizlog.diff_field import DiffField
+from framework.common.exception import ModelValidatorException
+from framework.common.schemas import BaseRequestVO
+from framework.common.validator import Email, Length, Mobile, NotEmpty, Pattern, Size
+from framework.starter_security.public import (
+    DiffField,
+)
 
 
 class UserSaveReqVO(BaseRequestVO):

@@ -83,7 +83,12 @@ def test_launcher_prints_full_banner_without_early_runtime_details(
     config_dir, monkeypatch, capsys, engine, enabled
 ):
     """引擎启动前只输出完整图案，运行信息留到成功初始化后。"""
-    root = config_dir({"banner": {"enabled": enabled}, "log": {"console_level": "NONE"}})
+    root = config_dir(
+        {
+            "banner": {"enabled": enabled, "show_worship": True},
+            "log": {"console_level": "NONE"},
+        }
+    )
     logo = (
         files("framework.starter_web.banner")
         .joinpath("assets/logo.txt")

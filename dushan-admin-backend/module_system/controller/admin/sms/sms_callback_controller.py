@@ -2,11 +2,20 @@ import hmac
 
 from fastapi import APIRouter, Depends, Request
 
-from framework.starter_di.decorators.di_dependency import DiDependency
-from framework.starter_security.exception.security_exception import SecurityException
-from framework.starter_tenant.config.tenant_settings import TenantSettings
-from framework.starter_web.response.result import Result
-from framework.starter_web.routing.route_policy import RoutePolicy
+from framework.starter_di.public import (
+    DiDependency,
+)
+from framework.starter_security.public import (
+    SecurityErrorCodes,
+    SecurityException,
+)
+from framework.starter_tenant.public import (
+    TenantSettings,
+)
+from framework.starter_web.public import (
+    Result,
+    RoutePolicy,
+)
 from module_system.config.system_settings import SystemSettings
 from module_system.framework.sms.enums.sms_channel_enum import SmsChannelEnum
 from module_system.service.auth.system_workload_service import SystemWorkloadService
@@ -27,12 +36,12 @@ class SmsCallbackController:
         tenant: TenantSettings = Depends(DiDependency(TenantSettings)),
     ) -> Result[bool]:
         token = request.query_params.get("token")
-        if (
-            settings.sms_callback_token is None
-            or token is None
-            or (not hmac.compare_digest(token, settings.sms_callback_token.get_secret_value()))
+        if settings.sms_callback_token is None:
+            raise SecurityException(SecurityErrorCodes.CONFIGURATION)
+        if token is None or not hmac.compare_digest(
+            token, settings.sms_callback_token.get_secret_value()
         ):
-            raise SecurityException("denied")
+            raise SecurityException(SecurityErrorCodes.INVALID, detail="回调令牌不匹配")
         async with workloads.scope("system.auth", tenant.default_tenant_id):
             body_bytes = await request.body()
             text = body_bytes.decode("utf-8")
@@ -50,12 +59,12 @@ class SmsCallbackController:
         tenant: TenantSettings = Depends(DiDependency(TenantSettings)),
     ) -> Result[bool]:
         token = request.query_params.get("token")
-        if (
-            settings.sms_callback_token is None
-            or token is None
-            or (not hmac.compare_digest(token, settings.sms_callback_token.get_secret_value()))
+        if settings.sms_callback_token is None:
+            raise SecurityException(SecurityErrorCodes.CONFIGURATION)
+        if token is None or not hmac.compare_digest(
+            token, settings.sms_callback_token.get_secret_value()
         ):
-            raise SecurityException("denied")
+            raise SecurityException(SecurityErrorCodes.INVALID, detail="回调令牌不匹配")
         async with workloads.scope("system.auth", tenant.default_tenant_id):
             body_bytes = await request.body()
             text = body_bytes.decode("utf-8")
@@ -73,12 +82,12 @@ class SmsCallbackController:
         tenant: TenantSettings = Depends(DiDependency(TenantSettings)),
     ) -> Result[bool]:
         token = request.query_params.get("token")
-        if (
-            settings.sms_callback_token is None
-            or token is None
-            or (not hmac.compare_digest(token, settings.sms_callback_token.get_secret_value()))
+        if settings.sms_callback_token is None:
+            raise SecurityException(SecurityErrorCodes.CONFIGURATION)
+        if token is None or not hmac.compare_digest(
+            token, settings.sms_callback_token.get_secret_value()
         ):
-            raise SecurityException("denied")
+            raise SecurityException(SecurityErrorCodes.INVALID, detail="回调令牌不匹配")
         async with workloads.scope("system.auth", tenant.default_tenant_id):
             body_bytes = await request.body()
             text = body_bytes.decode("utf-8")
@@ -96,12 +105,12 @@ class SmsCallbackController:
         tenant: TenantSettings = Depends(DiDependency(TenantSettings)),
     ) -> Result[bool]:
         token = request.query_params.get("token")
-        if (
-            settings.sms_callback_token is None
-            or token is None
-            or (not hmac.compare_digest(token, settings.sms_callback_token.get_secret_value()))
+        if settings.sms_callback_token is None:
+            raise SecurityException(SecurityErrorCodes.CONFIGURATION)
+        if token is None or not hmac.compare_digest(
+            token, settings.sms_callback_token.get_secret_value()
         ):
-            raise SecurityException("denied")
+            raise SecurityException(SecurityErrorCodes.INVALID, detail="回调令牌不匹配")
         async with workloads.scope("system.auth", tenant.default_tenant_id):
             body_bytes = await request.body()
             text = body_bytes.decode("utf-8")

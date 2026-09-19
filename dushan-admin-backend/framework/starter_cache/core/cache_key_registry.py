@@ -3,8 +3,8 @@ from collections.abc import Iterable
 from loguru import logger
 
 from framework.starter_cache.config.cache_settings import CacheSettings
-from framework.starter_cache.exception.cache_config_exception import CacheConfigException
-from framework.starter_cache.exception.cache_error_codes import CacheErrorCodes
+from framework.starter_cache.definitions.constants.cache_error_codes import CacheErrorCodes
+from framework.starter_cache.exception.cache_exception import CacheException
 from framework.starter_cache.model.cache_key import CacheKey
 from framework.starter_cache.model.cache_key_container import CacheKeyContainer
 from framework.starter_di.decorators.components import framework
@@ -37,7 +37,7 @@ class CacheKeyRegistry:
     ) -> None:
         """统一校验静态声明和应用按配置解析的资源键；重复登记视为启动流程错误。"""
         if self._registered:
-            raise CacheConfigException(msg="缓存键注册表不能重复登记")
+            raise CacheException(CacheErrorCodes.CONFIG_ERROR, msg="缓存键注册表不能重复登记")
         collected: dict[str, CacheKey] = {}
         for container in containers:
             for cache_key in container.declared_keys():
@@ -60,8 +60,8 @@ class CacheKeyRegistry:
         归属和生命周期都会变得不可解释，因此在启动阶段直接失败。
         """
         if cache_key.key in collected:
-            raise CacheConfigException(
-                error_code=CacheErrorCodes.INVALID_CACHE_KEY,
+            raise CacheException(
+                CacheErrorCodes.INVALID_CACHE_KEY,
                 msg=f"缓存键前缀重复声明：{cache_key.key}（{source}）",
             )
         overlapping = next(
@@ -74,8 +74,8 @@ class CacheKeyRegistry:
             None,
         )
         if overlapping is not None:
-            raise CacheConfigException(
-                error_code=CacheErrorCodes.INVALID_CACHE_KEY,
+            raise CacheException(
+                CacheErrorCodes.INVALID_CACHE_KEY,
                 msg=f"缓存键前缀互相包含：{cache_key.key} <-> {overlapping}（{source}）",
             )
         collected[cache_key.key] = cache_key
@@ -92,8 +92,8 @@ class CacheKeyRegistry:
             }
         )
         if missing:
-            raise CacheConfigException(
-                error_code=CacheErrorCodes.INVALID_CACHE_KEY,
+            raise CacheException(
+                CacheErrorCodes.INVALID_CACHE_KEY,
                 msg=f"缓存键引用了未配置的客户端：{', '.join(missing)}",
             )
 
@@ -111,8 +111,8 @@ class CacheKeyRegistry:
                     f"{cache_key.key}={cache_key.client_name}"
                     for cache_key in sorted(cache_keys, key=lambda item: item.key)
                 )
-                raise CacheConfigException(
-                    error_code=CacheErrorCodes.INVALID_CACHE_KEY,
+                raise CacheException(
+                    CacheErrorCodes.INVALID_CACHE_KEY,
                     msg=f"缓存键共置组路由不一致：group={group}，{assignments}",
                 )
 

@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from sqlalchemy import select
 
-from framework.starter_job.enums.job_trigger_kind import JobTriggerKind
+from framework.starter_job.definitions.enums.job_trigger_kind import JobTriggerKind
 from framework.starter_job.model.job_request import JobRequest
 
 from .test_runtime import wait_state

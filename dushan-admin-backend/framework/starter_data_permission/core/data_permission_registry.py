@@ -6,6 +6,9 @@ from sqlalchemy.sql import visitors
 from sqlalchemy.sql.elements import ColumnClause
 from sqlalchemy.sql.selectable import Select, TableClause
 
+from framework.starter_data_permission.definitions.constants.data_permission_error_codes import (
+    DataPermissionErrorCodes,
+)
 from framework.starter_data_permission.exception.data_permission_exception import (
     DataPermissionException,
 )
@@ -32,7 +35,7 @@ class DataPermissionRegistry:
                 elif issubclass(model, GlobalControlDO):
                     config = DataPermissionModel(model, True, None)
             if not isinstance(config, DataPermissionModel):
-                raise DataPermissionException("unregistered")
+                raise DataPermissionException(DataPermissionErrorCodes.UNREGISTERED)
             if config.table.key in entries:
                 raise ValueError("数据权限表重复登记")
             entries[config.table.key] = config
@@ -46,15 +49,15 @@ class DataPermissionRegistry:
     def require(self, table):
         config = self.entries.get(table.key)
         if config is None:
-            raise DataPermissionException("unregistered")
+            raise DataPermissionException(DataPermissionErrorCodes.UNREGISTERED)
         if table._deannotate() is not config.table:
-            raise DataPermissionException("configuration")
+            raise DataPermissionException(DataPermissionErrorCodes.CONFIGURATION)
         return config
 
     def require_mapper(self, mapper):
         config = self.require(mapper.local_table)
         if config.model is not mapper.class_:
-            raise DataPermissionException("unregistered")
+            raise DataPermissionException(DataPermissionErrorCodes.UNREGISTERED)
         return config
 
     def _validate_entity(self, node):
@@ -74,15 +77,15 @@ class DataPermissionRegistry:
             pending.extend(node.get_children())
             self._validate_entity(node)
             if isinstance(node, (Insert, Update, Delete)) and node is not statement:
-                raise DataPermissionException("configuration")
+                raise DataPermissionException(DataPermissionErrorCodes.CONFIGURATION)
             if isinstance(node, TableClause) and not isinstance(node, Table):
-                raise DataPermissionException("unregistered")
+                raise DataPermissionException(DataPermissionErrorCodes.UNREGISTERED)
             if (
                 isinstance(node, ColumnClause)
                 and node.is_literal
                 and str(node.name) not in {"1", "*"}
             ):
-                raise DataPermissionException("configuration")
+                raise DataPermissionException(DataPermissionErrorCodes.CONFIGURATION)
             if isinstance(node, Table):
                 self.require(node)
                 tables.add(node._deannotate())

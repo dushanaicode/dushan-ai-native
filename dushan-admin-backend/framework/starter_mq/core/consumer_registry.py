@@ -1,9 +1,10 @@
 from loguru import logger
 
 from framework.starter_mq.core.backend_capabilities import BackendCapabilities
-from framework.starter_mq.enums.exhausted_policy import ExhaustedPolicy
-from framework.starter_mq.enums.message_mode import MessageMode
-from framework.starter_mq.enums.tenant_policy import TenantPolicy
+from framework.starter_mq.definitions.constants.mq_error_codes import MQErrorCodes
+from framework.starter_mq.definitions.enums.exhausted_policy import ExhaustedPolicy
+from framework.starter_mq.definitions.enums.message_mode import MessageMode
+from framework.starter_mq.definitions.enums.tenant_policy import TenantPolicy
 from framework.starter_mq.exception.mq_exception import MQException
 
 
@@ -20,14 +21,14 @@ class ConsumerRegistry:
         for handler in handlers:
             definition = vars(handler)["__mq_consumer__"]
             if definition.key in self.handlers:
-                error = MQException("declaration")
+                error = MQException(MQErrorCodes.DECLARATION)
                 error.add_note("重复消费者 key: " + definition.key)
                 raise error
             self._validate(definition)
             binding = (definition.destination, definition.group)
             if definition.mode is not MessageMode.PUBSUB:
                 if binding in bindings:
-                    raise MQException("declaration")
+                    raise MQException(MQErrorCodes.DECLARATION)
                 bindings.add(binding)
             self.handlers[definition.key] = handler
             logger.debug(
@@ -40,39 +41,39 @@ class ConsumerRegistry:
                 handler.__qualname__,
             )
         if len(self.handlers) > settings.max_consumers:
-            raise MQException("declaration")
+            raise MQException(MQErrorCodes.DECLARATION)
         logger.info("【MQStarter 】消费者声明校验完成：{} 个", len(self.handlers))
 
     def _validate(self, definition):
         try:
             capability = BackendCapabilities.for_mode(self.settings.backend, definition.mode)
         except ValueError as error:
-            raise MQException("declaration", cause=error) from error
+            raise MQException(MQErrorCodes.DECLARATION, cause=error) from error
         grouped = definition.mode in {MessageMode.STREAM, MessageMode.TOPIC}
         if grouped != bool(definition.group):
-            raise MQException("declaration")
+            raise MQException(MQErrorCodes.DECLARATION)
         if not capability.acknowledged and (
             definition.retry.count or definition.exhausted is not ExhaustedPolicy.DISCARD
         ):
-            raise MQException("declaration")
+            raise MQException(MQErrorCodes.DECLARATION)
         if definition.retry.max_delay_seconds > self.settings.max_retry_delay_seconds:
-            raise MQException("declaration")
+            raise MQException(MQErrorCodes.DECLARATION)
         if definition.session_policy is None and not definition.workload_capabilities:
-            raise MQException("declaration")
+            raise MQException(MQErrorCodes.DECLARATION)
         if definition.session_policy is not None and (
             not definition.session_policy.requires_identity
             or definition.tenant_policy is not TenantPolicy.REQUIRED
         ):
-            raise MQException("declaration")
+            raise MQException(MQErrorCodes.DECLARATION)
         if definition.external_authenticator is not None and not callable(
             getattr(definition.external_authenticator, "authenticate", None)
         ):
-            raise MQException("declaration")
+            raise MQException(MQErrorCodes.DECLARATION)
 
     def apply(self, overrides):
         unknown = sorted(set(overrides) - self.handlers.keys())
         if unknown and self.settings.unknown_override == "fail":
-            error = MQException("declaration")
+            error = MQException(MQErrorCodes.DECLARATION)
             error.add_note("未知消费者覆盖: " + ", ".join(unknown[:16]))
             raise error
         self.ignored_overrides = tuple(unknown)
@@ -90,7 +91,7 @@ class ConsumerRegistry:
                 not 1 <= concurrency <= self.settings.max_concurrency
                 or not concurrency <= prefetch <= self.settings.max_prefetch
             ):
-                raise MQException("declaration")
+                raise MQException(MQErrorCodes.DECLARATION)
             self.limits[key] = (enabled, concurrency, prefetch)
             logger.debug(
                 "【MQStarter 】消费者={} enabled={} concurrency={} prefetch={}",

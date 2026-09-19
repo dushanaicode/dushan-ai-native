@@ -7,7 +7,7 @@ from framework.starter_auth.config.auth_settings import AuthSettings
 from framework.starter_auth.core.auth_cookie_policy import AuthCookiePolicy
 from framework.starter_auth.core.auth_http_log_filter import AuthHttpLogFilter
 from framework.starter_auth.core.auth_url_policy import AuthUrlPolicy
-from framework.starter_auth.exception.auth_error_codes import AuthErrorCodes as Codes
+from framework.starter_auth.definitions.constants.auth_error_codes import AuthErrorCodes as Codes
 from framework.starter_auth.exception.auth_exception import AuthException
 
 

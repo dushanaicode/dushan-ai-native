@@ -4,8 +4,7 @@ from typing import Any
 
 from pydantic import Field, HttpUrl, field_validator
 
-from framework.common.validator.not_empty import NotEmpty
-from framework.common.validator.url import URL
+from framework.common.validator import URL, NotEmpty
 from module_infra.framework.file.core.client.file_client_config import FileClientConfig
 
 

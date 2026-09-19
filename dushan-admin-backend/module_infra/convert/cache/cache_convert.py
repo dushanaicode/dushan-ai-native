@@ -1,6 +1,8 @@
 from typing import Any
 
-from framework.starter_di.decorators.components import util
+from framework.starter_di.public import (
+    util,
+)
 from module_infra.controller.admin.cache.vo.monitor.command_stat import CommandStat
 from module_infra.controller.admin.cache.vo.monitor.monitor_resp_vo import MonitorRespVO
 

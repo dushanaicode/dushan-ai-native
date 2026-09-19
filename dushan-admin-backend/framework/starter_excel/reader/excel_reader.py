@@ -8,14 +8,14 @@ from zipfile import BadZipFile
 from openpyxl import load_workbook
 from pydantic import BaseModel, ValidationError
 
-from framework.common.utils.asyncio.asyncio_utils import AsyncioUtils
-from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
+from framework.common.utils.asyncio_utils import AsyncioUtils
+from framework.common.utils.cleanup_utils import CleanupUtils
 from framework.starter_di.decorators.components import framework
-from framework.starter_di.enums.component_scope_enum import ComponentScopeEnum
+from framework.starter_di.definitions.enums.component_scope_enum import ComponentScopeEnum
 from framework.starter_excel.config.excel_settings import ExcelSettings
 from framework.starter_excel.core.excel_schema import ExcelSchema
-from framework.starter_excel.exception.excel_error import ExcelError
-from framework.starter_excel.exception.excel_error_codes import ExcelErrorCodes
+from framework.starter_excel.definitions.constants.excel_error_codes import ExcelErrorCodes
+from framework.starter_excel.exception.excel_exception import ExcelException
 from framework.starter_excel.handler.excel_upload_validator import ExcelUploadValidator
 from framework.starter_excel.model.conversion_context import ConversionContext
 from framework.starter_excel.model.excel_issue import ExcelIssue
@@ -47,7 +47,7 @@ class ExcelReader:
         # Native DI 每个应用只持有一个 Reader；额度持续到文件线程和清理均已结束。
         async with self._import_slots:
             if not upload.file.seekable():
-                raise ExcelError(ExcelErrorCodes.VALIDATION, "XLSX 上传流必须支持定位")
+                raise ExcelException(ExcelErrorCodes.VALIDATION, "XLSX 上传流必须支持定位")
             original = upload.file.tell()
             worker = asyncio.create_task(asyncio.to_thread(self._load_workbook, upload))
             workbook = rows = primary = None
@@ -60,16 +60,16 @@ class ExcelReader:
                         workbook = worker.result()
                     raise
                 if sheet_name is not None and sheet_name not in workbook.sheetnames:
-                    raise ExcelError(ExcelErrorCodes.VALIDATION, "指定的工作表不存在")
+                    raise ExcelException(ExcelErrorCodes.VALIDATION, "指定的工作表不存在")
                 sheet = workbook.active if sheet_name is None else workbook[sheet_name]
                 if sheet is None or sheet not in workbook.worksheets:
-                    raise ExcelError(ExcelErrorCodes.VALIDATION, "没有可读取的数据工作表")
+                    raise ExcelException(ExcelErrorCodes.VALIDATION, "没有可读取的数据工作表")
                 # 不能信任上传者填写的 dimension；真实坐标已由 XML 预检约束。
                 sheet.reset_dimensions()
                 rows = sheet.iter_rows()
                 return await self._rows(rows, schema, context)
             except (OSError, BadZipFile, ValueError, KeyError) as exc:
-                primary = ExcelError(ExcelErrorCodes.READ, "读取 XLSX 工作簿失败", cause=exc)
+                primary = ExcelException(ExcelErrorCodes.READ, "读取 XLSX 工作簿失败", cause=exc)
             except BaseException as exc:
                 primary = exc
             finally:
@@ -125,7 +125,9 @@ class ExcelReader:
                     row_number > self.settings.max_import_rows + 1
                     or cells > self.settings.max_cells
                 ):
-                    raise ExcelError(ExcelErrorCodes.LIMIT, "导入实际行数或迭代单元格数超过限制")
+                    raise ExcelException(
+                        ExcelErrorCodes.LIMIT, "导入实际行数或迭代单元格数超过限制"
+                    )
                 values = {}
                 has_value = False
                 row_issues = len(issues)
@@ -160,11 +162,11 @@ class ExcelReader:
                         issues.append(
                             ExcelIssue(row_number, index, name, "单元格类型、公式或转换结果无效")
                         )
-                    except ExcelError:
+                    except ExcelException:
                         raise
                     except Exception as exc:
                         # SPI 可抛出自己的异常类型；仅补行列位置，原始故障和取消不丢失。
-                        raise ExcelError(
+                        raise ExcelException(
                             ExcelErrorCodes.CONVERSION,
                             "Excel 外部数据查询失败",
                             issues=[ExcelIssue(row_number, index, name, "外部数据查询失败")],
@@ -205,7 +207,7 @@ class ExcelReader:
         seen: set[str] = set()
         issues: list[ExcelIssue] = []
         if len(header) > self.settings.max_columns:
-            raise ExcelError(ExcelErrorCodes.LIMIT, "表头列数超过限制")
+            raise ExcelException(ExcelErrorCodes.LIMIT, "表头列数超过限制")
         for index, cell in enumerate(header, start=1):
             if cell.value is None:
                 continue
@@ -232,6 +234,6 @@ class ExcelReader:
 
     @staticmethod
     def _raise_issues(issues: list[ExcelIssue], cause: Exception | None) -> None:
-        raise ExcelError(
+        raise ExcelException(
             ExcelErrorCodes.VALIDATION, "Excel 导入校验失败", issues=issues, cause=cause
         )

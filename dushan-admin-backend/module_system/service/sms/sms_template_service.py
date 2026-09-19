@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Protocol, runtime_checkable
 
-from framework.common.page.schemas.page_result import PageResult
+from framework.common.page import PageResult
 from module_system.controller.admin.sms.vo.template.template_page_req_vo import SmsTemplatePageReqVO
 from module_system.controller.admin.sms.vo.template.template_save_req_vo import SmsTemplateSaveReqVO
 from module_system.dal.cache.sms.dto.sms_template_cache_dto import SmsTemplateCacheDTO

@@ -13,10 +13,10 @@ from framework.starter_di.decorators.components import component, repository, se
 from framework.starter_di.decorators.conditional import conditional
 from framework.starter_di.decorators.inject import Inject
 from framework.starter_di.decorators.lifecycle import post_construct_hook, pre_destroy_hook
-from framework.starter_di.enums.component_role_enum import ComponentRoleEnum
-from framework.starter_di.enums.component_scope_enum import ComponentScopeEnum
-from framework.starter_di.enums.container_state_enum import ContainerStateEnum
-from framework.starter_di.exception.di_error_codes import DiErrorCodes
+from framework.starter_di.definitions.constants.di_error_codes import DiErrorCodes
+from framework.starter_di.definitions.enums.component_role_enum import ComponentRoleEnum
+from framework.starter_di.definitions.enums.component_scope_enum import ComponentScopeEnum
+from framework.starter_di.definitions.enums.container_state_enum import ContainerStateEnum
 from framework.starter_di.exception.di_exception import DiException
 
 pytestmark = pytest.mark.unit

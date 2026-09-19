@@ -15,7 +15,7 @@ from framework.starter_auth.core.auth_http_client import AuthHttpClient
 from framework.starter_auth.core.auth_provider_registry import AuthProviderRegistry
 from framework.starter_auth.core.auth_state_store import AuthStateStore
 from framework.starter_auth.core.auth_url_policy import AuthUrlPolicy
-from framework.starter_auth.exception.auth_error_codes import AuthErrorCodes as Codes
+from framework.starter_auth.definitions.constants.auth_error_codes import AuthErrorCodes as Codes
 from framework.starter_auth.exception.auth_exception import AuthException
 from framework.starter_auth.model.auth_callback import AuthCallback
 from framework.starter_auth.model.auth_flow import AuthFlow
@@ -27,7 +27,7 @@ from framework.starter_auth.spi.auth_client_provider import AuthClientProvider
 from framework.starter_cache.core.cache_handler import CacheHandler
 from framework.starter_cache.lock.distributed_lock import DistributedLock
 from framework.starter_di.decorators.components import framework
-from framework.starter_di.enums.component_scope_enum import ComponentScopeEnum
+from framework.starter_di.definitions.enums.component_scope_enum import ComponentScopeEnum
 from framework.starter_monitor.core.monitor_service import MonitorService
 
 

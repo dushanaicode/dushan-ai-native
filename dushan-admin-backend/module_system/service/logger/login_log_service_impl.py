@@ -2,10 +2,14 @@ from __future__ import annotations
 
 from typing import override
 
-from framework.common.page.schemas.page_result import PageResult
-from framework.starter_database.decorators.transactional import transactional
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
+from framework.common.page import PageResult
+from framework.starter_database.public import (
+    transactional,
+)
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
 from module_system.api.logger.dto.login_log_create_req_dto import LoginLogCreateReqDTO
 from module_system.controller.admin.logger.vo.loginlog.loginlog_login_log_page_req_vo import (
     LoginLogPageReqVO,

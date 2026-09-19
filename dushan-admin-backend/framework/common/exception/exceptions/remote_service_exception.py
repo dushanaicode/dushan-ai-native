@@ -1,5 +1,4 @@
 from collections.abc import Sequence
-from http import HTTPStatus
 from typing import Any
 
 from framework.common.enums.log_level_enum import LogLevelEnum
@@ -17,7 +16,7 @@ class RemoteServiceException(BaseBusinessException):
 
     default_error_code = GlobalErrorCodeConstants.SERVICE_UNAVAILABLE
     log_level = LogLevelEnum.ERROR
-    http_status = HTTPStatus.SERVICE_UNAVAILABLE
+    is_system_error = True
     retryable = True
 
     def __init__(
@@ -30,7 +29,6 @@ class RemoteServiceException(BaseBusinessException):
         cause: Exception | None = None,
         context: dict[str, Any] | None = None,
         format_args: Sequence[Any] | None = None,
-        http_status: int | None = None,
         retry_after: int | None = None,
         record_error: bool | None = None,
         field_errors: Sequence[FieldError] = (),
@@ -43,7 +41,6 @@ class RemoteServiceException(BaseBusinessException):
             cause=cause,
             context=context,
             format_args=format_args,
-            http_status=http_status,
             retry_after=retry_after,
             record_error=record_error,
             field_errors=field_errors,

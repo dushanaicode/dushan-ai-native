@@ -5,9 +5,13 @@ from datetime import datetime
 
 from sqlalchemy import MergedResult, func, select, update
 
-from framework.common.page.schemas.page_result import PageResult
-from framework.starter_database.repository.base_mapper import BaseMapper
-from framework.starter_di.decorators.components import mapper
+from framework.common.page import PageResult
+from framework.starter_database.public import (
+    BaseMapper,
+)
+from framework.starter_di.public import (
+    mapper,
+)
 from module_system.controller.admin.notification.vo.notice_message.notice_message_my_page_req_vo import (
     NoticeMessageMyPageReqVO,
 )

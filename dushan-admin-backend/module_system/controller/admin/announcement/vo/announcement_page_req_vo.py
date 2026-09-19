@@ -3,8 +3,8 @@ from typing import Annotated, Any
 
 from pydantic import Field, field_validator
 
-from framework.common.page.schemas.page_query import PageQuery
-from framework.common.validator.in_enum import InEnum
+from framework.common.page import PageQuery
+from framework.common.validator import InEnum
 from module_system.definitions.enums.announcement.announcement_category_enum import (
     AnnouncementCategoryEnum,
 )

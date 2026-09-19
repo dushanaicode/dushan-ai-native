@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from framework.starter_job.enums.job_state import JobState
+from framework.starter_job.definitions.enums.job_state import JobState
 
 
 @dataclass(frozen=True, slots=True)

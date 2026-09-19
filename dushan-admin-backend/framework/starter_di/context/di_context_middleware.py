@@ -1,3 +1,4 @@
+from starlette._utils import get_route_path
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
@@ -26,7 +27,8 @@ class DiContextMiddleware:
                 await send({"type": "websocket.close", "code": 1013})
             else:
                 response = JSONResponse(
-                    status_code=503,
+                    status_code=503 if get_route_path(scope) == "/health" else 200,
+                    headers={"Cache-Control": "no-store"},
                     content=ExceptionResponseBuilder.build(
                         error.error_code, error.error_code.description, exc=error, debug=False
                     ),

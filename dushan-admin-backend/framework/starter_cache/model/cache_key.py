@@ -3,7 +3,7 @@ from typing import Annotated
 from pydantic import ConfigDict, Field, StringConstraints
 
 from framework.common.schemas.base_bo import BaseBO
-from framework.starter_cache.enums.cache_namespace import CacheNamespace
+from framework.starter_cache.definitions.enums.cache_namespace import CacheNamespace
 
 # 键前缀只允许小写字母、数字、下划线，冒号用于分段；物理键为 "<key>:<identifier>"。
 type CacheKeyName = Annotated[

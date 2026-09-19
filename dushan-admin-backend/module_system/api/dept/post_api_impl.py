@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from typing import Collection, override
 
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
 from module_system.api.dept.dto.post_resp_dto import PostRespDTO
 from module_system.api.dept.post_api import PostApi
 from module_system.service.dept.post_service import PostService

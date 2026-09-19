@@ -1,6 +1,10 @@
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
-from framework.starter_job.spi.job_request_provider import JobRequestProvider
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
+from framework.starter_job.public import (
+    JobRequestProvider,
+)
 from module_infra.service.job.job_request_store import JobRequestStore
 
 

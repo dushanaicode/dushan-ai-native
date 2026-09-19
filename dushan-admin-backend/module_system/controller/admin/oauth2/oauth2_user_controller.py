@@ -1,10 +1,16 @@
 from fastapi import APIRouter, Depends
 
-from framework.starter_di.decorators.di_dependency import DiDependency
-from framework.starter_security.context.security_context import SecurityContext
-from framework.starter_security.enums.security_realm import SecurityRealm
-from framework.starter_web.response.result import Result
-from framework.starter_web.routing.route_policy import RoutePolicy
+from framework.starter_di.public import (
+    DiDependency,
+)
+from framework.starter_security.public import (
+    SecurityContext,
+    SecurityRealm,
+)
+from framework.starter_web.public import (
+    Result,
+    RoutePolicy,
+)
 from module_system.controller.admin.oauth2.vo.user.dept import Dept
 from module_system.controller.admin.oauth2.vo.user.post import Post
 from module_system.controller.admin.oauth2.vo.user.user_info_resp_vo import OAuth2UserInfoRespVO

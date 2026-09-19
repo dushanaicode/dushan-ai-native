@@ -19,8 +19,9 @@ from framework.starter_security.bizlog.diff_field import DiffField
 from framework.starter_security.bizlog.log_record import log_record
 from framework.starter_security.bizlog.log_record_spec import LogRecordSpec
 from framework.starter_security.core.security_service import SecurityService
-from framework.starter_security.enums.security_realm import SecurityRealm
-from framework.starter_security.enums.tenant_access_mode import TenantAccessMode
+from framework.starter_security.definitions.constants.security_error_codes import SecurityErrorCodes
+from framework.starter_security.definitions.enums.security_realm import SecurityRealm
+from framework.starter_security.definitions.enums.tenant_access_mode import TenantAccessMode
 from framework.starter_security.exception.security_exception import SecurityException
 from framework.starter_security.model.login_session import LoginSession
 from framework.starter_security.model.workload_identity import WorkloadIdentity
@@ -138,8 +139,8 @@ async def test_access_modes_entitlements_and_support_resource_are_enforced(secur
             effective_capabilities=frozenset({"group_managed_access"}),
         )
         assert (await case.get(direct)).json()["tenant"] == "tenant-1"
-        assert (await case.get(no_entitlement)).json()["code"] == 403
-        assert (await case.get(managed)).json()["code"] == 403
+        assert (await case.get(no_entitlement)).json()["code"] == SecurityErrorCodes.DENIED.code
+        assert (await case.get(managed)).json()["code"] == SecurityErrorCodes.DENIED.code
         with case.application.execution():
             allowed = RoutePolicy(
                 ("read",),
@@ -170,7 +171,7 @@ async def test_access_modes_entitlements_and_support_resource_are_enforced(secur
             effective_capabilities=frozenset({"support_session"}),
             granted=("support:read",),
         )
-        assert (await case.get(token)).json()["code"] == 403
+        assert (await case.get(token)).json()["code"] == SecurityErrorCodes.DENIED.code
 
 
 @pytest.mark.parametrize(
@@ -272,7 +273,7 @@ async def test_logout_revokes_even_when_login_admission_fails(security_factory, 
             current_credential_revision=1,
             expires_at=datetime.now(timezone.utc) + timedelta(minutes=1),
         )
-        assert (await case.get(token)).json()["code"] == 401
+        assert (await case.get(token)).json()["code"] == SecurityErrorCodes.REVOKED.code
 
 
 @pytest.mark.parametrize("eager", [False, True])
@@ -310,7 +311,7 @@ def test_tenant_exit_preserves_context_and_runs_with_eager_factory(eager):
 class RegisteredJobs(WorkloadProvider):
     async def authenticate(self, source, *, application_id, domain, capability, tenant_id):
         if source != "log-cleanup" or capability != "logs:cleanup":
-            raise SecurityException("denied")
+            raise SecurityException(SecurityErrorCodes.DENIED)
         return WorkloadIdentity(
             application_id=application_id,
             domain=domain,
@@ -389,7 +390,7 @@ async def test_roles_and_scopes_have_explicit_any_mode(security_factory):
         good, _ = await case.issue()
         denied, _ = await case.issue(roles=("guest",))
         assert (await case.get(good)).json()["account"] == "account-1"
-        assert (await case.get(denied)).json()["code"] == 403
+        assert (await case.get(denied)).json()["code"] == SecurityErrorCodes.DENIED.code
 
 
 @pytest.mark.parametrize("kind", ["json", "multipart"])
@@ -416,7 +417,10 @@ async def test_unauthenticated_body_is_not_consumed(security_factory, kind):
             consumed.append(True)
             yield b"malformed body that must not be read"
 
-        for headers, code in (({}, 401), ({"Authorization": "Bearer " + token}, 403)):
+        for headers, code in (
+            ({}, SecurityErrorCodes.MISSING.code),
+            ({"Authorization": "Bearer " + token}, SecurityErrorCodes.DENIED.code),
+        ):
             response = await case.client.post(
                 "/protected", headers={"Content-Type": media_type, **headers}, content=content()
             )

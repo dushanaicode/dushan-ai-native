@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from typing import override
 
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
 from module_system.api.social.dto.social_user_bind_req_dto import SocialUserBindReqDTO
 from module_system.api.social.dto.social_user_resp_dto import SocialUserRespDTO
 from module_system.api.social.dto.social_user_unbind_req_dto import SocialUserUnbindReqDTO

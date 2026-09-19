@@ -16,14 +16,14 @@ from openpyxl.worksheet.datavalidation import DataValidation
 from pydantic import BaseModel
 
 from framework.common.page.schemas.page_query import PageQuery
-from framework.common.utils.asyncio.asyncio_utils import AsyncioUtils
+from framework.common.utils.asyncio_utils import AsyncioUtils
 from framework.starter_di.decorators.components import framework
 from framework.starter_excel.config.excel_settings import ExcelSettings
 from framework.starter_excel.converter.dict_converter import DictConverter
 from framework.starter_excel.converter.enum_converter import EnumConverter
 from framework.starter_excel.core.excel_schema import ExcelSchema
-from framework.starter_excel.exception.excel_error import ExcelError
-from framework.starter_excel.exception.excel_error_codes import ExcelErrorCodes
+from framework.starter_excel.definitions.constants.excel_error_codes import ExcelErrorCodes
+from framework.starter_excel.exception.excel_exception import ExcelException
 from framework.starter_excel.model.conversion_context import ConversionContext
 from framework.starter_excel.model.excel_issue import ExcelIssue
 from framework.starter_excel.model.excel_providers import ExcelProviders
@@ -62,9 +62,9 @@ class ExcelWriter:
     ) -> io.BytesIO:
         columns = ExcelSchema(model).export_columns(fields)
         if len(data) > self.settings.max_export_rows or len(columns) > self.settings.max_columns:
-            raise ExcelError(ExcelErrorCodes.LIMIT, "导出行列数超过限制")
+            raise ExcelException(ExcelErrorCodes.LIMIT, "导出行列数超过限制")
         if (len(data) + 1) * len(columns) > self.settings.max_cells:
-            raise ExcelError(ExcelErrorCodes.LIMIT, "导出单元格数超过限制")
+            raise ExcelException(ExcelErrorCodes.LIMIT, "导出单元格数超过限制")
         context = ConversionContext(self.settings, providers or ExcelProviders())
         output = io.BytesIO()
         workbook = Workbook()
@@ -112,7 +112,7 @@ class ExcelWriter:
                         csv.Error,
                         IllegalCharacterError,
                     ) as exc:
-                        raise ExcelError(
+                        raise ExcelException(
                             ExcelErrorCodes.CONVERSION,
                             "Excel 导出字段转换失败",
                             issues=[
@@ -120,11 +120,11 @@ class ExcelWriter:
                             ],
                             cause=exc,
                         ) from exc
-                    except ExcelError:
+                    except ExcelException:
                         raise
                     except Exception as exc:
                         # Provider 故障类型由业务定义，保留 cause 并定位当前单元格。
-                        raise ExcelError(
+                        raise ExcelException(
                             ExcelErrorCodes.CONVERSION,
                             "Excel 外部数据查询失败",
                             issues=[ExcelIssue(row_number, index, name, "外部数据查询失败")],
@@ -143,7 +143,7 @@ class ExcelWriter:
             success = True
             return output
         except (OSError, ValueError, KeyError, TypeError, IllegalCharacterError) as exc:
-            raise ExcelError(ExcelErrorCodes.WRITE, "写入 XLSX 工作簿失败", cause=exc) from exc
+            raise ExcelException(ExcelErrorCodes.WRITE, "写入 XLSX 工作簿失败", cause=exc) from exc
         finally:
             workbook.close()
             if not success:
@@ -171,7 +171,7 @@ class ExcelWriter:
                 len(value) > self.settings.max_cell_text_length
                 or text_bytes + size > self.settings.max_uncompressed_size_bytes
             ):
-                raise ExcelError(ExcelErrorCodes.LIMIT, "导出文本长度或总字节数超过限制")
+                raise ExcelException(ExcelErrorCodes.LIMIT, "导出文本长度或总字节数超过限制")
         cell = sheet.cell(row, column, value)
         if isinstance(value, str):
             # 所有外部文本都写为字符串，包括表头、下拉选项和带空白的公式前缀。
@@ -187,7 +187,7 @@ class ExcelWriter:
                 try:
                     options = await column.converter.options(context)
                 except Exception as exc:
-                    raise ExcelError(
+                    raise ExcelException(
                         ExcelErrorCodes.CONVERSION,
                         "Excel 下拉选项查询失败",
                         issues=[ExcelIssue(1, index, name, "下拉选项查询失败")],
@@ -200,7 +200,7 @@ class ExcelWriter:
                 len(options) > self.settings.max_dropdown_options
                 or option_cells > self.settings.max_cells
             ):
-                raise ExcelError(ExcelErrorCodes.LIMIT, "下拉选项数超过限制")
+                raise ExcelException(ExcelErrorCodes.LIMIT, "下拉选项数超过限制")
             if options_sheet is None:
                 options_sheet = sheet.parent.create_sheet("_excel_options")
                 options_sheet.sheet_state = "hidden"

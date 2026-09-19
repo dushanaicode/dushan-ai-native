@@ -14,7 +14,7 @@ from framework.starter_database.pagination.sql_paginator import SqlPaginator
 from framework.starter_database.session.session_provider import SessionProvider
 from framework.starter_di.context.get_bean import get_bean
 from framework.starter_di.decorators.di_dependency import DiDependency
-from framework.starter_di.enums.container_state_enum import ContainerStateEnum
+from framework.starter_di.definitions.enums.container_state_enum import ContainerStateEnum
 
 
 def app_values(settings):

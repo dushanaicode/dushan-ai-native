@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Protocol, runtime_checkable
 
-from framework.common.page.schemas.page_result import PageResult
+from framework.common.page import PageResult
 from module_infra.api.config.dto.config_group_dto import ConfigGroupDTO
 from module_infra.controller.admin.config.vo.data.data_page_req_vo import ConfigDataPageReqVO
 from module_infra.controller.admin.config.vo.data.data_resp_vo import ConfigDataRespVO

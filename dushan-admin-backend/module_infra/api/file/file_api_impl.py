@@ -4,8 +4,10 @@ import re
 from typing import override
 from urllib.parse import unquote, urlsplit
 
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
 from module_infra.api.file.dto.file_create_req_dto import FileCreateReqDTO
 from module_infra.api.file.dto.file_presigned_url_resp_dto import FilePresignedUrlRespDTO
 from module_infra.api.file.dto.file_upload_resp_dto import FileUploadRespDTO

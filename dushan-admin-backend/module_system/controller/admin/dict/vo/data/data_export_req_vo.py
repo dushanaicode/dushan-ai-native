@@ -1,5 +1,5 @@
+from framework.common.schemas.request import ExportFieldsReqVO
 from module_system.controller.admin.dict.vo.data.data_page_req_vo import DictDataPageReqVO
-from module_system.definitions.vo.export_fields_req_vo import ExportFieldsReqVO
 
 
 class DictDataExportReqVO(DictDataPageReqVO, ExportFieldsReqVO):

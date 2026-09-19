@@ -1,6 +1,6 @@
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
-from framework.starter_mq.enums.outbox_state import OutboxState
+from framework.starter_mq.definitions.enums.outbox_state import OutboxState
 from framework.starter_mq.model.prepared_message import PreparedMessage
 
 

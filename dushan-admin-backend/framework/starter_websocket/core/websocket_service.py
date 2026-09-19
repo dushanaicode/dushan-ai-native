@@ -2,8 +2,11 @@ import time
 from uuid import uuid4
 
 from framework.starter_di.decorators.components import framework
-from framework.starter_websocket.enums.socket_target_kind import SocketTargetKind
-from framework.starter_websocket.exception.socket_exception import SocketException
+from framework.starter_websocket.definitions.constants.websocket_error_codes import (
+    WebSocketErrorCodes,
+)
+from framework.starter_websocket.definitions.enums.socket_target_kind import SocketTargetKind
+from framework.starter_websocket.exception.websocket_exception import WebSocketException
 from framework.starter_websocket.model.socket_delivery import SocketDelivery
 from framework.starter_websocket.model.socket_message import SocketMessage
 from framework.starter_websocket.model.socket_receipt import SocketReceipt
@@ -18,7 +21,7 @@ class WebSocketService:
 
     def require_runtime(self):
         if self.runtime is None or not self.runtime.accepting:
-            raise SocketException("closed")
+            raise WebSocketException(WebSocketErrorCodes.CLOSED)
         return self.runtime
 
     async def _authorize(self, target):
@@ -30,22 +33,22 @@ class WebSocketService:
             if "send" not in await runtime.security.allowed_policies(
                 {"send": audience.send_policy}
             ):
-                raise SocketException("policy")
+                raise WebSocketException(WebSocketErrorCodes.POLICY)
             if target.kind is SocketTargetKind.AUDIENCE or target.tenant_id != identity.tenant_id:
-                raise SocketException("policy")
+                raise WebSocketException(WebSocketErrorCodes.POLICY)
         elif workload is not None:
             if (
                 audience.workload_capability is None
                 or audience.workload_capability not in workload.capabilities
             ):
-                raise SocketException("policy")
+                raise WebSocketException(WebSocketErrorCodes.POLICY)
             if workload.tenant_id is None:
                 if not audience.allow_global_targets:
-                    raise SocketException("policy")
+                    raise WebSocketException(WebSocketErrorCodes.POLICY)
             elif target.kind is SocketTargetKind.AUDIENCE or target.tenant_id != workload.tenant_id:
-                raise SocketException("policy")
+                raise WebSocketException(WebSocketErrorCodes.POLICY)
         else:
-            raise SocketException("policy")
+            raise WebSocketException(WebSocketErrorCodes.POLICY)
         return runtime, identity
 
     async def send(self, target, message):
@@ -53,7 +56,7 @@ class WebSocketService:
         value = runtime.registry.event_payload(target.audience, message.type, message.payload)
         sender = None if identity is None else identity.membership_id
         if message.sender_id is not None and message.sender_id != sender:
-            raise SocketException("policy")
+            raise WebSocketException(WebSocketErrorCodes.POLICY)
         message = SocketMessage.model_validate_json(
             runtime.codec.encode(
                 message.model_copy(
@@ -91,14 +94,14 @@ class WebSocketService:
     async def invalidate(self, *, family_id=None, tenant_id=None):
         runtime = self.require_runtime()
         if (family_id is None) == (tenant_id is None):
-            raise SocketException("policy")
+            raise WebSocketException(WebSocketErrorCodes.POLICY)
         identity = runtime.security.context.current()
         workload = runtime.security.context.current_workload()
         if workload is not None and "websocket:invalidate" in workload.capabilities:
             if workload.tenant_id is not None and tenant_id != workload.tenant_id:
-                raise SocketException("policy")
+                raise WebSocketException(WebSocketErrorCodes.POLICY)
         elif identity is None or tenant_id is not None or family_id != identity.family_id:
-            raise SocketException("policy")
+            raise WebSocketException(WebSocketErrorCodes.POLICY)
         envelope = SocketDelivery(
             version=1,
             id=uuid4().hex,

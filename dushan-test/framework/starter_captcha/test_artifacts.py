@@ -1,6 +1,7 @@
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -31,15 +32,29 @@ for path in sorted(root.rglob('*.py')):
     module = 'framework.starter_captcha.' + '.'.join(path.relative_to(root).with_suffix('').parts)
     if module.endswith('.__init__'):
         module = module[:-9]
-    importlib.import_module(module)
+    imported = importlib.import_module(module)
+    assert pathlib.Path(imported.__file__).resolve().is_relative_to(root.resolve())
 print('imported all captcha modules without connections')
 """
     script = tmp_path / "import_check.py"
     script.write_text(source, encoding="utf-8")
-    root = Path(captcha.__file__).parent
-    env = {**os.environ, "PYTHONPATH": str(root.parents[1]), "PYTHONDONTWRITEBYTECODE": "1"}
+    original = Path(captcha.__file__).parent
+    framework = tmp_path / "source" / "framework"
+    shutil.copytree(
+        original.parent, framework, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "Temp")
+    )
+    root = framework / "starter_captcha"
+    process_temp = tmp_path / "Temp"
+    process_temp.mkdir()
+    env = {
+        **os.environ,
+        "PYTHONPATH": str(framework.parent),
+        "PYTHONDONTWRITEBYTECODE": "1",
+        **{name: str(process_temp) for name in ("TEMP", "TMP", "TMPDIR")},
+    }
     result = subprocess.run(
         [sys.executable, "-B", str(script), str(root)],
+        cwd=tmp_path,
         env=env,
         capture_output=True,
         text=True,

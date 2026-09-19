@@ -1,19 +1,25 @@
 from fastapi import APIRouter, Body, Depends, Query
 
-from framework.common.enums.user_type_enum import UserTypeEnum
-from framework.common.page.schemas.page_result import PageResult
-from framework.starter_di.decorators.di_dependency import DiDependency
-from framework.starter_security.context.security_context import SecurityContext
-from framework.starter_security.enums.security_realm import SecurityRealm
-from framework.starter_web.response.result import Result
-from framework.starter_web.routing.route_policy import RoutePolicy
+from framework.common.enums import UserTypeEnum
+from framework.common.page import PageResult
+from framework.common.schemas.request import IdReqVO
+from framework.starter_di.public import (
+    DiDependency,
+)
+from framework.starter_security.public import (
+    SecurityContext,
+    SecurityRealm,
+)
+from framework.starter_web.public import (
+    Result,
+    RoutePolicy,
+)
 from module_system.api.social.dto.social_user_bind_req_dto import SocialUserBindReqDTO
 from module_system.controller.admin.social.vo.user.user_bind_req_vo import SocialUserBindReqVO
 from module_system.controller.admin.social.vo.user.user_page_req_vo import SocialUserPageReqVO
 from module_system.controller.admin.social.vo.user.user_resp_vo import SocialUserRespVO
 from module_system.controller.admin.social.vo.user.user_unbind_req_vo import SocialUserUnbindReqVO
 from module_system.dal.dataobject.social.social_user_do import SocialUserDO
-from module_system.definitions.vo.id_req_vo import IdReqVO
 from module_system.service.social.social_user_service import SocialUserService
 
 social_user_controller = APIRouter(prefix="/social/user", tags=["System - 社交用户管理"])

@@ -1,8 +1,8 @@
 import hashlib
 
-from framework.starter_cache.enums.cache_namespace import CacheNamespace
-from framework.starter_cache.exception.cache_config_exception import CacheConfigException
-from framework.starter_cache.exception.cache_error_codes import CacheErrorCodes
+from framework.starter_cache.definitions.constants.cache_error_codes import CacheErrorCodes
+from framework.starter_cache.definitions.enums.cache_namespace import CacheNamespace
+from framework.starter_cache.exception.cache_exception import CacheException
 from framework.starter_cache.model.cache_key import CacheKey
 from framework.starter_cache.spi.tenant_context_provider import TenantContextProvider
 from framework.starter_di.context.get_bean import get_bean
@@ -43,16 +43,12 @@ class CacheKeyResolver:
     def _require_identifier(cls, identifier: str) -> str:
         """标识必须是可安全拼接的普通字符串。"""
         if not isinstance(identifier, str) or not identifier:
-            raise CacheConfigException(
-                error_code=CacheErrorCodes.INVALID_CACHE_KEY, msg="缓存标识不能为空"
-            )
+            raise CacheException(CacheErrorCodes.INVALID_CACHE_KEY, msg="缓存标识不能为空")
         if identifier != identifier.strip() or any(character.isspace() for character in identifier):
-            raise CacheConfigException(
-                error_code=CacheErrorCodes.INVALID_CACHE_KEY, msg="缓存标识不能包含空白字符"
-            )
+            raise CacheException(CacheErrorCodes.INVALID_CACHE_KEY, msg="缓存标识不能包含空白字符")
         if cls._PATTERN_CHARACTERS.intersection(identifier):
-            raise CacheConfigException(
-                error_code=CacheErrorCodes.INVALID_CACHE_KEY,
+            raise CacheException(
+                CacheErrorCodes.INVALID_CACHE_KEY,
                 msg="缓存标识不能包含通配字符 * ? [ ] \\",
             )
         return identifier
