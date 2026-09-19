@@ -2,6 +2,7 @@ import pytest
 
 from framework.starter_mq.backend import rabbit_backend
 from framework.starter_mq.backend.rabbit_backend import RabbitBackend
+from framework.starter_mq.definitions.constants.mq_error_codes import MQErrorCodes
 from framework.starter_mq.exception.mq_exception import MQException
 from starter_mq.test_declarations import settings
 
@@ -42,7 +43,7 @@ def test_check_broker_version_matches_minimum_supported(properties, accepted):
     else:
         with pytest.raises(MQException) as failure:
             backend._check_broker_version(properties)
-        assert failure.value.reason == "configuration"
+        assert failure.value.error_code is MQErrorCodes.CONFIGURATION
 
 
 @pytest.mark.parametrize("mq_backend", ["rabbitmq"], indirect=True)
@@ -57,5 +58,5 @@ async def test_open_rejects_broker_below_minimum_version_and_closes_connection(
     backend = RabbitBackend("n1-reject-probe", case.runtime.settings)
     with pytest.raises(MQException) as failure:
         await backend.open([])
-    assert failure.value.reason == "configuration"
+    assert failure.value.error_code is MQErrorCodes.CONFIGURATION
     assert backend.connection is None

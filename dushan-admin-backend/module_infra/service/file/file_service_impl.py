@@ -6,13 +6,15 @@ import time
 from typing import override
 from urllib.parse import quote
 
-from framework.common.exception.exceptions.illegal_argument_exception import (
+from framework.common.exception import (
     IllegalArgumentException,
+    ServiceException,
 )
-from framework.common.exception.exceptions.service_exception import ServiceException
-from framework.common.page.schemas.page_result import PageResult
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
+from framework.common.page import PageResult
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
 from module_infra.controller.admin.file.vo.file.file_create_req_vo import FileCreateReqVO
 from module_infra.controller.admin.file.vo.file.file_list_objects_resp_vo import (
     FileListObjectsRespVO,

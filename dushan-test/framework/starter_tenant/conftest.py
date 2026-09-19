@@ -12,8 +12,8 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from fixtures.config_factory import ConfigFactory
 from fixtures.database_fixtures import TARGETS
 from framework.starter_security.core.opaque_token import OpaqueToken
-from framework.starter_security.enums.security_realm import SecurityRealm
-from framework.starter_security.enums.tenant_access_mode import TenantAccessMode
+from framework.starter_security.definitions.enums.security_realm import SecurityRealm
+from framework.starter_security.definitions.enums.tenant_access_mode import TenantAccessMode
 from framework.starter_security.model.login_session import LoginSession
 from framework.starter_security.spi.token_provider import TokenProvider
 from framework.starter_web.routing.route_policy import RoutePolicy
@@ -29,6 +29,7 @@ from framework.starter_database.session.session_provider import SessionProvider
 from framework.starter_di.decorators.components import service
 from framework.starter_tenant.decorators.tenant_model import tenant_model, global_model
 from framework.starter_tenant.exception.tenant_exception import TenantException
+from framework.starter_tenant.definitions.constants.tenant_error_codes import TenantErrorCodes
 from framework.starter_tenant.model.tenant_info import TenantInfo
 from framework.starter_tenant.model.tenant_resource_grant import TenantResourceGrant
 from framework.starter_tenant.model.tenant_access_grant import TenantAccessGrant
@@ -40,17 +41,18 @@ from framework.starter_security.spi.permission_provider import PermissionProvide
 from framework.starter_security.spi.workload_provider import WorkloadProvider
 from framework.starter_security.model.workload_identity import WorkloadIdentity
 from framework.starter_security.exception.security_exception import SecurityException
+from framework.starter_security.definitions.constants.security_error_codes import SecurityErrorCodes
 from framework.starter_di.decorators.conditional import conditional
 from framework.starter_tenant.config.tenant_settings import TenantSettings
 from framework.starter_tenant.core.tenant_service import TenantService
 from framework.starter_web.routing.decorators import controller, route
 from framework.starter_web.routing.route_policy import RoutePolicy
-from framework.starter_security.enums.security_realm import SecurityRealm
+from framework.starter_security.definitions.enums.security_realm import SecurityRealm
 from framework.starter_security.model.permission_snapshot import PermissionSnapshot
 from framework.starter_data_permission.decorators.data_permission import data_permission, public_data
 from framework.starter_data_permission.spi.data_permission_provider import DataPermissionProvider
 from framework.starter_data_permission.model.data_scope_rule import DataScopeRule
-from framework.starter_data_permission.enums.data_scope import DataScope
+from framework.starter_data_permission.definitions.enums.data_scope import DataScope
 
 metadata = MetaData()
 
@@ -139,7 +141,7 @@ class Workloads(WorkloadProvider):
     def __init__(self): self.credential_valid = True
     async def authenticate(self, source, *, application_id, domain, capability, tenant_id):
         if not self.credential_valid or source != "maintenance" or capability != "records:maintain" or tenant_id not in (None,"1","2") or application_id != "dushan-ai-native" or domain != "admin":
-            raise SecurityException("denied")
+            raise SecurityException(SecurityErrorCodes.DENIED)
         return WorkloadIdentity(application_id=application_id, domain=domain, service_id="maintenance", tenant_id=tenant_id, audience=source, capabilities=frozenset((capability,)), expires_at=datetime.now(UTC)+timedelta(minutes=5))
 
 @service(interface=TenantDirectoryProvider)
@@ -157,17 +159,17 @@ class DirectoryProvider(TenantDirectoryProvider):
         async with self.database.read_session(force_primary=True) as session:
             if identity.realm is SecurityRealm.SUPPORT:
                 approval=await session.scalar(select(AccessApproval.id).where(AccessApproval.kind=="support",AccessApproval.actor==identity.platform_operator_id,AccessApproval.tenant_key==identity.tenant_id,AccessApproval.reference==identity.support_session_id,AccessApproval.resource==identity.approved_resource,AccessApproval.enabled.is_(True)))
-                if approval is None or identity.approved_action != "read": raise TenantException("denied")
+                if approval is None or identity.approved_action != "read": raise TenantException(TenantErrorCodes.DENIED)
                 return TenantAccessGrant(tenant_id=identity.tenant_id,source="approved-support",resources=(TenantResourceGrant(resource=Record.__table__.key,actions=frozenset(("select",))),),expires_at=identity.expires_at)
             if identity.access_mode.value=="group_managed":
                 approval=await session.scalar(select(AccessApproval.id).where(AccessApproval.kind=="managed",AccessApproval.actor==identity.authority_tenant_id+":"+identity.authority_membership_id,AccessApproval.tenant_key==identity.tenant_id,AccessApproval.reference==identity.group_id+":"+identity.management_relation_id,AccessApproval.enabled.is_(True)))
                 authority=await session.scalar(select(Member.id).where(Member.tenant_key==identity.authority_tenant_id,Member.member_key==identity.authority_membership_id,Member.account==identity.account_id,Member.enabled.is_(True)))
-                if approval is None or authority is None: raise TenantException("denied")
+                if approval is None or authority is None: raise TenantException(TenantErrorCodes.DENIED)
                 return
             member = await session.scalar(select(Member.id).where(Member.tenant_key == identity.tenant_id, Member.member_key == identity.membership_id, Member.account == identity.account_id, Member.enabled.is_(True)))
-        if member is None: raise TenantException("denied")
+        if member is None: raise TenantException(TenantErrorCodes.DENIED)
     async def authorize_workload(self, identity, capability):
-        if identity.service_id != "maintenance" or capability != "records:maintain": raise TenantException("denied")
+        if identity.service_id != "maintenance" or capability != "records:maintain": raise TenantException(TenantErrorCodes.DENIED)
         return TenantAccessGrant(tenant_id=identity.tenant_id, source="verified-maintenance",
             resources=(TenantResourceGrant(resource=Record.__table__.key, actions=self.actions), TenantResourceGrant(resource=Child.__table__.key, actions=self.actions)), expires_at=identity.expires_at)
     async def enabled_tenant_ids(self):
@@ -183,11 +185,11 @@ class Provisioning(TenantProvisioningProvider):
         async with self.database.transaction() as session:
             old=(await session.execute(select(Receipt).where(Receipt.account==identity.account_id,Receipt.request_key==request.idempotency_key))).scalar_one_or_none()
             if old is not None:
-                if old.requested_name != request.name: raise TenantException("denied")
+                if old.requested_name != request.name: raise TenantException(TenantErrorCodes.DENIED)
                 return TenantProvisioningResult(tenant_id=old.tenant_key,membership_id=old.member_key,created=False)
             key=fixed_tenant_id if fixed_tenant_id is not None else uuid4().hex
             if fixed_tenant_id is not None and (await session.scalar(select(Directory.id).where(Directory.tenant_key==key)) is not None or await session.scalar(select(Receipt.id).where(Receipt.tenant_key==key)) is not None):
-                raise TenantException("denied")
+                raise TenantException(TenantErrorCodes.DENIED)
             base=int(uuid4().hex[:12],16)
             await session.execute(insert(Directory).values(id=base,tenant_key=key,enabled=True))
             if self.fail_after_directory: raise RuntimeError("provisioning failure")

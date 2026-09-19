@@ -1,6 +1,12 @@
 from framework.starter_data_permission.core.condition_builder import ConditionBuilder
+from framework.starter_data_permission.definitions.constants.data_permission_error_codes import (
+    DataPermissionErrorCodes,
+)
 from framework.starter_data_permission.exception.data_permission_exception import (
     DataPermissionException,
+)
+from framework.starter_database.definitions.constants.row_access_error_codes import (
+    RowAccessErrorCodes,
 )
 from framework.starter_database.query.row_access_rule import RowAccessRule
 
@@ -19,7 +25,13 @@ class DataPermissionPolicy(RowAccessRule):
         return self.builder.condition(config, operation, orm=orm, entity=entity)
 
     def failure(self, reason):
-        return DataPermissionException(reason)
+        return DataPermissionException(
+            {
+                RowAccessErrorCodes.STALE: DataPermissionErrorCodes.STALE,
+                RowAccessErrorCodes.CONFIGURATION: DataPermissionErrorCodes.CONFIGURATION,
+                RowAccessErrorCodes.WRITE: DataPermissionErrorCodes.WRITE,
+            }[reason]
+        )
 
     def validate_row(self, config, row, operation):
         if config.public and config.tenant_column is None:
@@ -31,7 +43,7 @@ class DataPermissionPolicy(RowAccessRule):
                 or identity.tenant_id is None
                 or row.get(config.tenant_column) != identity.tenant_id
             ):
-                raise DataPermissionException("write")
+                raise DataPermissionException(DataPermissionErrorCodes.WRITE)
             return
         frame = self.service.current()
         for name in config.authority_columns:
@@ -39,12 +51,12 @@ class DataPermissionPolicy(RowAccessRule):
                 row[name] is not None
                 and type(row[name]) is not config.table.c[name].type.python_type
             ):
-                raise DataPermissionException("write")
+                raise DataPermissionException(DataPermissionErrorCodes.WRITE)
         if (
             frame.identity.tenant_id is None
             or row[config.tenant_column] != frame.identity.tenant_id
         ):
-            raise DataPermissionException("write")
+            raise DataPermissionException(DataPermissionErrorCodes.WRITE)
         if (
             config.public
             or self.service.is_exempt(config.resource, operation)
@@ -59,4 +71,4 @@ class DataPermissionPolicy(RowAccessRule):
             and row[config.department_column]
             in config.scope_values(config.department_column, frame.grant.department_ids)
         ):
-            raise DataPermissionException("write")
+            raise DataPermissionException(DataPermissionErrorCodes.WRITE)

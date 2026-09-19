@@ -30,7 +30,7 @@ from framework.starter_job.decorators.job import job
 from framework.starter_job.handler.job_handler import JobHandler
 from framework.starter_job.model.job_definition import JobDefinition
 from framework.starter_job.model.job_request import JobRequest
-from framework.starter_job.enums.job_trigger_kind import JobTriggerKind
+from framework.starter_job.definitions.enums.job_trigger_kind import JobTriggerKind
 from framework.starter_job.exception.job_exception import JobException
 from framework.starter_job.spi.job_definition_provider import JobDefinitionProvider
 from framework.starter_job.spi.job_request_provider import JobRequestProvider
@@ -45,10 +45,12 @@ from framework.starter_security.spi.permission_provider import PermissionProvide
 from framework.starter_security.spi.workload_provider import WorkloadProvider
 from framework.starter_security.model.workload_identity import WorkloadIdentity
 from framework.starter_security.exception.security_exception import SecurityException
+from framework.starter_security.definitions.constants.security_error_codes import SecurityErrorCodes
 from framework.starter_tenant.decorators.tenant_model import global_model
 from framework.starter_job.core.job_service import JobService
 from framework.starter_web.routing.decorators import controller, route
 from framework.starter_web.routing.route_policy import RoutePolicy
+from framework.starter_job.definitions.constants.job_error_codes import JobErrorCodes
 
 metadata=MetaData()
 @global_model
@@ -143,11 +145,11 @@ class Tokens(TokenProvider):
     async def resolve(self,*args,**kwargs): return None
 @service(interface=PermissionProvider)
 class Permissions(PermissionProvider):
-    async def snapshot(self,*args,**kwargs): raise SecurityException("denied")
+    async def snapshot(self,*args,**kwargs): raise SecurityException(SecurityErrorCodes.DENIED)
 @service(interface=WorkloadProvider)
 class Workloads(WorkloadProvider):
     async def authenticate(self,source,*,application_id,domain,capability,tenant_id):
-        if source!="controlled-job" or capability!="test:execute" or tenant_id not in (None,"1","2"): raise SecurityException("denied")
+        if source!="controlled-job" or capability!="test:execute" or tenant_id not in (None,"1","2"): raise SecurityException(SecurityErrorCodes.DENIED)
         return WorkloadIdentity(application_id=application_id,domain=domain,service_id="test-worker",tenant_id=tenant_id,audience=source,capabilities=frozenset((capability,)),expires_at=datetime.now(UTC)+timedelta(minutes=5))
 
 @service(interface=JobDefinitionProvider)
@@ -184,7 +186,7 @@ class Requests(JobRequestProvider):
         async with self.database.transaction() as session:
             await session.execute(select(Control.id).where(Control.id==1).with_for_update())
             if await session.scalar(select(RequestRow.id).where(RequestRow.request_key==request.request_id)) is not None: return False
-            if await session.scalar(select(func.count()).select_from(RequestRow).where(RequestRow.state=="pending"))>=pending_limit: raise JobException("capacity")
+            if await session.scalar(select(func.count()).select_from(RequestRow).where(RequestRow.state=="pending"))>=pending_limit: raise JobException(JobErrorCodes.CAPACITY)
             await session.execute(insert(RequestRow).values(request_key=request.request_id,job_key=request.definition.id,spec=request.model_dump(mode="json"),ready_at=request.ready_at.astimezone(UTC).replace(tzinfo=None),owner=None,state="pending"))
             if request.trigger is JobTriggerKind.SCHEDULED:
                 cursor=await session.scalar(select(Cursor.id).where(Cursor.job_key==request.definition.id))

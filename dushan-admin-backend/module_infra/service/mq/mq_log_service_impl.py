@@ -3,10 +3,14 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import override
 
-from framework.common.page.schemas.page_result import PageResult
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
-from framework.starter_mq.enums.message_state import MessageState
+from framework.common.page import PageResult
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
+from framework.starter_mq.public import (
+    MessageState,
+)
 from module_infra.controller.admin.mq.vo.log.log_page_req_vo import MqLogPageReqVO
 from module_infra.dal.dataobject.mq.mq_log_do import MqLogDO
 from module_infra.dal.mapper.mq.mq_log_mapper import MqLogMapper

@@ -4,9 +4,9 @@ import json
 from datetime import UTC, datetime
 
 from framework.common.security.sanitizer import Sanitizer
-from framework.common.utils.asyncio.asyncio_utils import AsyncioUtils
+from framework.common.utils.asyncio_utils import AsyncioUtils
 from framework.starter_database.exception.after_commit_exception import AfterCommitException
-from framework.starter_job.enums.job_state import JobState
+from framework.starter_job.definitions.enums.job_state import JobState
 from framework.starter_job.exception.job_result_unknown import JobResultUnknown
 from framework.starter_job.model.job_context import JobContext
 from framework.starter_job.model.job_outcome import JobOutcome

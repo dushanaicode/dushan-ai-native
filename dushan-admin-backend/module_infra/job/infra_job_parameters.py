@@ -1,6 +1,6 @@
 from pydantic import Field
 
-from framework.common.schemas.base_bo import BaseBO
+from framework.common.schemas import BaseBO
 
 
 class InfraJobParameters(BaseBO):

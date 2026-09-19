@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from typing import override
 
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
 from module_infra.api.file.file_config_api import FileConfigApi
 from module_infra.framework.file.core.client.file_client import FileClient
 from module_infra.service.file.file_config_service import FileConfigService

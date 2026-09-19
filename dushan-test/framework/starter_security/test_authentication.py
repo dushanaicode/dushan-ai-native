@@ -4,6 +4,7 @@ import pytest
 
 from framework.starter_security.core.opaque_token import OpaqueToken
 from framework.starter_security.core.password_encoder import PasswordEncoder
+from framework.starter_security.definitions.constants.security_error_codes import SecurityErrorCodes
 from framework.starter_security.exception.security_exception import SecurityException
 from framework.starter_web.routing.route_policy import RoutePolicy
 
@@ -13,7 +14,9 @@ async def test_public_protected_bearer_and_identity_source(security_factory):
         token, _ = await case.issue()
         assert (await case.get(path="/public")).status_code == 200
         missing = await case.get()
-        assert missing.status_code == 200 and missing.json()["code"] == 401
+        assert (
+            missing.status_code == 200 and missing.json()["code"] == SecurityErrorCodes.MISSING.code
+        )
         assert missing.headers["www-authenticate"] == "Bearer"
         response = await case.get(
             token, headers={"user_id": "root", "roles": "admin", "tenant_id": "other"}
@@ -49,7 +52,7 @@ async def test_malformed_bearer_rejected_before_provider(security_factory, heade
         else:
             headers = {"authorization": header}
         response = await case.client.get("/protected", headers=headers)
-        assert response.json()["code"] == 401
+        assert response.json()["code"] == SecurityErrorCodes.INVALID.code
         assert "invalid_token" in response.headers["www-authenticate"]
         assert case.service.tokens.reads == 0
 
@@ -61,26 +64,30 @@ async def test_duplicate_credentials_rejected(security_factory):
             "/protected",
             headers=[("Authorization", "Bearer " + token), ("Authorization", "Bearer " + token)],
         )
-        assert response.json()["code"] == 401
+        assert response.json()["code"] == SecurityErrorCodes.INVALID.code
         assert case.service.tokens.reads == 0
 
 
 @pytest.mark.parametrize(
-    ("change", "message"),
+    ("change", "message", "expected"),
     [
-        ({"expires_at": datetime.now(timezone.utc) - timedelta(seconds=1)}, "过期"),
-        ({"revoked": True}, "撤销"),
-        ({"account_enabled": False}, "禁用"),
-        ({"current_credential_revision": 2}, "失效"),
-        ({"application_id": "foreign"}, "无效"),
-        ({"domain": "foreign"}, "无效"),
+        (
+            {"expires_at": datetime.now(timezone.utc) - timedelta(seconds=1)},
+            "过期",
+            SecurityErrorCodes.EXPIRED.code,
+        ),
+        ({"revoked": True}, "撤销", SecurityErrorCodes.REVOKED.code),
+        ({"account_enabled": False}, "禁用", SecurityErrorCodes.DISABLED.code),
+        ({"current_credential_revision": 2}, "失效", SecurityErrorCodes.CREDENTIALS.code),
+        ({"application_id": "foreign"}, "无效", SecurityErrorCodes.INVALID.code),
+        ({"domain": "foreign"}, "无效", SecurityErrorCodes.INVALID.code),
     ],
 )
-async def test_live_session_state_is_checked(security_factory, change, message):
+async def test_live_session_state_is_checked(security_factory, change, message, expected):
     async with security_factory() as case:
         token, _ = await case.issue(**change)
         response = await case.get(token)
-        assert response.json()["code"] == 401 and message in response.json()["message"]
+        assert response.json()["code"] == expected and message in response.json()["message"]
         assert response.headers["www-authenticate"] == 'Bearer error="invalid_token"'
 
 
@@ -92,7 +99,9 @@ async def test_no_token_parsing_or_provider_digest_substitution(security_factory
             return session
 
         monkeypatch.setattr(case.service.tokens, "resolve", bogus)
-        assert (await case.get(OpaqueToken.generate())).json()["code"] == 401
+        assert (await case.get(OpaqueToken.generate())).json()[
+            "code"
+        ] == SecurityErrorCodes.INVALID.code
         assert (await case.get(token)).status_code == 200
 
 
@@ -105,7 +114,10 @@ async def test_logout_revokes_family(security_factory):
             await case.service.logout(first)
         for token in (first, second):
             response = await case.get(token)
-            assert response.json()["code"] == 401 and "撤销" in response.json()["message"]
+            assert (
+                response.json()["code"] == SecurityErrorCodes.REVOKED.code
+                and "撤销" in response.json()["message"]
+            )
         assert (await case.get(unrelated)).json()["account"] == "account-1"
 
 
@@ -121,7 +133,7 @@ async def test_roles_permissions_scopes_and_any_policy(security_factory):
         assert (await case.get(good)).json()["account"] == "account-1"
         for token in (no_role, no_scope, denied):
             response = await case.get(token)
-            assert response.json()["code"] == 403
+            assert response.json()["code"] == SecurityErrorCodes.DENIED.code
             assert "insufficient_scope" in response.headers["www-authenticate"]
 
 

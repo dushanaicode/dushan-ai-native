@@ -12,7 +12,7 @@ from opentelemetry.trace import SpanKind
 
 from framework.starter_di.context.application_context import ApplicationContext
 from framework.starter_di.decorators.components import framework
-from framework.starter_di.enums.component_scope_enum import ComponentScopeEnum
+from framework.starter_di.definitions.enums.component_scope_enum import ComponentScopeEnum
 from framework.starter_di.exception.di_exception import DiException
 from framework.starter_logging.context.log_context import LogContext
 from framework.starter_monitor.config.monitor_settings import MonitorSettings
@@ -22,7 +22,7 @@ from framework.starter_monitor.core.monitor_span import MonitorSpan
 from framework.starter_monitor.core.sdk_log_guard import SdkLogGuard
 from framework.starter_monitor.core.trace_binding import TraceBinding
 from framework.starter_monitor.core.trace_propagation import TracePropagation
-from framework.starter_monitor.exception.monitor_error_codes import MonitorErrorCodes
+from framework.starter_monitor.definitions.constants.monitor_error_codes import MonitorErrorCodes
 from framework.starter_monitor.exception.monitor_exception import MonitorException
 
 

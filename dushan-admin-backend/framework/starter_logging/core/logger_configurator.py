@@ -14,7 +14,7 @@ from framework.common.enums.log_level_enum import LogLevelEnum
 from framework.common.security.sanitizer import Sanitizer
 from framework.starter_logging.config.logger_options import LoggerOptions
 from framework.starter_logging.context.log_context import LogContext
-from framework.starter_logging.enums.log_file_type_enum import LogFileTypeEnum
+from framework.starter_logging.definitions.enums.log_file_type_enum import LogFileTypeEnum
 
 
 class LoggerConfigurator:

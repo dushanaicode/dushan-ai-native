@@ -1,0 +1,13 @@
+{
+  "security.missing": "You are not signed in",
+  "security.invalid": "Invalid access credential",
+  "security.expired": "The access credential expired",
+  "security.revoked": "The session was revoked",
+  "security.disabled": "The account is disabled",
+  "security.credentials": "The credential is no longer valid",
+  "security.denied": "Insufficient permission",
+  "security.origin": "The request origin is not allowed",
+  "security.unavailable": "Security data is unavailable",
+  "security.configuration": "Security configuration is not ready",
+  "security.closed": "The security service is unavailable"
+}

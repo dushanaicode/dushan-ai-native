@@ -10,5 +10,6 @@
   "cache.invalid_cache_key": "Invalid cache key declaration",
   "cache.lock_acquire_failed": "Failed to acquire the distributed lock",
   "cache.lock_release_failed": "Failed to release the distributed lock",
+  "cache.lock_contended": "The distributed lock is held by another owner",
   "cache.operation_failed": "Cache operation failed"
 }

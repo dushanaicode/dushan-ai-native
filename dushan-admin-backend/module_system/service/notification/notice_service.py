@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from framework.common.page.schemas.page_result import PageResult
+from framework.common.page import PageResult
 from module_system.api.notification.dto.notice_send_dto import NoticeSendDTO
 from module_system.controller.admin.notification.vo.notice.notice_page_req_vo import NoticePageReqVO
 from module_system.controller.admin.notification.vo.notice.notice_save_req_vo import NoticeSaveReqVO

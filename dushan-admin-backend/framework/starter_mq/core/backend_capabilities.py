@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
-from framework.starter_mq.enums.message_mode import MessageMode
-from framework.starter_mq.enums.mq_backend import MQBackend
+from framework.starter_mq.definitions.enums.message_mode import MessageMode
+from framework.starter_mq.definitions.enums.mq_backend import MQBackend
 
 
 @dataclass(frozen=True, slots=True)

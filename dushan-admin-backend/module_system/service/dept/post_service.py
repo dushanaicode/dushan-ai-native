@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Collection, Protocol, runtime_checkable
 
-from framework.common.page.schemas.page_result import PageResult
+from framework.common.page import PageResult
 from module_system.controller.admin.dept.vo.post.post_page_req_vo import PostPageReqVO
 from module_system.controller.admin.dept.vo.post.post_save_req_vo import PostSaveReqVO
 from module_system.dal.dataobject.dept.post_do import PostDO

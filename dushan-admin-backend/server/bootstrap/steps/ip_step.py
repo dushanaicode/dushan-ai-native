@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 
-from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
+from framework.common.utils.cleanup_utils import CleanupUtils
 from framework.starter_ip.config.ip_settings import IpSettings
 from framework.starter_ip.starter.ip_starter import IpStarter
 from server.bootstrap.context import AppBootstrapContext

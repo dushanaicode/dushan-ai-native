@@ -1,9 +1,10 @@
 from sqlalchemy import JSON, Computed, Index, Integer, SmallInteger, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from framework.common.enums.builtin_type_enum import BuiltinTypeEnum
-from framework.common.enums.status_enum import StatusEnum
-from framework.starter_tenant.entity.tenant_base_do import TenantBaseDO
+from framework.common.enums import BuiltinTypeEnum, StatusEnum
+from framework.starter_tenant.public import (
+    TenantBaseDO,
+)
 from module_system.definitions.enums.permission.permission_data_scope_enum import (
     PermissionDataScopeEnum,
 )

@@ -1,8 +1,10 @@
 from sqlalchemy import JSON, Integer, SmallInteger, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from framework.starter_tenant.decorators.tenant_model import global_model
-from framework.starter_tenant.entity.global_control_do import GlobalControlDO
+from framework.starter_tenant.public import (
+    GlobalControlDO,
+    global_model,
+)
 
 
 @global_model

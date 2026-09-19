@@ -4,11 +4,10 @@ from collections.abc import Mapping
 import httpx
 
 from framework.starter_di.decorators.components import framework
-from framework.starter_di.enums.component_scope_enum import ComponentScopeEnum
+from framework.starter_di.definitions.enums.component_scope_enum import ComponentScopeEnum
 from framework.starter_ip.config.ip_settings import IpSettings
-from framework.starter_ip.exception.ip_error_code_constants import IpErrorCodeConstants
+from framework.starter_ip.definitions.constants.ip_error_codes import IpErrorCodes
 from framework.starter_ip.exception.ip_exception import IpException
-from framework.starter_ip.exception.ip_provider_error import IpProviderError
 
 
 @framework(scope=ComponentScopeEnum.SINGLETON)
@@ -34,7 +33,7 @@ class IpLocationHttpClient:
         self, provider: str, url: str, *, params: Mapping[str, str], timeout_seconds: float
     ) -> bytes:
         if self._client is None:
-            raise IpException(IpErrorCodeConstants.NOT_INITIALIZED)
+            raise IpException(IpErrorCodes.NOT_INITIALIZED)
         try:
             async with self._client.stream(
                 "GET",
@@ -49,19 +48,31 @@ class IpLocationHttpClient:
             ) as response:
                 response.raise_for_status()
                 if response.headers.get("content-encoding", "identity").lower() != "identity":
-                    raise IpProviderError(provider, "content_encoding")
+                    raise IpException(
+                        IpErrorCodes.QUERY_FAILED,
+                        context={"provider": provider, "reason": "content_encoding"},
+                    )
                 content = bytearray()
                 async for chunk in response.aiter_bytes(chunk_size=8192):
                     if len(content) + len(chunk) > self._settings.online_max_response_bytes:
-                        raise IpProviderError(provider, "response_too_large")
+                        raise IpException(
+                            IpErrorCodes.QUERY_FAILED,
+                            context={"provider": provider, "reason": "response_too_large"},
+                        )
                     content.extend(chunk)
                 return bytes(content)
         except httpx.TimeoutException as error:
-            raise IpProviderError(provider, "timeout") from error
+            raise IpException(
+                IpErrorCodes.QUERY_FAILED, context={"provider": provider, "reason": "timeout"}
+            ) from error
         except httpx.HTTPStatusError as error:
-            raise IpProviderError(provider, "http_status") from error
+            raise IpException(
+                IpErrorCodes.QUERY_FAILED, context={"provider": provider, "reason": "http_status"}
+            ) from error
         except httpx.RequestError as error:
-            raise IpProviderError(provider, "network") from error
+            raise IpException(
+                IpErrorCodes.QUERY_FAILED, context={"provider": provider, "reason": "network"}
+            ) from error
 
     async def close(self) -> None:
         if self._close_task is None and self._client is not None:

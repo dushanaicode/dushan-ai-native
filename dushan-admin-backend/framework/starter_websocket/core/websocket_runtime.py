@@ -8,14 +8,17 @@ from uuid import uuid4
 from loguru import logger
 from redis.asyncio.cluster import RedisCluster
 
-from framework.common.utils.asyncio.asyncio_utils import AsyncioUtils
+from framework.common.utils.asyncio_utils import AsyncioUtils
 from framework.starter_websocket.core.online_registry import OnlineRegistry
 from framework.starter_websocket.core.redis_socket_transport import RedisSocketTransport
 from framework.starter_websocket.core.socket_authenticator import SocketAuthenticator
 from framework.starter_websocket.core.socket_codec import SocketCodec
 from framework.starter_websocket.core.socket_connection import SocketConnection
-from framework.starter_websocket.enums.socket_transport import SocketTransport
-from framework.starter_websocket.exception.socket_exception import SocketException
+from framework.starter_websocket.definitions.constants.websocket_error_codes import (
+    WebSocketErrorCodes,
+)
+from framework.starter_websocket.definitions.enums.socket_transport import SocketTransport
+from framework.starter_websocket.exception.websocket_exception import WebSocketException
 from framework.starter_websocket.model.socket_message import SocketMessage
 
 
@@ -62,10 +65,10 @@ class WebSocketRuntime:
         self.handshakes = set()
         if settings.transport is SocketTransport.REDIS:
             if cache is None:
-                raise SocketException("configuration")
+                raise WebSocketException(WebSocketErrorCodes.CONFIGURATION)
             client = cache.get_client(settings.cache_key())
             if isinstance(client, RedisCluster):
-                raise SocketException("configuration")
+                raise WebSocketException(WebSocketErrorCodes.CONFIGURATION)
             application_key = hashlib.sha256(security.settings.application_id.encode()).hexdigest()[
                 :16
             ]
@@ -114,10 +117,13 @@ class WebSocketRuntime:
             self.record_error(error)
             # accept 前 close 按 ASGI 转换为拒绝握手，不伪造已建立连接的错误帧。
             code = 1013 if isinstance(error, TimeoutError) else 4001
-            if isinstance(error, SocketException):
-                code = {"policy": 4002, "protocol": 4002, "capacity": 1013, "closed": 1001}.get(
-                    error.reason, 4001
-                )
+            if isinstance(error, WebSocketException):
+                code = {
+                    WebSocketErrorCodes.POLICY: 4002,
+                    WebSocketErrorCodes.PROTOCOL: 4002,
+                    WebSocketErrorCodes.CAPACITY: 1013,
+                    WebSocketErrorCodes.CLOSED: 1001,
+                }.get(error.error_code, 4001)
             await websocket.close(code)
             return
         finally:
@@ -225,7 +231,7 @@ class WebSocketRuntime:
         target, message = envelope.target, envelope.message
         try:
             self.registry.event_payload(target.audience, message.type, message.payload)
-        except SocketException:
+        except WebSocketException:
             self.rejected_envelopes += 1
             return 0
         return sum(

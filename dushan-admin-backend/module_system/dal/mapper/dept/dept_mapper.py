@@ -4,9 +4,13 @@ from collections.abc import Collection
 
 from sqlalchemy import func, select
 
-from framework.common.utils.str.str_utils import StrUtils
-from framework.starter_database.repository.base_mapper import BaseMapper
-from framework.starter_di.decorators.components import mapper
+from framework.common.utils import StrUtils
+from framework.starter_database.public import (
+    BaseMapper,
+)
+from framework.starter_di.public import (
+    mapper,
+)
 from module_system.controller.admin.dept.vo.dept.dept_list_req_vo import DeptListReqVO
 from module_system.dal.dataobject.dept.dept_do import DeptDO
 

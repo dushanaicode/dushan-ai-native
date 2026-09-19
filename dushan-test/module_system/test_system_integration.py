@@ -4,7 +4,10 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from framework.starter_security.core.security_service import SecurityService
-from framework.starter_security.enums.security_realm import SecurityRealm
+from framework.starter_security.definitions.constants.security_error_codes import (
+    SecurityErrorCodes,
+)
+from framework.starter_security.definitions.enums.security_realm import SecurityRealm
 from framework.starter_web.routing.route_policy import RoutePolicy
 from module_system.service.notification.bo.notice_message_create_bo import NoticeMessageCreateBO
 
@@ -14,7 +17,7 @@ pytestmark = pytest.mark.asyncio(loop_scope="module")
 async def test_job_workload_and_persistent_delivery_claim(admin_client, system_app):
     from datetime import datetime, timedelta, timezone
 
-    from framework.starter_job.enums.job_trigger_kind import JobTriggerKind
+    from framework.starter_job.definitions.enums.job_trigger_kind import JobTriggerKind
     from framework.starter_job.model.job_context import JobContext
     from framework.starter_mq.exception.message_result_unknown import MessageResultUnknown
     from module_system.dal.dataobject.announcement.announcement_do import (
@@ -128,7 +131,9 @@ async def test_registration_and_logout_revoke_cookie_and_session(system_app):
         ).json()
         assert result["code"] == 0, result
         assert client.cookies.get("system_refresh") is None
-        assert (await client.get("/admin-api/system/auth/codes")).json()["code"] == 401
+        assert (await client.get("/admin-api/system/auth/codes")).json()[
+            "code"
+        ] == SecurityErrorCodes.REVOKED.code
         assert (await client.post("/admin-api/system/auth/register", json=payload)).json()[
             "code"
         ] != 0
@@ -692,18 +697,18 @@ async def test_read_endpoints(admin_client, path):
 
 async def test_department_and_user_crud(admin_client):
     suffix = uuid4().hex[:10]
-    department = dict(name="Test" + suffix, parentId="0", sort=1, status=1)
+    department = {"name": "Test" + suffix, "parentId": "0", "sort": 1, "status": 1}
     result = (await admin_client.post("/admin-api/system/dept/create", json=department)).json()
     assert result["code"] == 0, result
     identifier = result["data"]
     assert isinstance(identifier, str)
-    user = dict(
-        username="u" + suffix,
-        nickname="Tester",
-        password="Password123",
-        deptId=identifier,
-        postIds=[],
-    )
+    user = {
+        "username": "u" + suffix,
+        "nickname": "Tester",
+        "password": "Password123",
+        "deptId": identifier,
+        "postIds": [],
+    }
     result = (await admin_client.post("/admin-api/system/user/create", json=user)).json()
     assert result["code"] == 0, result
     user_id = result["data"]
@@ -744,7 +749,7 @@ async def test_rotation_replay_and_logout(system_app):
                 "/admin-api/system/auth/codes", headers={"Authorization": "Bearer " + old_access}
             )
         ).json()
-        assert old_result["code"] == 401
+        assert old_result["code"] == SecurityErrorCodes.REVOKED.code
         new_access = refreshed["data"]["accessToken"]
         replay = (
             await client.post(
@@ -752,13 +757,13 @@ async def test_rotation_replay_and_logout(system_app):
                 headers={"Origin": "http://testserver", "Cookie": "system_refresh=" + old_refresh},
             )
         ).json()
-        assert replay["code"] == 401, replay
+        assert replay["code"] == SecurityErrorCodes.REVOKED.code, replay
         result = (
             await client.get(
                 "/admin-api/system/auth/codes", headers={"Authorization": "Bearer " + new_access}
             )
         ).json()
-        assert result["code"] == 401, result
+        assert result["code"] == SecurityErrorCodes.REVOKED.code, result
 
 
 async def test_openapi_and_public_boundaries(system_app):
@@ -769,9 +774,9 @@ async def test_openapi_and_public_boundaries(system_app):
         transport=ASGITransport(app=system_app), base_url="http://testserver"
     ) as client:
         response = await client.get("/admin-api/system/user/page")
-        assert response.json()["code"] == 401
+        assert response.json()["code"] == SecurityErrorCodes.MISSING.code
         response = await client.post("/admin-api/system/auth/refresh-token")
-        assert response.json()["code"] == 403
+        assert response.json()["code"] == SecurityErrorCodes.ORIGIN.code
 
 
 async def test_role_assignment_and_permission_revocation(admin_client, system_app):
@@ -819,7 +824,9 @@ async def test_role_assignment_and_permission_revocation(admin_client, system_ap
         before = (await user.get("/admin-api/system/auth/get-permission-info")).json()
         assert before["code"] == 0, before
         assert "test" + suffix in before["data"]["roles"]
-        assert (await user.get("/admin-api/system/user/page")).json()["code"] == 403
+        assert (await user.get("/admin-api/system/user/page")).json()[
+            "code"
+        ] == SecurityErrorCodes.DENIED.code
         result = (
             await admin_client.post(
                 "/admin-api/system/permission/assign-user-role",
@@ -837,13 +844,17 @@ async def test_role_assignment_and_permission_revocation(admin_client, system_ap
             )
         ).json()
         assert result["code"] == 0, result
-        assert (await user.get("/admin-api/system/auth/codes")).json()["code"] == 401
+        assert (await user.get("/admin-api/system/auth/codes")).json()[
+            "code"
+        ] == SecurityErrorCodes.CREDENTIALS.code
 
 
 async def test_database_rollback_and_authentication_read_boundary(system_app, admin_client):
     from sqlalchemy import select, text
 
     from framework.starter_database.query.authentication_reader import AuthenticationReader
+    from framework.starter_tenant.definitions.constants.tenant_error_codes import TenantErrorCodes
+    from framework.starter_tenant.exception.tenant_exception import TenantException
     from module_system.dal.dataobject.dept.dept_do import DeptDO
     from module_system.dal.dataobject.user.admin_user_do import AdminUserDO
     from module_system.dal.mapper.dept.dept_mapper import DeptMapper
@@ -865,18 +876,20 @@ async def test_database_rollback_and_authentication_read_boundary(system_app, ad
                     assert entry.creator == security.context.require().account_id
                     raise RuntimeError("rollback-marker")
             assert await mapper.select_list(DeptDO.name == name) == []
-            with pytest.raises(Exception):
+            with pytest.raises(TenantException) as cross_tenant:
                 await mapper.insert(
                     DeptDO(name=name, parent_id=0, sort=0, status=1, tenant_id="999")
                 )
+            assert cross_tenant.value.error_code is TenantErrorCodes.WRITE
         reader = AuthenticationReader(database, (AdminUserDO,), tenant_id="1")
         with pytest.raises(ValueError):
             await reader.read(select(DeptDO.__table__))
         with pytest.raises(ValueError):
             await reader.read(text("SELECT * FROM system_users"))
-        with pytest.raises(Exception):
+        with pytest.raises(TenantException) as missing_tenant:
             async with database.read_session() as session:
                 await session.execute(select(AdminUserDO))
+        assert missing_tenant.value.error_code is TenantErrorCodes.MISSING
 
 
 async def test_excel_export_and_snowflake_input(admin_client):
@@ -914,9 +927,12 @@ async def test_oauth2_password_scope_and_code_consumption(admin_client, system_a
         base_url="http://testserver",
         headers={"Authorization": "Basic " + credential},
     ) as client:
-        request = dict(
-            grant_type="password", username="admin", password="admin123", scope="user.read"
-        )
+        request = {
+            "grant_type": "password",
+            "username": "admin",
+            "password": "admin123",
+            "scope": "user.read",
+        }
         result = (await client.post("/admin-api/system/oauth2/open/token", data=request)).json()
         assert result["code"] == 0, result
         assert result["data"]["scope"] == "user.read"
@@ -1131,7 +1147,7 @@ async def test_message_proofs_bind_payload_audience_and_workload(admin_client, s
     with application.execution(), system_app.state.database.scope():
         messages = application.container.get(SystemMessageService)
         security = application.container.get(SecurityService)
-        metadata = dict(application_id=security.settings.application_id, domain="admin")
+        metadata = {"application_id": security.settings.application_id, "domain": "admin"}
         token = admin_client.headers["Authorization"].removeprefix("Bearer ")
         session = await application.container.get(OAuth2TokenService).resolve_session(
             OpaqueToken.digest(token), **metadata

@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from typing import override
 
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
 from module_system.api.sms.dto.code.code_sms_code_send_req_dto import SmsCodeSendReqDTO
 from module_system.api.sms.dto.code.code_sms_code_use_req_dto import SmsCodeUseReqDTO
 from module_system.api.sms.dto.code.code_sms_code_validate_req_dto import SmsCodeValidateReqDTO

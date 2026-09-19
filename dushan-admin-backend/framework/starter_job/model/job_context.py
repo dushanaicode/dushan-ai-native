@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 
-from framework.starter_job.enums.job_trigger_kind import JobTriggerKind
+from framework.starter_job.definitions.enums.job_trigger_kind import JobTriggerKind
 
 
 @dataclass(frozen=True, slots=True)

@@ -4,9 +4,9 @@ import pytest
 
 from fixtures.config_factory import ConfigFactory
 from fixtures.public_web_app import create_public_app
-from framework.common.datetime.core.date_range_builder import DateRangeBuilder
-from framework.common.datetime.core.date_utils import DateUtils
-from framework.common.datetime.core.datetime_options import DateTimeOptions
+from framework.common.dates.date_range_builder import DateRangeBuilder
+from framework.common.dates.date_utils import DateUtils
+from framework.common.dates.datetime_options import DateTimeOptions
 from framework.common.enums.date_interval_enum import DateIntervalEnum
 from framework.starter_config.provider.bootstrap_config_error import BootstrapConfigError
 from framework.starter_config.provider.bootstrap_config_provider import BootstrapConfigProvider

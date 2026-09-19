@@ -9,10 +9,10 @@ from loguru import logger
 
 from framework.common.security.request_identity import RequestIdentity
 from framework.common.security.sanitizer import Sanitizer
-from framework.common.utils.asyncio.asyncio_utils import AsyncioUtils
+from framework.common.utils.asyncio_utils import AsyncioUtils
 from framework.starter_di.decorators.components import framework
 from framework.starter_di.decorators.conditional import conditional
-from framework.starter_di.enums.component_scope_enum import ComponentScopeEnum
+from framework.starter_di.definitions.enums.component_scope_enum import ComponentScopeEnum
 from framework.starter_logging.context.log_context import LogContext
 from framework.starter_security.bizlog.diff_renderer import DiffRenderer
 from framework.starter_security.bizlog.expression.expression_utils import ExpressionUtils
@@ -24,6 +24,7 @@ from framework.starter_security.bizlog.log_record_reservation import LogRecordRe
 from framework.starter_security.bizlog.log_record_spec import LogRecordSpec
 from framework.starter_security.config.security_settings import SecuritySettings
 from framework.starter_security.context.security_context import SecurityContext
+from framework.starter_security.definitions.constants.security_error_codes import SecurityErrorCodes
 from framework.starter_security.exception.security_exception import SecurityException
 
 
@@ -64,7 +65,7 @@ class BizLogService:
 
     async def invoke(self, spec: LogRecordSpec, callback, captured: dict):
         if self._closed:
-            raise SecurityException("closed")
+            raise SecurityException(SecurityErrorCodes.CLOSED)
         if self._writing.get():
             raise RuntimeError("业务日志提供者不能递归记录自身")
         principal = self.security.require()
@@ -103,12 +104,12 @@ class BizLogService:
                     raise
                 except Exception as error:
                     self._failure(error)
-                    raise SecurityException("unavailable", cause=error) from error
+                    raise SecurityException(SecurityErrorCodes.UNAVAILABLE, cause=error) from error
                 if (
                     not isinstance(reservation, LogRecordReservation)
                     or reservation.event_id != operation.event_id
                 ):
-                    raise SecurityException("configuration")
+                    raise SecurityException(SecurityErrorCodes.CONFIGURATION)
                 heartbeat = (
                     self.security.application.tasks.create_task(
                         self._renew,

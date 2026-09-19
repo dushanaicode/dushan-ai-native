@@ -3,12 +3,12 @@ from time import perf_counter
 
 import pytest
 
-from framework.starter_cache.enums.lock_release_outcome_enum import (
+from framework.starter_cache.definitions.enums.lock_release_outcome_enum import (
     LockReleaseOutcomeEnum as Outcome,
 )
-from framework.starter_cache.exception.cache_lock_exception import CacheLockException
+from framework.starter_cache.exception.cache_exception import CacheException
 from framework.starter_cache.lock.redis_lease_lock import RedisLeaseLock
-from framework.starter_protection.exception.protection_error_codes import (
+from framework.starter_protection.definitions.constants.protection_error_codes import (
     ProtectionErrorCodes as Codes,
 )
 from framework.starter_protection.exception.protection_exception import ProtectionException
@@ -85,9 +85,9 @@ async def test_lease_object_is_single_use_across_tasks_and_after_release(service
     primitive = RedisLeaseLock(client, service.settings.key_prefix + ":single_use", 1, 0)
     results = await asyncio.gather(primitive.acquire(), primitive.acquire(), return_exceptions=True)
     assert sum(result is True for result in results) == 1
-    assert sum(isinstance(result, CacheLockException) for result in results) == 1
+    assert sum(isinstance(result, CacheException) for result in results) == 1
     assert await primitive.release() is Outcome.RELEASED
-    with pytest.raises(CacheLockException):
+    with pytest.raises(CacheException):
         await primitive.acquire()
     assert await client.exists(primitive.key) == 0
 

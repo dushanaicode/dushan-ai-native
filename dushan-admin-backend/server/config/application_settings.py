@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 
-from framework.common.datetime.core.datetime_options import DateTimeOptions
+from framework.common.dates.datetime_options import DateTimeOptions
 from framework.common.page.config.page_settings import PageSettings
 from framework.starter_config.config.config_settings import ConfigSettings
 from framework.starter_di.config.di_settings import DiSettings

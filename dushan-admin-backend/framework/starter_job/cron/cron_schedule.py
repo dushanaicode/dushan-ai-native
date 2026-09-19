@@ -4,6 +4,7 @@ from zoneinfo import ZoneInfo
 
 from croniter import croniter
 
+from framework.starter_job.definitions.constants.job_error_codes import JobErrorCodes
 from framework.starter_job.exception.job_exception import JobException
 
 
@@ -16,14 +17,14 @@ class CronSchedule:
     def __init__(self, expression: str, timezone: str):
         fields = expression.lower().split()
         if len(fields) != 5:
-            raise JobException("cron")
+            raise JobException(JobErrorCodes.CRON)
         for index, field in enumerate(fields):
             if not re.fullmatch(r"[0-9a-z*/,-]+", field):
-                raise JobException("cron")
+                raise JobException(JobErrorCodes.CRON)
             names = set(re.findall("[a-z]+", field))
             allowed = self.MONTHS if index == 3 else self.DAYS if index == 4 else frozenset()
             if not names <= allowed:
-                raise JobException("cron")
+                raise JobException(JobErrorCodes.CRON)
         self.expression = " ".join(fields)
         try:
             self.timezone = ZoneInfo(timezone)
@@ -34,7 +35,7 @@ class CronSchedule:
                 max_years_between_matches=8,
             ).get_next(datetime)
         except (ValueError, KeyError) as error:
-            raise JobException("cron", cause=error) from error
+            raise JobException(JobErrorCodes.CRON, cause=error) from error
 
     def _find(self, base, direction):
         if base.tzinfo is None:
@@ -56,9 +57,9 @@ class CronSchedule:
                 if not croniter.match(self.expression, actual.replace(tzinfo=None), day_or=True):
                     continue
                 return actual.astimezone(UTC)
-            raise JobException("cron")
+            raise JobException(JobErrorCodes.CRON)
         except (ValueError, KeyError) as error:
-            raise JobException("cron", cause=error) from error
+            raise JobException(JobErrorCodes.CRON, cause=error) from error
 
     def next(self, after):
         return self._find(after, 1)

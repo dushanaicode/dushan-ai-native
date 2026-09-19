@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Protocol
 
-from framework.starter_mq.enums.outbox_state import OutboxState
+from framework.starter_mq.definitions.enums.outbox_state import OutboxState
 from framework.starter_mq.model.outbox_record import OutboxRecord
 from framework.starter_mq.model.publish_receipt import PublishReceipt
 

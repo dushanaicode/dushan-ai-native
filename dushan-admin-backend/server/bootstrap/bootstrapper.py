@@ -1,7 +1,7 @@
 from collections.abc import AsyncIterator, Sequence
 from contextlib import AsyncExitStack, asynccontextmanager
 
-from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
+from framework.common.utils.cleanup_utils import CleanupUtils
 from server.bootstrap.context import AppBootstrapContext
 from server.bootstrap.step_registry import APP_BOOTSTRAP_STEPS, BootstrapStepSpec
 from server.bootstrap.step_runner import BootstrapStepRunner

@@ -18,7 +18,7 @@ from framework.starter_ip.client.ip_location_http_client import IpLocationHttpCl
 from framework.starter_ip.config.ip_settings import IpSettings
 from framework.starter_ip.core.client_ip_resolver import ClientIpResolver
 from framework.starter_ip.core.ip2region_database import Ip2RegionDatabase
-from framework.starter_ip.exception.ip_address_family_not_enabled import IpAddressFamilyNotEnabled
+from framework.starter_ip.definitions.constants.ip_error_codes import IpErrorCodes
 from framework.starter_ip.exception.ip_exception import IpException
 from framework.starter_ip.model.area import Area
 from framework.starter_ip.service.area_service import AreaService
@@ -220,7 +220,9 @@ async def test_application_loads_only_the_requested_ip_family(config_dir, family
         assert found.status == "found" and found.provider == "ip2region"
         assert unavailable.status == "unavailable" and unavailable.location is None
         assert any("not_enabled" in reason for reason in unavailable.failures)
-        with pytest.raises(IpAddressFamilyNotEnabled):
+        with pytest.raises(IpException) as not_enabled:
             starter.database.search(other)
-    with pytest.raises(IpException):
+        assert not_enabled.value.error_code is IpErrorCodes.FAMILY_NOT_ENABLED
+    with pytest.raises(IpException) as closed:
         starter.database.search(selected)
+    assert closed.value.error_code is IpErrorCodes.NOT_INITIALIZED

@@ -93,6 +93,29 @@ async def test_health_is_not_ready_without_lifespan(config_dir):
         assert (await client.get("/health")).status_code == 503
 
 
+@pytest.mark.parametrize("root_path", [None, "/api"])
+async def test_not_ready_plain_requests_get_business_json_and_probe_stays_503(
+    config_dir, root_path
+):
+    """未就绪普通请求按业务契约返回 HTTP 200，探针在有无 root_path 时都保持 503。"""
+    overrides = {"server": {"root_path": root_path}} if root_path else {}
+    app = create_public_app(base_dir=config_dir(overrides), environ={})
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app), base_url="http://test"
+    ) as client:
+        for path in ("/anything", "/health"):
+            target = f"{root_path}{path}" if root_path else path
+            response = await client.get(target)
+            if path == "/health":
+                assert response.status_code == 503
+                assert response.json()["data"]["status"] == "not_ready"
+            else:
+                assert response.status_code == 200
+                assert response.json()["code"] == 503
+                assert response.json()["data"]["status"] == "not_ready"
+            assert response.headers["cache-control"] == "no-store"
+
+
 def test_production_hides_all_documentation_routes(config_dir):
     app = create_public_app(
         base_dir=config_dir(prod={"server": {"docs_enabled": False}}), app_env="prod", environ={}

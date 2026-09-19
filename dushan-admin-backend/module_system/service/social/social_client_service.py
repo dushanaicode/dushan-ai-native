@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from framework.common.page.schemas.page_result import PageResult
-from framework.starter_auth.model.auth_result import AuthResult
+from framework.common.page import PageResult
+from framework.starter_auth.public import (
+    AuthResult,
+)
 from module_system.api.social.dto.social_wx_qrcode_req_dto import SocialWxQrcodeReqDTO
 from module_system.api.social.dto.social_wxa_order_notify_confirm_receive_req_dto import (
     SocialWxaOrderNotifyConfirmReceiveReqDTO,

@@ -1,0 +1,14 @@
+{
+  "mq.error": "Message queue error",
+  "mq.configuration": "MQ configuration, declaration or provider is not ready",
+  "mq.closed": "The MQ runtime is unavailable",
+  "mq.capacity": "MQ capacity is full; the publish was rejected",
+  "mq.unknown": "The MQ publish or execution result is unknown",
+  "mq.confirmation": "The MQ backend did not confirm the message",
+  "mq.lease": "The MQ consumer lease expired",
+  "mq.declaration": "The MQ consumer declaration is duplicated or unsupported by the backend",
+  "mq.invalid": "Invalid MQ message format or size",
+  "mq.authentication": "MQ message authentication failed",
+  "mq.expired": "The MQ message expired",
+  "mq.conflict": "The MQ message id conflicts with existing content"
+}

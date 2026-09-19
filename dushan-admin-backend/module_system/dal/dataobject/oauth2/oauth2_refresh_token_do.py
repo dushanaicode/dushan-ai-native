@@ -13,7 +13,9 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from framework.starter_tenant.entity.tenant_base_do import TenantBaseDO
+from framework.starter_tenant.public import (
+    TenantBaseDO,
+)
 
 
 class OAuth2RefreshTokenDO(TenantBaseDO):

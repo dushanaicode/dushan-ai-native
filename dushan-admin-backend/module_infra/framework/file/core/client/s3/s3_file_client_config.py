@@ -5,8 +5,7 @@ from typing import Any
 from pydantic import Field, field_validator, model_validator
 from typing_extensions import Self
 
-from framework.common.validator.not_null import NotNull
-from framework.common.validator.url import URL
+from framework.common.validator import URL, NotNull
 from module_infra.framework.file.core.client.file_client_config import FileClientConfig
 
 ENDPOINT_QINIU: str = "qiniucs.com"

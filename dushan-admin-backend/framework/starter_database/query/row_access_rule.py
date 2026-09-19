@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+from framework.common.exception.core.error_code import ErrorCode
 from framework.starter_database.query.row_access_policy import RowAccessPolicy
 from framework.starter_database.spi.session_policy import SessionPolicy
 
@@ -30,4 +31,4 @@ class RowAccessRule(SessionPolicy, ABC):
     def validate_row(self, config, row, operation): ...
 
     @abstractmethod
-    def failure(self, reason): ...
+    def failure(self, reason: "ErrorCode"): ...

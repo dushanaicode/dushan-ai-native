@@ -2,14 +2,12 @@ from typing import Annotated, Any
 
 from pydantic import Field, field_validator
 
-from framework.common.contracts.snowflake_id import (
+from framework.common.contracts import (
     SnowflakeIdInput,
 )
-from framework.common.enums.status_enum import StatusEnum
-from framework.common.schemas.base_request_vo import BaseRequestVO
-from framework.common.validator.in_enum import InEnum
-from framework.common.validator.not_null import NotNull
-from framework.common.validator.url import URL
+from framework.common.enums import StatusEnum
+from framework.common.schemas import BaseRequestVO
+from framework.common.validator import URL, InEnum, NotNull
 from module_system.definitions.enums.oauth2.oauth2_grant_type_enum import OAuth2GrantTypeEnum
 
 

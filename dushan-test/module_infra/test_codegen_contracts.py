@@ -110,7 +110,21 @@ def test_native_codegen_variants_keep_types_and_safe_metadata(template, frontend
     controller = next(
         item["code"] for item in output if item["filePath"].endswith("record_controller.py")
     )
-    assert "from framework.common.schemas.request.id_list_req_vo import IdListReqVO" in controller
+    assert "from framework.common.schemas.request import IdListReqVO" in controller
+    assert "from framework.starter_web.public import" in controller
+    assert "from framework.starter_web.routing.route_policy import" not in controller
+    mapper = next(
+        item["code"] for item in output if item["filePath"].endswith("record_mapper.py")
+    )
+    assert "from framework.starter_database.public import" in mapper
+    assert "from framework.starter_di.public import" in mapper
+    service_impl = next(
+        item["code"]
+        for item in output
+        if item["filePath"].endswith("record_service_impl.py")
+    )
+    assert "from framework.starter_database.public import" in service_impl
+    assert "from framework.starter_di.public import" in service_impl
     tree = ast.parse(controller)
     batch = next(
         node

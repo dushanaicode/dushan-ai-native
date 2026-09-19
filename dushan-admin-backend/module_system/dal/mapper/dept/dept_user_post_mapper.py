@@ -4,8 +4,12 @@ from collections.abc import Collection
 
 from sqlalchemy import select, update
 
-from framework.starter_database.repository.base_mapper import BaseMapper
-from framework.starter_di.decorators.components import mapper
+from framework.starter_database.public import (
+    BaseMapper,
+)
+from framework.starter_di.public import (
+    mapper,
+)
 from module_system.dal.dataobject.dept.dept_user_post_do import UserPostDO
 
 

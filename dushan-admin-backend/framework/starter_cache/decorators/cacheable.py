@@ -5,15 +5,12 @@ from typing import Any, get_type_hints
 
 from pydantic import TypeAdapter, ValidationError
 
-from framework.starter_cache.constants.cache_lock_defaults import CacheLockDefaults
 from framework.starter_cache.core.cache_handler import CacheHandler
 from framework.starter_cache.core.cache_load_through_coordinator import CacheLoadThroughCoordinator
 from framework.starter_cache.decorators.key_builder import KeyBuilder
-from framework.starter_cache.exception.cache_config_exception import CacheConfigException
-from framework.starter_cache.exception.cache_error_codes import CacheErrorCodes
-from framework.starter_cache.exception.cache_serialization_exception import (
-    CacheSerializationException,
-)
+from framework.starter_cache.definitions.constants.cache_error_codes import CacheErrorCodes
+from framework.starter_cache.definitions.constants.cache_lock_defaults import CacheLockDefaults
+from framework.starter_cache.exception.cache_exception import CacheException
 from framework.starter_cache.lock.distributed_lock import DistributedLock
 from framework.starter_cache.model.cache_key import CacheKey
 from framework.starter_cache.model.cache_read_result import CacheReadResult
@@ -51,14 +48,12 @@ class Cacheable:
     ):
         """构造装饰器；TTL、锁时序和键模板都在装饰阶段完成校验。"""
         if not isinstance(cache_key, CacheKey):
-            raise CacheConfigException(
-                error_code=CacheErrorCodes.INVALID_CACHE_KEY, msg="缓存装饰器必须传入 CacheKey"
+            raise CacheException(
+                CacheErrorCodes.INVALID_CACHE_KEY, msg="缓存装饰器必须传入 CacheKey"
             )
         cls._validate_ttl(ttl_seconds)
         if unless is not None and not callable(unless):
-            raise CacheConfigException(
-                error_code=CacheErrorCodes.CONFIG_ERROR, msg="unless 必须是可调用对象"
-            )
+            raise CacheException(CacheErrorCodes.CONFIG_ERROR, msg="unless 必须是可调用对象")
         if use_lock:
             DistributedLock.validate_timing(
                 lease_seconds, wait_seconds, critical_section_timeout_seconds
@@ -129,8 +124,8 @@ class Cacheable:
             payload = json.dumps(value, ensure_ascii=False, allow_nan=False, separators=(",", ":"))
             return adapter.validate_json(payload)
         except (ValidationError, TypeError, ValueError) as error:
-            raise CacheSerializationException(
-                error_code=CacheErrorCodes.DESERIALIZATION_FAILED,
+            raise CacheException(
+                CacheErrorCodes.DESERIALIZATION_FAILED,
                 msg="缓存值不符合被装饰函数声明的返回类型",
                 cause=error,
             ) from error
@@ -141,8 +136,8 @@ class Cacheable:
         try:
             return TypeAdapter(get_type_hints(func, include_extras=True)["return"])
         except (KeyError, NameError, TypeError, ValueError) as error:
-            raise CacheConfigException(
-                error_code=CacheErrorCodes.CONFIG_ERROR,
+            raise CacheException(
+                CacheErrorCodes.CONFIG_ERROR,
                 msg=f"缓存函数必须声明可解析的返回类型：{func.__qualname__}",
                 cause=error,
             ) from error
@@ -151,9 +146,7 @@ class Cacheable:
     def _validate_ttl(ttl_seconds: int | None) -> None:
         """TTL 只接受正整数秒或 None。"""
         if ttl_seconds is not None and (type(ttl_seconds) is not int or ttl_seconds <= 0):
-            raise CacheConfigException(
-                error_code=CacheErrorCodes.CONFIG_ERROR, msg="缓存 TTL 必须是正整数秒或 None"
-            )
+            raise CacheException(CacheErrorCodes.CONFIG_ERROR, msg="缓存 TTL 必须是正整数秒或 None")
 
 
 cache = Cacheable.cache

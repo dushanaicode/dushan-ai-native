@@ -1,5 +1,4 @@
-from framework.common.exception.core.error_code import ErrorCode
-from framework.common.exception.registry.error_code_decorator import error_code
+from framework.common.exception import ErrorCode, error_code
 
 
 @error_code

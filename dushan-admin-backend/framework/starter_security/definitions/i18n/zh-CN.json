@@ -1,0 +1,13 @@
+{
+  "security.missing": "用户未登录",
+  "security.invalid": "无效的访问凭据",
+  "security.expired": "访问凭据已过期",
+  "security.revoked": "登录态已撤销",
+  "security.disabled": "账号已禁用",
+  "security.credentials": "凭据已失效",
+  "security.denied": "权限不足",
+  "security.origin": "请求来源不被允许",
+  "security.unavailable": "安全依赖暂不可用",
+  "security.configuration": "安全适配未配置",
+  "security.closed": "安全服务不可用"
+}

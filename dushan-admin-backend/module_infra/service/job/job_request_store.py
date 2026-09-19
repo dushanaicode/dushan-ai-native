@@ -3,12 +3,19 @@ from datetime import timezone
 
 from sqlalchemy import func, select, update
 
-from framework.starter_database.session.session_provider import SessionProvider
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
-from framework.starter_job.enums.job_trigger_kind import JobTriggerKind
-from framework.starter_job.exception.job_exception import JobException
-from framework.starter_job.model.job_request import JobRequest
+from framework.starter_database.public import (
+    SessionProvider,
+)
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
+from framework.starter_job.public import (
+    JobErrorCodes,
+    JobException,
+    JobRequest,
+    JobTriggerKind,
+)
 from module_infra.dal.dataobject.job.job_request_do import JobRequestDO
 from module_infra.dal.dataobject.job.job_schedule_do import JobScheduleDO
 from module_infra.dal.dataobject.job.job_signal_do import JobSignalDO
@@ -55,7 +62,7 @@ class JobRequestStore:
                 .where(JobRequestDO.state.in_(("pending", "claimed")))
             )
             if pending >= pending_limit:
-                raise JobException("capacity")
+                raise JobException(JobErrorCodes.CAPACITY)
             session.add(
                 JobRequestDO(
                     request_id=request.request_id,
@@ -124,7 +131,7 @@ class JobRequestStore:
                 .values(state=state.code)
             )
             if result.rowcount != 1:
-                raise JobException("owner")
+                raise JobException(JobErrorCodes.OWNER)
 
     async def retry(self, request, owner):
         async with self.database.transaction() as session:
@@ -143,7 +150,7 @@ class JobRequestStore:
                 )
             )
             if result.rowcount != 1:
-                raise JobException("owner")
+                raise JobException(JobErrorCodes.OWNER)
 
     async def notify_changed(self):
         async with self.database.transaction() as session:
@@ -153,7 +160,7 @@ class JobRequestStore:
                 .values(revision=JobSignalDO.revision + 1)
             )
             if result.rowcount != 1:
-                raise JobException("configuration")
+                raise JobException(JobErrorCodes.CONFIGURATION)
 
     async def consume_changes(self):
         async with self.database.read_session(force_primary=True) as session:

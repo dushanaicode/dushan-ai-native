@@ -1,0 +1,13 @@
+{
+  "websocket.error": "WebSocket error",
+  "websocket.configuration": "WebSocket declaration, resource or auth provider is not ready",
+  "websocket.closed": "The WebSocket service is shutting down",
+  "websocket.capacity": "WebSocket connection or queue capacity is full",
+  "websocket.transport": "The WebSocket transport is unavailable",
+  "websocket.authentication": "WebSocket session authentication failed",
+  "websocket.policy": "WebSocket access is not authorized",
+  "websocket.protocol": "The WebSocket message violates the protocol",
+  "websocket.unknown_type": "The WebSocket message type is not registered",
+  "websocket.too_large": "The WebSocket message exceeds the size limit",
+  "websocket.internal": "WebSocket message handling failed"
+}

@@ -4,7 +4,7 @@ from sqlalchemy import event, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
-from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
+from framework.common.utils.cleanup_utils import CleanupUtils
 from framework.starter_database.config.data_source_settings import DataSourceSettings
 from framework.starter_database.config.database_settings import DatabaseSettings
 from framework.starter_database.exception.database_error_translator import DatabaseErrorTranslator

@@ -1,5 +1,5 @@
 from asyncio import CancelledError
-from dataclasses import FrozenInstanceError
+from dataclasses import FrozenInstanceError, fields
 from http import HTTPStatus
 from importlib import import_module
 from typing import Any
@@ -12,7 +12,6 @@ from framework.common.exception.constants.global_error_code_constants import (
     GlobalErrorCodeConstants,
 )
 from framework.common.exception.core.error_code import ErrorCode
-from framework.common.exception.exceptions.auth_exception import AuthException
 from framework.common.exception.exceptions.base_business_exception import (
     BaseBusinessException,
 )
@@ -54,13 +53,12 @@ pytestmark = pytest.mark.unit
         ({"code": "1000"}, TypeError),
         ({"description": " "}, ValueError),
         ({"message_key": None}, TypeError),
-        ({"http_status": True}, TypeError),
-        ({"http_status": 400.0}, TypeError),
-        ({"http_status": 600}, ValueError),
+        ({"retryable": True}, TypeError),
+        ({"log_level": LogLevelEnum.ERROR}, TypeError),
     ],
 )
 def test_error_code_rejects_invalid_definitions(overrides, failure) -> None:
-    """定义阶段拒绝隐式类型转换、空文案和非法传输状态。"""
+    """定义阶段拒绝隐式类型转换、空文案和不属于错误定义的策略字段。"""
     arguments = {"code": 1000, "description": "默认提示", "message_key": "error.test"}
     with pytest.raises(failure):
         ErrorCode(**(arguments | overrides))
@@ -99,7 +97,6 @@ def test_error_code_is_immutable_and_can_change_message_key() -> None:
         code=1001,
         description="test failure",
         message_key="error.old",
-        http_status=HTTPStatus.CONFLICT,
     )
 
     changed = error_code.with_message_key("error.new")
@@ -107,7 +104,7 @@ def test_error_code_is_immutable_and_can_change_message_key() -> None:
     assert changed.code == error_code.code
     assert changed.description == error_code.description
     assert changed.message_key == "error.new"
-    assert changed.http_status == HTTPStatus.CONFLICT
+    assert {field.name for field in fields(changed)} == {"code", "description", "message_key"}
     assert error_code.message_key == "error.old"
     with pytest.raises(FrozenInstanceError):
         error_code.code = 2
@@ -151,18 +148,13 @@ def test_business_exception_rejects_disabled_output_as_a_log_level() -> None:
         DisabledLogException(GlobalErrorCodeConstants.BAD_REQUEST)
 
 
-def test_error_code_http_status_overrides_exception_class_default() -> None:
-    """错误码指定的 HTTP 状态优先于异常类默认值。"""
-    error_code = ErrorCode(
-        code=2002,
-        description="unauthorized",
-        message_key="error.unauthorized",
-        http_status=HTTPStatus.UNAUTHORIZED,
-    )
-
-    exc = BaseBusinessException(error_code=error_code)
-
-    assert exc.http_status == HTTPStatus.UNAUTHORIZED
+def test_error_code_does_not_override_exception_policy() -> None:
+    """同一应用码的诊断语义由使用它的异常类负责。"""
+    definition = ErrorCode(code=7009, description="操作失败", message_key="operation.failure")
+    assert ServerException(definition).is_system_error is True
+    assert ServerException(definition).record_error is True
+    assert PermissionException(definition).is_system_error is False
+    assert PermissionException(definition).record_error is False
 
 
 def test_base_business_exception_rejects_negative_retry_after_and_accepts_zero() -> None:
@@ -222,7 +214,6 @@ def test_service_exception_records_format_args_with_default_msg() -> None:
 
 def test_specific_exception_defaults_use_global_error_codes() -> None:
     """常用异常子类采用各自对应的全局错误定义。"""
-    assert AuthException().error_code is GlobalErrorCodeConstants.UNAUTHORIZED
     assert PermissionException().error_code is GlobalErrorCodeConstants.FORBIDDEN
     assert NotFoundException().error_code is GlobalErrorCodeConstants.NOT_FOUND
     assert IllegalArgumentException().error_code is GlobalErrorCodeConstants.BAD_REQUEST
@@ -276,7 +267,10 @@ def test_all_global_error_constants_are_error_codes_with_message_keys() -> None:
     assert all(isinstance(value.code, int) for value in values)
     assert all(value.description for value in values)
     assert all(value.message_key.startswith("exception.") for value in values)
-    assert all(value.http_status is not None for value in values)
+    assert all(
+        {field.name for field in fields(value)} == {"code", "description", "message_key"}
+        for value in values
+    )
     assert len({value.code for value in values}) == len(values)
 
 
@@ -363,7 +357,6 @@ def test_all_exception_modules_are_importable() -> None:
         "framework.common.exception.core.error_code",
         "framework.starter_web.exception.exception_handler",
         "framework.common.exception.core.exception_trace_reporter",
-        "framework.common.exception.exceptions.auth_exception",
         "framework.common.exception.exceptions.base_business_exception",
         "framework.common.exception.exceptions.configuration_exception",
         "framework.common.exception.exceptions.conflict_exception",
@@ -388,16 +381,14 @@ def test_all_exception_modules_are_importable() -> None:
         import_module(name)
 
 
-def test_configuration_exception_and_error_configuration_map_to_500() -> None:
-    """本地配置错误使用 HTTP 500，网关错误使用 HTTP 502，两者编号分别为 502 和 903。"""
-    assert (
-        GlobalErrorCodeConstants.ERROR_CONFIGURATION.http_status == HTTPStatus.INTERNAL_SERVER_ERROR
-    )
+def test_configuration_and_gateway_failures_keep_distinct_codes_and_diagnostics() -> None:
+    """配置与网关故障编号保持稳定，诊断分类不依赖出站 HTTP 状态。"""
     assert GlobalErrorCodeConstants.ERROR_CONFIGURATION.code == 502
-    assert ConfigurationException().http_status == HTTPStatus.INTERNAL_SERVER_ERROR
     assert ConfigurationException().error_code.code == 502
-    assert GlobalErrorCodeConstants.BAD_GATEWAY.http_status == HTTPStatus.BAD_GATEWAY
+    assert ConfigurationException().is_system_error is True
+    assert ConfigurationException().record_error is True
     assert GlobalErrorCodeConstants.BAD_GATEWAY.code == 903
+    assert BaseBusinessException(GlobalErrorCodeConstants.BAD_GATEWAY).record_error is True
 
 
 def test_base_business_exception_record_error_strict_boolean() -> None:
@@ -459,7 +450,6 @@ def test_subclass_default_error_code_does_not_replace_invalid_explicit_values() 
 @pytest.mark.parametrize(
     ("exception_type", "default_error"),
     [
-        (AuthException, GlobalErrorCodeConstants.UNAUTHORIZED),
         (PermissionException, GlobalErrorCodeConstants.FORBIDDEN),
         (NotFoundException, GlobalErrorCodeConstants.NOT_FOUND),
         (IllegalArgumentException, GlobalErrorCodeConstants.BAD_REQUEST),
@@ -473,7 +463,7 @@ def test_subclass_default_error_code_does_not_replace_invalid_explicit_values() 
     ],
 )
 def test_exception_subclasses_accept_shared_metadata(exception_type, default_error) -> None:
-    """所有子类使用统一元数据入口，并允许显式错误定义和 HTTP 状态覆盖默认值。"""
+    """所有子类使用统一诊断入口，应用码与是否记录错误可显式提供。"""
     original = RuntimeError("private-cause")
     failure = exception_type(
         msg="资源 {} 不可用",
@@ -485,7 +475,10 @@ def test_exception_subclasses_accept_shared_metadata(exception_type, default_err
         record_error=True,
     )
     assert failure.error_code is default_error
-    assert failure.http_status == default_error.http_status
+    assert failure.is_system_error is (
+        exception_type
+        in {ConfigurationException, ServerException, ThirdPartyException, RemoteServiceException}
+    )
     assert failure.msg == "资源 7 不可用"
     assert failure.message_key == "resource.unavailable"
     assert failure.__cause__ is original
@@ -494,13 +487,10 @@ def test_exception_subclasses_accept_shared_metadata(exception_type, default_err
     assert failure.record_error is True
     assert "private-cause" not in str(failure)
 
-    override = ErrorCode(
-        code=7010, description="自定义业务失败", message_key="custom.failure", http_status=409
-    )
-    assert exception_type(override).http_status == 409
-    explicit = exception_type(override, http_status=503, record_error=False)
+    override = ErrorCode(code=7010, description="自定义业务失败", message_key="custom.failure")
+    assert exception_type(override).error_code is override
+    explicit = exception_type(override, record_error=False)
     assert explicit.error_code is override
-    assert explicit.http_status == 503
     assert explicit.record_error is False
 
 
@@ -514,7 +504,6 @@ def test_service_exception_keeps_format_arguments_and_keyword_metadata() -> None
         cause=original,
         context={"service": "report"},
         message_key="custom.service_failure",
-        http_status=503,
         retry_after=3,
         record_error=True,
     )
@@ -523,7 +512,6 @@ def test_service_exception_keeps_format_arguments_and_keyword_metadata() -> None
     assert failure.__cause__ is original
     assert failure.context == {"service": "report"}
     assert failure.message_key == "custom.service_failure"
-    assert failure.http_status == 503
     assert failure.retry_after == 3
     assert failure.record_error is True
 
@@ -543,7 +531,7 @@ def test_remote_detail_is_keyword_only_and_not_public_response_data() -> None:
     with pytest.raises(TypeError):
         RemoteServiceException(None, None, detail)
     with pytest.raises(TypeError):
-        AuthException(None, None, "auth.error")
+        PermissionException(None, None, "permission.error")
 
 
 @pytest.mark.parametrize("retry_after", [True, "1", 1.0, -1])
@@ -553,18 +541,17 @@ def test_subclass_retry_guards_cannot_be_bypassed(retry_after) -> None:
         RateLimitException(retry_after=retry_after)
 
 
-def test_http_default_mapping_matches_transport_status_without_overwriting_configuration() -> None:
-    """HTTP 默认分类与传输状态一致，本地配置错误保留独立业务编号。"""
+def test_http_boundary_maps_incoming_status_to_application_codes() -> None:
+    """只在原生 HTTP 异常边界映射应用码，本地配置错误保留独立业务编号。"""
     mapping = ExceptionUtil._STATUS_CODE_TO_ERROR_CODE
     assert mapping
-    assert all(status == definition.http_status for status, definition in mapping.items())
     for status, definition in mapping.items():
         assert ExceptionUtil.get_error_code(HTTPException(status_code=status)) is definition
     assert mapping[413] is GlobalErrorCodeConstants.PAYLOAD_TOO_LARGE
     assert mapping[423] is GlobalErrorCodeConstants.LOCKED
     assert mapping[500] is GlobalErrorCodeConstants.INTERNAL_SERVER_ERROR
     assert mapping[502] is GlobalErrorCodeConstants.BAD_GATEWAY
-    assert GlobalErrorCodeConstants.ERROR_CONFIGURATION.http_status == 500
+    assert GlobalErrorCodeConstants.ERROR_CONFIGURATION.code == 502
     assert ExceptionUtil.get_error_code(
         HTTPException(status_code=599, detail="未定义的服务状态")
     ) is (GlobalErrorCodeConstants.INTERNAL_SERVER_ERROR)

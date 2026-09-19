@@ -1,6 +1,10 @@
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
-from framework.starter_security.spi.workload_provider import WorkloadProvider
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
+from framework.starter_security.public import (
+    WorkloadProvider,
+)
 from module_system.service.auth.system_workload_service import SystemWorkloadService
 
 

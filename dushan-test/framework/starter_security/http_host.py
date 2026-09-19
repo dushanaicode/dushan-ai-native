@@ -19,11 +19,10 @@ async def run(engine, port, evidence):
         source_backend = Path(__file__).resolve().parents[3] / "dushan-admin-backend"
         sys.path[:] = [entry for entry in sys.path if Path(entry).resolve() != source_backend]
     import framework.starter_security.core.security_service as security_module
+    from fixtures.starter_steps import StarterSteps
     from framework.starter_security.integration.security_access import SecurityAccess
     from framework.starter_web.routing.route_policy import RoutePolicy
     from server.starter_server import create_app
-
-    from fixtures.starter_steps import StarterSteps
 
     (evidence / "origin.json").write_text(
         json.dumps({"security": security_module.__file__}), encoding="utf-8"

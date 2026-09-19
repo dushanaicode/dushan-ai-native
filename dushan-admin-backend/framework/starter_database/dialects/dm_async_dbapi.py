@@ -4,8 +4,8 @@ import dmAsync
 from dmSQLAlchemy.dmasync import DMAdaptDBAPI
 from sqlalchemy.util import await_only
 
-from framework.common.utils.asyncio.asyncio_utils import AsyncioUtils
-from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
+from framework.common.utils.asyncio_utils import AsyncioUtils
+from framework.common.utils.cleanup_utils import CleanupUtils
 from framework.starter_database.dialects.dm_async_connection import DmAsyncConnection
 
 

@@ -19,8 +19,8 @@ import framework
 import server
 from fixtures.config_factory import ConfigFactory
 from framework.starter_security.core.opaque_token import OpaqueToken
-from framework.starter_security.enums.security_realm import SecurityRealm
-from framework.starter_security.enums.tenant_access_mode import TenantAccessMode
+from framework.starter_security.definitions.enums.security_realm import SecurityRealm
+from framework.starter_security.definitions.enums.tenant_access_mode import TenantAccessMode
 from framework.starter_security.model.login_session import LoginSession
 from starter_websocket.provider_source import SOURCE
 

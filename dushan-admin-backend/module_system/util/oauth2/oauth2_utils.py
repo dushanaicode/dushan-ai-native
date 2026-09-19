@@ -1,8 +1,12 @@
 from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-from framework.starter_di.decorators.components import util
-from framework.starter_security.core.opaque_token import OpaqueToken
+from framework.starter_di.public import (
+    util,
+)
+from framework.starter_security.public import (
+    OpaqueToken,
+)
 
 
 @util

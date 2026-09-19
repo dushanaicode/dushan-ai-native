@@ -12,7 +12,7 @@ from loguru import logger
 
 from framework.common.diagnostics.exception_trace_formatter import ExceptionTraceFormatter
 from framework.common.enums.base_enum import BaseEnum
-from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
+from framework.common.utils.cleanup_utils import CleanupUtils
 from framework.starter_config.provider.config_provider import ConfigProvider
 from framework.starter_di.config.di_settings import DiSettings
 from framework.starter_di.core.binding_contract import BindingContract
@@ -26,11 +26,11 @@ from framework.starter_di.core.execution_frame import ExecutionFrame
 from framework.starter_di.core.lifecycle_hooks import LifecycleHooks
 from framework.starter_di.core.list_binding_provider import ListBindingProvider
 from framework.starter_di.core.state.state_manager import StateManager
-from framework.starter_di.enums.binding_outcome_enum import BindingOutcomeEnum
-from framework.starter_di.enums.component_scope_enum import ComponentScopeEnum
-from framework.starter_di.enums.container_state_enum import ContainerStateEnum
-from framework.starter_di.enums.lifecycle_phase_enum import LifecyclePhaseEnum
-from framework.starter_di.exception.di_error_codes import DiErrorCodes
+from framework.starter_di.definitions.constants.di_error_codes import DiErrorCodes
+from framework.starter_di.definitions.enums.binding_outcome_enum import BindingOutcomeEnum
+from framework.starter_di.definitions.enums.component_scope_enum import ComponentScopeEnum
+from framework.starter_di.definitions.enums.container_state_enum import ContainerStateEnum
+from framework.starter_di.definitions.enums.lifecycle_phase_enum import LifecyclePhaseEnum
 from framework.starter_di.exception.di_exception import DiException
 
 T = TypeVar("T")

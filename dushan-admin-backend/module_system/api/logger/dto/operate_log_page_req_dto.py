@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pydantic import Field
 
-from framework.common.schemas.base_dto import BaseDTO
+from framework.common.schemas import BaseDTO
 
 
 class OperateLogPageReqDTO(BaseDTO):

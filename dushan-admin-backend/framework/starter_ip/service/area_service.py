@@ -5,9 +5,9 @@ from pathlib import Path
 from threading import RLock
 
 from framework.starter_di.decorators.components import service
-from framework.starter_di.enums.component_scope_enum import ComponentScopeEnum
-from framework.starter_ip.enum.area_type_enum import AreaTypeEnum
-from framework.starter_ip.exception.ip_error_code_constants import IpErrorCodeConstants
+from framework.starter_di.definitions.enums.component_scope_enum import ComponentScopeEnum
+from framework.starter_ip.definitions.constants.ip_error_codes import IpErrorCodes
+from framework.starter_ip.definitions.enums.area_type_enum import AreaTypeEnum
 from framework.starter_ip.exception.ip_exception import IpException
 from framework.starter_ip.model.area import Area
 
@@ -36,7 +36,7 @@ class AreaService:
                 areas = self._load(content.decode("utf-8-sig"))
             except (OSError, ValueError, KeyError, csv.Error) as error:
                 raise IpException(
-                    IpErrorCodeConstants.AREA_DATA_LOAD_ERROR,
+                    IpErrorCodes.AREA_DATA_LOAD_ERROR,
                     cause=error,
                     context={"path": str(path)},
                 ) from error
@@ -94,7 +94,7 @@ class AreaService:
 
     def _require_areas(self) -> dict[int, Area]:
         if self._areas is None:
-            raise IpException(IpErrorCodeConstants.NOT_INITIALIZED)
+            raise IpException(IpErrorCodes.NOT_INITIALIZED)
         return self._areas
 
     def get_area(self, area_id: int) -> Area | None:

@@ -2,6 +2,7 @@ import asyncio
 
 import pytest
 
+from framework.starter_mq.definitions.constants.mq_error_codes import MQErrorCodes
 from framework.starter_mq.exception.mq_exception import MQException
 from starter_mq.test_reliability import dead_letter
 
@@ -108,7 +109,7 @@ async def test_publish_confirmation_timeout_is_unknown(mq_case, monkeypatch):
     )
     with pytest.raises(MQException) as failure:
         await case.service.send_prepared(prepared)
-    assert failure.value.reason == "unknown"
+    assert failure.value.error_code is MQErrorCodes.UNKNOWN
     await case.until(lambda: 1 in case.probe.finished)
     assert len(case.probe.runs) == 1
 

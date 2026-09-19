@@ -2,9 +2,13 @@ from __future__ import annotations
 
 from sqlalchemy import update
 
-from framework.starter_database.session.session_provider import SessionProvider
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
+from framework.starter_database.public import (
+    SessionProvider,
+)
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
 from module_system.dal.dataobject.permission.authorization_revision_do import (
     AuthorizationRevisionDO,
 )

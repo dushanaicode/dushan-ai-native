@@ -4,8 +4,12 @@ from typing import Any, ClassVar
 from sqlalchemy import JSON, BigInteger, DateTime, Index, SmallInteger, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from framework.starter_data_permission.decorators.data_permission import data_permission
-from framework.starter_tenant.entity.tenant_base_do import TenantBaseDO
+from framework.starter_data_permission.public import (
+    data_permission,
+)
+from framework.starter_tenant.public import (
+    TenantBaseDO,
+)
 from module_infra.definitions.enums.logger.api_error_log_process_status_enum import (
     ApiErrorLogProcessStatusEnum,
 )

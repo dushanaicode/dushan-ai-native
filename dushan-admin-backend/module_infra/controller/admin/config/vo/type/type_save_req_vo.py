@@ -2,13 +2,11 @@ from typing import Annotated, Any
 
 from pydantic import Field, field_validator
 
-from framework.common.contracts.snowflake_id import (
+from framework.common.contracts import (
     SnowflakeIdInput,
 )
-from framework.common.schemas.base_request_vo import BaseRequestVO
-from framework.common.validator.not_empty import NotEmpty
-from framework.common.validator.not_null import NotNull
-from framework.common.validator.size import Size
+from framework.common.schemas import BaseRequestVO
+from framework.common.validator import NotEmpty, NotNull, Size
 from module_infra.definitions.enums.config.config_module_enum import ConfigModuleEnum
 
 

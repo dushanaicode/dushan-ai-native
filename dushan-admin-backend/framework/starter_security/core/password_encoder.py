@@ -3,10 +3,11 @@ import re
 
 import bcrypt
 
-from framework.common.utils.asyncio.asyncio_utils import AsyncioUtils
+from framework.common.utils.asyncio_utils import AsyncioUtils
 from framework.starter_di.decorators.components import framework
-from framework.starter_di.enums.component_scope_enum import ComponentScopeEnum
+from framework.starter_di.definitions.enums.component_scope_enum import ComponentScopeEnum
 from framework.starter_security.config.security_settings import SecuritySettings
+from framework.starter_security.definitions.constants.security_error_codes import SecurityErrorCodes
 from framework.starter_security.exception.security_exception import SecurityException
 
 
@@ -51,7 +52,7 @@ class PasswordEncoder:
 
     async def _work(self, function, *args):
         if self._closed:
-            raise SecurityException("closed")
+            raise SecurityException(SecurityErrorCodes.CLOSED)
         self._active += 1
         self._idle.clear()
         try:

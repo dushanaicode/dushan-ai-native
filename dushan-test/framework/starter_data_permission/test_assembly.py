@@ -12,8 +12,9 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from fixtures.starter_steps import StarterSteps
 from framework.starter_data_permission.core.data_permission_service import DataPermissionService
 from framework.starter_security.core.opaque_token import OpaqueToken
-from framework.starter_security.enums.security_realm import SecurityRealm
-from framework.starter_security.enums.tenant_access_mode import TenantAccessMode
+from framework.starter_security.definitions.constants.security_error_codes import SecurityErrorCodes
+from framework.starter_security.definitions.enums.security_realm import SecurityRealm
+from framework.starter_security.definitions.enums.tenant_access_mode import TenantAccessMode
 from framework.starter_security.integration.security_access import SecurityAccess
 from framework.starter_security.model.login_session import LoginSession
 from framework.starter_security.spi.token_provider import TokenProvider
@@ -27,7 +28,7 @@ from sqlalchemy import MetaData, String
 from sqlalchemy.orm import mapped_column
 from framework.starter_database.model.base_do import BaseDO
 from framework.starter_data_permission.decorators.data_permission import data_permission
-from framework.starter_data_permission.enums.data_scope import DataScope
+from framework.starter_data_permission.definitions.enums.data_scope import DataScope
 from framework.starter_data_permission.model.data_scope_rule import DataScopeRule
 from framework.starter_data_permission.spi.data_permission_provider import DataPermissionProvider
 from framework.starter_di.decorators.components import service
@@ -177,7 +178,7 @@ async def test_scanner_di_http_and_resource_close(config_dir, module_package, tm
                 assert response.status_code == 200
                 assert response.json() == [1]
                 response = await client.get("/records")
-                assert response.status_code == 401 or response.json().get("code") == 401
+                assert response.json().get("code") == SecurityErrorCodes.MISSING.code
             assert service._active == 0
         assert service._closed and service._active == 0
         assert app.state.database is None and app.state.security is None

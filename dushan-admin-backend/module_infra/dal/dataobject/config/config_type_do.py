@@ -3,8 +3,10 @@ from datetime import datetime
 from sqlalchemy import Computed, DateTime, Index, SmallInteger, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from framework.common.enums.status_enum import StatusEnum
-from framework.starter_tenant.entity.tenant_base_do import TenantBaseDO
+from framework.common.enums import StatusEnum
+from framework.starter_tenant.public import (
+    TenantBaseDO,
+)
 
 
 class InfraConfigTypeDO(TenantBaseDO):

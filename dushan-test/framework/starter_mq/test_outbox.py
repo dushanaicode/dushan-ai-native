@@ -7,7 +7,8 @@ from sqlalchemy import func, insert, select, update
 
 from framework.starter_database.exception.after_commit_exception import AfterCommitException
 from framework.starter_job.model.job_definition import JobDefinition
-from framework.starter_mq.enums.outbox_state import OutboxState
+from framework.starter_mq.definitions.constants.mq_error_codes import MQErrorCodes
+from framework.starter_mq.definitions.enums.outbox_state import OutboxState
 from framework.starter_mq.exception.mq_exception import MQException
 from framework.starter_mq.model.outbox_record import OutboxRecord
 from framework.starter_mq.model.publish_command import PublishCommand
@@ -169,7 +170,7 @@ async def test_publish_unknown_is_quarantined_after_committed_business(mq_sql_ca
 
     async def uncertain(message):
         await send(message)
-        raise MQException("unknown")
+        raise MQException(MQErrorCodes.UNKNOWN)
 
     monkeypatch.setattr(case.service, "send_prepared", uncertain)
     with pytest.raises(AfterCommitException):
@@ -231,7 +232,7 @@ async def test_plain_after_commit_callback_preserves_commit_failure_semantics(
     case = mq_sql_case
 
     async def unavailable(*args):
-        raise MQException("capacity")
+        raise MQException(MQErrorCodes.CAPACITY)
 
     monkeypatch.setattr(case.runtime.backend, "publish", unavailable)
 

@@ -1,7 +1,8 @@
 from contextlib import asynccontextmanager
 
-from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
+from framework.common.utils.cleanup_utils import CleanupUtils
 from framework.starter_mq.config.mq_settings import MQSettings
+from framework.starter_mq.definitions.constants.mq_error_codes import MQErrorCodes
 from framework.starter_mq.exception.mq_exception import MQException
 from framework.starter_mq.starter.mq_starter import MQStarter
 
@@ -19,7 +20,7 @@ class MQStep:
         application = definitions.application_context
         if application is None:
             if settings.enabled:
-                raise MQException("configuration")
+                raise MQException(MQErrorCodes.CONFIGURATION)
             ctx.logger.info("【MQStarter 】消息队列未启用")
             yield
             return

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from framework.common.page.schemas.page_result import PageResult
+from framework.common.page import PageResult
 from module_system.controller.admin.mail.vo.log.log_page_req_vo import MailLogPageReqVO
 from module_system.dal.dataobject.mail.mail_log_do import MailLogDO
 from module_system.service.mail.bo.mail_batch_log_create_bo import MailBatchLogCreateBO

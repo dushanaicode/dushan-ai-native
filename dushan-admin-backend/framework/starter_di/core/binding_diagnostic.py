@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from framework.starter_di.enums.binding_outcome_enum import BindingOutcomeEnum
+from framework.starter_di.definitions.enums.binding_outcome_enum import BindingOutcomeEnum
 
 
 @dataclass(frozen=True, slots=True)

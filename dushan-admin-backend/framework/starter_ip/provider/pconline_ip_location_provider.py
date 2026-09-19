@@ -1,11 +1,12 @@
 import json
 
 from framework.starter_di.decorators.components import framework
-from framework.starter_di.enums.component_scope_enum import ComponentScopeEnum
+from framework.starter_di.definitions.enums.component_scope_enum import ComponentScopeEnum
 from framework.starter_ip.client.ip_location_http_client import IpLocationHttpClient
 from framework.starter_ip.config.ip_settings import IpSettings
 from framework.starter_ip.core.client_ip_resolver import ClientIpResolver
-from framework.starter_ip.exception.ip_provider_error import IpProviderError
+from framework.starter_ip.definitions.constants.ip_error_codes import IpErrorCodes
+from framework.starter_ip.exception.ip_exception import IpException
 from framework.starter_ip.spi.ip_location_provider import IpLocationProvider
 
 
@@ -44,4 +45,6 @@ class PconlineIpLocationProvider(IpLocationProvider):
                 raise ValueError("PConline 结果状态不一致")
             return "-".join(part for part in (province, city) if part)
         except (ValueError, UnicodeError) as error:
-            raise IpProviderError(self.name, "protocol") from error
+            raise IpException(
+                IpErrorCodes.QUERY_FAILED, context={"provider": self.name, "reason": "protocol"}
+            ) from error

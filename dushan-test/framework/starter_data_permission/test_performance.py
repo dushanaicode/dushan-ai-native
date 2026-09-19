@@ -7,7 +7,7 @@ from time import perf_counter
 import pytest
 from sqlalchemy import select
 
-from framework.starter_data_permission.enums.data_scope import DataScope
+from framework.starter_data_permission.definitions.enums.data_scope import DataScope
 
 
 class Timings:

@@ -1,10 +1,18 @@
 from __future__ import annotations
 
-from framework.starter_captcha.config.captcha_settings import CaptchaSettings
-from framework.starter_captcha.core.captcha_service import CaptchaService as FrameworkCaptchaService
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
-from framework.starter_web.context.request_context import RequestContext
+from framework.starter_captcha.public import (
+    CaptchaService as FrameworkCaptchaService,
+)
+from framework.starter_captcha.public import (
+    CaptchaSettings,
+)
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
+from framework.starter_web.public import (
+    RequestContext,
+)
 from module_system.service.captcha.captcha_service import CaptchaService
 
 
@@ -12,6 +20,9 @@ from module_system.service.captcha.captcha_service import CaptchaService
 class CaptchaServiceImpl(CaptchaService):
     delegate: FrameworkCaptchaService = Inject()
     settings: CaptchaSettings = Inject()
+
+    def configuration(self):
+        return self.delegate.configuration()
 
     async def create_captcha(self, purpose: str):
         return await self.delegate.create(purpose)

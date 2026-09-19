@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from framework.common.page.schemas.page_result import PageResult
+from framework.common.page import PageResult
 from module_system.controller.admin.tenant.vo.tenant.tenant_page_req_vo import TenantPageReqVO
 from module_system.dal.dataobject.tenant.tenant_do import TenantDO
 

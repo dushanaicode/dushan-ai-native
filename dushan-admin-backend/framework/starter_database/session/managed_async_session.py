@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from framework.starter_database.exception.database_error_codes import DatabaseErrorCodes
+from framework.starter_database.definitions.constants.database_error_codes import DatabaseErrorCodes
 from framework.starter_database.exception.database_exception import DatabaseException
 from framework.starter_database.session.managed_result import ManagedResult
 from framework.starter_database.session.managed_session import ManagedSession

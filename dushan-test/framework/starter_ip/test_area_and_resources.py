@@ -9,7 +9,7 @@ from threading import Event
 import pytest
 
 from framework.starter_ip.core.ip2region_database import Ip2RegionDatabase
-from framework.starter_ip.enum.area_type_enum import AreaTypeEnum
+from framework.starter_ip.definitions.enums.area_type_enum import AreaTypeEnum
 from framework.starter_ip.exception.ip_exception import IpException
 from framework.starter_ip.service.area_service import AreaService
 

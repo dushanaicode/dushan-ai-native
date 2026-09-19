@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from typing import override
 
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
 from module_infra.api.online.online_api import OnlineApi
 from module_infra.service.online.online_service import OnlineService
 

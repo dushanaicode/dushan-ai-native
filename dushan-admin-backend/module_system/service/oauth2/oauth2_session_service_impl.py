@@ -1,8 +1,10 @@
 from datetime import datetime, timezone
 
-from framework.common.enums.user_type_enum import UserTypeEnum
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
+from framework.common.enums import UserTypeEnum
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
 from module_system.api.oauth2.dto.oauth2_session_dto import OAuth2SessionDTO
 from module_system.dal.dataobject.oauth2.oauth2_access_token_do import OAuth2AccessTokenDO
 from module_system.dal.mapper.dept.dept_mapper import DeptMapper

@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from framework.starter_websocket.enums.socket_target_kind import SocketTargetKind
+from framework.starter_websocket.definitions.enums.socket_target_kind import SocketTargetKind
 
 
 class SocketTarget(BaseModel):

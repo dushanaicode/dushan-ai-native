@@ -3,15 +3,18 @@ import asyncio
 from opentelemetry.trace import SpanKind, Status, StatusCode
 from pydantic import ValidationError
 
-from framework.common.utils.asyncio.asyncio_utils import AsyncioUtils
+from framework.common.utils.asyncio_utils import AsyncioUtils
 from framework.starter_database.exception.after_commit_exception import AfterCommitException
-from framework.starter_mq.enums.message_state import MessageState
-from framework.starter_mq.enums.tenant_policy import TenantPolicy
+from framework.starter_mq.definitions.constants.mq_error_codes import MQErrorCodes
+from framework.starter_mq.definitions.enums.message_state import MessageState
+from framework.starter_mq.definitions.enums.tenant_policy import TenantPolicy
 from framework.starter_mq.exception.message_rejected import MessageRejected
 from framework.starter_mq.exception.message_result_unknown import MessageResultUnknown
 from framework.starter_mq.exception.mq_exception import MQException
 from framework.starter_mq.model.consume_outcome import ConsumeOutcome
+from framework.starter_security.definitions.constants.security_error_codes import SecurityErrorCodes
 from framework.starter_security.exception.security_exception import SecurityException
+from framework.starter_tenant.definitions.constants.tenant_error_codes import TenantErrorCodes
 from framework.starter_tenant.exception.tenant_exception import TenantException
 
 
@@ -33,7 +36,7 @@ class ConsumerInvoker:
             )
             if task in completed:
                 return self._result(task)
-            interruption = MQException("lease") if lost in completed else TimeoutError()
+            interruption = MQException(MQErrorCodes.LEASE) if lost in completed else TimeoutError()
         except asyncio.CancelledError as error:
             interruption = error
         finally:
@@ -70,13 +73,16 @@ class ConsumerInvoker:
             return task.result()
         if isinstance(error, (AfterCommitException, MessageResultUnknown)):
             return ConsumeOutcome(MessageState.UNKNOWN, error)
-        if isinstance(error, SecurityException) and error.reason in {
-            "unavailable",
-            "configuration",
-            "closed",
+        if isinstance(error, SecurityException) and error.error_code in {
+            SecurityErrorCodes.UNAVAILABLE,
+            SecurityErrorCodes.CONFIGURATION,
+            SecurityErrorCodes.CLOSED,
         }:
             return ConsumeOutcome(MessageState.RETRY, error)
-        if isinstance(error, TenantException) and error.reason in {"configuration", "closed"}:
+        if isinstance(error, TenantException) and error.error_code in {
+            TenantErrorCodes.CONFIGURATION,
+            TenantErrorCodes.CLOSED,
+        }:
             return ConsumeOutcome(MessageState.RETRY, error)
         if isinstance(
             error, (SecurityException, TenantException, MessageRejected, ValidationError)

@@ -4,8 +4,8 @@ from typing import Any
 
 from framework.starter_cache.core.cache_invalidation_dispatcher import CacheInvalidationDispatcher
 from framework.starter_cache.decorators.key_builder import KeyBuilder
-from framework.starter_cache.exception.cache_config_exception import CacheConfigException
-from framework.starter_cache.exception.cache_error_codes import CacheErrorCodes
+from framework.starter_cache.definitions.constants.cache_error_codes import CacheErrorCodes
+from framework.starter_cache.exception.cache_exception import CacheException
 from framework.starter_cache.model.cache_entry_invalidation_command import (
     CacheEntryInvalidationCommand,
 )
@@ -36,12 +36,12 @@ class CacheEvict:
     def invalidate(cls, cache_key: CacheKey, *, key: str | None = None, all_entries: bool = False):
         """构造失效装饰器；key 与 all_entries 必须且只能指定一个。"""
         if not isinstance(cache_key, CacheKey):
-            raise CacheConfigException(
-                error_code=CacheErrorCodes.INVALID_CACHE_KEY, msg="缓存失效装饰器必须传入 CacheKey"
+            raise CacheException(
+                CacheErrorCodes.INVALID_CACHE_KEY, msg="缓存失效装饰器必须传入 CacheKey"
             )
         if (key is not None) == all_entries:
-            raise CacheConfigException(
-                error_code=CacheErrorCodes.CONFIG_ERROR,
+            raise CacheException(
+                CacheErrorCodes.CONFIG_ERROR,
                 msg="缓存失效目标必须且只能指定 key 或 all_entries 之一",
             )
 

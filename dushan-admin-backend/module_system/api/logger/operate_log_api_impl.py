@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from typing import override
 
-from framework.common.page.schemas.page_result import PageResult
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
+from framework.common.page import PageResult
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
 from module_system.api.logger.dto.operate_log_create_req_dto import OperateLogCreateReqDTO
 from module_system.api.logger.dto.operate_log_page_req_dto import OperateLogPageReqDTO
 from module_system.api.logger.dto.operate_log_resp_dto import OperateLogRespDTO

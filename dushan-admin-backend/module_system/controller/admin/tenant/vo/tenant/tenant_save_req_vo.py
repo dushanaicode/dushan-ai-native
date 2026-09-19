@@ -3,16 +3,12 @@ from typing import Annotated, Any
 
 from pydantic import Field, field_validator, model_validator
 
-from framework.common.contracts.snowflake_id import (
+from framework.common.contracts import (
     SnowflakeIdInput,
     SnowflakeReferenceInput,
 )
-from framework.common.schemas.base_request_vo import BaseRequestVO
-from framework.common.validator.assert_true import AssertTrue
-from framework.common.validator.length import Length
-from framework.common.validator.not_null import NotNull
-from framework.common.validator.pattern import Pattern
-from framework.common.validator.size import Size
+from framework.common.schemas import BaseRequestVO
+from framework.common.validator import AssertTrue, Length, NotNull, Pattern, Size
 
 
 class TenantSaveReqVO(BaseRequestVO):

@@ -2,7 +2,10 @@ import asyncio
 
 import pytest
 
-from framework.starter_data_permission.enums.data_scope import DataScope
+from framework.starter_data_permission.definitions.constants.data_permission_error_codes import (
+    DataPermissionErrorCodes,
+)
+from framework.starter_data_permission.definitions.enums.data_scope import DataScope
 from framework.starter_data_permission.exception.data_permission_exception import (
     DataPermissionException,
 )
@@ -46,7 +49,7 @@ async def test_cache_version_revocation_invalidation_and_binding(permission_case
     with pytest.raises(DataPermissionException) as error:
         async with case.enter(token):
             pass
-    assert error.value.reason == "provider"
+    assert error.value.error_code is DataPermissionErrorCodes.PROVIDER
     with case.application.execution():
         await case.service.cache.delete(key, identifier)
         await case.service.cache.delete(key, case.service._identifier(identity))
@@ -63,6 +66,6 @@ async def test_cache_failure_never_grants_all(permission_case):
     with pytest.raises(DataPermissionException) as error:
         async with case.enter():
             pass
-    assert error.value.reason == "provider"
+    assert error.value.error_code is DataPermissionErrorCodes.PROVIDER
     assert case.service._active == case.tenant.active == 0
     await asyncio.sleep(0.2)

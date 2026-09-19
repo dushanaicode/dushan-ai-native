@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 
-from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
+from framework.common.utils.cleanup_utils import CleanupUtils
 from framework.starter_database.config.database_settings import DatabaseSettings
 from framework.starter_database.session.session_provider import SessionProvider
 from framework.starter_monitor.config.monitor_settings import MonitorSettings

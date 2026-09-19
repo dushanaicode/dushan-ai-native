@@ -3,10 +3,10 @@ from typing import Annotated
 
 from pydantic import Field
 
-from framework.common.contracts.snowflake_id import (
+from framework.common.contracts import (
     SnowflakeIdStr,
 )
-from framework.common.schemas.base_vo import BaseVO
+from framework.common.schemas import BaseVO
 from module_system.controller.admin.dept.vo.dept.dept_simple_resp_vo import DeptSimpleRespVO
 from module_system.controller.admin.dept.vo.post.post_simple_resp_vo import PostSimpleRespVO
 from module_system.controller.admin.permission.vo.role.role_simple_resp_vo import RoleSimpleRespVO

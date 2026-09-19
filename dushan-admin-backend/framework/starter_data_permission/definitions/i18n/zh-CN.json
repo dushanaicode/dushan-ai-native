@@ -1,0 +1,10 @@
+{
+  "data_permission.missing": "数据权限主体不可用",
+  "data_permission.denied": "数据范围拒绝访问",
+  "data_permission.stale": "数据权限快照已失效",
+  "data_permission.configuration": "数据权限配置无效",
+  "data_permission.provider": "数据权限提供者不可用",
+  "data_permission.unregistered": "模型未声明数据访问策略",
+  "data_permission.write": "写入包含未授权记录或归属字段",
+  "data_permission.closed": "数据权限服务已关闭"
+}

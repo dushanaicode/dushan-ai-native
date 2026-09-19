@@ -2,9 +2,9 @@ from typing import Annotated
 from datetime import datetime
 from pydantic import Field
 {% if is_tree %}
-from framework.common.schemas.base_vo import BaseVO
+from framework.common.schemas import BaseVO
 {% else %}
-from framework.common.page.schemas.page_query import PageQuery
+from framework.common.page import PageQuery
 {% endif %}
 
 

@@ -14,8 +14,8 @@ from framework.starter_di.context.application_context import ApplicationContext
 from framework.starter_di.context.application_state_enum import ApplicationStateEnum
 from framework.starter_di.context.get_bean import get_bean
 from framework.starter_di.decorators.di_dependency import DiDependency
-from framework.starter_di.enums.container_state_enum import ContainerStateEnum
-from framework.starter_di.exception.di_error_codes import DiErrorCodes
+from framework.starter_di.definitions.constants.di_error_codes import DiErrorCodes
+from framework.starter_di.definitions.enums.container_state_enum import ContainerStateEnum
 from server.bootstrap.bootstrapper import BootstrapError
 from server.bootstrap.step_registry import APP_BOOTSTRAP_STEPS, BootstrapStepSpec
 
@@ -134,6 +134,10 @@ async def test_stream_keeps_context_and_drain_waits_until_last_body(module_packa
             assert not draining.done() and current.get_statistics()["executions"] == 1
             rejected = await client.get("/health")
             assert rejected.status_code == 503
+            rejected_normal = await client.get("/other")
+            assert rejected_normal.status_code == 200
+            assert rejected_normal.json()["code"] == DiErrorCodes.NOT_READY.code
+            assert rejected_normal.headers["cache-control"] == "no-store"
             release.set()
             assert (await request).content == b"first\nlast\n"
             await draining

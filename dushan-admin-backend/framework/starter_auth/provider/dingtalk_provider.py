@@ -3,7 +3,7 @@ import hashlib
 import hmac
 import time
 
-from framework.starter_auth.exception.auth_error_codes import AuthErrorCodes as Codes
+from framework.starter_auth.definitions.constants.auth_error_codes import AuthErrorCodes as Codes
 from framework.starter_auth.exception.auth_exception import AuthException
 from framework.starter_auth.model.provider_capability import ProviderCapability
 from framework.starter_auth.provider.auth_provider import AuthProvider

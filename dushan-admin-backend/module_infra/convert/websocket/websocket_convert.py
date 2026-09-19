@@ -1,6 +1,10 @@
-from framework.starter_di.decorators.components import util
-from framework.starter_di.decorators.inject import Inject
-from framework.starter_websocket.config.websocket_settings import WebSocketSettings
+from framework.starter_di.public import (
+    Inject,
+    util,
+)
+from framework.starter_websocket.public import (
+    WebSocketSettings,
+)
 
 
 @util

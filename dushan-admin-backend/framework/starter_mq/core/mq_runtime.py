@@ -5,7 +5,7 @@ from uuid import uuid4
 
 from loguru import logger
 
-from framework.common.utils.asyncio.asyncio_utils import AsyncioUtils
+from framework.common.utils.asyncio_utils import AsyncioUtils
 from framework.starter_di.context.application_state_enum import ApplicationStateEnum
 from framework.starter_mq.backend.kafka_backend import KafkaBackend
 from framework.starter_mq.backend.rabbit_backend import RabbitBackend
@@ -14,7 +14,8 @@ from framework.starter_mq.core.consumer_runner import ConsumerRunner
 from framework.starter_mq.core.message_codec import MessageCodec
 from framework.starter_mq.core.mq_sdk_log_filter import MQSdkLogFilter
 from framework.starter_mq.core.replay_store import ReplayStore
-from framework.starter_mq.enums.mq_backend import MQBackend
+from framework.starter_mq.definitions.constants.mq_error_codes import MQErrorCodes
+from framework.starter_mq.definitions.enums.mq_backend import MQBackend
 from framework.starter_mq.exception.mq_exception import MQException
 
 
@@ -85,7 +86,7 @@ class MQRuntime:
     async def activate(self):
         """等待订阅就绪或接收失败，结果直接返回宿主，不以后台启动掩盖失败。"""
         if self.phase != "starting" or self.application.state is not ApplicationStateEnum.READY:
-            raise MQException("closed")
+            raise MQException(MQErrorCodes.CLOSED)
         self._activation_failure = asyncio.get_running_loop().create_future()
         subscriptions = asyncio.gather(*(event.wait() for event in self.backend.ready.values()))
         try:
@@ -107,7 +108,7 @@ class MQRuntime:
                 or self.paused
                 or any(task.done() for task in self.actors.values())
             ):
-                raise MQException("closed")
+                raise MQException(MQErrorCodes.CLOSED)
             self.phase = "ready"
             logger.info("【MQStarter 】激活完成：{} 个消费者接收循环已就绪", len(self.actors))
         except BaseException as error:
@@ -124,7 +125,7 @@ class MQRuntime:
     async def wait_ready(self):
         await self.call(self.ready.wait())
         if self.phase != "ready":
-            raise MQException("closed")
+            raise MQException(MQErrorCodes.CLOSED)
 
     async def _consume(self, handler):
         key = handler.__mq_consumer__.key
@@ -158,7 +159,7 @@ class MQRuntime:
                 self.paused.add(key)
                 if self.phase == "starting":
                     if not self._activation_failure.done():
-                        self._activation_failure.set_result(MQException("closed"))
+                        self._activation_failure.set_result(MQException(MQErrorCodes.CLOSED))
                 else:
                     logger.error("MQ 接收连接已结束 key={}", key)
         except Exception as error:

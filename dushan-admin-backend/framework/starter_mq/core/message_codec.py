@@ -7,6 +7,7 @@ import time
 
 from pydantic import ValidationError
 
+from framework.starter_mq.definitions.constants.mq_error_codes import MQErrorCodes
 from framework.starter_mq.exception.mq_exception import MQException
 from framework.starter_mq.model.message_envelope import MessageEnvelope
 
@@ -32,7 +33,7 @@ class MessageCodec:
     def encode(self, envelope: MessageEnvelope) -> bytes:
         body = envelope.model_dump_json().encode()
         if len(body) > self.wire_limit:
-            raise MQException("invalid")
+            raise MQException(MQErrorCodes.INVALID)
         return body
 
     @property
@@ -41,14 +42,14 @@ class MessageCodec:
 
     def decode(self, body: bytes, destination: str, *, check_age=True) -> MessageEnvelope:
         if len(body) > self.wire_limit:
-            raise MQException("invalid")
+            raise MQException(MQErrorCodes.INVALID)
         try:
             envelope = MessageEnvelope.model_validate_json(body, strict=True)
         except ValidationError as error:
-            raise MQException("invalid", cause=error) from error
+            raise MQException(MQErrorCodes.INVALID, cause=error) from error
         expected = self.sign(envelope).signature
         if not hmac.compare_digest(expected, envelope.signature):
-            raise MQException("authentication")
+            raise MQException(MQErrorCodes.AUTHENTICATION)
         self.validate(envelope, destination, check_age=check_age)
         return envelope
 
@@ -56,25 +57,25 @@ class MessageCodec:
         now = time.time()
         skew = self.settings.clock_skew_seconds
         if envelope.destination != destination or envelope.issued_at > now + skew:
-            raise MQException("authentication")
+            raise MQException(MQErrorCodes.AUTHENTICATION)
         if not 0 < envelope.expires_at - envelope.issued_at <= self.settings.max_age_seconds:
-            raise MQException("authentication")
+            raise MQException(MQErrorCodes.AUTHENTICATION)
         if envelope.ready_at < envelope.issued_at or envelope.ready_at > envelope.expires_at:
-            raise MQException("invalid")
+            raise MQException(MQErrorCodes.INVALID)
         if envelope.authority == "session" and (
             envelope.capability is not None or envelope.tenant_id is None
         ):
-            raise MQException("authentication")
+            raise MQException(MQErrorCodes.AUTHENTICATION)
         if envelope.authority == "workload" and not envelope.capability:
-            raise MQException("authentication")
+            raise MQException(MQErrorCodes.AUTHENTICATION)
         if set(envelope.trace_headers) - {"traceparent", "tracestate"} or any(
             len(v) > 1024 for v in envelope.trace_headers.values()
         ):
-            raise MQException("invalid")
+            raise MQException(MQErrorCodes.INVALID)
         self.payload(envelope)
         self.proof(envelope)
         if check_age and envelope.expires_at < now - skew:
-            raise MQException("expired")
+            raise MQException(MQErrorCodes.EXPIRED)
 
     def payload(self, envelope) -> bytes:
         return self._bytes(envelope.payload, self.settings.max_message_bytes)
@@ -87,9 +88,9 @@ class MessageCodec:
         try:
             result = base64.b64decode(value, validate=True)
         except (binascii.Error, ValueError) as error:
-            raise MQException("invalid", cause=error) from error
+            raise MQException(MQErrorCodes.INVALID, cause=error) from error
         if not 1 <= len(result) <= limit:
-            raise MQException("invalid")
+            raise MQException(MQErrorCodes.INVALID)
         return result
 
     @staticmethod
@@ -104,7 +105,7 @@ class MessageCodec:
         now = time.time()
         ready = now + delay
         if ready >= envelope.expires_at:
-            raise MQException("expired")
+            raise MQException(MQErrorCodes.EXPIRED)
         return self.sign(
             envelope.model_copy(
                 update={"attempt": envelope.attempt + 1, "consumer_key": key, "ready_at": ready}

@@ -3,10 +3,10 @@ from typing import Annotated
 
 from pydantic import Field
 
-from framework.common.contracts.snowflake_id import (
+from framework.common.contracts import (
     SnowflakeIdStr,
 )
-from framework.common.schemas.base_vo import BaseVO
+from framework.common.schemas import BaseVO
 
 
 class FileRespVO(BaseVO):

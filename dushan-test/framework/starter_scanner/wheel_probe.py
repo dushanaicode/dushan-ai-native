@@ -15,7 +15,9 @@ def main():
 
     import framework
     from framework.common.enums.component_type_enum import ComponentTypeEnum
-    from framework.starter_scanner.exception.scanner_error_codes import ScannerErrorCodes
+    from framework.starter_scanner.definitions.constants.scanner_error_codes import (
+        ScannerErrorCodes,
+    )
     from server.starter_server import create_app
 
     assert Path(framework.__file__).resolve().is_relative_to(installation)

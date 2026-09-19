@@ -8,7 +8,7 @@ from framework.common.exception.constants.global_error_code_constants import (
 from framework.common.exception.exceptions.configuration_exception import ConfigurationException
 from framework.common.exception.registry.error_code_registry import ErrorCodeRegistry
 from framework.common.page.core.data_paginator import DataPaginator
-from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
+from framework.common.utils.cleanup_utils import CleanupUtils
 from framework.starter_config.config.config_settings import ConfigSettings
 from framework.starter_config.starter.config_starter import ConfigStarter
 from framework.starter_database.pagination.sql_paginator import SqlPaginator

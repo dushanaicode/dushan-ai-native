@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Collection, Protocol, runtime_checkable
 
-from framework.common.page.schemas.page_result import PageResult
+from framework.common.page import PageResult
 from module_system.controller.admin.notification.vo.notice_message.notice_message_my_page_req_vo import (
     NoticeMessageMyPageReqVO,
 )

@@ -1,7 +1,11 @@
-from framework.common.enums.status_enum import StatusEnum
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
-from framework.starter_excel.spi.dict_data_provider import DictDataProvider
+from framework.common.enums import StatusEnum
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
+from framework.starter_excel.public import (
+    DictDataProvider,
+)
 from module_system.service.dict.dict_data_service import DictDataService
 
 

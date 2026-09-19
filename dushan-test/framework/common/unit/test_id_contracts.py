@@ -10,7 +10,7 @@ from framework.common.contracts.snowflake_id import (
     SnowflakeIdStr,
 )
 from framework.common.schemas.request.id_list_req_vo import IdListReqVO
-from framework.common.utils.id.id_utils import IdUtils
+from framework.common.utils.id_utils import IdUtils
 
 pytestmark = pytest.mark.unit
 

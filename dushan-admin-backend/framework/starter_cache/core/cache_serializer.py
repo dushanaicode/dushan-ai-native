@@ -3,10 +3,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from framework.starter_cache.exception.cache_error_codes import CacheErrorCodes
-from framework.starter_cache.exception.cache_serialization_exception import (
-    CacheSerializationException,
-)
+from framework.starter_cache.definitions.constants.cache_error_codes import CacheErrorCodes
+from framework.starter_cache.exception.cache_exception import CacheException
 from framework.starter_di.decorators.components import framework
 
 
@@ -45,8 +43,8 @@ class CacheSerializer:
             )
             return payload.encode("utf-8")
         except (TypeError, ValueError, UnicodeError) as error:
-            raise CacheSerializationException(
-                error_code=CacheErrorCodes.SERIALIZATION_FAILED,
+            raise CacheException(
+                CacheErrorCodes.SERIALIZATION_FAILED,
                 msg="缓存对象序列化失败",
                 cause=error,
             ) from error
@@ -59,8 +57,8 @@ class CacheSerializer:
                 raise TypeError("缓存反序列化只接受 str 或 bytes")
             return json.loads(payload, parse_constant=self._reject_non_finite)
         except (TypeError, ValueError, UnicodeError) as error:
-            raise CacheSerializationException(
-                error_code=CacheErrorCodes.DESERIALIZATION_FAILED,
+            raise CacheException(
+                CacheErrorCodes.DESERIALIZATION_FAILED,
                 msg="缓存数据反序列化失败",
                 cause=error,
             ) from error

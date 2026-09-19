@@ -8,10 +8,10 @@ from fixtures.cache_fixtures import app_values, redis_values, requires_redis
 from fixtures.public_web_app import create_public_app
 from framework.starter_cache.core.cache_handler import CacheHandler
 from framework.starter_cache.core.cache_manager import CacheManager
-from framework.starter_cache.exception.cache_connection_exception import CacheConnectionException
+from framework.starter_cache.exception.cache_exception import CacheException
 from framework.starter_di.context.get_bean import get_bean
 from framework.starter_di.decorators.di_dependency import DiDependency
-from framework.starter_di.enums.container_state_enum import ContainerStateEnum
+from framework.starter_di.definitions.enums.container_state_enum import ContainerStateEnum
 from framework.starter_di.exception.di_exception import DiException
 
 pytestmark = requires_redis
@@ -96,7 +96,7 @@ async def test_closing_one_application_does_not_affect_the_other(
                     key_module.TestCacheKeys.ITEM, "alive", 1
                 )
         assert first_manager.is_ready is False
-        with pytest.raises(CacheConnectionException):
+        with pytest.raises(CacheException):
             first_manager.get_client("default")
 
         with second.state.application_context.execution():

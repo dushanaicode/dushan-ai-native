@@ -2,8 +2,10 @@ from pydantic import Field, model_validator
 
 from framework.starter_config.config.config_model import ConfigModel
 from framework.starter_config.decorator.config_decorator import config_model
-from framework.starter_config.enums.config_source_enum import ConfigSourceEnum
-from framework.starter_tenant.enums.tenant_deployment_profile import TenantDeploymentProfile
+from framework.starter_config.definitions.enums.config_source_enum import ConfigSourceEnum
+from framework.starter_tenant.definitions.enums.tenant_deployment_profile import (
+    TenantDeploymentProfile,
+)
 
 
 @config_model(

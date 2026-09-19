@@ -4,7 +4,7 @@ from urllib.parse import urlencode
 from framework.starter_auth.config.auth_client_config import AuthClientConfig
 from framework.starter_auth.config.auth_settings import AuthSettings
 from framework.starter_auth.core.auth_url_policy import AuthUrlPolicy
-from framework.starter_auth.exception.auth_error_codes import AuthErrorCodes as Codes
+from framework.starter_auth.definitions.constants.auth_error_codes import AuthErrorCodes as Codes
 from framework.starter_auth.exception.auth_exception import AuthException
 from framework.starter_auth.model.auth_flow import AuthFlow
 from framework.starter_auth.model.auth_tokens import AuthTokens

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Collection, Protocol, runtime_checkable
 
-from framework.common.page.schemas.page_result import PageResult
+from framework.common.page import PageResult
 from module_system.controller.admin.auth.vo.auth_register_req_vo import AuthRegisterReqVO
 from module_system.controller.admin.user.vo.profile.profile_update_req_vo import (
     UserProfileUpdateReqVO,

@@ -83,7 +83,7 @@ class GlobalExceptionHandler:
                 msg,
                 self._request_route_path(request),
             )
-        await self._record_error(request, exc, exc.status_code, error_code, msg)
+        await self._record_error(request, exc, error_code, msg)
         return JSONResponse(
             status_code=200,
             content=ExceptionResponseBuilder.build(error_code, msg, exc=exc, debug=self.debug),
@@ -107,9 +107,7 @@ class GlobalExceptionHandler:
             self._request_route_path(request),
             details.fields,
         )
-        await self._record_error(
-            request, exc, status.HTTP_422_UNPROCESSABLE_CONTENT, error_code, msg
-        )
+        await self._record_error(request, exc, error_code, msg)
         return JSONResponse(
             status_code=200,
             content=ExceptionResponseBuilder.build(
@@ -130,13 +128,9 @@ class GlobalExceptionHandler:
         if exc._message_translation_enabled and not exc._message_format_failed:
             msg = self._translate_message(request, message_key, msg, args=exc.format_args)
         ExceptionLogger.log(exc, error_code, msg, self._request_route_path(request))
-        await self._record_error(request, exc, exc.http_status, error_code, msg)
+        await self._record_error(request, exc, error_code, msg)
         headers = None
-        if (
-            exc.retryable
-            and exc.http_status == status.HTTP_429_TOO_MANY_REQUESTS
-            and exc.retry_after is not None
-        ):
+        if exc.retryable and exc.retry_after is not None:
             headers = {"Retry-After": str(exc.retry_after)}
         return JSONResponse(
             status_code=200,
@@ -164,9 +158,7 @@ class GlobalExceptionHandler:
         error_code = GlobalErrorCodeConstants.INTERNAL_SERVER_ERROR
         msg = self._translate_message(request, error_code.message_key, error_code.description)
         ExceptionLogger.log(exc, error_code, msg, self._request_route_path(request))
-        await self._record_error(
-            request, exc, status.HTTP_500_INTERNAL_SERVER_ERROR, error_code, msg
-        )
+        await self._record_error(request, exc, error_code, msg)
         observation = HttpObservation.find(request.scope)
         if observation is not None:
             observation.failure_recorded = True
@@ -218,7 +210,6 @@ class GlobalExceptionHandler:
         self,
         request: Request,
         exc: Exception,
-        status_code: int,
         error_code: ErrorCode,
         msg: str,
     ) -> None:
@@ -226,15 +217,17 @@ class GlobalExceptionHandler:
         observation = HttpObservation.find(request.scope)
         if observation is not None:
             observation.business_code = error_code.code
-        if self.error_recorder is not None and self._should_record_error(exc, status_code):
+        if self.error_recorder is not None and self._should_record_error(exc):
             await self.error_recorder.record(request, exc, error_code, msg)
 
     @staticmethod
-    def _should_record_error(exc: Exception, status_code: int) -> bool:
-        """判定异常是否需写入系统异常表：5xx 默认入库，4xx 仅在业务异常显式开启 record_error 时入库。"""
-        if status.HTTP_500_INTERNAL_SERVER_ERROR <= status_code < 600:
-            return True
-        return isinstance(exc, BaseBusinessException) and exc.record_error
+    def _should_record_error(exc: Exception) -> bool:
+        """业务异常采用自身诊断策略；原生 HTTP 与未捕获故障在协议边界分类。"""
+        if isinstance(exc, BaseBusinessException):
+            return exc.record_error
+        if isinstance(exc, HTTPException):
+            return 500 <= exc.status_code < 600
+        return not isinstance(exc, RequestValidationError)
 
     @staticmethod
     def _request_route_path(request: Request) -> str:

@@ -3,11 +3,11 @@ from typing import Annotated
 
 from pydantic import Field
 
-from framework.common.contracts.snowflake_id import (
+from framework.common.contracts import (
     SnowflakeIdInput,
     SnowflakeReferenceInput,
 )
-from framework.common.schemas.base_request_vo import BaseRequestVO
+from framework.common.schemas import BaseRequestVO
 
 
 class CodegenTableUpdateReqVO(BaseRequestVO):

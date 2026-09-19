@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 
-from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
+from framework.common.utils.cleanup_utils import CleanupUtils
 from framework.starter_security.config.security_settings import SecuritySettings
 from framework.starter_security.starter.security_starter import SecurityStarter
 

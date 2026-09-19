@@ -4,11 +4,10 @@ import pytest
 
 from fixtures.cache_fixtures import requires_redis
 from framework.starter_cache.core.cache_manager import CacheManager
-from framework.starter_cache.enums.lock_release_outcome_enum import LockReleaseOutcomeEnum
-from framework.starter_cache.exception.cache_lock_contention_exception import (
-    CacheLockContentionException,
+from framework.starter_cache.definitions.enums.lock_release_outcome_enum import (
+    LockReleaseOutcomeEnum,
 )
-from framework.starter_cache.exception.cache_lock_exception import CacheLockException
+from framework.starter_cache.exception.cache_exception import CacheException
 from framework.starter_cache.lock.distributed_lock import DistributedLock
 
 pytestmark = requires_redis
@@ -53,7 +52,7 @@ async def test_with_lock_reports_contention_instead_of_waiting_forever(cache_cas
 
     held = await lock.acquire(name, lease_seconds=5)
     try:
-        with pytest.raises(CacheLockContentionException):
+        with pytest.raises(CacheException):
             async with lock.with_lock(
                 name, lease_seconds=5, wait_seconds=0.2, critical_section_timeout_seconds=2
             ):
@@ -135,7 +134,7 @@ async def test_lease_expiry_makes_the_lock_available_again(cache_case, cache_pre
 )
 async def test_invalid_lock_timing_is_rejected(cache_case, cache_prefix, kwargs):
     _, _, app = cache_case
-    with pytest.raises(CacheLockException):
+    with pytest.raises(CacheException):
         lock_of(app).with_lock(f"{cache_prefix}-invalid", **kwargs)
 
 
@@ -144,7 +143,7 @@ async def test_lock_instance_cannot_be_acquired_twice(cache_case, cache_prefix):
     lock = lock_of(app)
     held = await lock.acquire(f"{cache_prefix}-single", lease_seconds=5)
     try:
-        with pytest.raises(CacheLockException):
+        with pytest.raises(CacheException):
             await held.acquire()
     finally:
         await lock.release(held)

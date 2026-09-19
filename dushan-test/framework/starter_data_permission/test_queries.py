@@ -5,7 +5,10 @@ from sqlalchemy.orm import aliased, joinedload, selectinload, subqueryload
 from fixtures.config_factory import ConfigFactory
 from framework.common.page.config.page_settings import PageSettings
 from framework.common.page.schemas.page_query import PageQuery
-from framework.starter_data_permission.enums.data_scope import DataScope
+from framework.starter_data_permission.definitions.constants.data_permission_error_codes import (
+    DataPermissionErrorCodes,
+)
+from framework.starter_data_permission.definitions.enums.data_scope import DataScope
 from framework.starter_data_permission.exception.data_permission_exception import (
     DataPermissionException,
 )
@@ -115,7 +118,10 @@ async def test_undeclared_and_reconstructed_metadata_rejected(permission_case):
     unknown = Table("unregistered", MetaData(), Column("id", Integer, primary_key=True))
     copied = case.Item.__table__.to_metadata(MetaData())
     async with case.enter():
-        for table, reason in ((unknown, "unregistered"), (copied, "configuration")):
+        for table, expected_code in (
+            (unknown, DataPermissionErrorCodes.UNREGISTERED),
+            (copied, DataPermissionErrorCodes.CONFIGURATION),
+        ):
             with pytest.raises(DataPermissionException) as error:
                 await case.ids(select(table.c.id))
-            assert error.value.reason == reason
+            assert error.value.error_code is expected_code

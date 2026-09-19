@@ -1,8 +1,12 @@
 from sqlalchemy import select
 
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
-from framework.starter_excel.spi.name_provider import NameProvider
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
+from framework.starter_excel.public import (
+    NameProvider,
+)
 from module_system.dal.dataobject.dept.post_do import PostDO
 from module_system.dal.mapper.dept.post_mapper import PostMapper
 

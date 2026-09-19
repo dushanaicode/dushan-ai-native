@@ -1,6 +1,6 @@
 from pydantic_core import PydanticCustomError
 
-from framework.common.utils.validation.validation_utils import ValidationUtils
+from framework.common.utils.validation_utils import ValidationUtils
 
 
 class Mobile:

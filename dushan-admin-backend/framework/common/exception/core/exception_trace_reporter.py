@@ -8,7 +8,6 @@ class ExceptionTraceReporter(Protocol):
     回调失败不会改变原异常响应；敏感异常只提供无原始引用的安全诊断投影。
     """
 
-    @staticmethod
-    def on_error(exc: Exception) -> None:
+    def on_error(self, exc: Exception) -> None:
         """记录异常到外部链路追踪系统；敏感异常已由调用方生成安全投影。"""
         ...

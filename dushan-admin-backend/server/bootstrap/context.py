@@ -7,7 +7,7 @@ from uuid import uuid4
 from fastapi import FastAPI
 from loguru import logger as loguru_logger
 
-from framework.common.datetime.core.date_utils import DateUtils
+from framework.common.dates.date_utils import DateUtils
 from framework.common.page.config.page_settings import PageSettings
 from framework.starter_config.provider.bootstrap_config_provider import BootstrapConfigProvider
 from framework.starter_di.config.di_settings import DiSettings

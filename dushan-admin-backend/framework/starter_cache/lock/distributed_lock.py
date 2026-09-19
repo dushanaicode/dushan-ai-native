@@ -1,15 +1,14 @@
 import asyncio
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 
-from framework.starter_cache.constants.cache_constants import CacheConstants
-from framework.starter_cache.constants.cache_lock_defaults import CacheLockDefaults
 from framework.starter_cache.core.cache_manager import CacheManager
-from framework.starter_cache.enums.lock_release_outcome_enum import LockReleaseOutcomeEnum
-from framework.starter_cache.exception.cache_error_codes import CacheErrorCodes
-from framework.starter_cache.exception.cache_lock_contention_exception import (
-    CacheLockContentionException,
+from framework.starter_cache.definitions.constants.cache_constants import CacheConstants
+from framework.starter_cache.definitions.constants.cache_error_codes import CacheErrorCodes
+from framework.starter_cache.definitions.constants.cache_lock_defaults import CacheLockDefaults
+from framework.starter_cache.definitions.enums.lock_release_outcome_enum import (
+    LockReleaseOutcomeEnum,
 )
-from framework.starter_cache.exception.cache_lock_exception import CacheLockException
+from framework.starter_cache.exception.cache_exception import CacheException
 from framework.starter_cache.lock.redis_lease_lock import RedisLeaseLock
 from framework.starter_di.decorators.components import framework
 from framework.starter_di.decorators.inject import Inject
@@ -29,7 +28,7 @@ class DistributedLock:
     def build_lock_key(self, lock_name: str) -> str:
         """锁键使用独立前缀，不与任何业务 CacheKey 前缀重叠。"""
         if not isinstance(lock_name, str) or not lock_name.strip():
-            raise CacheLockException(msg="锁名称不能为空")
+            raise CacheException(CacheErrorCodes.LOCK_ACQUIRE_FAILED, msg="锁名称不能为空")
         return f"{CacheConstants.DISTRIBUTED_LOCK_KEY_PREFIX}{lock_name}"
 
     async def acquire(
@@ -84,7 +83,9 @@ class DistributedLock:
             client_name=client_name,
         )
         if lock is None:
-            raise CacheLockContentionException(msg=f"无法获取分布式锁：{lock_name}")
+            raise CacheException(
+                CacheErrorCodes.LOCK_CONTENDED, msg=f"无法获取分布式锁：{lock_name}"
+            )
         primary_error: BaseException | None = None
         try:
             async with asyncio.timeout_at(
@@ -98,8 +99,8 @@ class DistributedLock:
             try:
                 outcome = await self.release(lock)
                 if outcome is not LockReleaseOutcomeEnum.RELEASED:
-                    raise CacheLockException(
-                        error_code=CacheErrorCodes.LOCK_RELEASE_FAILED,
+                    raise CacheException(
+                        CacheErrorCodes.LOCK_RELEASE_FAILED,
                         msg=f"分布式锁 {lock_name} 释放终态为 {outcome.code}",
                     )
             except BaseException as release_error:
@@ -117,8 +118,8 @@ class DistributedLock:
                 return self._cache_manager.get_default_client()
             return self._cache_manager.get_client(client_name)
         except Exception as error:
-            raise CacheLockException(
-                error_code=CacheErrorCodes.CLIENT_NOT_FOUND,
+            raise CacheException(
+                CacheErrorCodes.CLIENT_NOT_FOUND,
                 msg=f"无法获取分布式锁使用的缓存客户端：{client_name}",
                 cause=error,
             ) from error
@@ -134,5 +135,8 @@ class DistributedLock:
             critical_section_timeout_seconds, "critical_section_timeout_seconds", allow_zero=False
         )
         if critical >= lease:
-            raise CacheLockException(msg="critical_section_timeout_seconds 必须小于 lease_seconds")
+            raise CacheException(
+                CacheErrorCodes.LOCK_ACQUIRE_FAILED,
+                msg="critical_section_timeout_seconds 必须小于 lease_seconds",
+            )
         return lease, wait, critical

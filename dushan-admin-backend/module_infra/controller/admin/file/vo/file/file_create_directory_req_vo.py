@@ -2,10 +2,10 @@ from typing import Annotated
 
 from pydantic import Field, field_validator
 
-from framework.common.contracts.snowflake_id import (
+from framework.common.contracts import (
     SnowflakeIdInput,
 )
-from framework.common.schemas.base_request_vo import BaseRequestVO
+from framework.common.schemas import BaseRequestVO
 from module_infra.framework.file.core.client.abstract_file_client import AbstractFileClient
 
 

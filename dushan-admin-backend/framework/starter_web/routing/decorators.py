@@ -1,5 +1,5 @@
 from framework.starter_di.decorators.components import component
-from framework.starter_di.enums.component_scope_enum import ComponentScopeEnum
+from framework.starter_di.definitions.enums.component_scope_enum import ComponentScopeEnum
 from framework.starter_web.routing.controller_metadata import ControllerMetadata
 from framework.starter_web.routing.route_definition import RouteDefinition
 from framework.starter_web.routing.route_policy import RoutePolicy

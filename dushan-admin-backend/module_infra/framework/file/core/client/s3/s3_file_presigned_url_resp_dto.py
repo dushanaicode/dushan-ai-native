@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from framework.common.schemas.base_vo import BaseVO
+from framework.common.schemas import BaseVO
 
 
 class FilePresignedUrlRespDTO(BaseVO):

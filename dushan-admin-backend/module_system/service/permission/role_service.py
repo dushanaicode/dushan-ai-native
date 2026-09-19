@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Collection, Protocol, runtime_checkable
 
-from framework.common.page.schemas.page_result import PageResult
+from framework.common.page import PageResult
 from module_system.controller.admin.permission.vo.role.role_page_req_vo import RolePageReqVO
 from module_system.controller.admin.permission.vo.role.role_save_req_vo import RoleSaveReqVO
 from module_system.dal.cache.permission.dto.role_cache_dto import RoleCacheDTO

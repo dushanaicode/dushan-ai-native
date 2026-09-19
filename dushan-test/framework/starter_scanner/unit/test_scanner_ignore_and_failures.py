@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 
 import pytest
@@ -7,7 +8,7 @@ from fixtures.config_factory import ConfigFactory
 from framework.starter_scanner.config.scanner_config import ScannerConfig
 from framework.starter_scanner.core.scan_root import ScanRoot
 from framework.starter_scanner.core.scanner_engine import ScannerEngine
-from framework.starter_scanner.exception.scanner_error_codes import ScannerErrorCodes
+from framework.starter_scanner.definitions.constants.scanner_error_codes import ScannerErrorCodes
 from framework.starter_scanner.exception.scanner_exception import ScannerException
 
 pytestmark = pytest.mark.unit
@@ -36,14 +37,26 @@ def test_ignored_directories_come_from_configuration_and_prune_before_import(
         },
     )
     roots = (ScanRoot("ignore", "scan_ignore", root),)
+
+    preexisting_cache = set(root.rglob("__pycache__"))
+
+    def clean_bytecode_cache():
+        # 前一轮扫描真实导入会生成新的 __pycache__，下一轮收集前清掉新增目录；
+        # 夹具自带的 __pycache__（含 junk.pyc）用于默认忽略目录计数，必须保留。
+        for cache in set(root.rglob("__pycache__")) - preexisting_cache:
+            shutil.rmtree(cache)
+
+    clean_bytecode_cache()
     default = engine().scan(roots)
     assert not marker.exists() and "scan_ignore.temp" not in __import__("sys").modules
     assert modules(default) == ["scan_ignore.Build.b"]
     assert dict(default.diagnostics.skipped_counts)["ignored_directory"] == 2
     assert ("ignored_directory", "scan_ignore.temp") in default.diagnostics.skipped_examples
+    clean_bytecode_cache()
     case_insensitive = engine(ignored_directories=["build", "TEMP"]).scan(roots)
     assert modules(case_insensitive) == [] and not marker.exists()
     assert dict(case_insensitive.diagnostics.skipped_counts)["ignored_directory"] == 2
+    clean_bytecode_cache()
     everything = engine(ignored_directories=[]).scan(roots)
     assert marker.exists()
     assert modules(everything) == ["scan_ignore.Build.b", "scan_ignore.temp.a"]

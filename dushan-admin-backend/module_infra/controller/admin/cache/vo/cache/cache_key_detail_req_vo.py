@@ -2,7 +2,7 @@ from typing import Annotated
 
 from pydantic import Field
 
-from framework.common.schemas.base_request_vo import BaseRequestVO
+from framework.common.schemas import BaseRequestVO
 
 
 class KeyDetailReqVO(BaseRequestVO):

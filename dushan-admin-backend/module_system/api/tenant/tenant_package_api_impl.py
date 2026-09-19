@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from typing import override
 
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
 from module_system.api.tenant.dto.tenant_package_resp_dto import TenantPackageRespDTO
 from module_system.api.tenant.tenant_package_api import TenantPackageApi
 from module_system.dal.dataobject.tenant.tenant_do import TenantDO

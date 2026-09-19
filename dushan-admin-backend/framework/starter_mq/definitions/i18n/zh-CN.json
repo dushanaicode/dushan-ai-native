@@ -1,0 +1,14 @@
+{
+  "mq.error": "消息队列异常",
+  "mq.configuration": "MQ 配置、声明或提供者未就绪",
+  "mq.closed": "MQ 运行时不可用",
+  "mq.capacity": "MQ 容量已满，发布被拒绝",
+  "mq.unknown": "MQ 发布或执行结果未知",
+  "mq.confirmation": "MQ 后端未确认消息",
+  "mq.lease": "MQ 消费租约已失效",
+  "mq.declaration": "MQ 消费声明重复或不受后端支持",
+  "mq.invalid": "MQ 消息格式或大小无效",
+  "mq.authentication": "MQ 消息认证失败",
+  "mq.expired": "MQ 消息已过期",
+  "mq.conflict": "MQ 消息标识与既有内容冲突"
+}

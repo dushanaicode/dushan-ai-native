@@ -3,10 +3,10 @@ from typing import Annotated, Any
 
 from pydantic import Field, field_validator
 
-from framework.common.contracts.snowflake_id import (
+from framework.common.contracts import (
     SnowflakeReferenceInput,
 )
-from framework.common.page.schemas.page_query import PageQuery
+from framework.common.page import PageQuery
 
 
 class ApiErrorLogPageReqVO(PageQuery):

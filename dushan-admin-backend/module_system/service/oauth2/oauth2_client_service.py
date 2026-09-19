@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Collection, Protocol, runtime_checkable
 
-from framework.common.page.schemas.page_result import PageResult
+from framework.common.page import PageResult
 from module_system.api.oauth2.dto.oauth2_client_dto import OAuth2ClientDTO
 from module_system.controller.admin.oauth2.vo.client.oauth2_client_page_req_vo import (
     OAuth2ClientPageReqVO,

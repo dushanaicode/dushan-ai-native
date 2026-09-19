@@ -5,7 +5,8 @@ import pytest
 from sqlalchemy import select
 
 from framework.starter_job.core.job_service import JobService
-from framework.starter_job.enums.job_trigger_kind import JobTriggerKind
+from framework.starter_job.definitions.constants.job_error_codes import JobErrorCodes
+from framework.starter_job.definitions.enums.job_trigger_kind import JobTriggerKind
 from framework.starter_job.exception.job_exception import JobException
 from framework.starter_job.model.job_request import JobRequest
 from server.starter_server import create_app
@@ -63,7 +64,7 @@ async def test_request_capacity_is_enforced_without_owner(job_case):
         await case.service.trigger("job")
         with pytest.raises(JobException) as failure:
             await case.service.trigger("job")
-        assert failure.value.reason == "capacity"
+        assert failure.value.error_code is JobErrorCodes.CAPACITY
     assert not case.probe.runs
 
 

@@ -2,8 +2,7 @@ from typing import Annotated, Any
 
 from pydantic import Field, field_validator
 
-from framework.common.validator.mobile import Mobile
-from framework.common.validator.not_empty import NotEmpty
+from framework.common.validator import Mobile, NotEmpty
 from module_system.controller.admin.auth.vo.auth_captcha_verification_req_vo import (
     CaptchaVerificationReqVO,
 )

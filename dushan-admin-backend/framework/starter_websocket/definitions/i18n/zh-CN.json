@@ -1,0 +1,13 @@
+{
+  "websocket.error": "WebSocket 异常",
+  "websocket.configuration": "WebSocket 声明、资源或认证提供者未就绪",
+  "websocket.closed": "WebSocket 服务正在关闭",
+  "websocket.capacity": "WebSocket 连接或队列容量已满",
+  "websocket.transport": "WebSocket 传输不可用",
+  "websocket.authentication": "WebSocket 会话认证失败",
+  "websocket.policy": "WebSocket 访问未获授权",
+  "websocket.protocol": "WebSocket 消息不符合协议",
+  "websocket.unknown_type": "WebSocket 消息类型未登记",
+  "websocket.too_large": "WebSocket 消息超过大小上限",
+  "websocket.internal": "WebSocket 消息处理失败"
+}

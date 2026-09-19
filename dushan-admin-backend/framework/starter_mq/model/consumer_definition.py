@@ -1,9 +1,9 @@
 from pydantic import BaseModel, ConfigDict
 from pydantic.dataclasses import dataclass
 
-from framework.starter_mq.enums.exhausted_policy import ExhaustedPolicy
-from framework.starter_mq.enums.message_mode import MessageMode
-from framework.starter_mq.enums.tenant_policy import TenantPolicy
+from framework.starter_mq.definitions.enums.exhausted_policy import ExhaustedPolicy
+from framework.starter_mq.definitions.enums.message_mode import MessageMode
+from framework.starter_mq.definitions.enums.tenant_policy import TenantPolicy
 from framework.starter_mq.model.retry_policy import RetryPolicy
 from framework.starter_web.routing.route_policy import RoutePolicy
 

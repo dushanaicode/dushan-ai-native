@@ -20,7 +20,7 @@ def main():
     import framework
     from framework.starter_di.context.get_bean import get_bean
     from framework.starter_di.decorators.di_dependency import DiDependency
-    from framework.starter_di.enums.container_state_enum import ContainerStateEnum
+    from framework.starter_di.definitions.enums.container_state_enum import ContainerStateEnum
     from server.starter_server import create_app
 
     imported = []

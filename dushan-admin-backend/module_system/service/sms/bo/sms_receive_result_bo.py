@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from framework.common.schemas.base_bo import BaseBO
+from framework.common.schemas import BaseBO
 
 
 class SmsReceiveResultBO(BaseBO):

@@ -1,4 +1,4 @@
-from framework.common.schemas.base_vo import BaseVO
+from framework.common.schemas import BaseVO
 
 
 class SocialTemplateInfo(BaseVO):

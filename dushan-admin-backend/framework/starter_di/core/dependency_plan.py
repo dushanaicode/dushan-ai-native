@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import ForwardRef, NoReturn, get_args, get_origin
 
 from framework.starter_di.decorators.inject import Inject
-from framework.starter_di.exception.di_error_codes import DiErrorCodes
+from framework.starter_di.definitions.constants.di_error_codes import DiErrorCodes
 from framework.starter_di.exception.di_exception import DiException
 
 _RESOLUTION_ERRORS = (NameError, TypeError, ValueError, SyntaxError, AttributeError)

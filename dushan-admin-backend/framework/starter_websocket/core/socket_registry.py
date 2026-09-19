@@ -3,7 +3,10 @@ import inspect
 from loguru import logger
 from pydantic import ValidationError
 
-from framework.starter_websocket.exception.socket_exception import SocketException
+from framework.starter_websocket.definitions.constants.websocket_error_codes import (
+    WebSocketErrorCodes,
+)
+from framework.starter_websocket.exception.websocket_exception import WebSocketException
 
 
 class SocketRegistry:
@@ -29,18 +32,18 @@ class SocketRegistry:
                     else (declaration.audience, declaration.type)
                 )
                 if key in mapping:
-                    raise SocketException("configuration")
+                    raise WebSocketException(WebSocketErrorCodes.CONFIGURATION)
                 mapping[key] = component if attribute == "__socket_handler__" else declaration
         if not self.audiences:
-            raise SocketException("configuration")
+            raise WebSocketException(WebSocketErrorCodes.CONFIGURATION)
         for definition in self.audiences.values():
             security.validate_policy(definition.policy)
             security.validate_policy(definition.send_policy)
             if definition.allow_global_targets and not definition.workload_capability:
-                raise SocketException("configuration")
+                raise WebSocketException(WebSocketErrorCodes.CONFIGURATION)
         for (audience, _), value in (*self.handlers.items(), *self.events.items()):
             if audience not in self.audiences:
-                raise SocketException("configuration")
+                raise WebSocketException(WebSocketErrorCodes.CONFIGURATION)
             definition = value.__socket_handler__ if isinstance(value, type) else value
             security.validate_policy(definition.policy)
         for definition in self.events.values():
@@ -48,7 +51,7 @@ class SocketRegistry:
                 definition.projector not in components
                 or not inspect.iscoroutinefunction(definition.projector.project)
             ):
-                raise SocketException("configuration")
+                raise WebSocketException(WebSocketErrorCodes.CONFIGURATION)
 
         logger.info(
             "【WebSocketStarter 】声明与策略校验完成：受众 {} 个，处理器 {} 个，事件 {} 个",
@@ -59,14 +62,14 @@ class SocketRegistry:
 
     def audience(self, key):
         if key not in self.audiences:
-            raise SocketException("policy")
+            raise WebSocketException(WebSocketErrorCodes.POLICY)
         return self.audiences[key]
 
     def event(self, audience, kind):
         try:
             return self.events[(audience, kind)]
         except KeyError as error:
-            raise SocketException("unknown_type", cause=error) from error
+            raise WebSocketException(WebSocketErrorCodes.UNKNOWN_TYPE, cause=error) from error
 
     def event_payload(self, audience, kind, value):
         try:
@@ -74,7 +77,7 @@ class SocketRegistry:
                 value, strict=True, extra="forbid"
             )
         except ValidationError as error:
-            raise SocketException("protocol", cause=error) from error
+            raise WebSocketException(WebSocketErrorCodes.PROTOCOL, cause=error) from error
 
     def policies(self, audience):
         return {

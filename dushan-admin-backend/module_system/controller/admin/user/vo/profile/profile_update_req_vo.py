@@ -2,9 +2,8 @@ from typing import Annotated
 
 from pydantic import EmailStr, Field, HttpUrl, field_validator
 
-from framework.common.schemas.base_request_vo import BaseRequestVO
-from framework.common.validator.assert_true import AssertTrue
-from framework.common.validator.size import Size
+from framework.common.schemas import BaseRequestVO
+from framework.common.validator import AssertTrue, Size
 
 
 class UserProfileUpdateReqVO(BaseRequestVO):

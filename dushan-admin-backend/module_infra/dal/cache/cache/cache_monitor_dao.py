@@ -4,8 +4,10 @@ import re
 
 from framework.starter_cache.config.cache_settings import CacheSettings
 from framework.starter_cache.core.cache_manager import CacheManager
-from framework.starter_di.decorators.components import dao
-from framework.starter_di.decorators.inject import Inject
+from framework.starter_di.public import (
+    Inject,
+    dao,
+)
 from module_infra.controller.admin.cache.vo.cache.cache_key_detail_resp_vo import (
     CacheKeyDetailRespVO,
 )

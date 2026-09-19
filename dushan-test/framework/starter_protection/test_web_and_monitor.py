@@ -17,7 +17,7 @@ from framework.common.exception.exceptions.illegal_argument_exception import (
 )
 from framework.starter_monitor.config.monitor_settings import MonitorSettings
 from framework.starter_monitor.core.monitor_service import MonitorService
-from framework.starter_protection.exception.protection_error_codes import (
+from framework.starter_protection.definitions.constants.protection_error_codes import (
     ProtectionErrorCodes as Codes,
 )
 from framework.starter_protection.idempotent.idempotency_rule import IdempotencyRule

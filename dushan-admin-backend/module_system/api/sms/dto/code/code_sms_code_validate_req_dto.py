@@ -4,11 +4,8 @@ from typing import Annotated, Any
 
 from pydantic import Field, field_validator
 
-from framework.common.schemas.base_dto import BaseDTO
-from framework.common.validator.in_enum import InEnum
-from framework.common.validator.mobile import Mobile
-from framework.common.validator.not_empty import NotEmpty
-from framework.common.validator.not_null import NotNull
+from framework.common.schemas import BaseDTO
+from framework.common.validator import InEnum, Mobile, NotEmpty, NotNull
 from module_system.definitions.enums.sms.sms_scene_enum import SmsSceneEnum
 
 

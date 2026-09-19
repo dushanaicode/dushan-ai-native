@@ -1,6 +1,7 @@
 from framework.starter_database.session.session_provider import SessionProvider
 from framework.starter_di.decorators.components import framework
-from framework.starter_di.enums.component_scope_enum import ComponentScopeEnum
+from framework.starter_di.definitions.enums.component_scope_enum import ComponentScopeEnum
+from framework.starter_job.definitions.constants.job_error_codes import JobErrorCodes
 from framework.starter_job.exception.job_exception import JobException
 
 
@@ -14,7 +15,7 @@ class JobService:
 
     def _runtime(self):
         if self.runtime is None or not self.runtime.accepting:
-            raise JobException("closed")
+            raise JobException(JobErrorCodes.CLOSED)
         return self.runtime
 
     async def trigger(self, job_id):

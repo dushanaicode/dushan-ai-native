@@ -3,7 +3,7 @@ import json
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from framework.common.enums.log_level_enum import LogLevelEnum
-from framework.starter_logging.enums.log_file_type_enum import LogFileTypeEnum
+from framework.starter_logging.definitions.enums.log_file_type_enum import LogFileTypeEnum
 
 
 class LogSettings(BaseModel):

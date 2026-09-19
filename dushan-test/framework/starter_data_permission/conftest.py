@@ -30,7 +30,7 @@ from framework.starter_data_permission.core.data_permission_policy import DataPe
 from framework.starter_data_permission.core.data_permission_registry import DataPermissionRegistry
 from framework.starter_data_permission.core.data_permission_service import DataPermissionService
 from framework.starter_data_permission.decorators.data_permission import data_permission
-from framework.starter_data_permission.enums.data_scope import DataScope
+from framework.starter_data_permission.definitions.enums.data_scope import DataScope
 from framework.starter_data_permission.model.data_permission_model import DataPermissionModel
 from framework.starter_data_permission.model.data_scope_rule import DataScopeRule
 from framework.starter_database.model.base_do import BaseDO
@@ -39,8 +39,9 @@ from framework.starter_security.config.security_settings import SecuritySettings
 from framework.starter_security.context.security_context import SecurityContext
 from framework.starter_security.core.opaque_token import OpaqueToken
 from framework.starter_security.core.security_service import SecurityService
-from framework.starter_security.enums.security_realm import SecurityRealm
-from framework.starter_security.enums.tenant_access_mode import TenantAccessMode
+from framework.starter_security.definitions.constants.security_error_codes import SecurityErrorCodes
+from framework.starter_security.definitions.enums.security_realm import SecurityRealm
+from framework.starter_security.definitions.enums.tenant_access_mode import TenantAccessMode
 from framework.starter_security.exception.security_exception import SecurityException
 from framework.starter_security.model.login_session import LoginSession
 from framework.starter_security.model.permission_snapshot import PermissionSnapshot
@@ -78,7 +79,7 @@ class TenantBoundary:
     @asynccontextmanager
     async def enter(self, identity, policy):
         if identity.tenant_id not in {"t1", "t2", "t3"}:
-            raise SecurityException("denied")
+            raise SecurityException(SecurityErrorCodes.DENIED)
         self.active += 1
         try:
             yield
@@ -88,7 +89,7 @@ class TenantBoundary:
     @asynccontextmanager
     async def enter_workload(self, identity, capability):
         if identity.tenant_id not in {"t1", "t2", "t3"}:
-            raise SecurityException("denied")
+            raise SecurityException(SecurityErrorCodes.DENIED)
         self.active += 1
         try:
             yield

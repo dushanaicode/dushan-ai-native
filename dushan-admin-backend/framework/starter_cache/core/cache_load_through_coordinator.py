@@ -2,18 +2,20 @@ import asyncio
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-from framework.starter_cache.constants.cache_constants import CacheConstants
-from framework.starter_cache.constants.cache_lock_defaults import CacheLockDefaults
-from framework.starter_cache.exception.cache_lock_contention_exception import (
-    CacheLockContentionException,
-)
-from framework.starter_cache.exception.cache_serialization_exception import (
-    CacheSerializationException,
-)
+from framework.starter_cache.definitions.constants.cache_constants import CacheConstants
+from framework.starter_cache.definitions.constants.cache_error_codes import CacheErrorCodes
+from framework.starter_cache.definitions.constants.cache_lock_defaults import CacheLockDefaults
+from framework.starter_cache.exception.cache_exception import CacheException
 from framework.starter_cache.lock.distributed_lock import DistributedLock
 from framework.starter_cache.model.cache_read_result import CacheReadResult
 from framework.starter_di.decorators.components import framework
 from framework.starter_di.decorators.inject import Inject
+
+# 只有内容无法解析才删键重载，其余缓存故障必须原样上抛。
+_CORRUPTED_CODES = (
+    CacheErrorCodes.SERIALIZATION_FAILED,
+    CacheErrorCodes.DESERIALIZATION_FAILED,
+)
 
 
 @framework
@@ -115,7 +117,9 @@ class CacheLoadThroughCoordinator:
         """先读一次缓存；未命中或内容损坏时按是否加锁走不同的回源路径。"""
         try:
             cached = await read()
-        except CacheSerializationException:
+        except CacheException as error:
+            if error.error_code not in _CORRUPTED_CODES:
+                raise
             if not use_lock:
                 await delete_corrupted()
                 return await load_and_publish()
@@ -162,7 +166,9 @@ class CacheLoadThroughCoordinator:
                 if cached.hit:
                     return cached.value
                 return await load_and_publish()
-        except CacheLockContentionException:
+        except CacheException as error:
+            if error.error_code != CacheErrorCodes.LOCK_CONTENDED:
+                raise
             # 已经进入临界区后再出现竞争异常属于释放阶段的问题，必须原样上抛。
             if lock_entered:
                 raise
@@ -179,6 +185,8 @@ class CacheLoadThroughCoordinator:
         """读到无法解析的内容时删掉它并按未命中处理，避免整段前缀被毒化。"""
         try:
             return await read()
-        except CacheSerializationException:
+        except CacheException as error:
+            if error.error_code not in _CORRUPTED_CODES:
+                raise
             await delete_corrupted()
             return CacheReadResult[Any](hit=False)

@@ -10,7 +10,7 @@ from framework.starter_scanner.core.component_definition import ComponentDefinit
 from framework.starter_scanner.core.scan_recorder import ScanRecorder
 from framework.starter_scanner.core.scan_result import ScanResult
 from framework.starter_scanner.core.scan_root import ScanRoot
-from framework.starter_scanner.exception.scanner_error_codes import ScannerErrorCodes
+from framework.starter_scanner.definitions.constants.scanner_error_codes import ScannerErrorCodes
 from framework.starter_scanner.exception.scanner_exception import ScannerException
 from framework.starter_scanner.filter.path_filter import PathFilter
 

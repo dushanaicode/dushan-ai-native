@@ -1,6 +1,6 @@
 from sqlalchemy import func, select
 
-from framework.common.utils.str.str_utils import StrUtils
+from framework.common.utils import StrUtils
 from module_infra.dal.dataobject.file.file_content_do import FileContentDO
 from module_infra.framework.file.core.client.abstract_file_client import AbstractFileClient
 

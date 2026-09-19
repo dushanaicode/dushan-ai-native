@@ -2,11 +2,17 @@ from __future__ import annotations
 
 from sqlalchemy import and_, select
 
-from framework.common.enums.user_type_enum import UserTypeEnum
-from framework.starter_database.query.authentication_reader import AuthenticationReader
-from framework.starter_database.session.session_provider import SessionProvider
-from framework.starter_di.decorators.components import repository
-from framework.starter_tenant.config.tenant_settings import TenantSettings
+from framework.common.enums import UserTypeEnum
+from framework.starter_database.public import (
+    AuthenticationReader,
+    SessionProvider,
+)
+from framework.starter_di.public import (
+    repository,
+)
+from framework.starter_tenant.public import (
+    TenantSettings,
+)
 from module_system.dal.dataobject.oauth2.oauth2_access_token_do import OAuth2AccessTokenDO
 from module_system.dal.dataobject.oauth2.oauth2_client_do import OAuth2ClientDO
 from module_system.dal.dataobject.permission.authorization_revision_do import (

@@ -3,7 +3,10 @@ from dataclasses import dataclass
 from pydantic import BaseModel
 
 from framework.starter_di.context.application_context import ApplicationContext
-from framework.starter_websocket.exception.socket_exception import SocketException
+from framework.starter_websocket.definitions.constants.websocket_error_codes import (
+    WebSocketErrorCodes,
+)
+from framework.starter_websocket.exception.websocket_exception import WebSocketException
 from framework.starter_websocket.model.socket_message import SocketMessage
 
 
@@ -34,14 +37,14 @@ class SocketContext:
             or not self.execution.active
             or ApplicationContext.current_execution() is not self.execution
         ):
-            raise SocketException("closed")
+            raise WebSocketException(WebSocketErrorCodes.CLOSED)
         runtime = self._connection.runtime
         value = payload.model_dump(mode="json") if isinstance(payload, BaseModel) else payload
         checked = runtime.registry.event_payload(self.audience, kind, value)
         if kind not in self._connection.allowed_events:
-            raise SocketException("policy")
+            raise WebSocketException(WebSocketErrorCodes.POLICY)
         message = SocketMessage(
             type=kind, payload=checked.model_dump(mode="json"), request_id=self.request_id
         )
         if not self._connection.enqueue(message, continuation=True):
-            raise SocketException("capacity")
+            raise WebSocketException(WebSocketErrorCodes.CAPACITY)

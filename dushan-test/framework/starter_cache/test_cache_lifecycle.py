@@ -7,10 +7,11 @@ from fixtures.cache_fixtures import REDIS_TARGET, app_values, redis_values, requ
 from framework.starter_cache.config.cache_settings import CacheSettings
 from framework.starter_cache.core.cache_handler import CacheHandler
 from framework.starter_cache.core.cache_manager import CacheManager
-from framework.starter_cache.enums.cache_lifecycle_phase_enum import CacheLifecyclePhaseEnum
-from framework.starter_cache.exception.cache_connection_exception import CacheConnectionException
-from framework.starter_cache.exception.cache_error_codes import CacheErrorCodes
-from framework.starter_cache.exception.cache_operation_exception import CacheOperationException
+from framework.starter_cache.definitions.constants.cache_error_codes import CacheErrorCodes
+from framework.starter_cache.definitions.enums.cache_lifecycle_phase_enum import (
+    CacheLifecyclePhaseEnum,
+)
+from framework.starter_cache.exception.cache_exception import CacheException
 from framework.starter_cache.starter.cache_starter import CacheStarter
 from server.starter_server import create_app
 
@@ -87,7 +88,7 @@ async def test_disabled_cache_starts_the_application_without_any_connection(
                 manager = context.get_bean(CacheManager)
                 assert manager.is_ready is False
                 assert manager.phase is CacheLifecyclePhaseEnum.STOPPED
-                with pytest.raises(CacheConnectionException) as failure:
+                with pytest.raises(CacheException) as failure:
                     manager.get_client("default")
         assert failure.value.error_code is CacheErrorCodes.NOT_INITIALIZED
         assert int((await baseline.info("clients"))["connected_clients"]) <= before
@@ -102,7 +103,7 @@ async def test_unreachable_redis_fails_startup_with_connection_error(config_dir,
     with pytest.raises(BaseException) as failure:
         async with app.router.lifespan_context(app):
             pass
-    assert "缓存" in str(failure.value) or isinstance(failure.value, CacheConnectionException)
+    assert "缓存" in str(failure.value) or isinstance(failure.value, CacheException)
 
 
 async def test_wrong_redis_data_type_surfaces_as_cache_operation_error(cache_case):
@@ -110,7 +111,7 @@ async def test_wrong_redis_data_type_surfaces_as_cache_operation_error(cache_cas
     client = cache.get_client(keys.TestCacheKeys.ITEM)
     await client.lpush(cache.build_full_key(keys.TestCacheKeys.ITEM, "list"), "x")
 
-    with pytest.raises(CacheOperationException) as failure:
+    with pytest.raises(CacheException) as failure:
         await cache.get(keys.TestCacheKeys.ITEM, "list")
     assert failure.value.__cause__ is not None
 
@@ -129,7 +130,7 @@ async def test_connection_loss_during_operation_is_reported_not_swallowed(
             assert (await cache.get(key_module.TestCacheKeys.ITEM, "alive")).value == 1
 
             cut()
-            with pytest.raises(CacheOperationException):
+            with pytest.raises(CacheException):
                 await cache.get(key_module.TestCacheKeys.ITEM, "alive")
 
             # 代理仍在监听，客户端重新建连后功能恢复，失败不会变成永久降级。
@@ -179,7 +180,7 @@ async def test_manager_close_is_idempotent_and_blocks_further_client_access(
     assert manager.phase is CacheLifecyclePhaseEnum.STOPPED
     await manager.close()
     assert manager.phase is CacheLifecyclePhaseEnum.STOPPED
-    with pytest.raises(CacheConnectionException):
+    with pytest.raises(CacheException):
         manager.get_client("default")
 
 

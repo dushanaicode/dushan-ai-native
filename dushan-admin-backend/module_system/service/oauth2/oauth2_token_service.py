@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from framework.starter_security.model.login_session import LoginSession
+from framework.starter_security.public import (
+    LoginSession,
+)
 from module_system.api.oauth2.dto.oauth2_access_token_resp_dto import OAuth2AccessTokenRespDTO
 from module_system.dal.dataobject.oauth2.oauth2_access_token_do import OAuth2AccessTokenDO
 

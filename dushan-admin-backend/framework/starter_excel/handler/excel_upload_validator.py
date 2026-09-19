@@ -10,8 +10,8 @@ from defusedxml.ElementTree import iterparse
 from openpyxl.utils.cell import coordinate_to_tuple
 
 from framework.starter_excel.config.excel_settings import ExcelSettings
-from framework.starter_excel.exception.excel_error import ExcelError
-from framework.starter_excel.exception.excel_error_codes import ExcelErrorCodes
+from framework.starter_excel.definitions.constants.excel_error_codes import ExcelErrorCodes
+from framework.starter_excel.exception.excel_exception import ExcelException
 from framework.starter_excel.model.excel_upload import ExcelUpload
 
 
@@ -32,19 +32,19 @@ class ExcelUploadValidator:
     def validate(self, upload: ExcelUpload) -> None:
         """借用上传流并恢复位置；不关闭调用方的流，也不解压到文件系统。"""
         if not upload.filename or Path(upload.filename).suffix.lower() != ".xlsx":
-            raise ExcelError(ExcelErrorCodes.VALIDATION, "仅支持有效的 .xlsx 文件")
+            raise ExcelException(ExcelErrorCodes.VALIDATION, "仅支持有效的 .xlsx 文件")
         mime = (upload.content_type or "").split(";", 1)[0].strip().lower()
         if mime not in self._MIME_TYPES:
-            raise ExcelError(ExcelErrorCodes.VALIDATION, "XLSX 媒体类型无效")
+            raise ExcelException(ExcelErrorCodes.VALIDATION, "XLSX 媒体类型无效")
         stream = upload.file
         if not stream.seekable():
-            raise ExcelError(ExcelErrorCodes.VALIDATION, "XLSX 上传流必须支持定位")
+            raise ExcelException(ExcelErrorCodes.VALIDATION, "XLSX 上传流必须支持定位")
         original = stream.tell()
         try:
             stream.seek(0, io.SEEK_END)
             size = stream.tell()
             if size > self.settings.max_upload_size_bytes:
-                raise ExcelError(ExcelErrorCodes.LIMIT, "上传文件字节数超过限制")
+                raise ExcelException(ExcelErrorCodes.LIMIT, "上传文件字节数超过限制")
             self._directory(stream, size)
             stream.seek(0)
             with ZipFile(stream) as archive:
@@ -58,7 +58,7 @@ class ExcelUploadValidator:
             KeyError,
             struct.error,
         ) as exc:
-            raise ExcelError(
+            raise ExcelException(
                 ExcelErrorCodes.VALIDATION, "XLSX 压缩结构或 XML 无效", cause=exc
             ) from exc
         finally:
@@ -104,7 +104,7 @@ class ExcelUploadValidator:
             position += 46 + sum(struct.unpack_from("<3H", header, 28))
             actual += 1
             if actual > self.settings.max_archive_entries:
-                raise ExcelError(ExcelErrorCodes.LIMIT, "压缩条目数超过限制")
+                raise ExcelException(ExcelErrorCodes.LIMIT, "压缩条目数超过限制")
         if position != end or actual != count:
             raise ValueError("中央目录条目数或范围不一致")
 
@@ -116,7 +116,7 @@ class ExcelUploadValidator:
         if not {"[Content_Types].xml", "xl/workbook.xml"}.issubset(names):
             raise ValueError("缺少 XLSX 工作簿结构")
         if sum(entry.file_size for entry in entries) > self.settings.max_uncompressed_size_bytes:
-            raise ExcelError(ExcelErrorCodes.LIMIT, "解压总字节数超过限制")
+            raise ExcelException(ExcelErrorCodes.LIMIT, "解压总字节数超过限制")
         cells = 0
         for entry in entries:
             if entry.flag_bits & 1:
@@ -127,7 +127,7 @@ class ExcelUploadValidator:
                 if entry.filename.endswith((".xml", ".rels")):
                     cells += self._xml(source, entry.filename)
                     if cells > self.settings.max_cells:
-                        raise ExcelError(ExcelErrorCodes.LIMIT, "工作簿单元格总数超过限制")
+                        raise ExcelException(ExcelErrorCodes.LIMIT, "工作簿单元格总数超过限制")
                 else:
                     while source.read(65536):
                         pass
@@ -139,11 +139,11 @@ class ExcelUploadValidator:
         for _, element in iterparse(source, events=("end",), forbid_dtd=True):
             if worksheet and element.tag.endswith("}row"):
                 if not 1 <= int(element.attrib["r"]) <= self.settings.max_import_rows + 1:
-                    raise ExcelError(ExcelErrorCodes.LIMIT, "工作表实际行坐标超过限制")
+                    raise ExcelException(ExcelErrorCodes.LIMIT, "工作表实际行坐标超过限制")
             if worksheet and element.tag.endswith("}c"):
                 cells += 1
                 if cells > self.settings.max_cells:
-                    raise ExcelError(ExcelErrorCodes.LIMIT, "工作表单元格数超过限制")
+                    raise ExcelException(ExcelErrorCodes.LIMIT, "工作表单元格数超过限制")
                 coordinate = element.attrib["r"]
                 if coordinate in coordinates:
                     raise ValueError("工作表含重复单元格坐标")
@@ -153,11 +153,11 @@ class ExcelUploadValidator:
                     not 1 <= row <= self.settings.max_import_rows + 1
                     or not 1 <= column <= self.settings.max_columns
                 ):
-                    raise ExcelError(ExcelErrorCodes.LIMIT, "工作表实际行列坐标超过限制")
+                    raise ExcelException(ExcelErrorCodes.LIMIT, "工作表实际行列坐标超过限制")
             if (
                 element.tag.endswith("}t")
                 and len(element.text or "") > self.settings.max_cell_text_length
             ):
-                raise ExcelError(ExcelErrorCodes.LIMIT, "单元格文本长度超过限制")
+                raise ExcelException(ExcelErrorCodes.LIMIT, "单元格文本长度超过限制")
             element.clear()
         return cells

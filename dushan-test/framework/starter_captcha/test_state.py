@@ -4,8 +4,11 @@ import json
 import pytest
 
 from framework.starter_cache.core.cache_handler import CacheHandler
-from framework.starter_cache.exception.cache_operation_exception import CacheOperationException
-from framework.starter_captcha.exception.captcha_error_codes import CaptchaErrorCodes as Codes
+from framework.starter_cache.definitions.constants.cache_error_codes import CacheErrorCodes
+from framework.starter_cache.exception.cache_exception import CacheException
+from framework.starter_captcha.definitions.constants.captcha_error_codes import (
+    CaptchaErrorCodes as Codes,
+)
 from framework.starter_captcha.exception.captcha_exception import CaptchaException
 
 
@@ -158,7 +161,7 @@ async def test_cache_corruption_distinguished(captcha, corruption):
 
 async def test_cache_failure_propagates_without_success(captcha, monkeypatch):
     async def broken(*args, **kwargs):
-        raise CacheOperationException(msg="private-answer-and-verification")
+        raise CacheException(CacheErrorCodes.OPERATION_FAILED, msg="private-answer-and-verification")
 
     monkeypatch.setattr(CacheHandler, "eval_atomic", broken)
     with pytest.raises(CaptchaException) as error:

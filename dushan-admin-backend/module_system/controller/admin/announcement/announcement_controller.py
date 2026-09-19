@@ -1,12 +1,18 @@
 from fastapi import APIRouter, Depends, Query
 
-from framework.common.contracts.snowflake_id import SnowflakeIdStr
-from framework.common.page.schemas.page_result import PageResult
-from framework.common.schemas.request.id_list_req_vo import IdListReqVO
-from framework.starter_di.decorators.di_dependency import DiDependency
-from framework.starter_security.enums.security_realm import SecurityRealm
-from framework.starter_web.response.result import Result
-from framework.starter_web.routing.route_policy import RoutePolicy
+from framework.common.contracts import SnowflakeIdStr
+from framework.common.page import PageResult
+from framework.common.schemas.request import IdListReqVO, IdReqVO
+from framework.starter_di.public import (
+    DiDependency,
+)
+from framework.starter_security.public import (
+    SecurityRealm,
+)
+from framework.starter_web.public import (
+    Result,
+    RoutePolicy,
+)
 from module_system.controller.admin.announcement.vo.announcement_page_req_vo import (
     AnnouncementPageReqVO,
 )
@@ -17,7 +23,6 @@ from module_system.controller.admin.announcement.vo.announcement_save_req_vo imp
     AnnouncementSaveReqVO,
 )
 from module_system.dal.dataobject.announcement.announcement_do import AnnouncementDO
-from module_system.definitions.vo.id_req_vo import IdReqVO
 from module_system.service.announcement.announcement_service import (
     AnnouncementService,
 )

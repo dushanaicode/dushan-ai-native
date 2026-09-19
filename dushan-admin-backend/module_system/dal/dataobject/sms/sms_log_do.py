@@ -4,7 +4,9 @@ from typing import Any
 from sqlalchemy import JSON, BigInteger, DateTime, Index, SmallInteger, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from framework.starter_tenant.entity.tenant_base_do import TenantBaseDO
+from framework.starter_tenant.public import (
+    TenantBaseDO,
+)
 from module_system.definitions.enums.sms.sms_receive_status_enum import SmsReceiveStatusEnum
 from module_system.definitions.enums.sms.sms_send_status_enum import SmsSendStatusEnum
 

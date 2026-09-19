@@ -3,8 +3,8 @@ from typing import Annotated, Any
 
 from pydantic import Field, field_validator
 
-from framework.common.schemas.base_dto import BaseDTO
-from framework.common.validator.not_null import NotNull
+from framework.common.schemas import BaseDTO
+from framework.common.validator import NotNull
 
 
 class ApiErrorLogCreateReqDTO(BaseDTO):

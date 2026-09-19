@@ -4,7 +4,7 @@ from types import ModuleType
 from framework.common.component.component_metadata import ComponentMetadata
 from framework.starter_scanner.config.scanner_config import ScannerConfig
 from framework.starter_scanner.core.component_definition import ComponentDefinition
-from framework.starter_scanner.exception.scanner_error_codes import ScannerErrorCodes
+from framework.starter_scanner.definitions.constants.scanner_error_codes import ScannerErrorCodes
 from framework.starter_scanner.exception.scanner_exception import ScannerException
 
 

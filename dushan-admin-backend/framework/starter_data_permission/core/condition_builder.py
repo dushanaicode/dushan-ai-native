@@ -1,5 +1,8 @@
 from sqlalchemy import and_, bindparam, false, or_, true
 
+from framework.starter_data_permission.definitions.constants.data_permission_error_codes import (
+    DataPermissionErrorCodes,
+)
 from framework.starter_data_permission.exception.data_permission_exception import (
     DataPermissionException,
 )
@@ -10,7 +13,9 @@ class ConditionBuilder(RowStatementFilter):
     """在统一行过滤机制上计算租户内的成员、部门及豁免条件。"""
 
     def __init__(self, registry, service):
-        super().__init__(registry, lambda: DataPermissionException("configuration"))
+        super().__init__(
+            registry, lambda: DataPermissionException(DataPermissionErrorCodes.CONFIGURATION)
+        )
         self.service = service
 
     def condition(self, config, operation, *, orm=False, entity=None):
@@ -19,7 +24,7 @@ class ConditionBuilder(RowStatementFilter):
         if config.public:
             identity = self.service.security.current() or self.service.security.current_workload()
             if identity is None or identity.tenant_id is None:
-                raise DataPermissionException("missing")
+                raise DataPermissionException(DataPermissionErrorCodes.MISSING)
             return self._column(config, config.tenant_column, orm, entity) == bindparam(
                 "_dushan_dp_tenant", identity.tenant_id, unique=True
             )

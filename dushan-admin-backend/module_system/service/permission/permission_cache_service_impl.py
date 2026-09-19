@@ -1,7 +1,11 @@
-from framework.starter_cache.core.cache_handler import CacheHandler
-from framework.starter_database.session.session_provider import SessionProvider
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
+from framework.starter_cache.public import CacheHandler
+from framework.starter_database.public import (
+    SessionProvider,
+)
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
 from module_system.dal.cache.cache_key_constants import SystemCacheKeys
 from module_system.service.permission.permission_cache_service import PermissionCacheService
 

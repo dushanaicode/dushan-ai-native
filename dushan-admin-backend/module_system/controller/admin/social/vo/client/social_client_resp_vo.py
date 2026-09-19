@@ -3,10 +3,10 @@ from typing import Annotated, Any
 
 from pydantic import Field, field_serializer
 
-from framework.common.contracts.snowflake_id import (
+from framework.common.contracts import (
     SnowflakeIdStr,
 )
-from framework.common.schemas.base_vo import BaseVO
+from framework.common.schemas import BaseVO
 from module_system.framework.social.security.social_auth_config_security import (
     SocialAuthConfigSecurity,
 )

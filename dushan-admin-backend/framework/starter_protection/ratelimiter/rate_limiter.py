@@ -4,7 +4,7 @@ from uuid import uuid4
 from loguru import logger
 
 from framework.starter_protection.core.protection_runtime import ProtectionRuntime
-from framework.starter_protection.exception.protection_error_codes import (
+from framework.starter_protection.definitions.constants.protection_error_codes import (
     ProtectionErrorCodes as Codes,
 )
 from framework.starter_protection.exception.protection_exception import ProtectionException

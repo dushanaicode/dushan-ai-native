@@ -6,7 +6,8 @@ from time import monotonic
 from framework.starter_cache.spi.tenant_context_provider import TenantContextProvider
 from framework.starter_di.context.application_context import ApplicationContext
 from framework.starter_di.decorators.components import framework
-from framework.starter_di.enums.component_scope_enum import ComponentScopeEnum
+from framework.starter_di.definitions.enums.component_scope_enum import ComponentScopeEnum
+from framework.starter_tenant.definitions.constants.tenant_error_codes import TenantErrorCodes
 from framework.starter_tenant.exception.tenant_exception import TenantException
 from framework.starter_tenant.model.tenant_frame import TenantFrame
 
@@ -26,12 +27,12 @@ class TenantContext(TenantContextProvider):
     def current(self) -> TenantFrame:
         frame = self._frame.get()
         if frame is None or not frame.active or not frame.execution.active:
-            raise TenantException("missing")
+            raise TenantException(TenantErrorCodes.MISSING)
         execution = ApplicationContext.current_execution()
         if execution is not frame.execution or execution.application is not self.application:
-            raise TenantException("missing")
+            raise TenantException(TenantErrorCodes.MISSING)
         if monotonic() >= frame.expires_at:
-            raise TenantException("expired")
+            raise TenantException(TenantErrorCodes.EXPIRED)
         return frame
 
     def get_required_tenant_id(self) -> str:
@@ -40,10 +41,10 @@ class TenantContext(TenantContextProvider):
     @contextmanager
     def _bind(self, tenant_id, identity, *, seconds, resources=None, available=True):
         if self._closed:
-            raise TenantException("closed")
+            raise TenantException(TenantErrorCodes.CLOSED)
         execution = ApplicationContext.current_execution()
         if execution.application is not self.application:
-            raise TenantException("missing")
+            raise TenantException(TenantErrorCodes.MISSING)
         frame = TenantFrame(
             execution, tenant_id, identity, resources, monotonic() + seconds, available
         )
@@ -64,7 +65,7 @@ class TenantContext(TenantContextProvider):
         if frame.resources is not None and not any(
             rule.resource == resource and action in rule.actions for rule in frame.resources
         ):
-            raise TenantException("denied")
+            raise TenantException(TenantErrorCodes.DENIED, detail=f"{resource}:{action}")
 
     async def close(self):
         self._closed = True

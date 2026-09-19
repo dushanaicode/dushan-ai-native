@@ -12,7 +12,7 @@ from framework.starter_cache.exception.cache_exception import CacheException
 from framework.starter_protection.config.protection_settings import ProtectionSettings
 from framework.starter_protection.core.protection_event import ProtectionEvent
 from framework.starter_protection.core.protection_key import ProtectionKey
-from framework.starter_protection.exception.protection_error_codes import (
+from framework.starter_protection.definitions.constants.protection_error_codes import (
     ProtectionErrorCodes as Codes,
 )
 from framework.starter_protection.exception.protection_exception import ProtectionException

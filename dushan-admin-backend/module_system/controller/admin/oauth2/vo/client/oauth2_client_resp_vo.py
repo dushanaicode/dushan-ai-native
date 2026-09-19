@@ -3,10 +3,10 @@ from typing import Annotated, Any
 
 from pydantic import Field, field_validator
 
-from framework.common.contracts.snowflake_id import (
+from framework.common.contracts import (
     SnowflakeIdStr,
 )
-from framework.common.schemas.base_vo import BaseVO
+from framework.common.schemas import BaseVO
 
 
 class OAuth2ClientRespVO(BaseVO):

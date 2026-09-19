@@ -18,5 +18,8 @@
   "database.deadlock": "Database transaction deadlock",
   "database.serialization_failure": "Database transaction serialization conflict",
   "database.statement_cancelled": "Database statement was cancelled",
-  "database.data_error": "Invalid database field data"
+  "database.data_error": "Invalid database field data",
+  "row_access.stale": "The access snapshot expired",
+  "row_access.configuration": "Invalid access policy configuration",
+  "row_access.write": "The write violates the access policy"
 }

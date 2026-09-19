@@ -3,10 +3,10 @@ from typing import Annotated
 
 from pydantic import Field
 
-from framework.common.contracts.snowflake_id import (
+from framework.common.contracts import (
     SnowflakeReferenceInput,
 )
-from framework.common.page.schemas.page_query import PageQuery
+from framework.common.page import PageQuery
 
 
 class OperateLogPageReqVO(PageQuery):

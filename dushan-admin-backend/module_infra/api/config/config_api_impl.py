@@ -1,7 +1,9 @@
 from typing import override
 
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
 from module_infra.api.config.config_api import ConfigApi
 from module_infra.api.config.dto.config_group_dto import ConfigGroupDTO
 from module_infra.service.config.config_data_service import ConfigDataService

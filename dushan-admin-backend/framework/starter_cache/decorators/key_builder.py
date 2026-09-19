@@ -6,8 +6,8 @@ from collections.abc import Callable
 from functools import lru_cache
 from typing import Any
 
-from framework.starter_cache.exception.cache_config_exception import CacheConfigException
-from framework.starter_cache.exception.cache_error_codes import CacheErrorCodes
+from framework.starter_cache.definitions.constants.cache_error_codes import CacheErrorCodes
+from framework.starter_cache.exception.cache_exception import CacheException
 
 
 class KeyBuilder:
@@ -33,21 +33,21 @@ class KeyBuilder:
         if template is None:
             return signature
         if not isinstance(template, str) or not template:
-            raise CacheConfigException(
-                error_code=CacheErrorCodes.INVALID_CACHE_KEY,
+            raise CacheException(
+                CacheErrorCodes.INVALID_CACHE_KEY,
                 msg=f"{func.__qualname__} 的缓存键模板必须是非空字符串",
             )
         residual = cls.PLACEHOLDER_PATTERN.sub("", template)
         if "{{" in residual or "}}" in residual:
-            raise CacheConfigException(
-                error_code=CacheErrorCodes.INVALID_CACHE_KEY,
+            raise CacheException(
+                CacheErrorCodes.INVALID_CACHE_KEY,
                 msg=f"{func.__qualname__} 的缓存键模板包含不支持的占位符：{template}",
             )
         parameters = cls._parameter_names(signature)
         unknown = sorted(set(cls.PLACEHOLDER_PATTERN.findall(template)) - set(parameters))
         if unknown:
-            raise CacheConfigException(
-                error_code=CacheErrorCodes.INVALID_CACHE_KEY,
+            raise CacheException(
+                CacheErrorCodes.INVALID_CACHE_KEY,
                 msg=(
                     f"{func.__qualname__} 的缓存键模板引用了未知参数 {unknown}；"
                     f"可用参数：{parameters}"
@@ -114,8 +114,8 @@ class KeyBuilder:
         if isinstance(value, (list, tuple, set, frozenset, dict)):
             digest = hashlib.sha256(cls._canonical_token(value).encode("utf-8")).hexdigest()[:16]
             return f"{type(value).__name__}:{digest}"
-        raise CacheConfigException(
-            error_code=CacheErrorCodes.INVALID_CACHE_KEY,
+        raise CacheException(
+            CacheErrorCodes.INVALID_CACHE_KEY,
             msg=f"缓存键参数不支持类型 {type(value).__name__}",
         )
 
@@ -147,7 +147,7 @@ class KeyBuilder:
                 for key, item in value.items()
             )
             return "dict:{" + ",".join(f"{key}={item}" for key, item in items) + "}"
-        raise CacheConfigException(
-            error_code=CacheErrorCodes.INVALID_CACHE_KEY,
+        raise CacheException(
+            CacheErrorCodes.INVALID_CACHE_KEY,
             msg=f"缓存键容器成员不支持类型 {type(value).__name__}",
         )

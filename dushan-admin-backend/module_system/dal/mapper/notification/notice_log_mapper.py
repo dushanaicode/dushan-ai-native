@@ -2,9 +2,13 @@ from __future__ import annotations
 
 from sqlalchemy import select
 
-from framework.common.page.schemas.page_result import PageResult
-from framework.starter_database.repository.base_mapper import BaseMapper
-from framework.starter_di.decorators.components import mapper
+from framework.common.page import PageResult
+from framework.starter_database.public import (
+    BaseMapper,
+)
+from framework.starter_di.public import (
+    mapper,
+)
 from module_system.controller.admin.notification.vo.notice_log.notice_log_page_req_vo import (
     NoticeLogPageReqVO,
 )

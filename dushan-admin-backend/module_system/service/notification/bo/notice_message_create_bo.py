@@ -1,4 +1,4 @@
-from framework.common.schemas.base_bo import BaseBO
+from framework.common.schemas import BaseBO
 from module_system.dal.dataobject.notification.notice_do import NoticeDO
 from module_system.framework.notification.model.notice_publisher_info_dto import (
     NoticePublisherInfoDTO,

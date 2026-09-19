@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from framework.starter_di.decorators.di_component_metadata import DiComponentMetadata
-from framework.starter_di.enums.component_scope_enum import ComponentScopeEnum
+from framework.starter_di.definitions.enums.component_scope_enum import ComponentScopeEnum
 
 
 @dataclass(frozen=True, slots=True)

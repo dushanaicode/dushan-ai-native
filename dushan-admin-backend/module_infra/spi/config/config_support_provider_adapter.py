@@ -1,8 +1,14 @@
-from framework.starter_config.config.config_settings import ConfigSettings
-from framework.starter_config.provider.config_provider import ConfigProvider
-from framework.starter_di.decorators.components import framework
-from framework.starter_di.decorators.inject import Inject
-from framework.starter_tenant.config.tenant_settings import TenantSettings
+from framework.starter_config.public import (
+    ConfigProvider,
+    ConfigSettings,
+)
+from framework.starter_di.public import (
+    Inject,
+    framework,
+)
+from framework.starter_tenant.public import (
+    TenantSettings,
+)
 from module_infra.service.config.config_data_service import ConfigDataService
 from module_system.api.auth.workload_api import WorkloadApi
 

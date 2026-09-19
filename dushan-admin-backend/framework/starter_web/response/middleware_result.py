@@ -122,7 +122,6 @@ class MiddlewareResult:
 
     @staticmethod
     def _validate_error_code(error_code: ErrorCode) -> None:
-        """错误入口拒绝成功码和非错误分类，不改变定义中的内部分类。"""
-        status = error_code.http_status if error_code.http_status is not None else 400
-        if error_code.code == GlobalErrorCodeConstants.SUCCESS.code or not 400 <= status <= 599:
-            raise ValueError("中间件错误响应必须使用错误码与4xx/5xx状态")
+        """错误响应仅允许非零应用码，HTTP 状态由普通 JSON 协议统一决定。"""
+        if error_code.code == GlobalErrorCodeConstants.SUCCESS.code:
+            raise ValueError("中间件错误响应不能使用成功码 0")

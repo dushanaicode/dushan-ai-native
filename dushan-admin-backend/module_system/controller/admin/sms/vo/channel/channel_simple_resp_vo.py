@@ -2,11 +2,11 @@ from typing import Annotated
 
 from pydantic import Field, field_validator
 
-from framework.common.contracts.snowflake_id import (
+from framework.common.contracts import (
     SnowflakeIdStr,
 )
-from framework.common.schemas.base_vo import BaseVO
-from framework.common.validator.not_null import NotNull
+from framework.common.schemas import BaseVO
+from framework.common.validator import NotNull
 
 
 class SmsChannelSimpleRespVO(BaseVO):

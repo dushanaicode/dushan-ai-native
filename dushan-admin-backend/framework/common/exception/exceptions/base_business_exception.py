@@ -1,8 +1,10 @@
 from collections.abc import Sequence
-from http import HTTPStatus
 from typing import Any, ClassVar
 
 from framework.common.enums.log_level_enum import LogLevelEnum
+from framework.common.exception.constants.global_error_code_constants import (
+    GlobalErrorCodeConstants,
+)
 from framework.common.exception.core.error_code import ErrorCode
 from framework.common.exception.core.field_error import FieldError
 
@@ -21,11 +23,22 @@ class BaseBusinessException(Exception):
     对外响应须经过响应构建器，不能直接序列化整个异常。
     field_errors可显式提供公开字段错误，不从context或cause猜测表单字段。
     子类 log_level 使用 LogLevelEnum；不接受字符串或用于关闭输出的 NONE。
+    故障分类、日志和重试策略由异常类声明，不依赖 HTTP 状态或编号大小。
+    系统故障默认记录错误表，record_error 可独立覆盖；该标记不改变故障语义。
     """
 
     default_error_code: ClassVar[ErrorCode | None] = None
     log_level: LogLevelEnum = LogLevelEnum.WARNING
-    http_status: int = HTTPStatus.BAD_REQUEST
+    is_system_error: bool = False
+    _system_error_codes: ClassVar[frozenset[int]] = frozenset(
+        {
+            GlobalErrorCodeConstants.INTERNAL_SERVER_ERROR.code,
+            GlobalErrorCodeConstants.NOT_IMPLEMENTED.code,
+            GlobalErrorCodeConstants.ERROR_CONFIGURATION.code,
+            GlobalErrorCodeConstants.BAD_GATEWAY.code,
+            GlobalErrorCodeConstants.SERVICE_UNAVAILABLE.code,
+        }
+    )
     retryable: bool = False
     retry_after: int | None = None
     record_error: bool = False
@@ -39,7 +52,6 @@ class BaseBusinessException(Exception):
         cause: Exception | None = None,
         context: dict[str, Any] | None = None,
         format_args: Sequence[Any] | None = None,
-        http_status: int | None = None,
         retry_after: int | None = None,
         record_error: bool | None = None,
         field_errors: Sequence[FieldError] = (),
@@ -66,21 +78,14 @@ class BaseBusinessException(Exception):
             or isinstance(format_args, (str, bytes, bytearray))
         ):
             raise TypeError("format_args 必须是参数序列，不能是字符串")
-        # HTTP 状态依次采用显式参数、错误定义和子类默认值，不从业务编号推导。
-        if http_status is not None:
-            self.http_status = http_status
-        elif error_code.http_status is not None:
-            self.http_status = error_code.http_status
-        else:
-            self.http_status = type(self).http_status
+        self.error_code = error_code
+        self.is_system_error = (
+            type(self).is_system_error or error_code.code in self._system_error_codes
+        )
         self.retry_after = type(self).retry_after if retry_after is None else retry_after
         self.field_errors = tuple(field_errors)
         if any(not isinstance(item, FieldError) for item in self.field_errors):
             raise TypeError("field_errors只能包含FieldError")
-        if isinstance(self.http_status, bool) or not isinstance(self.http_status, int):
-            raise TypeError("http_status 必须是整数 HTTP 状态")
-        if not 400 <= self.http_status <= 599:
-            raise ValueError("业务异常的 http_status 必须在 400～599 之间")
         if self.retry_after is not None:
             if type(self.retry_after) is not int:
                 raise TypeError("retry_after 必须是整数秒数")
@@ -89,12 +94,13 @@ class BaseBusinessException(Exception):
         self.record_error = type(self).record_error if record_error is None else record_error
         if type(self.record_error) is not bool:
             raise TypeError("record_error 必须是布尔值")
+        if record_error is None and self.is_system_error:
+            self.record_error = True
         if not isinstance(self.log_level, LogLevelEnum):
             raise TypeError("log_level 必须是 LogLevelEnum")
         if self.log_level is LogLevelEnum.NONE:
             raise ValueError("业务异常日志级别不能使用 NONE")
 
-        self.error_code = error_code
         self.message_key = message_key or error_code.message_key
         self._message_translation_enabled = bool(message_key) or not (msg and msg.strip())
         self.context = context or {}

@@ -1,8 +1,8 @@
 from __future__ import annotations
 from sqlalchemy import select, delete as sa_delete
 
-from framework.starter_database.repository.base_mapper import BaseMapper
-from framework.starter_di.decorators.components import mapper
+from framework.starter_database.public import BaseMapper
+from framework.starter_di.public import mapper
 from {{ package_name }}.dal.dataobject.{{ business_name }}.{{ business_name }}_do import {{ class_name }}DO
 
 

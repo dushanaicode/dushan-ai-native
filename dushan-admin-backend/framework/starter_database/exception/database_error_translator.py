@@ -15,7 +15,7 @@ from sqlalchemy.exc import (
     TimeoutError as PoolTimeoutError,
 )
 
-from framework.starter_database.exception.database_error_codes import DatabaseErrorCodes
+from framework.starter_database.definitions.constants.database_error_codes import DatabaseErrorCodes
 from framework.starter_database.exception.database_exception import DatabaseException
 
 

@@ -1,4 +1,4 @@
-from framework.common.enums.base_enum import BaseEnum
+from framework.common.enums import BaseEnum
 
 
 class NoticeTypeEnum(BaseEnum):

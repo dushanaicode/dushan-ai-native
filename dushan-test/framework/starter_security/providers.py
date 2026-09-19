@@ -11,6 +11,7 @@ from framework.starter_database.model.base_do import BaseDO
 from framework.starter_database.session.session_provider import SessionProvider
 from framework.starter_security.bizlog.log_record_provider import LogRecordProvider
 from framework.starter_security.bizlog.log_record_reservation import LogRecordReservation
+from framework.starter_security.definitions.constants.security_error_codes import SecurityErrorCodes
 from framework.starter_security.exception.security_exception import SecurityException
 from framework.starter_security.model.login_session import LoginSession
 from framework.starter_security.model.permission_snapshot import PermissionSnapshot
@@ -99,7 +100,7 @@ class SqlPermissionProvider(PermissionProvider):
                 )
             ).scalar_one_or_none()
         if data is None:
-            raise SecurityException("unavailable")
+            raise SecurityException(SecurityErrorCodes.UNAVAILABLE)
         return PermissionSnapshot.model_validate_json(json.dumps(data))
 
 

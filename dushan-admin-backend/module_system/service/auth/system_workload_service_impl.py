@@ -4,14 +4,21 @@ import hashlib
 from contextlib import AsyncExitStack, asynccontextmanager
 from datetime import datetime, timedelta, timezone
 
-from framework.starter_data_permission.core.data_permission_service import DataPermissionService
-from framework.starter_di.context.get_bean import get_bean
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
-from framework.starter_security.config.security_settings import SecuritySettings
-from framework.starter_security.core.security_service import SecurityService
-from framework.starter_security.exception.security_exception import SecurityException
-from framework.starter_security.model.workload_identity import WorkloadIdentity
+from framework.starter_data_permission.public import (
+    DataPermissionService,
+)
+from framework.starter_di.public import (
+    Inject,
+    get_bean,
+    service,
+)
+from framework.starter_security.public import (
+    SecurityErrorCodes,
+    SecurityException,
+    SecurityService,
+    SecuritySettings,
+    WorkloadIdentity,
+)
 from module_system.config.system_settings import SystemSettings
 from module_system.definitions.constants.workload_constants import WorkloadConstants
 from module_system.service.auth.system_workload_service import SystemWorkloadService
@@ -25,18 +32,20 @@ class SystemWorkloadServiceImpl(SystemWorkloadService):
     async def authenticate(self, source, *, application_id, domain, capability, tenant_id):
         credential = self.settings.workload_credential
         if credential is None or len(credential.get_secret_value()) < 32:
-            raise SecurityException("configuration")
+            raise SecurityException(SecurityErrorCodes.CONFIGURATION)
         if (
             application_id != self.security_settings.application_id
             or domain not in self.security_settings.domains
         ):
-            raise SecurityException("invalid")
-        if (
-            source not in WorkloadConstants.SOURCES
-            or capability not in WorkloadConstants.SOURCES[source]
-            or tenant_id is None
-        ):
-            raise SecurityException("denied")
+            raise SecurityException(SecurityErrorCodes.INVALID)
+        if source not in WorkloadConstants.SOURCES:
+            raise SecurityException(SecurityErrorCodes.DENIED, detail=f"未登记的来源：{source}")
+        if capability not in WorkloadConstants.SOURCES[source]:
+            raise SecurityException(
+                SecurityErrorCodes.DENIED, detail=f"来源 {source} 不支持该能力：{capability}"
+            )
+        if tenant_id is None:
+            raise SecurityException(SecurityErrorCodes.DENIED, detail="缺少租户上下文")
         service_id = hashlib.sha256(credential.get_secret_value().encode()).hexdigest()
         return WorkloadIdentity(
             application_id=application_id,

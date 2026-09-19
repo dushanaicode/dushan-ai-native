@@ -2,20 +2,31 @@ from __future__ import annotations
 
 from sqlalchemy import select
 
-from framework.common.enums.status_enum import StatusEnum
-from framework.common.exception.exceptions.service_exception import ServiceException
-from framework.starter_cache.decorators.cacheable import cache
-from framework.starter_data_permission.enums.data_scope import DataScope
-from framework.starter_data_permission.model.data_scope_rule import DataScopeRule
-from framework.starter_database.decorators.transactional import transactional
-from framework.starter_database.session.session_provider import SessionProvider
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
-from framework.starter_security.context.security_context import SecurityContext
-from framework.starter_security.enums.security_realm import SecurityRealm
-from framework.starter_security.exception.security_exception import SecurityException
-from framework.starter_security.model.permission_snapshot import PermissionSnapshot
-from framework.starter_tenant.context.tenant_context import TenantContext
+from framework.common.enums import StatusEnum
+from framework.common.exception import ServiceException
+from framework.starter_cache.public import cache
+from framework.starter_data_permission.public import (
+    DataScope,
+    DataScopeRule,
+)
+from framework.starter_database.public import (
+    SessionProvider,
+    transactional,
+)
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
+from framework.starter_security.public import (
+    PermissionSnapshot,
+    SecurityContext,
+    SecurityErrorCodes,
+    SecurityException,
+    SecurityRealm,
+)
+from framework.starter_tenant.public import (
+    TenantContext,
+)
 from module_system.api.permission.dto.dept_data_permission_resp_dto import DeptDataPermissionRespDTO
 from module_system.controller.admin.permission.vo.permission.permission_assign_role_data_scope_req_vo import (
     PermissionAssignRoleDataScopeReqVO,
@@ -172,7 +183,7 @@ class PermissionServiceImpl(PermissionService):
     async def get_dept_data_permission(self, user_id: int) -> DeptDataPermissionRespDTO:
         identity = self.security.require()
         if identity.account_id != str(user_id):
-            raise SecurityException("denied")
+            raise SecurityException(SecurityErrorCodes.DENIED, detail="仅允许查询本人数据权限")
         rules = await self.data_rules(identity)
         result = DeptDataPermissionRespDTO(user_ids={user_id})
         for rule in rules:
@@ -270,7 +281,7 @@ class PermissionServiceImpl(PermissionService):
 
     async def _check_revision(self, session):
         if await self.authorization_revision(session) != session.authorization_revision:
-            raise SecurityException("credentials")
+            raise SecurityException(SecurityErrorCodes.CREDENTIALS)
 
     async def permission_snapshot(self, session, *, binding: str) -> PermissionSnapshot:
         await self._check_revision(session)

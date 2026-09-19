@@ -3,7 +3,7 @@ from typing import ClassVar
 
 from framework.common.enums.base_enum import BaseEnum
 from framework.common.importing.package_locator import PackageLocator
-from framework.starter_di.enums.component_scope_enum import ComponentScopeEnum
+from framework.starter_di.definitions.enums.component_scope_enum import ComponentScopeEnum
 
 
 @dataclass(frozen=True, slots=True)

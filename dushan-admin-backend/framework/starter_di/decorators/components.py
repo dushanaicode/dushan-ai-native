@@ -5,8 +5,8 @@ from framework.common.component.component_metadata import ComponentMetadata
 from framework.common.enums.base_enum import BaseEnum
 from framework.common.enums.component_type_enum import ComponentTypeEnum
 from framework.starter_di.decorators.di_component_metadata import DiComponentMetadata
-from framework.starter_di.enums.component_role_enum import ComponentRoleEnum
-from framework.starter_di.enums.component_scope_enum import ComponentScopeEnum
+from framework.starter_di.definitions.enums.component_role_enum import ComponentRoleEnum
+from framework.starter_di.definitions.enums.component_scope_enum import ComponentScopeEnum
 
 T = TypeVar("T", bound=type)
 

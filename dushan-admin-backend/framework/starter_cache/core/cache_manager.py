@@ -7,10 +7,11 @@ from redis.asyncio import Redis
 from framework.starter_cache.config.cache_settings import CacheSettings
 from framework.starter_cache.core.cache_resource_snapshot import CacheResourceSnapshot
 from framework.starter_cache.core.redis_client_factory import RedisClientFactory
-from framework.starter_cache.enums.cache_lifecycle_phase_enum import CacheLifecyclePhaseEnum
-from framework.starter_cache.exception.cache_config_exception import CacheConfigException
-from framework.starter_cache.exception.cache_connection_exception import CacheConnectionException
-from framework.starter_cache.exception.cache_error_codes import CacheErrorCodes
+from framework.starter_cache.definitions.constants.cache_error_codes import CacheErrorCodes
+from framework.starter_cache.definitions.enums.cache_lifecycle_phase_enum import (
+    CacheLifecyclePhaseEnum,
+)
+from framework.starter_cache.exception.cache_exception import CacheException
 from framework.starter_di.decorators.components import framework
 from framework.starter_di.decorators.inject import Inject
 
@@ -53,15 +54,15 @@ class CacheManager:
                 if self._phase is CacheLifecyclePhaseEnum.READY:
                     return
                 if self._phase is CacheLifecyclePhaseEnum.CLOSE_FAILED:
-                    raise CacheConnectionException(
-                        error_code=CacheErrorCodes.INIT_FAILED,
+                    raise CacheException(
+                        CacheErrorCodes.INIT_FAILED,
                         msg="缓存资源上次关闭失败，必须先重试关闭",
                     )
                 self._phase = CacheLifecyclePhaseEnum.INITIALIZING
             if not self._settings.clients:
                 with self._state_lock:
                     self._phase = CacheLifecyclePhaseEnum.STOPPED
-                raise CacheConfigException(msg="缓存客户端配置不能为空")
+                raise CacheException(CacheErrorCodes.CONFIG_ERROR, msg="缓存客户端配置不能为空")
 
             staging = CacheResourceSnapshot()
             try:
@@ -102,11 +103,11 @@ class CacheManager:
             )
         if cleanup_errors:
             raise BaseExceptionGroup("缓存初始化失败且资源清理失败", [error, *cleanup_errors])
-        if isinstance(error, (CacheConfigException, CacheConnectionException)):
+        if isinstance(error, (CacheException, CacheException)):
             raise error
         if isinstance(error, Exception):
-            raise CacheConnectionException(
-                error_code=CacheErrorCodes.INIT_FAILED, msg="缓存初始化失败", cause=error
+            raise CacheException(
+                CacheErrorCodes.INIT_FAILED, msg="缓存初始化失败", cause=error
             ) from error
         raise error
 
@@ -114,14 +115,14 @@ class CacheManager:
         """从当前 READY 快照读取客户端；未就绪或名称未声明都明确失败。"""
         with self._state_lock:
             if self._phase is not CacheLifecyclePhaseEnum.READY:
-                raise CacheConnectionException(
-                    error_code=CacheErrorCodes.NOT_INITIALIZED,
+                raise CacheException(
+                    CacheErrorCodes.NOT_INITIALIZED,
                     msg=f"缓存当前不可用：{self._phase.code}",
                 )
             client = self._active.clients.get(client_name)
         if client is None:
-            raise CacheConnectionException(
-                error_code=CacheErrorCodes.CLIENT_NOT_FOUND,
+            raise CacheException(
+                CacheErrorCodes.CLIENT_NOT_FOUND,
                 msg=f"未找到缓存客户端：{client_name}",
             )
         return client

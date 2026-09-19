@@ -1,4 +1,4 @@
-from framework.starter_cache.constants.cache_constants import CacheConstants
+from framework.starter_cache.definitions.constants.cache_constants import CacheConstants
 
 
 class CacheGenerationScripts:

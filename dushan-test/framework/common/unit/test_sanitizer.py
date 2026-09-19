@@ -84,6 +84,36 @@ def test_sanitizer_sanitizes_nested_sensitive_data() -> None:
     assert sanitized["nested"][1]["safe"] == "value"
 
 
+@pytest.mark.parametrize(
+    "field",
+    [
+        "set-cookie",
+        "set_cookie",
+        "setcookie",
+        "身份证",
+        "身份证号",
+        "身份证号码",
+        "access-token",
+        "accessToken",
+        "client-secret",
+        "id-token",
+        "refresh-token",
+        "app-secret_key",
+        "password_hash",
+        "token_hash",
+    ],
+)
+def test_sanitizer_sanitizes_field_variants_in_plain_and_quoted_text(field: str) -> None:
+    """完整键名及可选分隔符在文本与序列化映射中均保持脱敏。"""
+    assert Sanitizer.sanitize_text(f"{field}=private-value") == f"{field}=***"
+    for quote in ('"', "'"):
+        serialized = f"{{{quote}{field}{quote}: {quote}private-value{quote}, 'safe': 'visible'}}"
+        sanitized = Sanitizer.sanitize_text(serialized)
+        assert "private-value" not in sanitized
+        assert f"{quote}{field}{quote}:" in sanitized
+        assert "'safe': 'visible'" in sanitized
+
+
 def test_sanitizer_sanitizes_required_audit_fields_and_complete_cookie_header() -> None:
     """验证码、身份号码及完整 Cookie 头均不进入输出。"""
     raw = (

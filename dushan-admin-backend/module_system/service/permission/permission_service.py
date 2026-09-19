@@ -2,8 +2,12 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from framework.starter_data_permission.model.data_scope_rule import DataScopeRule
-from framework.starter_security.model.permission_snapshot import PermissionSnapshot
+from framework.starter_data_permission.public import (
+    DataScopeRule,
+)
+from framework.starter_security.public import (
+    PermissionSnapshot,
+)
 from module_system.api.permission.dto.dept_data_permission_resp_dto import DeptDataPermissionRespDTO
 from module_system.controller.admin.permission.vo.permission.permission_assign_role_data_scope_req_vo import (
     PermissionAssignRoleDataScopeReqVO,

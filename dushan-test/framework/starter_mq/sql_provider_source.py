@@ -13,8 +13,9 @@ from framework.starter_tenant.decorators.tenant_model import global_model
 from framework.starter_mq.spi.outbox_provider import OutboxProvider
 from framework.starter_mq.model.outbox_record import OutboxRecord
 from framework.starter_mq.model.prepared_message import PreparedMessage
-from framework.starter_mq.enums.outbox_state import OutboxState
+from framework.starter_mq.definitions.enums.outbox_state import OutboxState
 from framework.starter_mq.exception.mq_exception import MQException
+from framework.starter_mq.definitions.constants.mq_error_codes import MQErrorCodes
 
 metadata=MetaData()
 timestamp=DateTime().with_variant(DATETIME(fsp=6),"mysql")
@@ -59,7 +60,7 @@ class Store(OutboxProvider):
             await session.scalar(select(Control.id).where(Control.id==1).with_for_update())
             current=await session.scalar(select(Row.spec).where(Row.record_id==record.id))
             if current is not None:
-                if current!=record.message.model_dump(mode="json"): raise MQException("conflict")
+                if current!=record.message.model_dump(mode="json"): raise MQException(MQErrorCodes.CONFLICT)
                 return
             await session.execute(insert(Row).values(record_id=record.id,state=record.state.value,
                 ready=record.ready_at.replace(tzinfo=None),attempts=record.attempts,
@@ -91,7 +92,7 @@ class Store(OutboxProvider):
                 Row.token==record.claim_token,Row.expires>now.replace(tzinfo=None)).values(state=state.value,
                 ready=ready_at.replace(tzinfo=None),expires=None,token=None,finished=now.replace(tzinfo=None) if terminal else None,
                 error_type=error_type,settled_token=record.claim_token,receipt=None if receipt is None else asdict(receipt)))
-            if result.rowcount!=1: raise MQException("lease")
+            if result.rowcount!=1: raise MQException(MQErrorCodes.LEASE)
     async def cancel(self,record_id):
         async with self.database.transaction() as session:
             result=await session.execute(update(Row).where(Row.record_id==record_id,Row.state=="pending").values(state="cancelled",finished=datetime.now(UTC).replace(tzinfo=None)))

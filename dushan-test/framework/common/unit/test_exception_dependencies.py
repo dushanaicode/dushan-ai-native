@@ -257,8 +257,8 @@ async def test_translated_logs_are_redacted_and_format_fallback_is_not_retransla
     assert "private-translation" not in log_text
 
 
-async def test_error_persistence_policy_for_5xx_and_explicit_record_error() -> None:
-    """5xx（含 HTTPException）默认尝试入库，4xx 仅在显式开启 record_error 时入库。"""
+async def test_error_persistence_policy_for_system_failures_and_explicit_record_error() -> None:
+    """系统故障及原生 HTTP 5xx 默认入库，业务拒绝仅在显式开启 record_error 时入库。"""
 
     translated_keys: list[str] = []
 

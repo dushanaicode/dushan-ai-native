@@ -4,8 +4,8 @@ from time import monotonic
 
 import pytest
 
+from framework.starter_ip.definitions.constants.ip_error_codes import IpErrorCodes
 from framework.starter_ip.exception.ip_exception import IpException
-from framework.starter_ip.exception.ip_provider_error import IpProviderError
 from framework.starter_ip.service.ip_location_service import IpLocationService
 from framework.starter_ip.spi.ip_location_provider import IpLocationProvider
 
@@ -155,7 +155,7 @@ async def test_deadline_includes_wait_for_retiring_query_cleanup(make_service):
 @pytest.mark.parametrize(
     "error",
     [
-        IpProviderError("sample", "network"),
+        IpException(IpErrorCodes.QUERY_FAILED, context={"provider": "sample", "reason": "network"}),
         TypeError("provider bug"),
         TimeoutError("provider timeout bug"),
     ],

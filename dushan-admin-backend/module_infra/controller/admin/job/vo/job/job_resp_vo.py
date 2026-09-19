@@ -3,12 +3,14 @@ from typing import Annotated
 
 from pydantic import Field
 
-from framework.common.contracts.snowflake_id import (
+from framework.common.contracts import (
     SnowflakeIdStr,
 )
-from framework.common.schemas.base_vo import BaseVO
-from framework.starter_excel.converter.enum_converter import EnumConverter
-from framework.starter_excel.model.excel_column import ExcelColumn
+from framework.common.schemas import BaseVO
+from framework.starter_excel.public import (
+    EnumConverter,
+    ExcelColumn,
+)
 from module_infra.definitions.enums.job.job_status_enum import JobStatusEnum
 
 

@@ -4,7 +4,7 @@ from framework.starter_cache.core.cache_handler import CacheHandler
 from framework.starter_di.context.application_context import ApplicationContext
 from framework.starter_di.core.candidate_selection import CandidateSelection
 from framework.starter_di.decorators.components import starter
-from framework.starter_di.enums.binding_outcome_enum import BindingOutcomeEnum
+from framework.starter_di.definitions.enums.binding_outcome_enum import BindingOutcomeEnum
 from framework.starter_monitor.core.monitor_service import MonitorService
 from framework.starter_web.routing.route_policy import RoutePolicy
 from framework.starter_websocket.config.websocket_settings import WebSocketSettings
@@ -12,8 +12,11 @@ from framework.starter_websocket.core.socket_protocol_log_filter import SocketPr
 from framework.starter_websocket.core.socket_registry import SocketRegistry
 from framework.starter_websocket.core.websocket_runtime import WebSocketRuntime
 from framework.starter_websocket.core.websocket_service import WebSocketService
-from framework.starter_websocket.enums.socket_transport import SocketTransport
-from framework.starter_websocket.exception.socket_exception import SocketException
+from framework.starter_websocket.definitions.constants.websocket_error_codes import (
+    WebSocketErrorCodes,
+)
+from framework.starter_websocket.definitions.enums.socket_transport import SocketTransport
+from framework.starter_websocket.exception.websocket_exception import WebSocketException
 from framework.starter_websocket.spi.socket_lifecycle_listener import SocketLifecycleListener
 from framework.starter_websocket.spi.websocket_ticket_provider import WebSocketTicketProvider
 
@@ -47,13 +50,13 @@ class WebSocketStarter:
         reload,
     ):
         if security is None:
-            raise SocketException("configuration")
+            raise WebSocketException(WebSocketErrorCodes.CONFIGURATION)
         container = self.application.container
         tickets = container.get_optional(WebSocketTicketProvider)
         if tickets is None:
-            raise SocketException("configuration")
+            raise WebSocketException(WebSocketErrorCodes.CONFIGURATION)
         if self.settings.transport is SocketTransport.LOCAL and not reload and workers != 1:
-            raise SocketException("configuration")
+            raise WebSocketException(WebSocketErrorCodes.CONFIGURATION)
         selected = {
             item.component
             for item in container.get_binding_diagnostics()
@@ -66,14 +69,14 @@ class WebSocketStarter:
         if self.settings.handler_concurrency > 1 and any(
             not handler.__socket_handler__.parallel for handler in registry.handlers.values()
         ):
-            raise SocketException("configuration")
+            raise WebSocketException(WebSocketErrorCodes.CONFIGURATION)
         cache = (
             container.get(CacheHandler)
             if self.settings.transport is SocketTransport.REDIS
             else None
         )
         if cache is not None and cache_available is None:
-            raise SocketException("configuration")
+            raise WebSocketException(WebSocketErrorCodes.CONFIGURATION)
         listeners = container.get_optional(list[SocketLifecycleListener]) or ()
         self.runtime = WebSocketRuntime(
             self.settings,

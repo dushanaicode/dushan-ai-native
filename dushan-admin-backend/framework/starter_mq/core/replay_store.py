@@ -2,6 +2,7 @@ import hashlib
 import json
 
 from framework.starter_cache.lock.redis_lease_lock import RedisLeaseLock
+from framework.starter_mq.definitions.constants.mq_error_codes import MQErrorCodes
 from framework.starter_mq.exception.mq_exception import MQException
 
 
@@ -37,7 +38,7 @@ class ReplayStore:
 
     async def write(self, key, lock, values):
         if not lock.is_valid:
-            raise MQException("lease")
+            raise MQException(MQErrorCodes.LEASE)
         result = await self.client.eval(
             "if redis.call('GET',KEYS[1]) ~= ARGV[1] then return 0 end "
             "redis.call('SET',KEYS[2],ARGV[2],'EX',ARGV[3]); return 1",
@@ -49,4 +50,4 @@ class ReplayStore:
             self.settings.replay_retention_seconds,
         )
         if result != 1:
-            raise MQException("lease")
+            raise MQException(MQErrorCodes.LEASE)

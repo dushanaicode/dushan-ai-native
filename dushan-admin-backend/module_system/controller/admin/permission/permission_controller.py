@@ -1,9 +1,15 @@
 from fastapi import APIRouter, Body, Depends, Query
 
-from framework.starter_di.decorators.di_dependency import DiDependency
-from framework.starter_security.enums.security_realm import SecurityRealm
-from framework.starter_web.response.result import Result
-from framework.starter_web.routing.route_policy import RoutePolicy
+from framework.starter_di.public import (
+    DiDependency,
+)
+from framework.starter_security.public import (
+    SecurityRealm,
+)
+from framework.starter_web.public import (
+    Result,
+    RoutePolicy,
+)
 from module_system.controller.admin.permission.vo.permission.permission_assign_role_data_scope_req_vo import (
     PermissionAssignRoleDataScopeReqVO,
 )

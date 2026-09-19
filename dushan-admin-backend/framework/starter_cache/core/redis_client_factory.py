@@ -4,8 +4,8 @@ from redis.backoff import NoBackoff
 
 from framework.starter_cache.config.cache_settings import CacheSettings
 from framework.starter_cache.config.redis_client_settings import RedisClientSettings
-from framework.starter_cache.exception.cache_connection_exception import CacheConnectionException
-from framework.starter_cache.exception.cache_error_codes import CacheErrorCodes
+from framework.starter_cache.definitions.constants.cache_error_codes import CacheErrorCodes
+from framework.starter_cache.exception.cache_exception import CacheException
 from framework.starter_di.decorators.components import framework
 
 
@@ -49,6 +49,4 @@ class RedisClientFactory:
     async def require_ping(client: Redis) -> None:
         """探活必须明确返回成功，握手失败不允许当作可用连接继续启动。"""
         if not await client.ping():
-            raise CacheConnectionException(
-                error_code=CacheErrorCodes.CONNECTION_FAILED, msg="Redis PING 未返回成功"
-            )
+            raise CacheException(CacheErrorCodes.CONNECTION_FAILED, msg="Redis PING 未返回成功")

@@ -11,10 +11,9 @@ import ip2region.searcher as xdb
 import ip2region.util as xdb_util
 
 from framework.starter_di.decorators.components import framework
-from framework.starter_di.enums.component_scope_enum import ComponentScopeEnum
+from framework.starter_di.definitions.enums.component_scope_enum import ComponentScopeEnum
 from framework.starter_ip.core.client_ip_resolver import ClientIpResolver
-from framework.starter_ip.exception.ip_address_family_not_enabled import IpAddressFamilyNotEnabled
-from framework.starter_ip.exception.ip_error_code_constants import IpErrorCodeConstants
+from framework.starter_ip.definitions.constants.ip_error_codes import IpErrorCodes
 from framework.starter_ip.exception.ip_exception import IpException
 
 
@@ -68,7 +67,7 @@ class Ip2RegionDatabase:
                 searchers.clear()
                 content = b""
                 raise IpException(
-                    IpErrorCodeConstants.XDB_LOAD_ERROR, cause=error, context={"path": str(path)}
+                    IpErrorCodes.XDB_LOAD_ERROR, cause=error, context={"path": str(path)}
                 ) from error
 
     @staticmethod
@@ -88,14 +87,16 @@ class Ip2RegionDatabase:
         address = ipaddress.ip_address(normalized)
         with self._lock:
             if self._searchers is None:
-                raise IpException(IpErrorCodeConstants.NOT_INITIALIZED)
+                raise IpException(IpErrorCodes.NOT_INITIALIZED)
             if address.version not in self._searchers:
-                raise IpAddressFamilyNotEnabled(address.version)
+                raise IpException(
+                    IpErrorCodes.FAMILY_NOT_ENABLED, context={"family": address.version}
+                )
             searcher = self._searchers[address.version]
             try:
                 return searcher.search(address.packed)
             except (ValueError, IndexError, struct.error, UnicodeError) as error:
-                raise IpException(IpErrorCodeConstants.QUERY_FAILED, cause=error) from error
+                raise IpException(IpErrorCodes.QUERY_FAILED, cause=error) from error
 
     def close(self) -> None:
         with self._lock:

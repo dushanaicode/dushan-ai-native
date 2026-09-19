@@ -2,14 +2,12 @@ from typing import Annotated, Any
 
 from pydantic import Field, field_validator, model_validator
 
-from framework.common.contracts.snowflake_id import (
+from framework.common.contracts import (
     SnowflakeIdInput,
 )
-from framework.common.enums.status_enum import StatusEnum
-from framework.common.enums.user_type_enum import UserTypeEnum
-from framework.common.schemas.base_request_vo import BaseRequestVO
-from framework.common.validator.in_enum import InEnum
-from framework.common.validator.not_null import NotNull
+from framework.common.enums import StatusEnum, UserTypeEnum
+from framework.common.schemas import BaseRequestVO
+from framework.common.validator import InEnum, NotNull
 from module_system.definitions.enums.social.social_type_enum import SocialTypeEnum
 
 

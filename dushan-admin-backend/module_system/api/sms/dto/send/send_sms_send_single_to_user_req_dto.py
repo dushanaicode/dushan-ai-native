@@ -4,9 +4,8 @@ from typing import Annotated, Any
 
 from pydantic import Field, field_validator
 
-from framework.common.schemas.base_dto import BaseDTO
-from framework.common.validator.mobile import Mobile
-from framework.common.validator.not_empty import NotEmpty
+from framework.common.schemas import BaseDTO
+from framework.common.validator import Mobile, NotEmpty
 
 
 class SmsSendSingleToUserReqDTO(BaseDTO):

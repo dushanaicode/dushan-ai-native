@@ -1,11 +1,14 @@
-from framework.starter_data_permission.enums.data_scope import DataScope
+from framework.starter_data_permission.definitions.constants.data_permission_error_codes import (
+    DataPermissionErrorCodes,
+)
+from framework.starter_data_permission.definitions.enums.data_scope import DataScope
 from framework.starter_data_permission.exception.data_permission_exception import (
     DataPermissionException,
 )
 from framework.starter_data_permission.model.data_grant import DataGrant
 from framework.starter_data_permission.model.data_scope_rule import DataScopeRule
 from framework.starter_data_permission.spi.data_permission_provider import DataPermissionProvider
-from framework.starter_security.enums.tenant_access_mode import TenantAccessMode
+from framework.starter_security.definitions.enums.tenant_access_mode import TenantAccessMode
 from framework.starter_security.model.login_session import LoginSession
 
 
@@ -23,7 +26,7 @@ class DataScopeResolver:
             not isinstance(rule, DataScopeRule) or not isinstance(rule.scope, DataScope)
             for rule in rules
         ):
-            raise DataPermissionException("configuration")
+            raise DataPermissionException(DataPermissionErrorCodes.CONFIGURATION)
         if not rules:
             return DataGrant()
         departments = set()
@@ -31,13 +34,13 @@ class DataScopeResolver:
         for rule in rules:
             self._validate_ids(rule.department_ids)
             if rule.scope is not DataScope.DEPT_CUSTOM and rule.department_ids:
-                raise DataPermissionException("configuration")
+                raise DataPermissionException(DataPermissionErrorCodes.CONFIGURATION)
             departments.update(rule.department_ids)
         if DataScope.ALL in kinds:
             return DataGrant(tenant_all=True)
         if kinds & {DataScope.DEPT_ONLY, DataScope.DEPT_AND_CHILD}:
             if identity.dept_id is None:
-                raise DataPermissionException("configuration")
+                raise DataPermissionException(DataPermissionErrorCodes.CONFIGURATION)
             departments.add(identity.dept_id)
         if DataScope.DEPT_AND_CHILD in kinds:
             descendants = await self.provider.descendants(identity, identity.dept_id)
@@ -57,4 +60,4 @@ class DataScopeResolver:
         if not isinstance(values, frozenset) or any(
             not isinstance(value, str) or not value or len(value) > 256 for value in values
         ):
-            raise DataPermissionException("configuration")
+            raise DataPermissionException(DataPermissionErrorCodes.CONFIGURATION)

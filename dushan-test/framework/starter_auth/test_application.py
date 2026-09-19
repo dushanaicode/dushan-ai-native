@@ -6,7 +6,7 @@ import pytest
 
 from fixtures.public_web_app import create_public_app
 from framework.starter_auth.core.auth_service import AuthService
-from framework.starter_auth.exception.auth_error_codes import AuthErrorCodes as Codes
+from framework.starter_auth.definitions.constants.auth_error_codes import AuthErrorCodes as Codes
 from framework.starter_auth.exception.auth_exception import AuthException
 from framework.starter_auth.starter.auth_starter import AuthStarter
 from framework.starter_cache.core.cache_key_registry import CacheKeyRegistry

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from framework.starter_job.enums.job_state import JobState
+from framework.starter_job.definitions.enums.job_state import JobState
 
 
 class JobHandler(ABC):

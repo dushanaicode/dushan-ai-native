@@ -3,7 +3,7 @@ from fastapi.routing import APIRoute
 from fastapi.sse import EventSourceResponse
 from starlette.requests import Request
 
-from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
+from framework.common.utils.cleanup_utils import CleanupUtils
 from framework.starter_web.upload.web_request import WebRequest
 
 

@@ -10,14 +10,14 @@ from typing import ClassVar, TypeVar
 from loguru import logger
 
 from framework.common.diagnostics.exception_trace_formatter import ExceptionTraceFormatter
-from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
+from framework.common.utils.cleanup_utils import CleanupUtils
 from framework.starter_di.context.application_state_enum import ApplicationStateEnum
 from framework.starter_di.context.di_task_runner import DiTaskRunner
 from framework.starter_di.context.execution_binding import ExecutionBinding
 from framework.starter_di.context.execution_phase_enum import ExecutionPhaseEnum
 from framework.starter_di.core.di_container import DiContainer
-from framework.starter_di.enums.lifecycle_phase_enum import LifecyclePhaseEnum
-from framework.starter_di.exception.di_error_codes import DiErrorCodes
+from framework.starter_di.definitions.constants.di_error_codes import DiErrorCodes
+from framework.starter_di.definitions.enums.lifecycle_phase_enum import LifecyclePhaseEnum
 from framework.starter_di.exception.di_exception import DiException
 
 T = TypeVar("T")

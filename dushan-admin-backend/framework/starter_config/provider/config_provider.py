@@ -13,7 +13,7 @@ from pydantic import BaseModel, ValidationError
 from framework.common.security.sanitizer import Sanitizer
 from framework.starter_config.config.config_settings import ConfigSettings
 from framework.starter_config.decorator.config_model_metadata import ConfigModelMetadata
-from framework.starter_config.enums.config_source_enum import ConfigSourceEnum
+from framework.starter_config.definitions.enums.config_source_enum import ConfigSourceEnum
 from framework.starter_config.provider.bootstrap_config_error import BootstrapConfigError
 from framework.starter_config.provider.bootstrap_config_provider import BootstrapConfigProvider
 from framework.starter_config.provider.config_change import ConfigChange

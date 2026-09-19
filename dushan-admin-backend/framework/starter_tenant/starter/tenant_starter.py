@@ -5,6 +5,7 @@ from framework.starter_di.decorators.components import starter
 from framework.starter_tenant.core.tenant_model_registry import TenantModelRegistry
 from framework.starter_tenant.core.tenant_service import TenantService
 from framework.starter_tenant.core.tenant_session_policy import TenantSessionPolicy
+from framework.starter_tenant.definitions.constants.tenant_error_codes import TenantErrorCodes
 from framework.starter_tenant.exception.tenant_exception import TenantException
 from framework.starter_tenant.spi.tenant_directory_provider import TenantDirectoryProvider
 from framework.starter_tenant.spi.tenant_provisioning_provider import TenantProvisioningProvider
@@ -27,7 +28,7 @@ class TenantStarter:
         if any(not item.public for item in registry.entries.values()) and (
             database is None or self.service.directory is None
         ):
-            raise TenantException("configuration")
+            raise TenantException(TenantErrorCodes.CONFIGURATION)
         logger.info(
             "【TenantStarter 】提供器装配：租户目录={}，租户开通={}",
             self.service.directory is not None,

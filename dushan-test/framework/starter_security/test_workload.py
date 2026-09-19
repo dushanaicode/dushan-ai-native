@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
+from framework.starter_security.definitions.constants.security_error_codes import SecurityErrorCodes
 from framework.starter_security.exception.security_exception import SecurityException
 from framework.starter_security.model.workload_identity import WorkloadIdentity
 from framework.starter_security.model.workload_message import WorkloadMessage
@@ -16,7 +17,7 @@ class WorkloadTenant(TenantContract):
     @asynccontextmanager
     async def enter_workload(self, identity, capability):
         if identity.tenant_id != "tenant-1" or capability != "notification:dispatch":
-            raise SecurityException("denied")
+            raise SecurityException(SecurityErrorCodes.DENIED)
         token = self.current.set(identity.tenant_id)
         self.active += 1
         try:
@@ -40,7 +41,7 @@ class WorkloadProofs(MessageProofs):
 
     async def verify_workload(self, proof, payload, **kwargs):
         if proof not in self.workloads or self.workloads[proof][1] != payload:
-            raise SecurityException("invalid")
+            raise SecurityException(SecurityErrorCodes.INVALID)
         identity, _, capability = self.workloads.pop(proof)
         return WorkloadMessage(identity=identity, capability=capability)
 

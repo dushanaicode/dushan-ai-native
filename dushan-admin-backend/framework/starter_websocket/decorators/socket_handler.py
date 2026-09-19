@@ -2,7 +2,7 @@ import inspect
 import re
 
 from framework.starter_di.decorators.components import framework
-from framework.starter_di.enums.component_scope_enum import ComponentScopeEnum
+from framework.starter_di.definitions.enums.component_scope_enum import ComponentScopeEnum
 from framework.starter_websocket.handler.socket_handler import SocketHandler
 
 

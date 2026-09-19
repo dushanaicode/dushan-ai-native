@@ -3,8 +3,8 @@ import json
 import pytest
 from pydantic import ValidationError
 
-from framework.starter_security.enums.security_realm import SecurityRealm
-from framework.starter_security.enums.tenant_access_mode import TenantAccessMode
+from framework.starter_security.definitions.enums.security_realm import SecurityRealm
+from framework.starter_security.definitions.enums.tenant_access_mode import TenantAccessMode
 from framework.starter_security.model.login_session import LoginSession
 from framework.starter_web.routing.route_policy import RoutePolicy
 

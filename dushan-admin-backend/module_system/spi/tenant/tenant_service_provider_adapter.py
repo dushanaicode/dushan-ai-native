@@ -1,6 +1,10 @@
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
-from framework.starter_tenant.spi.tenant_directory_provider import TenantDirectoryProvider
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
+from framework.starter_tenant.public import (
+    TenantDirectoryProvider,
+)
 from module_system.service.tenant.tenant_service import TenantService
 
 

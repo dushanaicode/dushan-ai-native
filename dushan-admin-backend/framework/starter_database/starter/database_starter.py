@@ -4,7 +4,7 @@ from contextvars import Context
 from loguru import logger
 from sqlalchemy.exc import SQLAlchemyError
 
-from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
+from framework.common.utils.cleanup_utils import CleanupUtils
 from framework.starter_database.exception.database_exception import DatabaseException
 from framework.starter_database.session.session_provider import SessionProvider
 from framework.starter_database.spi.data_source_config_provider import DataSourceConfigProvider

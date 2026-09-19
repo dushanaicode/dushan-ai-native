@@ -1,12 +1,16 @@
-from framework.common.exception.exceptions.illegal_argument_exception import (
+from framework.common.exception import (
     IllegalArgumentException,
 )
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
-from framework.starter_websocket.core.websocket_service import (
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
+from framework.starter_websocket.public import (
+    SocketMessage,
+)
+from framework.starter_websocket.public import (
     WebSocketService as NativeWebSocketService,
 )
-from framework.starter_websocket.model.socket_message import SocketMessage
 from module_infra.controller.admin.websocket.vo.websocket_message_vo import WebsocketMessageVO
 from module_infra.convert.websocket.websocket_convert import WebSocketConvert
 from module_infra.service.websocket.websocket_service import WebSocketService

@@ -3,7 +3,7 @@ import re
 
 from framework.starter_auth.config.auth_client_config import AuthClientConfig
 from framework.starter_auth.config.auth_settings import AuthSettings
-from framework.starter_auth.exception.auth_error_codes import AuthErrorCodes as Codes
+from framework.starter_auth.definitions.constants.auth_error_codes import AuthErrorCodes as Codes
 from framework.starter_auth.exception.auth_exception import AuthException
 from framework.starter_auth.model.auth_flow import AuthFlow
 from framework.starter_cache.core.cache_handler import CacheHandler

@@ -10,6 +10,7 @@ from aiokafka.structs import TopicPartition
 
 from framework.starter_mq.backend.kafka_assignments import KafkaAssignments
 from framework.starter_mq.backend.message_backend import MessageBackend
+from framework.starter_mq.definitions.constants.mq_error_codes import MQErrorCodes
 from framework.starter_mq.exception.mq_exception import MQException
 from framework.starter_mq.model.delivery import Delivery
 
@@ -79,7 +80,7 @@ class KafkaBackend(MessageBackend):
         for item in result.topic_errors:
             error_code = item[1]
             if error_code and for_code(error_code) is not TopicAlreadyExistsError:
-                raise MQException("confirmation", cause=for_code(error_code)())
+                raise MQException(MQErrorCodes.CONFIRMATION, cause=for_code(error_code)())
         # CreateTopics 已确认后，Broker 的 metadata 视图仍可能短暂返回主题/leader 未就绪。
         deadline = asyncio.get_running_loop().time() + self.settings.command_timeout_seconds
         while True:
@@ -87,17 +88,19 @@ class KafkaBackend(MessageBackend):
             if metadata and metadata[0]["error_code"] == 0:
                 break
             if metadata and metadata[0]["error_code"] not in {3, 5}:
-                raise MQException("confirmation", cause=for_code(metadata[0]["error_code"])())
+                raise MQException(
+                    MQErrorCodes.CONFIRMATION, cause=for_code(metadata[0]["error_code"])()
+                )
             remaining = deadline - asyncio.get_running_loop().time()
             if remaining <= 0:
-                raise MQException("confirmation")
+                raise MQException(MQErrorCodes.CONFIRMATION)
             await asyncio.sleep(min(remaining, self.settings.poll_seconds))
         if (
             len(metadata) != 1
             or metadata[0]["error_code"] != 0
             or len(metadata[0]["partitions"]) != self.settings.kafka_partitions
         ):
-            raise MQException("configuration")
+            raise MQException(MQErrorCodes.CONFIGURATION)
         self.topics.add(name)
 
     async def open(self, definitions):
@@ -163,7 +166,7 @@ class KafkaBackend(MessageBackend):
             if consumer.assignment():
                 self.ready[definition.key].set()
             if assignments.exceeded:
-                raise MQException("configuration")
+                raise MQException(MQErrorCodes.CONFIGURATION)
             now = time.time()
             for partition, (record, ready_at, version) in tuple(deferred.items()):
                 if version != assignments.version:
@@ -204,7 +207,7 @@ class KafkaBackend(MessageBackend):
 
         def require_assignment():
             if version != assignments.version or partition not in consumer.assignment():
-                raise MQException("lease")
+                raise MQException(MQErrorCodes.LEASE)
 
         async def acknowledge():
             require_assignment()

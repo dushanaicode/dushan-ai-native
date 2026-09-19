@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from typing import override
 
-from framework.common.exception.exceptions.service_exception import ServiceException
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
+from framework.common.exception import ServiceException
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
 from module_system.api.social.dto.social_wx_jsapi_signature_resp_dto import (
     SocialWxJsapiSignatureRespDTO,
 )

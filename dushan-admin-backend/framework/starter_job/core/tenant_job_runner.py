@@ -1,7 +1,8 @@
 import asyncio
 from datetime import UTC, datetime
 
-from framework.starter_job.enums.job_state import JobState
+from framework.starter_job.definitions.constants.job_error_codes import JobErrorCodes
+from framework.starter_job.definitions.enums.job_state import JobState
 from framework.starter_job.exception.job_exception import JobException
 from framework.starter_job.model.job_outcome import JobOutcome
 
@@ -17,7 +18,7 @@ class TenantJobRunner:
 
     async def run(self, request):
         if self.tenant is None or not self.tenant.ready or self.targets is None:
-            raise JobException("configuration")
+            raise JobException(JobErrorCodes.CONFIGURATION)
         ran = False
         failed = None
         async for batch in self.tenant.target_batches():
@@ -29,9 +30,9 @@ class TenantJobRunner:
                 if lease is None:
                     continue
                 if lease.request_id != request.request_id or lease.tenant_id != tenant_id:
-                    raise JobException("configuration")
+                    raise JobException(JobErrorCodes.CONFIGURATION)
                 if lease.expires_at <= datetime.now(UTC):
-                    raise JobException("owner")
+                    raise JobException(JobErrorCodes.OWNER)
                 outcome = await self.invoker.invoke(request, tenant_id)
                 try:
                     async with asyncio.timeout(self.invoker.settings.command_timeout_seconds):

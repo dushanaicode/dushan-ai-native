@@ -3,8 +3,8 @@ from time import monotonic
 
 import pytest
 
+from framework.starter_ip.definitions.constants.ip_error_codes import IpErrorCodes
 from framework.starter_ip.exception.ip_exception import IpException
-from framework.starter_ip.exception.ip_provider_error import IpProviderError
 from framework.starter_ip.service.ip_location_service import IpLocationService
 from framework.starter_ip.spi.ip_location_provider import IpLocationProvider
 
@@ -83,7 +83,9 @@ async def test_local_first_and_online_requires_opt_in(ip_settings):
 async def test_unknown_unavailable_and_failure_policy_are_distinct(ip_settings):
     unknown = create_service(ip_settings, [SampleProvider(None)])
     assert (await unknown.lookup("1.2.3.4")).status == "unknown"
-    error = IpProviderError("sample", "network")
+    error = IpException(
+        IpErrorCodes.QUERY_FAILED, context={"provider": "sample", "reason": "network"}
+    )
     unavailable = create_service(ip_settings, [SampleProvider(error=error)])
     result = await unavailable.lookup("1.2.3.4")
     assert result.status == "unavailable" and result.failures == ("sample:network",)
@@ -91,7 +93,7 @@ async def test_unknown_unavailable_and_failure_policy_are_distinct(ip_settings):
     strict = create_service(
         ip_settings, [SampleProvider(error=error)], online_failure_policy="raise"
     )
-    with pytest.raises(IpProviderError) as caught:
+    with pytest.raises(IpException) as caught:
         await strict.lookup("1.2.3.4")
     assert caught.value is error
     broken = create_service(ip_settings, [SampleProvider(error=TypeError("programming failure"))])
@@ -101,7 +103,11 @@ async def test_unknown_unavailable_and_failure_policy_are_distinct(ip_settings):
 
 async def test_continue_returns_next_provider_and_records_failure(ip_settings):
     first, second = (
-        SampleProvider(error=IpProviderError("first", "network")),
+        SampleProvider(
+            error=IpException(
+                IpErrorCodes.QUERY_FAILED, context={"provider": "first", "reason": "network"}
+            )
+        ),
         SampleProvider("第二路"),
     )
     first.name, second.name = "first", "second"

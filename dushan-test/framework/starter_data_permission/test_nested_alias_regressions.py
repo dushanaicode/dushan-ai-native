@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import exists, insert, literal, select
 from sqlalchemy.orm import aliased
 
-from framework.starter_data_permission.enums.data_scope import DataScope
+from framework.starter_data_permission.definitions.enums.data_scope import DataScope
 
 
 async def add_peer(case, identifier, member):

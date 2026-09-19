@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from framework.common.page.schemas.page_result import PageResult
+from framework.common.page import PageResult
 from module_infra.controller.admin.job.vo.job.job_page_req_vo import JobPageReqVO
 from module_infra.controller.admin.job.vo.job.job_save_req_vo import JobSaveReqVO
 from module_infra.dal.dataobject.job.job_do import JobDO

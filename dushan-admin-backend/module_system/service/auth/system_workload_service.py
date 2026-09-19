@@ -1,7 +1,9 @@
 from contextlib import AbstractAsyncContextManager
 from typing import Protocol, runtime_checkable
 
-from framework.starter_security.model.workload_identity import WorkloadIdentity
+from framework.starter_security.public import (
+    WorkloadIdentity,
+)
 
 
 @runtime_checkable

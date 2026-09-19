@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict, model_validator
 
-from framework.starter_data_permission.enums.data_scope import DataScope
+from framework.starter_data_permission.definitions.enums.data_scope import DataScope
 from framework.starter_security.model.login_session import IdentityId
 
 

@@ -1,4 +1,6 @@
-from framework.starter_di.decorators.components import service
+from framework.starter_di.public import (
+    service,
+)
 from module_system.definitions.enums.common.common_sex_enum import CommonSexEnum
 
 

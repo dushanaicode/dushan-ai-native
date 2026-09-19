@@ -1,6 +1,10 @@
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
-from framework.starter_websocket.spi.websocket_ticket_provider import WebSocketTicketProvider
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
+from framework.starter_websocket.public import (
+    WebSocketTicketProvider,
+)
 from module_system.service.oauth2.oauth2_token_service import OAuth2TokenService
 
 

@@ -4,7 +4,7 @@ from typing import Annotated
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from framework.starter_config.config.config_file_settings import ConfigFileSettings
-from framework.starter_config.enums.config_source_enum import ConfigSourceEnum
+from framework.starter_config.definitions.enums.config_source_enum import ConfigSourceEnum
 
 
 class ConfigSettings(BaseModel):

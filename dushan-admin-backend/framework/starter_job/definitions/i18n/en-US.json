@@ -1,0 +1,12 @@
+{
+  "job.error": "Job scheduling error",
+  "job.configuration": "Job scheduling configuration or SPI is not ready",
+  "job.owner": "This process does not hold the scheduling lease",
+  "job.closed": "The job runtime is shut down",
+  "job.handler": "The job handler is missing or duplicated",
+  "job.parameters": "Invalid job parameters",
+  "job.cron": "Cron must be a valid five-field expression",
+  "job.disabled": "The job does not exist or is disabled",
+  "job.capacity": "The job execution queue is full",
+  "job.snapshot": "The job definition changed; the stale request was skipped"
+}

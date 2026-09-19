@@ -3,11 +3,11 @@ from typing import Annotated, Any
 
 from pydantic import Field, field_serializer
 
-from framework.common.contracts.snowflake_id import (
+from framework.common.contracts import (
     SnowflakeIdStr,
 )
-from framework.common.schemas.base_vo import BaseVO
-from framework.common.utils.str.str_utils import StrUtils
+from framework.common.schemas import BaseVO
+from framework.common.utils import StrUtils
 from module_infra.framework.file.file_config_secrets import FileConfigSecrets
 
 

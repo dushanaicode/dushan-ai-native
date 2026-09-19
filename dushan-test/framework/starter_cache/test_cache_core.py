@@ -4,11 +4,7 @@ import pytest
 from pydantic import BaseModel
 
 from fixtures.cache_fixtures import requires_redis
-from framework.starter_cache.exception.cache_config_exception import CacheConfigException
-from framework.starter_cache.exception.cache_operation_exception import CacheOperationException
-from framework.starter_cache.exception.cache_serialization_exception import (
-    CacheSerializationException,
-)
+from framework.starter_cache.exception.cache_exception import CacheException
 
 pytestmark = requires_redis
 
@@ -55,7 +51,7 @@ async def test_pydantic_model_and_set_are_serialized_as_json(cache_case):
 @pytest.mark.parametrize("value", [object(), {1, 2, object()}, float("nan")])
 async def test_unsupported_values_fail_before_writing(cache_case, value):
     cache, keys, _ = cache_case
-    with pytest.raises(CacheSerializationException):
+    with pytest.raises(CacheException):
         await cache.set(keys.TestCacheKeys.ITEM, "bad", value)
     assert (await cache.get(keys.TestCacheKeys.ITEM, "bad")).hit is False
 
@@ -65,7 +61,7 @@ async def test_corrupted_payload_raises_instead_of_returning_raw_text(cache_case
     client = cache.get_client(keys.TestCacheKeys.ITEM)
     await client.set(cache.build_full_key(keys.TestCacheKeys.ITEM, "broken"), "{not-json")
 
-    with pytest.raises(CacheSerializationException):
+    with pytest.raises(CacheException):
         await cache.get(keys.TestCacheKeys.ITEM, "broken")
 
 
@@ -98,7 +94,7 @@ async def test_key_without_default_ttl_is_written_without_expiry(cache_case):
 @pytest.mark.parametrize("ttl", [0, -1, 2592001])
 async def test_invalid_ttl_is_rejected_before_writing(cache_case, ttl):
     cache, keys, _ = cache_case
-    with pytest.raises(CacheConfigException):
+    with pytest.raises(CacheException):
         await cache.set(keys.TestCacheKeys.ITEM, "ttl-bad", "v", ttl_seconds=ttl)
     assert (await cache.get(keys.TestCacheKeys.ITEM, "ttl-bad")).hit is False
 
@@ -161,7 +157,7 @@ async def test_clients_are_isolated_by_declared_client_name(cache_case):
 @pytest.mark.parametrize("identifier", ["", " ", "a b", "a\n", "a*", "a?", "a[1]"])
 async def test_unsafe_identifiers_are_rejected(cache_case, identifier):
     cache, keys, _ = cache_case
-    with pytest.raises(CacheConfigException):
+    with pytest.raises(CacheException):
         await cache.set(keys.TestCacheKeys.ITEM, identifier, "v")
 
 
@@ -197,7 +193,7 @@ async def test_eval_atomic_accepts_a_script_without_keys(cache_case):
 async def test_eval_atomic_rejects_unsafe_identifiers(cache_case, identifier):
     """标识仍走统一校验，不因为是内部脚本入口就放宽。"""
     cache, keys, _ = cache_case
-    with pytest.raises(CacheConfigException):
+    with pytest.raises(CacheException):
         await cache.eval_atomic(keys.TestCacheKeys.ITEM, (identifier,), "return 1")
 
 
@@ -205,6 +201,6 @@ async def test_eval_atomic_reports_script_failure_as_cache_operation_error(cache
     """脚本报错按缓存操作失败上报，并保留原始 Redis 异常。"""
     cache, keys, _ = cache_case
 
-    with pytest.raises(CacheOperationException) as failure:
+    with pytest.raises(CacheException) as failure:
         await cache.eval_atomic(keys.TestCacheKeys.ITEM, ("x",), "this is not lua")
     assert failure.value.__cause__ is not None

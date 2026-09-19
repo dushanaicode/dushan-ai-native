@@ -5,7 +5,10 @@ import pytest
 from starter_security.test_context_and_adapters import MessageProofs
 from starter_security.test_workload import WorkloadProofs
 
-from framework.starter_data_permission.enums.data_scope import DataScope
+from framework.starter_data_permission.definitions.constants.data_permission_error_codes import (
+    DataPermissionErrorCodes,
+)
+from framework.starter_data_permission.definitions.enums.data_scope import DataScope
 from framework.starter_data_permission.exception.data_permission_exception import (
     DataPermissionException,
 )
@@ -43,7 +46,7 @@ async def test_snapshot_is_fixed_expiry_and_revocation(permission_case):
         await asyncio.sleep(0.04)
         with pytest.raises(DataPermissionException) as error:
             await case.ids()
-        assert error.value.reason == "stale"
+        assert error.value.error_code is DataPermissionErrorCodes.STALE
 
 
 async def test_parallel_subjects_applications_and_stale_tasks(permission_case, config_dir):
@@ -211,5 +214,5 @@ async def test_permission_change_during_loading_rejects_mixed_snapshot(permissio
     case.provider.wait.set()
     with pytest.raises(DataPermissionException) as error:
         await task
-    assert error.value.reason == "stale"
+    assert error.value.error_code is DataPermissionErrorCodes.STALE
     assert case.service._active == case.tenant.active == 0

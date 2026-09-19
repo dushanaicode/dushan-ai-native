@@ -1,8 +1,8 @@
-from framework.common.enums.base_enum import BaseEnum
-from framework.common.exception.constants.global_error_code_constants import (
+from framework.common.enums import BaseEnum
+from framework.common.exception import (
     GlobalErrorCodeConstants,
+    ServerException,
 )
-from framework.common.exception.exceptions.server_exception import ServerException
 
 
 class OAuth2GrantTypeEnum(BaseEnum):

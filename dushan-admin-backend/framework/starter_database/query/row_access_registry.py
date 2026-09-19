@@ -1,5 +1,8 @@
 from types import MappingProxyType
 
+from framework.starter_database.definitions.constants.row_access_error_codes import (
+    RowAccessErrorCodes,
+)
 from framework.starter_database.query.row_access_target import RowAccessTarget
 
 
@@ -10,7 +13,7 @@ class RowAccessRegistry:
         self.rules = rules
         keys = set(rules[0].registry.entries)
         if any(set(rule.registry.entries) != keys for rule in rules):
-            raise rules[0].failure("configuration")
+            raise rules[0].failure(RowAccessErrorCodes.CONFIGURATION)
         entries = {}
         for key in sorted(keys):
             configs = [rule.registry.entries[key] for rule in rules]
@@ -19,12 +22,12 @@ class RowAccessRegistry:
                 config.table is not first.table or config.model is not first.model
                 for config in configs
             ):
-                raise rules[0].failure("configuration")
+                raise rules[0].failure(RowAccessErrorCodes.CONFIGURATION)
             tenant_columns = {
                 config.tenant_column for config in configs if config.tenant_column is not None
             }
             if len(tenant_columns) > 1:
-                raise rules[0].failure("configuration")
+                raise rules[0].failure(RowAccessErrorCodes.CONFIGURATION)
             entries[key] = RowAccessTarget(
                 first.table,
                 first.model,

@@ -4,7 +4,7 @@ from pathlib import Path
 from framework.common.enums.component_type_enum import ComponentTypeEnum
 from framework.starter_scanner.core.component_definition import ComponentDefinition
 from framework.starter_scanner.core.scan_diagnostics import ScanDiagnostics
-from framework.starter_scanner.exception.scanner_error_codes import ScannerErrorCodes
+from framework.starter_scanner.definitions.constants.scanner_error_codes import ScannerErrorCodes
 from framework.starter_scanner.exception.scanner_exception import ScannerException
 
 

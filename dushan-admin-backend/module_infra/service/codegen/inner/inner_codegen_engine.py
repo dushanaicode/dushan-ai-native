@@ -8,7 +8,9 @@ from typing import Any
 from jinja2 import Environment, FileSystemLoader
 from loguru import logger
 
-from framework.starter_di.decorators.components import util
+from framework.starter_di.public import (
+    util,
+)
 from module_infra.dal.dataobject.codegen.codegen_column_do import CodegenColumnDO
 from module_infra.dal.dataobject.codegen.codegen_table_do import CodegenTableDO
 from module_infra.definitions.enums.codegen.codegen_front_type_enum import CodegenFrontTypeEnum

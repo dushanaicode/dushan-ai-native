@@ -3,7 +3,7 @@ from collections.abc import Iterable
 from loguru import logger
 
 from framework.starter_auth.core.auth_service import AuthService
-from framework.starter_auth.exception.auth_error_codes import AuthErrorCodes as Codes
+from framework.starter_auth.definitions.constants.auth_error_codes import AuthErrorCodes as Codes
 from framework.starter_auth.exception.auth_exception import AuthException
 from framework.starter_cache.exception.cache_exception import CacheException
 from framework.starter_di.decorators.components import starter

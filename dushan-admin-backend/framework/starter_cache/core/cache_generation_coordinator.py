@@ -3,11 +3,14 @@ from uuid import uuid4
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
 
-from framework.starter_cache.constants.cache_constants import CacheConstants
 from framework.starter_cache.core.cache_generation_scripts import CacheGenerationScripts
 from framework.starter_cache.core.cache_key_resolver import CacheKeyResolver
-from framework.starter_cache.enums.cache_generation_state_enum import CacheGenerationStateEnum
-from framework.starter_cache.exception.cache_operation_exception import CacheOperationException
+from framework.starter_cache.definitions.constants.cache_constants import CacheConstants
+from framework.starter_cache.definitions.constants.cache_error_codes import CacheErrorCodes
+from framework.starter_cache.definitions.enums.cache_generation_state_enum import (
+    CacheGenerationStateEnum,
+)
+from framework.starter_cache.exception.cache_exception import CacheException
 from framework.starter_cache.model.cache_generation_state import CacheGenerationState
 from framework.starter_cache.model.cache_key import CacheKey
 from framework.starter_di.decorators.components import framework
@@ -72,7 +75,9 @@ class CacheGenerationCoordinator:
                 CacheGenerationStateEnum.FINALIZED.code,
             )
         except RedisError as error:
-            raise CacheOperationException(msg="读取缓存 generation 失败", cause=error) from error
+            raise CacheException(
+                CacheErrorCodes.OPERATION_FAILED, msg="读取缓存 generation 失败", cause=error
+            ) from error
         return self._parse(generation_key, payload)
 
     async def begin(self, client: Redis, generation_key: str) -> CacheGenerationState:
@@ -87,15 +92,17 @@ class CacheGenerationCoordinator:
                 uuid4().hex,
             )
         except RedisError as error:
-            raise CacheOperationException(
-                msg="开始缓存失效 generation 失败", cause=error
+            raise CacheException(
+                CacheErrorCodes.OPERATION_FAILED, msg="开始缓存失效 generation 失败", cause=error
             ) from error
         generation = self._parse(generation_key, payload)
         if (
             generation.version <= CacheConstants.INITIAL_GENERATION_VERSION
             or generation.state is not CacheGenerationStateEnum.ACTIVE
         ):
-            raise CacheOperationException(msg="缓存失效 generation 返回值无效")
+            raise CacheException(
+                CacheErrorCodes.OPERATION_FAILED, msg="缓存失效 generation 返回值无效"
+            )
         return generation
 
     async def finalize(self, client: Redis, generation: CacheGenerationState) -> None:
@@ -111,11 +118,13 @@ class CacheGenerationCoordinator:
                 CacheGenerationStateEnum.FINALIZED.code,
             )
         except RedisError as error:
-            raise CacheOperationException(
-                msg="完成缓存失效 generation 失败", cause=error
+            raise CacheException(
+                CacheErrorCodes.OPERATION_FAILED, msg="完成缓存失效 generation 失败", cause=error
             ) from error
         if type(result) is not int or result not in (_LUA_SKIPPED, _LUA_APPLIED):
-            raise CacheOperationException(msg="缓存失效 generation 完成返回值无效")
+            raise CacheException(
+                CacheErrorCodes.OPERATION_FAILED, msg="缓存失效 generation 完成返回值无效"
+            )
 
     @staticmethod
     def _parse(generation_key: str, payload: object) -> CacheGenerationState:
@@ -124,25 +133,27 @@ class CacheGenerationCoordinator:
             try:
                 value = payload.decode("utf-8")
             except UnicodeDecodeError as error:
-                raise CacheOperationException(
-                    msg="缓存 generation 编码无效", cause=error
+                raise CacheException(
+                    CacheErrorCodes.OPERATION_FAILED, msg="缓存 generation 编码无效", cause=error
                 ) from error
         elif isinstance(payload, str):
             value = payload
         else:
-            raise CacheOperationException(msg="缓存 generation 类型无效")
+            raise CacheException(CacheErrorCodes.OPERATION_FAILED, msg="缓存 generation 类型无效")
 
         epoch, first, remainder = value.partition(_SEPARATOR)
         version_text, second, state_code = remainder.partition(_SEPARATOR)
         if not first or not second or not epoch:
-            raise CacheOperationException(msg="缓存 generation 状态无效")
+            raise CacheException(CacheErrorCodes.OPERATION_FAILED, msg="缓存 generation 状态无效")
         try:
             version = int(version_text)
         except ValueError as error:
-            raise CacheOperationException(msg="缓存 generation 版本无效", cause=error) from error
+            raise CacheException(
+                CacheErrorCodes.OPERATION_FAILED, msg="缓存 generation 版本无效", cause=error
+            ) from error
         state = CacheGenerationStateEnum.get_by_code(state_code)
         if version < CacheConstants.INITIAL_GENERATION_VERSION or state is None:
-            raise CacheOperationException(msg="缓存 generation 状态无效")
+            raise CacheException(CacheErrorCodes.OPERATION_FAILED, msg="缓存 generation 状态无效")
         return CacheGenerationState(
             generation_key=generation_key, epoch=epoch, version=version, state=state
         )

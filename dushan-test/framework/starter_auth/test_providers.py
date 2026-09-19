@@ -7,7 +7,7 @@ from urllib.parse import parse_qs, urlsplit
 import pytest
 
 from framework.starter_auth.core.auth_provider_registry import AuthProviderRegistry
-from framework.starter_auth.exception.auth_error_codes import AuthErrorCodes as Codes
+from framework.starter_auth.definitions.constants.auth_error_codes import AuthErrorCodes as Codes
 from framework.starter_auth.exception.auth_exception import AuthException
 from framework.starter_auth.model.auth_result import AuthResult
 from framework.starter_auth.provider.provider_payload import ProviderPayload

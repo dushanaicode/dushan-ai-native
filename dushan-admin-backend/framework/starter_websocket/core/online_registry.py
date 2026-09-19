@@ -1,7 +1,10 @@
 import time
 
-from framework.starter_websocket.enums.socket_target_kind import SocketTargetKind
-from framework.starter_websocket.exception.socket_exception import SocketException
+from framework.starter_websocket.definitions.constants.websocket_error_codes import (
+    WebSocketErrorCodes,
+)
+from framework.starter_websocket.definitions.enums.socket_target_kind import SocketTargetKind
+from framework.starter_websocket.exception.websocket_exception import WebSocketException
 from framework.starter_websocket.model.online_connection import OnlineConnection
 
 
@@ -22,7 +25,7 @@ class OnlineRegistry:
             self.instance_key, self.runtime.instance, nx=True, px=milliseconds
         )
         if not accepted:
-            raise SocketException("configuration")
+            raise WebSocketException(WebSocketErrorCodes.CONFIGURATION)
         await self.client.zadd(
             self.instances_key,
             {self.runtime.instance: time.time() + self.runtime.settings.instance_lease_seconds},
@@ -35,7 +38,7 @@ class OnlineRegistry:
 
     async def renew(self):
         if not self.valid:
-            raise SocketException("transport")
+            raise WebSocketException(WebSocketErrorCodes.TRANSPORT)
         settings = self.runtime.settings
         started = time.monotonic()
         result = await self.client.eval(
@@ -54,7 +57,7 @@ class OnlineRegistry:
         )
         if result != 1:
             self.deadline = 0.0
-            raise SocketException("transport")
+            raise WebSocketException(WebSocketErrorCodes.TRANSPORT)
         self.deadline = started + settings.instance_lease_seconds
 
     async def add(self, connection):
@@ -70,7 +73,7 @@ class OnlineRegistry:
             int(self.runtime.settings.instance_lease_seconds * 1000),
         )
         if result != 1:
-            raise SocketException("transport")
+            raise WebSocketException(WebSocketErrorCodes.TRANSPORT)
 
     async def remove(self, connection):
         await self.client.eval(
@@ -94,7 +97,7 @@ class OnlineRegistry:
             num=self.runtime.settings.online_query_limit + 1,
         )
         if len(instances) > self.runtime.settings.online_query_limit:
-            raise SocketException("capacity")
+            raise WebSocketException(WebSocketErrorCodes.CAPACITY)
         result = []
         for instance in instances:
             raw = await self.client.eval(
@@ -107,17 +110,17 @@ class OnlineRegistry:
                 self.runtime.settings.max_connections,
             )
             if raw is None:
-                raise SocketException("capacity")
+                raise WebSocketException(WebSocketErrorCodes.CAPACITY)
             for item in raw:
                 if len(item.encode()) > 4096:
-                    raise SocketException("protocol")
+                    raise WebSocketException(WebSocketErrorCodes.PROTOCOL)
                 connection = OnlineConnection.model_validate_json(item)
                 if connection.instance != instance:
-                    raise SocketException("protocol")
+                    raise WebSocketException(WebSocketErrorCodes.PROTOCOL)
                 if self.matches(connection, target):
                     result.append(connection)
                 if len(result) > self.runtime.settings.online_query_limit:
-                    raise SocketException("capacity")
+                    raise WebSocketException(WebSocketErrorCodes.CAPACITY)
         return tuple(result)
 
     @staticmethod

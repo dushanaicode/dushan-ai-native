@@ -1,6 +1,7 @@
 import pytest
 from fastapi import APIRouter
 
+from framework.starter_security.definitions.constants.security_error_codes import SecurityErrorCodes
 from framework.starter_security.exception.security_exception import SecurityException
 from framework.starter_security.integration.security_access import SecurityAccess
 from framework.starter_web.routing.route_policy import RoutePolicy
@@ -20,18 +21,21 @@ async def test_real_cache_versions_disable_and_invalidate(security_factory):
         assert (await case.get(token)).json()["account"] == "account-1"
         assert case.service.permissions.reads == 2
         changed = await case.change(session, authorization_revision="2", granted=())
-        assert (await case.get(token)).json()["code"] == 403
+        assert (await case.get(token)).json()["code"] == SecurityErrorCodes.DENIED.code
         await case.change(changed, account_enabled=False)
-        assert (await case.get(token)).json()["code"] == 401
+        assert (await case.get(token)).json()["code"] == SecurityErrorCodes.DISABLED.code
 
 
 async def test_real_cache_never_hides_revocation_or_credentials_change(security_factory):
     async with security_factory(cache=True) as case:
-        for change in ({"revoked": True}, {"current_credential_revision": 2}):
+        for change, expected in (
+            ({"revoked": True}, SecurityErrorCodes.REVOKED.code),
+            ({"current_credential_revision": 2}, SecurityErrorCodes.CREDENTIALS.code),
+        ):
             token, session = await case.issue()
             assert (await case.get(token)).json()["account"] == "account-1"
             await case.change(session, **change)
-            assert (await case.get(token)).json()["code"] == 401
+            assert (await case.get(token)).json()["code"] == expected
 
 
 @pytest.mark.parametrize("dependency", ["tokens", "permissions", "cache", "database"])
@@ -51,7 +55,10 @@ async def test_dependency_failures_never_allow(security_factory, monkeypatch, de
         else:
             await case.database.close()
         response = await case.get(token)
-        assert response.status_code == 200 and response.json()["code"] == 503
+        assert (
+            response.status_code == 200
+            and response.json()["code"] == SecurityErrorCodes.UNAVAILABLE.code
+        )
         assert "private" not in response.text
         assert case.service.context.current() is None
 
@@ -81,7 +88,10 @@ async def test_security_disabled_protected_route_not_public(config_dir):
     async with app.router.lifespan_context(app):
         async with AsyncClient(transport=ASGITransport(app), base_url="http://test") as client:
             response = await client.get("/protected")
-            assert response.json()["code"] == 503 and "leak" not in response.text
+            assert (
+                response.json()["code"] == SecurityErrorCodes.CONFIGURATION.code
+                and "leak" not in response.text
+            )
 
 
 @pytest.mark.parametrize(
@@ -163,7 +173,7 @@ async def test_provider_revision_mismatch_is_infrastructure_failure(security_fac
             return value.model_copy(update={"revision": "old"})
 
         monkeypatch.setattr(case.service.permissions, "snapshot", wrong_version)
-        assert (await case.get(token)).json()["code"] == 503
+        assert (await case.get(token)).json()["code"] == SecurityErrorCodes.UNAVAILABLE.code
         with case.application.execution():
             with pytest.raises(SecurityException):
                 await case.service.invalidate_permissions(

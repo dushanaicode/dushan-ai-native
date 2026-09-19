@@ -2,8 +2,8 @@ from typing import Annotated, Any
 
 from pydantic import Field, field_validator
 
-from framework.common.schemas.base_vo import BaseVO
-from framework.common.validator.not_null import NotNull
+from framework.common.schemas import BaseVO
+from framework.common.validator import NotNull
 
 
 class OAuth2OpenAccessTokenRespVO(BaseVO):

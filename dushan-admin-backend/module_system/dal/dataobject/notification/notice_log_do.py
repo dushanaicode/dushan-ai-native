@@ -1,7 +1,9 @@
 from sqlalchemy import JSON, BigInteger, Index, Integer, SmallInteger, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from framework.starter_tenant.entity.tenant_base_do import TenantBaseDO
+from framework.starter_tenant.public import (
+    TenantBaseDO,
+)
 from module_system.definitions.enums.notification.notice_push_status_enum import (
     NoticePushStatusEnum,
 )

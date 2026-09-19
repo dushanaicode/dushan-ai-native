@@ -1,6 +1,10 @@
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
-from framework.starter_ip.service.area_service import AreaService
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
+from framework.starter_ip.public import (
+    AreaService,
+)
 
 
 @service

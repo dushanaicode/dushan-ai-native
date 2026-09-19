@@ -1,8 +1,12 @@
 from sqlalchemy import select
 
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
-from framework.starter_mq.model.consumer_override import ConsumerOverride
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
+from framework.starter_mq.public import (
+    ConsumerOverride,
+)
 from module_infra.dal.dataobject.mq.mq_do import MqDO
 from module_infra.dal.mapper.mq.mq_definition_mapper import MqDefinitionMapper
 

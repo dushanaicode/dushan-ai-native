@@ -1,8 +1,10 @@
 from typing import Protocol, runtime_checkable
 
-from framework.starter_security.model.login_session import LoginSession
-from framework.starter_security.model.workload_identity import WorkloadIdentity
-from framework.starter_security.model.workload_message import WorkloadMessage
+from framework.starter_security.public import (
+    LoginSession,
+    WorkloadIdentity,
+    WorkloadMessage,
+)
 
 
 @runtime_checkable

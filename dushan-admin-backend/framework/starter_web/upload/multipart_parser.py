@@ -1,6 +1,6 @@
 from starlette.formparsers import MultiPartException, MultiPartParser
 
-from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
+from framework.common.utils.cleanup_utils import CleanupUtils
 
 
 class MultipartParser(MultiPartParser):

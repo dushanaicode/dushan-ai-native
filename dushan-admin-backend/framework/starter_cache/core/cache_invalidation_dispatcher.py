@@ -1,5 +1,6 @@
 from framework.starter_cache.core.cache_handler import CacheHandler
-from framework.starter_cache.exception.cache_operation_exception import CacheOperationException
+from framework.starter_cache.definitions.constants.cache_error_codes import CacheErrorCodes
+from framework.starter_cache.exception.cache_exception import CacheException
 from framework.starter_cache.model.cache_entry_invalidation_command import (
     CacheEntryInvalidationCommand,
 )
@@ -28,4 +29,6 @@ class CacheInvalidationDispatcher:
             return await self._cache_handler.delete(command.cache_key, command.identifier)
         if isinstance(command, CachePrefixInvalidationCommand):
             return await self._cache_handler.delete_all(command.cache_key)
-        raise CacheOperationException(msg=f"不支持的缓存失效命令：{type(command).__name__}")
+        raise CacheException(
+            CacheErrorCodes.OPERATION_FAILED, msg=f"不支持的缓存失效命令：{type(command).__name__}"
+        )

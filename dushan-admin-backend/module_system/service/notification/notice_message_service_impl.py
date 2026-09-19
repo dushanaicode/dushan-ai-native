@@ -2,10 +2,14 @@ from __future__ import annotations
 
 from typing import Collection, override
 
-from framework.common.page.schemas.page_result import PageResult
-from framework.starter_database.decorators.transactional import transactional
-from framework.starter_di.decorators.components import service
-from framework.starter_di.decorators.inject import Inject
+from framework.common.page import PageResult
+from framework.starter_database.public import (
+    transactional,
+)
+from framework.starter_di.public import (
+    Inject,
+    service,
+)
 from module_system.controller.admin.notification.vo.notice_message.notice_message_my_page_req_vo import (
     NoticeMessageMyPageReqVO,
 )

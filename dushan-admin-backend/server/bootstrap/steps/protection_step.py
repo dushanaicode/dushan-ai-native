@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 
-from framework.common.utils.asyncio.cleanup_utils import CleanupUtils
+from framework.common.utils.cleanup_utils import CleanupUtils
 from framework.starter_protection.config.protection_settings import ProtectionSettings
 from framework.starter_protection.starter.protection_starter import ProtectionStarter
 from server.bootstrap.context import AppBootstrapContext

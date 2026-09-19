@@ -8,11 +8,15 @@ from pydantic import BaseModel, ValidationError
 from starlette.websockets import WebSocketDisconnect, WebSocketState
 
 from framework.common.exception.exceptions.base_business_exception import BaseBusinessException
-from framework.common.utils.asyncio.asyncio_utils import AsyncioUtils
+from framework.common.utils.asyncio_utils import AsyncioUtils
 from framework.starter_di.context.application_context import ApplicationContext
 from framework.starter_logging.context.log_context import LogContext
+from framework.starter_security.definitions.constants.security_error_codes import SecurityErrorCodes
 from framework.starter_security.exception.security_exception import SecurityException
-from framework.starter_websocket.exception.socket_exception import SocketException
+from framework.starter_websocket.definitions.constants.websocket_error_codes import (
+    WebSocketErrorCodes,
+)
+from framework.starter_websocket.exception.websocket_exception import WebSocketException
 from framework.starter_websocket.model.online_connection import OnlineConnection
 from framework.starter_websocket.model.socket_context import SocketContext
 from framework.starter_websocket.model.socket_message import SocketMessage
@@ -85,7 +89,7 @@ class SocketConnection:
         code = error.error_code.code if isinstance(error, BaseBusinessException) else 500
         message = (
             error.msg
-            if isinstance(error, (SocketException, SecurityException))
+            if isinstance(error, (WebSocketException, SecurityException))
             else "WebSocket 消息处理失败"
         )
         if isinstance(error, BaseBusinessException) and error.error_code.message_key:
@@ -134,14 +138,14 @@ class SocketConnection:
                     self.request_close(event.get("code", 1000))
                     return
                 if "text" not in event:
-                    self.request_close(1003, SocketException("protocol"))
+                    self.request_close(1003, WebSocketException(WebSocketErrorCodes.PROTOCOL))
                     return
                 self.last_activity = time.monotonic()
                 try:
                     message = self.runtime.codec.parse(event["text"])
-                except SocketException as error:
+                except WebSocketException as error:
                     self.error_message(error)
-                    if error.reason == "too_large":
+                    if error.error_code is WebSocketErrorCodes.TOO_LARGE:
                         self.request_close(1009, error)
                         return
                     continue
@@ -157,7 +161,9 @@ class SocketConnection:
                 try:
                     self.inbound.put_nowait(message)
                 except asyncio.QueueFull:
-                    self.error_message(SocketException("capacity"), message.request_id)
+                    self.error_message(
+                        WebSocketException(WebSocketErrorCodes.CAPACITY), message.request_id
+                    )
                     self.request_close(1013)
                     return
                 self.peak_inbound = max(self.peak_inbound, self.inbound.qsize())
@@ -180,9 +186,9 @@ class SocketConnection:
 
                 async def execute(session):
                     if message.sender_id is not None and message.sender_id != session.membership_id:
-                        raise SocketException("policy")
+                        raise WebSocketException(WebSocketErrorCodes.POLICY)
                     if handler is None:
-                        raise SocketException("unknown_type")
+                        raise WebSocketException(WebSocketErrorCodes.UNKNOWN_TYPE)
                     payload = handler.__socket_handler__.payload.model_validate(
                         message.payload, strict=True, extra="forbid"
                     )
@@ -215,10 +221,13 @@ class SocketConnection:
                 raise
             except SecurityException as error:
                 self.error_message(error, message.request_id)
-                if error.reason != "denied":
+                if error.error_code is not SecurityErrorCodes.DENIED:
                     self.request_close(4001, error)
             except ValidationError as error:
-                self.error_message(SocketException("protocol", cause=error), message.request_id)
+                self.error_message(
+                    WebSocketException(WebSocketErrorCodes.PROTOCOL, cause=error),
+                    message.request_id,
+                )
             except Exception as error:
                 self.runtime.record_error(error)
                 self.error_message(error, message.request_id)

@@ -18,5 +18,8 @@
   "database.deadlock": "数据库事务发生死锁",
   "database.serialization_failure": "数据库事务序列化冲突",
   "database.statement_cancelled": "数据库语句已取消",
-  "database.data_error": "数据库字段数据无效"
+  "database.data_error": "数据库字段数据无效",
+  "row_access.stale": "访问快照已失效",
+  "row_access.configuration": "访问策略配置无效",
+  "row_access.write": "写入违反访问策略"
 }

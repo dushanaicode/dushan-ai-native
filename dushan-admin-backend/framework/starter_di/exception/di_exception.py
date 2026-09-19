@@ -1,6 +1,6 @@
 from framework.common.enums.log_level_enum import LogLevelEnum
 from framework.common.exception.exceptions.server_exception import ServerException
-from framework.starter_di.exception.di_error_codes import DiErrorCodes
+from framework.starter_di.definitions.constants.di_error_codes import DiErrorCodes
 
 
 class DiException(ServerException):

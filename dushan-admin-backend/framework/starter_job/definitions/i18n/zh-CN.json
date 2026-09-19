@@ -1,0 +1,12 @@
+{
+  "job.error": "任务调度异常",
+  "job.configuration": "任务调度配置或 SPI 未就绪",
+  "job.owner": "当前进程未持有调度租约",
+  "job.closed": "任务运行时已关闭",
+  "job.handler": "任务处理器不存在或重复",
+  "job.parameters": "任务参数无效",
+  "job.cron": "Cron 必须为有效标准五段表达式",
+  "job.disabled": "任务不存在或已停用",
+  "job.capacity": "任务执行请求队列已满",
+  "job.snapshot": "任务定义已变化，旧请求跳过"
+}

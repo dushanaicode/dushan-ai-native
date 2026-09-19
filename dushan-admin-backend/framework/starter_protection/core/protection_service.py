@@ -5,13 +5,13 @@ from loguru import logger
 
 from framework.starter_cache.core.cache_handler import CacheHandler
 from framework.starter_di.decorators.components import framework
-from framework.starter_di.enums.component_scope_enum import ComponentScopeEnum
+from framework.starter_di.definitions.enums.component_scope_enum import ComponentScopeEnum
 from framework.starter_protection.config.protection_settings import ProtectionSettings
 from framework.starter_protection.core.protection_runtime import (
     ProtectionObserver,
     ProtectionRuntime,
 )
-from framework.starter_protection.exception.protection_error_codes import (
+from framework.starter_protection.definitions.constants.protection_error_codes import (
     ProtectionErrorCodes as Codes,
 )
 from framework.starter_protection.exception.protection_exception import ProtectionException

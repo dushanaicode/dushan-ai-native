@@ -1,5 +1,7 @@
-from framework.starter_cache.repository.base_cache_dao import BaseCacheDAO
-from framework.starter_di.decorators.components import dao
+from framework.starter_cache.public import BaseCacheDAO
+from framework.starter_di.public import (
+    dao,
+)
 from module_infra.dal.cache.cache_key_constants import InfraCacheKeys
 
 
