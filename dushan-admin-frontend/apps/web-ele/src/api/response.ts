@@ -127,14 +127,26 @@ export function nativeResponseInterceptor() {
   };
 }
 
-/** 识别业务码和 HTTP 401，认证端点不递归刷新。 */
+// 公共未登录码及 SecurityErrorCodes 的凭据失效码；与后端定义逐项对应。
+const authenticationErrorCodes = new Set([
+  401,
+  1_004_001, // MISSING
+  1_004_002, // INVALID
+  1_004_003, // EXPIRED
+  1_004_004, // REVOKED
+  1_004_005, // DISABLED
+  1_004_006, // CREDENTIALS
+]);
+
+/** 普通 JSON 按业务 code 判断；真实 HTTP 401 由请求层统一处理。 */
 export function isAuthenticationFailure(error: unknown): boolean {
   if (!(error instanceof BusinessError) && !isAxiosError(error)) return false;
   // Axios 分开保存 baseURL 与 url，这里比较接口调用传入的确定路径。
   const url = error.config?.url;
   return (
-    (error instanceof BusinessError ? error.code : error.response?.status) ===
-      401 &&
+    (error instanceof BusinessError
+      ? authenticationErrorCodes.has(error.code)
+      : error.response?.status === 401) &&
     url !== '/system/auth/login' &&
     url !== '/system/auth/logout' &&
     url !== '/system/auth/refresh-token'

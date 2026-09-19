@@ -1,5 +1,3 @@
-import type { RealtimePorts } from './services/realtime';
-
 import { createApp, watchEffect } from 'vue';
 
 import { registerAccessDirective } from '@vben/access';
@@ -27,10 +25,11 @@ import {
 import { installAnalytics, useAnalyticsConfig } from './services/analytics';
 import { installDictionary } from './services/dictionary/install';
 import { installRealtime } from './services/realtime';
+import { realtimePorts } from './services/realtime-ports';
 import { setupSession } from './services/session/runtime';
 import { useAuthStore } from './store';
 
-async function bootstrap(namespace: string, realtimePorts?: RealtimePorts) {
+async function bootstrap(namespace: string) {
   // 统计配置错误时在创建应用前失败
   const analytics = useAnalyticsConfig();
 

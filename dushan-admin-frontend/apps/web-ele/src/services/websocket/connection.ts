@@ -271,7 +271,10 @@ export class SocketConnection {
       return;
     }
     if (message.type === 'pong') return;
-    const handlers = [...(this.handlers.get(message.type) ?? [])];
+    const handlers = [
+      ...(this.handlers.get(message.type) ?? []),
+      ...(this.handlers.get('*') ?? []),
+    ];
     const results = await Promise.allSettled(
       handlers.map((handler) =>
         Promise.resolve().then(() => {

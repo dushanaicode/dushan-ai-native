@@ -128,4 +128,7 @@ export const useVbenVxeGrid = <
     ...rest,
   );
 
+export { ACTION_ICON } from '../components/table-action/icons';
+
+export { default as TableAction } from '../components/table-action/table-action.vue';
 export type * from '@vben/plugins/vxe-table';

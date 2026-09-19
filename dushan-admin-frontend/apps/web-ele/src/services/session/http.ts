@@ -114,9 +114,9 @@ export function configureSessionStreaming(
       try {
         return await attempt();
       } catch (error) {
-        // 流式请求不经 axios 响应拦截器；401 在此进入同一条刷新契约后重试一次，
+        // 流式请求不经 axios 响应拦截器；认证失败进入同一条刷新契约后重试一次，
         // 重试走请求拦截器自动携带新令牌（刷新不改代次，context 仍然有效）。
-        // 401 有两种载体：传输层 status 字段与 200 响应体的 code 字段。
+        // 普通 JSON 按业务 code 识别失效凭据，真实 HTTP 401 也在此统一处理。
         if (
           !refreshEnabled() ||
           ((error as { status?: number }).status !== 401 &&
