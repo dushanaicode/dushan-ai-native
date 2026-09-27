@@ -27,6 +27,7 @@ from framework.starter_web.public import (
     Result,
     RoutePolicy,
 )
+from module_system.api.oauth2.dto.oauth2_access_token_resp_dto import OAuth2AccessTokenRespDTO
 from module_system.api.oauth2.dto.oauth2_client_dto import OAuth2ClientDTO
 from module_system.controller.admin.oauth2.vo.open.open_access_token_resp_vo import (
     OAuth2OpenAccessTokenRespVO,
@@ -43,7 +44,6 @@ from module_system.controller.admin.oauth2.vo.open.open_token_query_req_vo impor
 )
 from module_system.controller.admin.oauth2.vo.open.open_token_req_vo import OAuth2TokenReqVO
 from module_system.convert.oauth2.oauth2_open_convert import OAuth2OpenConvert
-from module_system.dal.dataobject.oauth2.oauth2_access_token_do import OAuth2AccessTokenDO
 from module_system.definitions.enums.oauth2.oauth2_grant_type_enum import OAuth2GrantTypeEnum
 from module_system.service.oauth2.oauth2_approve_service import OAuth2ApproveService
 from module_system.service.oauth2.oauth2_client_service import OAuth2ClientService
@@ -92,7 +92,7 @@ class Oauth2OpenController:
             client_do: OAuth2ClientDTO = await oauth2_client_service.validate_client(
                 client_id, client_secret, token_req.grant_type, scopes, token_req.redirect_uri
             )
-            access_token: OAuth2AccessTokenDO
+            access_token: OAuth2AccessTokenRespDTO
             if grant_type_enum == OAuth2GrantTypeEnum.AUTHORIZATION_CODE:
                 access_token = await oauth2_grant_service.grant_authorization_code_for_access_token(
                     client_do.client_id, token_req.code, token_req.redirect_uri, token_req.state

@@ -51,6 +51,7 @@ class TenantPackageController:
         permissions=("system:tenant:package:create",),
         tenant_required=True,
         realm=SecurityRealm.TENANT,
+        roles=("super_admin",),
     )
     async def create_tenant_package(
         create_req_vo: TenantPackageSaveReqVO,
@@ -65,6 +66,7 @@ class TenantPackageController:
         permissions=("system:tenant:package:update",),
         tenant_required=True,
         realm=SecurityRealm.TENANT,
+        roles=("super_admin",),
     )
     async def update_tenant_package(
         update_req_vo: TenantPackageSaveReqVO,
@@ -79,6 +81,7 @@ class TenantPackageController:
         permissions=("system:tenant:package:update",),
         tenant_required=True,
         realm=SecurityRealm.TENANT,
+        roles=("super_admin",),
     )
     async def update_status(
         req_vo: UpdateStatusReqVO,
@@ -93,6 +96,7 @@ class TenantPackageController:
         permissions=("system:tenant:package:delete",),
         tenant_required=True,
         realm=SecurityRealm.TENANT,
+        roles=("super_admin",),
     )
     async def delete_tenant_package(
         req_vo: IdReqVO = Query(),
@@ -107,6 +111,7 @@ class TenantPackageController:
         permissions=("system:tenant:package:delete",),
         tenant_required=True,
         realm=SecurityRealm.TENANT,
+        roles=("super_admin",),
     )
     async def delete_tenant_package_batch(
         req_vo: IdListReqVO = Query(),
@@ -121,6 +126,7 @@ class TenantPackageController:
         permissions=("system:tenant:package:query",),
         tenant_required=True,
         realm=SecurityRealm.TENANT,
+        roles=("super_admin",),
     )
     async def get_tenant_package(
         req_vo: IdReqVO = Query(),
@@ -136,6 +142,7 @@ class TenantPackageController:
         permissions=("system:tenant:package:query",),
         tenant_required=True,
         realm=SecurityRealm.TENANT,
+        roles=("super_admin",),
     )
     async def get_tenant_package_page(
         page_req_vo: TenantPackagePageReqVO = Query(),
@@ -149,7 +156,7 @@ class TenantPackageController:
 
     @staticmethod
     @tenant_package_controller.get("/simple-list", summary="获取租户套餐精简信息列表")
-    @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT)
+    @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT, roles=("super_admin",))
     async def get_tenant_package_list(
         tenant_package_service: TenantPackageService = Depends(DiDependency(TenantPackageService)),
     ) -> Result[list[TenantPackageSimpleRespVO]]:
@@ -165,6 +172,7 @@ class TenantPackageController:
         permissions=("system:tenant:package:export",),
         tenant_required=True,
         realm=SecurityRealm.TENANT,
+        roles=("super_admin",),
     )
     async def get_export_tenant_package_fields() -> Result[list[dict[str, str]]]:
         export_fields = ExcelWriter.export_fields(TenantPackageRespVO)
@@ -178,6 +186,7 @@ class TenantPackageController:
         permissions=("system:tenant:package:export",),
         tenant_required=True,
         realm=SecurityRealm.TENANT,
+        roles=("super_admin",),
     )
     async def export_tenant_package_list(
         page_req_vo: TenantPackageExportReqVO = Query(),

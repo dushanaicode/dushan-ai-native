@@ -37,7 +37,7 @@ class MailTemplatePageReqVO(PageQuery):
                 {
                     "code": "test_01",
                     "name": "测试邮件模版",
-                    "accountId": 1024,
+                    "accountId": "1024",
                     "status": 0,
                     "createTime": ["2022-07-01", "2022-07-01"],
                 }

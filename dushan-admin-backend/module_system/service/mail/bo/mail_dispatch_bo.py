@@ -4,6 +4,7 @@ from framework.common.schemas import BaseBO
 
 
 class MailDispatchBO(BaseBO):
+    require_delivery: bool = False
     mail: str | None
     user_id: int
     user_type: int

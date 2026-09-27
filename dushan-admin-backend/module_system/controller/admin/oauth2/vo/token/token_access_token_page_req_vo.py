@@ -22,12 +22,12 @@ class OAuth2AccessTokenPageReqVO(PageQuery):
         "json_schema_extra": {
             "examples": [
                 {
-                    "userId": 666,
+                    "userId": "666",
                     "userType": 2,
                     "clientId": "2",
                     "createTime": ["2020-05-20T05:20:00Z", "2023-01-31T23:59:59Z"],
-                    "pageNo": 1,
                     "pageSize": 10,
+                    "page": 1,
                 }
             ]
         }

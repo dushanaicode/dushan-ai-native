@@ -2,6 +2,8 @@ import type { RouteRecordRaw } from 'vue-router';
 
 import { mergeRouteModules, traverseTreeValues } from '@vben/utils';
 
+import { $t } from '#/locales';
+
 import { coreRoutes, fallbackNotFoundRoute } from './core';
 
 const dynamicRouteFiles = import.meta.glob('./modules/**/*.ts', {
@@ -19,7 +21,14 @@ const dynamicRoutes: RouteRecordRaw[] = mergeRouteModules(dynamicRouteFiles);
 // const externalRoutes: RouteRecordRaw[] = mergeRouteModules(externalRouteFiles);
 // const staticRoutes: RouteRecordRaw[] = mergeRouteModules(staticRouteFiles);
 const staticRoutes: RouteRecordRaw[] = [];
-const externalRoutes: RouteRecordRaw[] = [];
+const externalRoutes: RouteRecordRaw[] = [
+  {
+    name: 'QrLoginScan',
+    path: '/auth/qr-scan',
+    component: () => import('#/views/_core/authentication/qr-login-scan.vue'),
+    meta: { title: $t('qrLogin.scanTitle'), hideInMenu: true, hideInTab: true },
+  },
+];
 
 /** 路由列表，由基本路由、外部路由和404兜底路由组成
  *  无需走权限验证（会一直显示在菜单中） */

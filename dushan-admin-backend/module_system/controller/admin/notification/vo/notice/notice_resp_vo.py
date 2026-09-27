@@ -29,7 +29,7 @@ class NoticeRespVO(BaseVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
+                    "id": "1024",
                     "code": "AI_TASK_NOTICE",
                     "title": "小博主",
                     "type": 1,

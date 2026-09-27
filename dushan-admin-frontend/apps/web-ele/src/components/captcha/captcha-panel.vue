@@ -8,6 +8,8 @@ import { $t } from '@vben/locales';
 
 import { ElAlert, ElButton } from 'element-plus';
 
+import { getErrorMessage } from '#/api/error-feedback';
+
 import CloudCaptcha from './cloud-captcha.vue';
 import LocalCaptcha from './local-captcha.vue';
 
@@ -15,6 +17,10 @@ const props = defineProps<{ controller: CaptchaController }>();
 const emit = defineEmits<{ cancel: []; error: [error: unknown] }>();
 const localError = shallowRef<unknown>();
 const challenge = computed(() => props.controller.challenge);
+const errorMessage = computed(() => {
+  const error = props.controller.error ?? localError.value;
+  return getErrorMessage(error, $t('utils.captcha.failed'));
+});
 const busy = computed(() =>
   ['loading', 'verifying'].includes(props.controller.status),
 );
@@ -48,7 +54,7 @@ async function reload() {
   <div class="flex flex-col items-center gap-3" :aria-busy="busy">
     <ElAlert
       v-if="controller.error || localError"
-      :title="$t('utils.captcha.failed')"
+      :title="errorMessage"
       type="error"
       :closable="false"
     />

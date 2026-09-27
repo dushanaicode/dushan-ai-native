@@ -127,7 +127,8 @@ INSERT IGNORE INTO `system_dict_data` (`id`, `sort`, `label`, `value`, `dict_typ
 (10200000020051, 3, '使用手机登陆', '3', 'system_login_type', 1, 'info', NULL, 'admin', NOW(), 'admin', NOW(), b'0'),
 (10200000020052, 4, '使用短信登陆', '4', 'system_login_type', 1, 'info', NULL, 'admin', NOW(), 'admin', NOW(), b'0'),
 (10200000020053, 5, '自己主动登出', '20', 'system_login_type', 1, 'warning', NULL, 'admin', NOW(), 'admin', NOW(), b'0'),
-(10200000020054, 6, '强制退出', '21', 'system_login_type', 1, 'danger', NULL, 'admin', NOW(), 'admin', NOW(), b'0');
+(10200000020054, 6, '强制退出', '21', 'system_login_type', 1, 'danger', NULL, 'admin', NOW(), 'admin', NOW(), b'0'),
+(10200000020140, 7, '使用扫码登录', '5', 'system_login_type', 1, 'success', NULL, 'admin', NOW(), 'admin', NOW(), b'0');
 
 INSERT IGNORE INTO `system_dict_data` (`id`, `sort`, `label`, `value`, `dict_type`, `status`, `color_type`, `remark`, `creator`, `create_time`, `updater`, `update_time`, `deleted`) VALUES
 (10200000020055, 1, '成功', '0', 'system_login_result', 1, 'success', NULL, 'admin', NOW(), 'admin', NOW(), b'0'),

@@ -48,16 +48,16 @@ class RoleRespVO(BaseVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1,
+                    "id": "1",
                     "name": "管理员",
                     "code": "admin",
                     "sort": 1024,
                     "status": 0,
-                    "type": 1,
                     "remark": "我是一个角色",
                     "dataScope": 1,
-                    "dataScopeDeptIds": [1],
+                    "dataScopeDeptIds": ["1"],
                     "createTime": "2020-05-20T05:20:00Z",
+                    "builtin": 1,
                 }
             ]
         }

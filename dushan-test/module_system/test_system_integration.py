@@ -35,10 +35,10 @@ async def test_job_workload_and_persistent_delivery_claim(admin_client, system_a
     )
     from module_system.job.announcement.announcement_publish_job import AnnouncementPublishJob
     from module_system.job.system_job_parameters import SystemJobParameters
-    from module_system.service.auth.system_workload_service import SystemWorkloadService
     from module_system.service.notification.notification_delivery_service import (
         NotificationDeliveryService,
     )
+    from module_system.service.workload.system_workload_service import SystemWorkloadService
 
     application = system_app.state.application_context
     with application.execution(), system_app.state.database.scope():
@@ -114,16 +114,24 @@ async def test_registration_and_logout_revoke_cookie_and_session(system_app):
     async with AsyncClient(
         transport=ASGITransport(app=system_app), base_url="http://testserver"
     ) as client:
+        configuration = (await client.get("/admin-api/system/auth/registration-enabled")).json()
+        assert configuration["code"] == 0 and configuration["data"] is True
         payload = {
             "username": "r" + uuid4().hex[:10],
             "nickname": "Registered",
             "password": "Password123",
         }
-        response = (await client.post("/admin-api/system/auth/register", json=payload)).json()
+        response = (
+            await client.post(
+                "/admin-api/system/auth/register", json=payload, headers={"X-Tenant-Id": "1"}
+            )
+        ).json()
         assert response["code"] == 0, response
         assert "refreshToken" not in response["data"]
         client.headers["Authorization"] = "Bearer " + response["data"]["accessToken"]
         assert (await client.get("/admin-api/system/auth/codes")).json()["code"] == 0
+        permissions = (await client.get("/admin-api/system/auth/get-permission-info")).json()
+        assert permissions["code"] == 0 and permissions["data"]["roles"] == []
         result = (
             await client.post(
                 "/admin-api/system/auth/logout", headers={"Origin": "http://testserver"}
@@ -134,9 +142,11 @@ async def test_registration_and_logout_revoke_cookie_and_session(system_app):
         assert (await client.get("/admin-api/system/auth/codes")).json()[
             "code"
         ] == SecurityErrorCodes.REVOKED.code
-        assert (await client.post("/admin-api/system/auth/register", json=payload)).json()[
-            "code"
-        ] != 0
+        assert (
+            await client.post(
+                "/admin-api/system/auth/register", json=payload, headers={"X-Tenant-Id": "1"}
+            )
+        ).json()["code"] != 0
 
 
 async def test_login_and_current_user(system_app):
@@ -144,7 +154,9 @@ async def test_login_and_current_user(system_app):
         transport=ASGITransport(app=system_app), base_url="http://testserver"
     ) as client:
         response = await client.post(
-            "/admin-api/system/auth/login", json={"username": "admin", "password": "admin123"}
+            "/admin-api/system/auth/login",
+            json={"username": "admin", "password": "admin123"},
+            headers={"X-Tenant-Id": "1"},
         )
         body = response.json()
         assert body["code"] == 0, body
@@ -732,7 +744,9 @@ async def test_rotation_replay_and_logout(system_app):
     ) as client:
         login = (
             await client.post(
-                "/admin-api/system/auth/login", json={"username": "admin", "password": "admin123"}
+                "/admin-api/system/auth/login",
+                json={"username": "admin", "password": "admin123"},
+                headers={"X-Tenant-Id": "1"},
             )
         ).json()
         assert login["code"] == 0, login
@@ -817,6 +831,7 @@ async def test_role_assignment_and_permission_revocation(admin_client, system_ap
             await user.post(
                 "/admin-api/system/auth/login",
                 json={"username": "p" + suffix, "password": "Password123"},
+                headers={"X-Tenant-Id": "1"},
             )
         ).json()
         assert result["code"] == 0, result
@@ -1027,7 +1042,7 @@ async def test_live_http_process(system_app):
                 "-B",
                 "-m",
                 "uvicorn",
-                "server.starter_server:app",
+                "server.asgi:app",
                 "--host",
                 "127.0.0.1",
                 "--port",
@@ -1060,6 +1075,7 @@ async def test_live_http_process(system_app):
                 response = await client.post(
                     "/admin-api/system/auth/login",
                     json={"username": "admin", "password": "admin123"},
+                    headers={"X-Tenant-Id": "1"},
                 )
                 assert response.json()["code"] == 0, response.text
                 response = await client.get(
@@ -1077,8 +1093,8 @@ async def test_tenant_provision_and_cross_tenant_isolation(admin_client, system_
     from module_system.controller.admin.tenant.vo.tenant.tenant_save_req_vo import TenantSaveReqVO
     from module_system.dal.cache.cache_key_constants import SystemCacheKeys
     from module_system.dal.mapper.user.admin_user_mapper import AdminUserMapper
-    from module_system.service.auth.system_workload_service import SystemWorkloadService
     from module_system.service.tenant.tenant_service import TenantService
+    from module_system.service.workload.system_workload_service import SystemWorkloadService
 
     suffix = uuid4().hex[:8]
     package = (
@@ -1139,13 +1155,13 @@ async def test_tenant_provision_and_cross_tenant_isolation(admin_client, system_
 async def test_message_proofs_bind_payload_audience_and_workload(admin_client, system_app):
     from framework.starter_security.core.opaque_token import OpaqueToken
     from framework.starter_security.exception.security_exception import SecurityException
-    from module_system.service.auth.system_message_service import SystemMessageService
-    from module_system.service.auth.system_workload_service import SystemWorkloadService
+    from framework.starter_security.spi.message_security_provider import MessageSecurityProvider
     from module_system.service.oauth2.oauth2_token_service import OAuth2TokenService
+    from module_system.service.workload.system_workload_service import SystemWorkloadService
 
     application = system_app.state.application_context
     with application.execution(), system_app.state.database.scope():
-        messages = application.container.get(SystemMessageService)
+        messages = application.container.get(MessageSecurityProvider)
         security = application.container.get(SecurityService)
         metadata = {"application_id": security.settings.application_id, "domain": "admin"}
         token = admin_client.headers["Authorization"].removeprefix("Bearer ")
@@ -1178,3 +1194,29 @@ async def test_message_proofs_bind_payload_audience_and_workload(admin_client, s
                 audience="system.mail.send",
                 capability="infra.arbitrary",
             )
+
+
+async def test_system_module_requires_data_permission_at_startup(system_app, tmp_path):
+    import yaml
+
+    from framework.starter_di.definitions.constants.di_error_codes import DiErrorCodes
+    from framework.starter_di.exception.di_exception import DiException
+    from server.bootstrap.bootstrapper import BootstrapError
+    from server.starter_server import create_app
+
+    source = system_app.state.bootstrap.base_dir / "application.yaml"
+    values = yaml.safe_load(source.read_text(encoding="utf-8"))
+    values["config"]["models"]["data_permission"]["enabled"] = False
+    values["config"]["models"]["database"]["snowflake_machine_id"] = 915
+    values["banner"]["enabled"] = False
+    (tmp_path / "application.yaml").write_text(
+        yaml.safe_dump(values, allow_unicode=True), encoding="utf-8"
+    )
+    app = create_app(base_dir=tmp_path, app_env="dev", environ={})
+    with pytest.raises(BootstrapError) as caught:
+        async with app.router.lifespan_context(app):
+            pytest.fail("启用 system 但关闭数据权限的应用不能就绪")
+    error = caught.value.__cause__
+    assert isinstance(error, DiException), repr(error)
+    assert error.error_code == DiErrorCodes.MISSING_BINDING
+    assert "SystemWorkloadServiceImpl" in error.msg and "DataPermissionService" in error.msg

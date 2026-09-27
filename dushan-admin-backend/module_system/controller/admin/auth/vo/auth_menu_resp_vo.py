@@ -33,8 +33,8 @@ class AuthMenuRespVO(BaseVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1,
-                    "parentId": 1024,
+                    "id": "1",
+                    "parentId": "1024",
                     "name": "渡山",
                     "path": "post",
                     "component": "system/post/index",
@@ -45,8 +45,8 @@ class AuthMenuRespVO(BaseVO):
                     "alwaysShow": False,
                     "children": [
                         {
-                            "id": 2,
-                            "parentId": 1,
+                            "id": "2",
+                            "parentId": "1",
                             "name": "子菜单",
                             "path": "child",
                             "component": "system/post/child",
@@ -56,8 +56,10 @@ class AuthMenuRespVO(BaseVO):
                             "keepAlive": True,
                             "alwaysShow": True,
                             "children": [],
+                            "kind": "page",
                         }
                     ],
+                    "kind": "group",
                 }
             ]
         }

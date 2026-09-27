@@ -65,7 +65,7 @@ class NoticeMessageServiceImpl(NoticeMessageService):
         return await self.notice_message_mapper.select_page_my(req_vo, user_id, user_type)
 
     @override
-    async def get_notice_message(self, id: int) -> NoticeMessageDO:
+    async def get_notice_message(self, id: int) -> NoticeMessageDO | None:
         return await self.notice_message_mapper.select_by_id(id)
 
     @override

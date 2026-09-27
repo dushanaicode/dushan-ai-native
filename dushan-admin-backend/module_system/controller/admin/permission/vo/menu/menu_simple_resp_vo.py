@@ -18,7 +18,7 @@ class MenuSimpleRespVO(BaseVO):
     kind: Literal["group", "page", "action", "link", "iframe"]
     model_config = {
         "json_schema_extra": {
-            "examples": [{"id": 1024, "name": "渡山", "parentId": 1024, "type": 1}]
+            "examples": [{"id": "1024", "name": "渡山", "parentId": "1024", "kind": "page"}]
         }
     }
     url: str | None = None

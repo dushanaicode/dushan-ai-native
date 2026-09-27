@@ -26,10 +26,10 @@ class SmsTemplatePageReqVO(PageQuery):
                     "status": 1,
                     "code": "test_01",
                     "content": "你好，{name}。",
-                    "channelId": 10,
+                    "channelId": "10",
                     "createTime": ["2020-05-20 05:20:00", "2020-05-20 13:14:00"],
-                    "pageNo": 1,
                     "pageSize": 10,
+                    "page": 1,
                 }
             ]
         }

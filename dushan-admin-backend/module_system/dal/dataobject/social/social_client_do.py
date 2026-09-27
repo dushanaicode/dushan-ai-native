@@ -1,6 +1,6 @@
 from typing import Any
 
-from sqlalchemy import JSON, Computed, Index, SmallInteger, String, UniqueConstraint
+from sqlalchemy import JSON, Computed, Index, SmallInteger, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import expression
 
@@ -32,7 +32,9 @@ class SocialClientDO(TenantBaseDO):
         SmallInteger, nullable=False, comment="用户类型（枚举）【UserTypeEnum】"
     )
     client_id: Mapped[str] = mapped_column(String(255), nullable=False, comment="客户端编号")
-    client_secret: Mapped[str] = mapped_column(String(255), nullable=False, comment="客户端密钥")
+    client_secret: Mapped[str] = mapped_column(
+        Text, nullable=False, comment="客户端密钥，支付宝等渠道存放 PEM 私钥"
+    )
     agent_id: Mapped[str | None] = mapped_column(String(255), nullable=True, comment="代理编号")
     auth_config: Mapped[dict[str, Any]] = mapped_column(
         JSON, server_default=expression.text("('{}')"), comment="认证配置，JSON格式"

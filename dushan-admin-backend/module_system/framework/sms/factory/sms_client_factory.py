@@ -12,10 +12,6 @@ class SmsClientFactory(Protocol):
         """按短信渠道编号获取客户端。"""
         ...
 
-    def get_sms_client_by_code(self, channel_code: str) -> SmsClient | None:
-        """按短信渠道编码获取客户端。"""
-        ...
-
     def create_or_update_sms_client(self, properties: SmsChannelProperties) -> SmsClient:
         """根据渠道配置创建或刷新短信客户端。"""
         ...

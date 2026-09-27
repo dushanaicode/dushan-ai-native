@@ -28,11 +28,11 @@ class DeptRespVO(BaseVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
+                    "id": "1024",
                     "name": "渡山",
-                    "parentId": 1024,
+                    "parentId": "1024",
                     "sort": 1024,
-                    "leaderUserId": 2048,
+                    "leaderUserId": "2048",
                     "phone": "18888888888",
                     "email": "729227973@qq.com",
                     "status": 1,

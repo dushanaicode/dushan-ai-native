@@ -1,37 +1,30 @@
+import type { AuthApi } from '#/api/core/auth';
 import type { PageParam, PageResult } from '#/api/types';
 
 import { requestClient } from '#/api/request';
 
 /** 社交客户端端点（`/system/social/client`）。ID 均为雪花字符串。 */
 export namespace SystemSocialClientApi {
-  /** 社交客户端认证配置（后端 `auth_config` 为 dict，字段按 provider 约定） */
+  /**
+   * 社交客户端认证配置（后端 `auth_config`）。
+   *
+   * 字段名与后端契约一致，使用下划线，多余字段会被后端拒绝（业务码 1002032014）。
+   * 渠道差异放在 `options`（如企业微信的 `agent_id`、`lang`），厂商凭据放在 `credentials`
+   * （如支付宝的 `alipay_public_key`）；`credentials` 在查询响应中会被脱敏移除，
+   * 更新时不提交即保留原值。
+   */
   export interface SocialClientAuthConfig {
-    alipayPublicKey?: null | string;
-    authServerId?: null | string;
-    clientOsType?: null | number;
-    deviceId?: null | string;
-    dingTalkCorpId?: null | string;
-    dingTalkExclusiveCorpId?: null | string;
-    dingTalkExclusiveLogin?: boolean;
-    dingTalkOrgType?: null | string;
-    domainPrefix?: null | string;
-    extConfig?: Record<string, unknown>;
-    kid?: null | string;
-    lang?: string;
-    loginType?: string;
-    packId?: null | string;
+    credentials?: Record<string, string>;
+    options?: Record<string, string>;
     pkce?: boolean;
-    redirectUri?: string;
-    scopes?: null | string[];
-    stackOverflowKey?: null | string;
-    teamId?: null | string;
-    tenantId?: null | string;
-    unionId?: boolean;
-    usertype?: null | string;
+    redirect_uri?: null | string;
+    frontend_redirect_uri?: null | string;
+    scopes?: string[];
   }
 
   /** 社交客户端信息 RespVO */
   export interface SocialClientRespVO {
+    source?: string;
     agentId?: string;
     authConfig?: SocialClientAuthConfig;
     clientId?: string;
@@ -49,7 +42,7 @@ export namespace SystemSocialClientApi {
     agentId?: string;
     authConfig?: SocialClientAuthConfig;
     clientId: string;
-    clientSecret: string;
+    clientSecret?: string;
     id?: string;
     name: string;
     socialType: number;
@@ -75,6 +68,12 @@ export namespace SystemSocialClientApi {
     userId: string;
     userType: number;
   }
+}
+
+export async function getSocialProviderTypes() {
+  return requestClient.get<AuthApi.SocialProvider[]>(
+    '/system/social/client/types',
+  );
 }
 
 /** 创建社交客户端 */

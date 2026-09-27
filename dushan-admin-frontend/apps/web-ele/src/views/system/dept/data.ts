@@ -21,8 +21,8 @@ function buildDeptTree(
   const nodeMap = new Map<string, DeptTreeNode>();
   const roots: DeptTreeNode[] = [];
 
+  // 保留被排除节点的挂载点，子节点随整棵子树一起隐藏。
   for (const item of list) {
-    if (item.id === excludeId) continue;
     nodeMap.set(item.id, { ...item });
   }
 
@@ -58,31 +58,29 @@ export function useFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'ApiTreeSelect',
-      componentProps: (ctx) => {
-        return {
-          api: async () => {
-            const data = await getSimpleDeptList();
-            return [
-              {
-                children: buildDeptTree(data, ctx.rootValues?.id),
-                id: '0',
-                name: '顶级部门',
-              },
-            ];
-          },
-          checkStrictly: true,
-          childrenField: 'children',
-          clearable: true,
-          labelField: 'name',
-          nodeKey: 'id',
-          placeholder: '请选择上级部门',
-          props: { children: 'children', label: 'name' },
-          treeDefaultExpandAll: true,
-          valueField: 'id',
-        };
-      },
       dependencies: {
         triggerFields: ['id'],
+        resolve: ({ values }) => ({
+          componentProps: {
+            api: async () => {
+              const data = await getSimpleDeptList();
+              return [
+                {
+                  children: buildDeptTree(data, values.id),
+                  id: '0',
+                  name: '顶级部门',
+                },
+              ];
+            },
+            checkStrictly: true,
+            childrenField: 'children',
+            clearable: true,
+            labelField: 'name',
+            placeholder: '请选择上级部门',
+            defaultExpandAll: true,
+            valueField: 'id',
+          },
+        }),
       },
       fieldName: 'parentId',
       label: '上级部门',
@@ -141,6 +139,7 @@ export function useFormSchema(): VbenFormSchema[] {
       label: '邮箱',
       rules: z
         .union([z.string().email('请输入正确的邮箱地址'), z.literal('')])
+        .nullable()
         .optional(),
     },
     {

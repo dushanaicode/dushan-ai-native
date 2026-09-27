@@ -18,7 +18,7 @@ from module_system.framework.notification.model.notification_dispatch_context im
     NotificationDispatchContext,
 )
 from module_system.framework.notification.model.notification_recipient import NotificationRecipient
-from module_system.service.mail.bo.mail_batch_send_bo import MailBatchSendBO
+from module_system.service.mail.bo.mail_batch_dispatch_bo import MailBatchDispatchBO
 from module_system.service.mail.mail_send_service import MailSendService
 
 
@@ -27,7 +27,7 @@ class MailNotificationHandler(NotificationChannelHandler):
     """
     邮件渠道处理器（MQ 异步版）
 
-    通过 MailSendService.send_multiple_mail_to_admin() 发送邮件通知。
+    通过 MailSendService.send_multiple_mail_from_account() 使用通知所选账号发送。
     MailSendService 内部完整链路：
         模板校验 → 参数构建 → 日志记录 → MailProducer 投递 MQ → MailSendConsumer 消费 → 实际发送
 
@@ -66,6 +66,7 @@ class MailNotificationHandler(NotificationChannelHandler):
             cc_mails=None,
             bcc_mails=None,
             user_id=first_mail_user_id,
+            user_type=notice.user_type,
             template_code=self.NOTICE_MAIL_TEMPLATE_CODE,
             template_params={"title": notice.title, "content": notice.content},
         )
@@ -93,9 +94,11 @@ class MailNotificationHandler(NotificationChannelHandler):
     ) -> NotificationChannelResult:
         """将邮件通知写入异步发送队列。"""
         try:
-            await self.mail_send_service.send_multiple_mail_to_admin(MailBatchSendBO(**command))
+            await self.mail_send_service.send_multiple_mail_from_account(
+                MailBatchDispatchBO(**command), notice.mail_account_id
+            )
             logger.info(
-                "【邮件处理器】邮件消息投递成功, 通知ID: {}, 收件人: {}, 跳过(无邮箱): {}",
+                "【邮件处理器】邮件消息已提交队列, 通知ID: {}, 收件人: {}, 跳过(无邮箱): {}",
                 notice.id,
                 len(command["to_mails"]),
                 len(skipped_user_ids),

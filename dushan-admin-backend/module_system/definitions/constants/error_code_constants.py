@@ -47,6 +47,45 @@ class ErrorCodeConstants:
     AUTH_TOKEN_NOT_FOUND_CODE = ErrorCode(
         code=1_002_000_010, description="访问令牌不存在", message_key="system.auth.token_not_found"
     )
+    AUTH_RESET_CODE_INVALID = ErrorCode(
+        code=1_002_000_011,
+        description="验证码错误或已失效",
+        message_key="system.auth.reset_code_invalid",
+    )
+    AUTH_RESET_SEND_LIMIT = ErrorCode(
+        code=1_002_000_012,
+        description="获取验证码过于频繁，请稍后再试",
+        message_key="system.auth.reset_send_limit",
+    )
+
+    AUTH_QR_DISABLED = ErrorCode(
+        code=1_002_000_013, description="扫码登录未开启", message_key="system.auth.qr_disabled"
+    )
+    AUTH_QR_EXPIRED = ErrorCode(
+        code=1_002_000_014,
+        description="二维码已过期或已使用，请重新生成",
+        message_key="system.auth.qr_expired",
+    )
+    AUTH_QR_BROWSER = ErrorCode(
+        code=1_002_000_015,
+        description="请在生成二维码的浏览器中继续登录",
+        message_key="system.auth.qr_browser",
+    )
+    AUTH_QR_TENANT = ErrorCode(
+        code=1_002_000_016,
+        description="手机账号与电脑选择的租户不一致",
+        message_key="system.auth.qr_tenant",
+    )
+    AUTH_QR_CHANGED = ErrorCode(
+        code=1_002_000_017,
+        description="二维码状态已变化，请重新扫码",
+        message_key="system.auth.qr_changed",
+    )
+    AUTH_QR_IDENTITY_CHANGED = ErrorCode(
+        code=1_002_000_018,
+        description="手机登录状态已变化，请重新登录并扫码",
+        message_key="system.auth.qr_identity_changed",
+    )
 
     # ========== 菜单模块 1-002-001-000 ==========
     MENU_NAME_DUPLICATE = ErrorCode(
@@ -373,6 +412,9 @@ class ErrorCodeConstants:
         description="不能操作内置短信模板",
         message_key="system.sms_template.can_not_update_builtin",
     )
+    SMS_TEMPLATE_DISABLED = ErrorCode(
+        code=1_002_012_008, description="短信模板未启用", message_key="system.sms_template.disabled"
+    )
 
     # ========== 短信发送 1-002-013-000 ==========
     SMS_SEND_MOBILE_NOT_EXISTS = ErrorCode(
@@ -418,6 +460,11 @@ class ErrorCodeConstants:
         code=1_002_014_005,
         description="短信发送过于频繁",
         message_key="system.sms_code.send_too_fast",
+    )
+    SMS_CODE_ATTEMPTS_EXCEEDED = ErrorCode(
+        code=1_002_014_006,
+        description="验证码错误次数过多，请重新获取",
+        message_key="system.sms_code.attempts_exceeded",
     )
 
     # ========== 租户模块 1-002-015-000 ==========
@@ -566,6 +613,11 @@ class ErrorCodeConstants:
         code=1_002_024_000,
         description="邮件模版不存在",
         message_key="system.mail_template.not_exists",
+    )
+    MAIL_TEMPLATE_DISABLED = ErrorCode(
+        code=1_002_024_002,
+        description="邮件模板未启用",
+        message_key="system.mail_template.disabled",
     )
     MAIL_TEMPLATE_CODE_EXISTS = ErrorCode(
         code=1_002_024_001,
@@ -732,4 +784,9 @@ class ErrorCodeConstants:
         code=1_002_032_013,
         description="微信小程序订单确认收货同步失败：{}",
         message_key="system.social.weixin_mini_app_order_confirm_receive_error",
+    )
+    SOCIAL_CLIENT_AUTH_CONFIG_INVALID = ErrorCode(
+        code=1_002_032_014,
+        description="社交客户端认证配置结构无效：{}",
+        message_key="system.social.client_auth_config_invalid",
     )

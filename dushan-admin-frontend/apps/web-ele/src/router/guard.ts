@@ -7,6 +7,7 @@ import { startProgress, stopProgress } from '@vben/utils';
 
 import { accessRoutes, coreRouteNames } from '#/router/routes';
 import { useAuthStore } from '#/store';
+import { useTenantStore } from '#/store/tenant';
 
 import { getSession } from '../services/session/runtime';
 import { generateAccess } from './access';
@@ -74,6 +75,13 @@ function setupAccessGuard(router: Router) {
 
     // accessToken 检查
     if (!accessStore.accessToken) {
+      if (
+        to.name === 'QrLoginScan' &&
+        typeof to.query.tenantId === 'string' &&
+        /^[1-9]\d{0,18}$/.test(to.query.tenantId)
+      ) {
+        useTenantStore().lastTenantId = to.query.tenantId;
+      }
       // 明确声明忽略权限访问权限，则可以访问
       if (to.meta.ignoreAccess) {
         return true;

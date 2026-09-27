@@ -13,4 +13,4 @@ class PostSimpleRespVO(BaseVO):
 
     id: Annotated[SnowflakeIdStr | None, Field(..., description="岗位序号")]
     name: Annotated[str, Field(..., description="岗位名称")]
-    model_config = {"json_schema_extra": {"examples": [{"id": 1024, "name": "渡山"}]}}
+    model_config = {"json_schema_extra": {"examples": [{"id": "1024", "name": "渡山"}]}}

@@ -15,5 +15,7 @@ class DictTypeSimpleRespVO(BaseVO):
     name: Annotated[str, Field(..., description="字典类型名称")]
     type: Annotated[str, Field(..., description="字典类型")]
     model_config = {
-        "json_schema_extra": {"examples": [{"id": 1024, "name": "渡山", "type": "sys_common_sex"}]}
+        "json_schema_extra": {
+            "examples": [{"id": "1024", "name": "渡山", "type": "sys_common_sex"}]
+        }
     }

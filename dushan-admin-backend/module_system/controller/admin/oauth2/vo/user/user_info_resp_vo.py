@@ -27,15 +27,15 @@ class OAuth2UserInfoRespVO(BaseVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1,
+                    "id": "1",
                     "username": "渡山",
                     "nickname": "渡山",
                     "email": "729227973@qq.com",
                     "mobile": "18888888888",
                     "sex": 1,
                     "avatar": "https://www.dushan.info/xxx.png",
-                    "dept": {"id": 1, "name": "研发部"},
-                    "posts": [{"id": 1, "name": "开发"}],
+                    "dept": {"id": "1", "name": "研发部"},
+                    "posts": [{"id": "1", "name": "开发"}],
                 }
             ]
         }

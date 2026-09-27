@@ -32,10 +32,10 @@ class NoticeMessageRespVO(BaseVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
-                    "userId": 1024,
+                    "id": "1024",
+                    "userId": "1024",
                     "userType": 1,
-                    "noticeId": 1,
+                    "noticeId": "1",
                     "noticeContent": "系统升级通知",
                     "publisherInfo": {
                         "username": "dushan",

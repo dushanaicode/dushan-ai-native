@@ -27,27 +27,27 @@ export function useGridFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(
           DICT_TYPE.SYSTEM_NOTICE_TYPE,
           'number',
         ),
         placeholder: '请选择通知类型',
-      },
+      }),
       fieldName: 'noticeType',
       label: '通知类型',
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(
           DICT_TYPE.INFRA_BOOLEAN_STRING,
           'boolean',
         ),
         placeholder: '请选择已读状态',
-      },
+      }),
       fieldName: 'readStatus',
       label: '已读状态',
     },

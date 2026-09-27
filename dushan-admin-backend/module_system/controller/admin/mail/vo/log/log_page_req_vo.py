@@ -30,8 +30,8 @@ class MailLogPageReqVO(PageQuery):
         "json_schema_extra": {
             "examples": [
                 {
-                    "accountId": 1024,
-                    "templateId": 2048,
+                    "accountId": "1024",
+                    "templateId": "2048",
                     "templateCode": "test_01",
                     "templateNickname": "渡山源码",
                     "templateTitle": "注册成功",
@@ -41,7 +41,7 @@ class MailLogPageReqVO(PageQuery):
                     "sendStatus": 0,
                     "sendTimeBegin": "2022-07-01T10:10:10",
                     "sendTimeEnd": "2022-07-31T23:59:59",
-                    "userId": 100,
+                    "userId": "100",
                     "userType": 1,
                 }
             ]

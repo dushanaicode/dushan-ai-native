@@ -16,14 +16,10 @@ class SmsCodeMapper(BaseMapper[SmsCodeDO]):
     def __init__(self):
         super().__init__(SmsCodeDO)
 
-    async def select_last_by_mobile(
-        self, mobile: str, code: str | None, scene: int | None
-    ) -> SmsCodeDO | None:
+    async def select_last_by_mobile(self, mobile: str, scene: int | None) -> SmsCodeDO | None:
         stmt = select(SmsCodeDO).where(SmsCodeDO.mobile == mobile)
         if scene is not None:
             stmt = stmt.where(SmsCodeDO.scene == scene)
-        if code is not None:
-            stmt = stmt.where(SmsCodeDO.code == code)
         stmt = stmt.order_by(SmsCodeDO.id.desc()).limit(1)
         result = await self.read(stmt)
         return result.scalar_one_or_none()

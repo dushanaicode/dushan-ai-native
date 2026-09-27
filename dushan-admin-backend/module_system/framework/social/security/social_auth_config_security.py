@@ -91,12 +91,15 @@ class SocialAuthConfigSecurity:
 
     @staticmethod
     def _is_blank_secret_value(value: Any) -> bool:
+        """只判定承载凭据的叶子取值；容器交给递归逐项检查。
+
+        空的 credentials 表示该渠道不需要额外凭据（多数渠道的 required_credentials 为空），
+        不能按"敏感字段为空"拒绝，否则创建放行、更新报错。
+        """
         if value is None:
             return True
         if isinstance(value, str):
             return value.strip() == ""
-        if isinstance(value, dict | list | tuple | set):
-            return len(value) == 0
         return False
 
     @staticmethod

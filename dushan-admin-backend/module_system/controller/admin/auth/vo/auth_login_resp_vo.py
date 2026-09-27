@@ -12,6 +12,7 @@ class AuthLoginRespVO(BaseVO):
     """管理后台 - 登录 Response VO"""
 
     user_id: Annotated[SnowflakeIdStr, Field(..., description="用户编号")]
+    tenant_id: str
     access_token: Annotated[str, Field(..., description="访问令牌")]
     refresh_token: Annotated[str, Field(..., description="刷新令牌", exclude=True)]
     expires_time: Annotated[int, Field(..., description="过期时间的毫秒级时间戳")]
@@ -19,9 +20,9 @@ class AuthLoginRespVO(BaseVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "userId": 1024,
+                    "tenantId": "1",
+                    "userId": "1024",
                     "accessToken": "happy",
-                    "refreshToken": "nice",
                     "expiresTime": 1678956123456,
                 }
             ]

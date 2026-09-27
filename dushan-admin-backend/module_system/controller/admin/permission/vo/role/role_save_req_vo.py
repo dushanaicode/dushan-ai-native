@@ -27,7 +27,13 @@ class RoleSaveReqVO(BaseRequestVO):
     model_config = {
         "json_schema_extra": {
             "examples": [
-                {"id": 1, "name": "管理员", "code": "ADMIN", "sort": 1024, "remark": "我是一个角色"}
+                {
+                    "id": "1",
+                    "name": "管理员",
+                    "code": "ADMIN",
+                    "sort": 1024,
+                    "remark": "我是一个角色",
+                }
             ]
         }
     }

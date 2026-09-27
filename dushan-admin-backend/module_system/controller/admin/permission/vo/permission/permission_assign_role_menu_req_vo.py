@@ -16,7 +16,9 @@ class PermissionAssignRoleMenuReqVO(BaseRequestVO):
     menu_ids: Annotated[
         set[SnowflakeIdInput], Field(default_factory=set, description="菜单编号列表")
     ]
-    model_config = {"json_schema_extra": {"examples": [{"roleId": 1, "menuIds": [1, 3, 5]}]}}
+    model_config = {
+        "json_schema_extra": {"examples": [{"roleId": "1", "menuIds": ["1", "3", "5"]}]}
+    }
 
     @field_validator("role_id", mode="before")
     @classmethod

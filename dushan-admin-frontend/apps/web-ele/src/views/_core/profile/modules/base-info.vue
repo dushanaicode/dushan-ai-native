@@ -3,7 +3,7 @@ import type { FormInstance, FormRules } from 'element-plus';
 
 import type { ProfileApi } from '#/api/core/profile';
 
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 import {
   ElButton,
@@ -45,9 +45,8 @@ const dictionary = useDictionary();
 const formRef = ref<FormInstance>();
 const newSkillName = ref('');
 const newTagName = ref('');
-const sexOptions = dictionary.getDictOptions(
-  DICT_TYPE.SYSTEM_USER_SEX,
-  'number',
+const sexOptions = computed(() =>
+  dictionary.getDictOptions(DICT_TYPE.SYSTEM_USER_SEX, 'number'),
 );
 const formData = ref<ProfileBaseForm>({
   address: '',

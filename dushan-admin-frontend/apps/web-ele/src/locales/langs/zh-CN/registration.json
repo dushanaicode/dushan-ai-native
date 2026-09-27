@@ -1,0 +1,7 @@
+{
+  "nickname": "昵称",
+  "nicknameTip": "请输入昵称（最多30个字符）",
+  "usernameRule": "账号须为4–30位字母或数字",
+  "passwordRule": "密码须为4–16个字符",
+  "disabled": "暂未开放账号注册"
+}

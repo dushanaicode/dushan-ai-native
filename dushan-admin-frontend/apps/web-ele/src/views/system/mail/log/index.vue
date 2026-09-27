@@ -52,7 +52,7 @@ async function onExport() {
   exportTableRef.value?.setData({
     columns: fields,
     exportApi: exportMailLog,
-    fileName: '邮件日志数据.xls',
+    fileName: '邮件日志数据.xlsx',
     searchParams: normalizeSearchParams(formValues),
   });
   exportTableRef.value?.open();

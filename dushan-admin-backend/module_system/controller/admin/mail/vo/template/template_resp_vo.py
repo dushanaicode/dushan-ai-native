@@ -46,10 +46,10 @@ class MailTemplateRespVO(BaseVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
+                    "id": "1024",
                     "name": "测试邮件模版",
                     "code": "test_01",
-                    "accountId": 2048,
+                    "accountId": "2048",
                     "nickname": "渡山源码",
                     "title": "注册成功",
                     "content": "你好，{name}。你注册成功啦",

@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
+from framework.starter_security.public import LoginSession
 from module_system.controller.admin.auth.vo.auth_bind_mobile_req_vo import AuthBindMobileReqVO
 from module_system.controller.admin.auth.vo.auth_login_req_vo import AuthLoginReqVO
 from module_system.controller.admin.auth.vo.auth_login_resp_vo import AuthLoginRespVO
 from module_system.controller.admin.auth.vo.auth_permission_info_resp_vo import (
     AuthPermissionInfoRespVO,
 )
+from module_system.controller.admin.auth.vo.auth_recovery_send_req_vo import AuthRecoverySendReqVO
 from module_system.controller.admin.auth.vo.auth_register_req_vo import AuthRegisterReqVO
 from module_system.controller.admin.auth.vo.auth_reset_password_req_vo import AuthResetPasswordReqVO
 from module_system.controller.admin.auth.vo.auth_sms_login_req_vo import AuthSmsLoginReqVO
@@ -19,7 +21,9 @@ from module_system.controller.admin.auth.vo.auth_social_login_req_vo import Auth
 class AuthAdminAuthService(Protocol):
     async def login(self, req_vo: AuthLoginReqVO) -> AuthLoginRespVO: ...
 
-    async def send_sms_code(self, req_vo: AuthSmsSendReqVO) -> None: ...
+    async def qr_login(self, identity: LoginSession) -> AuthLoginRespVO: ...
+
+    async def send_sms_code(self, req_vo: AuthSmsSendReqVO) -> int: ...
 
     async def sms_login(self, req_vo: AuthSmsLoginReqVO) -> AuthLoginRespVO: ...
 
@@ -34,6 +38,8 @@ class AuthAdminAuthService(Protocol):
     async def register(self, req: AuthRegisterReqVO) -> AuthLoginRespVO: ...
 
     async def reset_password(self, req: AuthResetPasswordReqVO) -> None: ...
+
+    async def send_recovery_code(self, req: AuthRecoverySendReqVO) -> int: ...
 
     async def get_permission_info(self, user_id: int) -> AuthPermissionInfoRespVO | None: ...
 

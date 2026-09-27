@@ -3,6 +3,7 @@ import type { VxeTableGridOptions } from '#/adapter/vxe-table';
 import type { SystemSocialClientApi } from '#/api/system/social/client';
 
 import { z } from '#/adapter/form';
+import { getSocialProviderTypes } from '#/api/system/social/client';
 import { DICT_TYPE } from '#/constants/dict-types';
 import { SystemUserSocialTypeEnum } from '#/constants/enums';
 import { SwitchStatus } from '#/constants/status';
@@ -41,13 +42,12 @@ export function useFormSchema(): VbenFormSchema[] {
       rules: 'required',
     },
     {
-      component: 'Select',
+      component: 'ApiSelect',
       componentProps: {
         clearable: true,
-        options: dictionary.getDictOptions(
-          DICT_TYPE.SYSTEM_SOCIAL_TYPE,
-          'number',
-        ),
+        api: getSocialProviderTypes,
+        labelField: 'name',
+        valueField: 'type',
         placeholder: '请选择社交平台',
       },
       fieldName: 'socialType',
@@ -56,10 +56,10 @@ export function useFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'RadioGroup',
-      componentProps: {
+      componentProps: () => ({
         isButton: true,
         options: dictionary.getDictOptions(DICT_TYPE.USER_TYPE, 'number'),
-      },
+      }),
       fieldName: 'userType',
       label: '用户类型',
       rules: z.number(),
@@ -84,7 +84,14 @@ export function useFormSchema(): VbenFormSchema[] {
       },
       fieldName: 'clientSecret',
       label: '密钥 / 私钥',
-      rules: z.string().min(1, '请输入客户端密钥或平台私钥'),
+      dependencies: {
+        resolve: ({ values }) => ({
+          rules: values.id
+            ? z.string().optional()
+            : z.string().min(1, '请输入客户端密钥或平台私钥'),
+        }),
+        triggerFields: ['id'],
+      },
     },
     {
       component: 'Input',
@@ -95,11 +102,12 @@ export function useFormSchema(): VbenFormSchema[] {
         showWordLimit: true,
       },
       dependencies: {
-        rules: (values) =>
-          isWechatEnterprise(values)
+        resolve: ({ values }) => ({
+          rules: isWechatEnterprise(values)
             ? z.string().min(1, '请输入授权方的网页应用编号')
             : z.string().optional(),
-        show: isWechatEnterprise,
+          show: isWechatEnterprise(values),
+        }),
         triggerFields: ['socialType'],
       },
       fieldName: 'agentId',
@@ -107,10 +115,10 @@ export function useFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'RadioGroup',
-      componentProps: {
+      componentProps: () => ({
         isButton: true,
         options: dictionary.getDictOptions(DICT_TYPE.COMMON_STATUS, 'number'),
-      },
+      }),
       fieldName: 'status',
       label: '状态',
       rules: z.number().default(SwitchStatus.DISABLED),
@@ -120,7 +128,7 @@ export function useFormSchema(): VbenFormSchema[] {
       componentProps: {
         clearable: true,
         placeholder:
-          '请输入认证配置 JSON；支付宝需 alipayPublicKey，启用时需 redirectUri',
+          '请输入认证配置 JSON，字段为 redirect_uri、scopes、pkce、options、credentials',
         rows: 5,
       },
       fieldName: 'authConfigJson',
@@ -144,13 +152,12 @@ export function useGridFormSchema(): VbenFormSchema[] {
       label: '应用名',
     },
     {
-      component: 'Select',
+      component: 'ApiSelect',
       componentProps: {
         clearable: true,
-        options: dictionary.getDictOptions(
-          DICT_TYPE.SYSTEM_SOCIAL_TYPE,
-          'number',
-        ),
+        api: getSocialProviderTypes,
+        labelField: 'name',
+        valueField: 'type',
         placeholder: '请选择社交平台',
       },
       fieldName: 'socialType',
@@ -158,11 +165,11 @@ export function useGridFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(DICT_TYPE.USER_TYPE, 'number'),
         placeholder: '请选择用户类型',
-      },
+      }),
       fieldName: 'userType',
       label: '用户类型',
     },
@@ -177,11 +184,11 @@ export function useGridFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(DICT_TYPE.COMMON_STATUS, 'number'),
         placeholder: '请选择状态',
-      },
+      }),
       fieldName: 'status',
       label: '状态',
     },
@@ -217,11 +224,7 @@ export function useGridColumns(
       title: '应用名',
     },
     {
-      cellRender: {
-        name: 'CellDict',
-        props: { type: DICT_TYPE.SYSTEM_SOCIAL_TYPE },
-      },
-      field: 'socialType',
+      field: 'source',
       minWidth: 130,
       title: '社交平台',
     },
@@ -249,12 +252,8 @@ export function useGridColumns(
     {
       align: 'center',
       cellRender: {
-        attrs: { beforeChange: onStatusChange },
         name: 'CellSwitch',
-        props: {
-          checkedValue: SwitchStatus.ENABLED,
-          unCheckedValue: SwitchStatus.DISABLED,
-        },
+        props: { change: onStatusChange },
       },
       field: 'status',
       title: '状态',

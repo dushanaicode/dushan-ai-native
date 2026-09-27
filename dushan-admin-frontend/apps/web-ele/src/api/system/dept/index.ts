@@ -5,9 +5,9 @@ export namespace SystemDeptApi {
   /** 部门信息 RespVO */
   export interface DeptRespVO {
     createTime: string;
-    email?: string;
+    email?: null | string;
     id: string;
-    leaderUserId?: string;
+    leaderUserId?: null | string;
     name: string;
     parentId?: string;
     phone?: string;
@@ -17,9 +17,9 @@ export namespace SystemDeptApi {
 
   /** 部门创建/修改 ReqVO */
   export interface DeptSaveReqVO {
-    email?: string;
+    email?: null | string;
     id?: string;
-    leaderUserId?: string;
+    leaderUserId?: null | string;
     name: string;
     parentId?: string;
     phone?: string;

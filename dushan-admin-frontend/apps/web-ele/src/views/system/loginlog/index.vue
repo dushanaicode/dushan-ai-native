@@ -41,7 +41,7 @@ async function onExport() {
   exportTableRef.value?.setData({
     columns: fields,
     exportApi: exportLoginLog,
-    fileName: '登录日志.xls',
+    fileName: '登录日志.xlsx',
     searchParams: formValues,
   });
   exportTableRef.value?.open();

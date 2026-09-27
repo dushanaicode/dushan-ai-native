@@ -23,15 +23,15 @@ class NoticeMessagePageReqVO(PageQuery):
         "json_schema_extra": {
             "examples": [
                 {
-                    "userId": 1024,
+                    "userId": "1024",
                     "userType": 1,
-                    "noticeId": 1024,
+                    "noticeId": "1024",
                     "readStatus": True,
                     "noticeTitle": "系统升级",
                     "noticeType": 1,
                     "createTime": ["2020-05-20T05:20:00Z", "2023-01-31T23:59:59Z"],
-                    "pageNo": 1,
                     "pageSize": 10,
+                    "page": 1,
                 }
             ]
         }

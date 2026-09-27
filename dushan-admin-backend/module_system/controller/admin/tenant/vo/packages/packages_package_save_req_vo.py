@@ -29,11 +29,11 @@ class TenantPackageSaveReqVO(BaseRequestVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
+                    "id": "1024",
                     "name": "VIP",
                     "status": 0,
                     "remark": "备注",
-                    "menuIds": [1, 2, 3, 4, 5],
+                    "menuIds": ["1", "2", "3", "4", "5"],
                     "quotaConfig": {
                         "ai": {
                             "enabled": True,

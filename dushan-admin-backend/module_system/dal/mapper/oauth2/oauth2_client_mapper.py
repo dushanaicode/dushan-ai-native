@@ -54,6 +54,7 @@ class OAuth2ClientMapper(BaseMapper[OAuth2ClientDO]):
             description=client.description,
             status=client.status,
             user_type=client.user_type,
+            credential_revision=client.credential_revision,
             access_token_validity_seconds=client.access_token_validity_seconds,
             refresh_token_validity_seconds=client.refresh_token_validity_seconds,
             redirect_uris=client.redirect_uris,

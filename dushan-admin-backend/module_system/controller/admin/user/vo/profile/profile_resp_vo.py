@@ -40,7 +40,7 @@ class UserProfileRespVO(BaseVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1,
+                    "id": "1",
                     "username": "dushan",
                     "nickname": "渡山",
                     "email": "docker@dushan.cn",
@@ -51,7 +51,7 @@ class UserProfileRespVO(BaseVO):
                     "loginDate": "2020-05-20 05:20:00",
                     "createTime": "2020-05-20 05:20:00",
                     "roles": [],
-                    "dept": {},
+                    "dept": None,
                     "posts": [],
                     "bio": "富在术数，不在见识；利在势居，不在力耕。",
                     "tags": ["开发者", "设计师", "产品经理"],

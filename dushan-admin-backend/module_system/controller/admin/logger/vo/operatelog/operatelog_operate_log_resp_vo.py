@@ -1,7 +1,8 @@
 from datetime import datetime
 from typing import Annotated, Any
 
-from pydantic import Field, field_validator
+from pydantic import Field, computed_field, field_validator
+from user_agents import parse as parse_user_agent
 
 from framework.common.contracts import SnowflakeCursorStr, SnowflakeIdStr
 from framework.common.schemas import BaseVO
@@ -47,16 +48,33 @@ class OperateLogRespVO(BaseVO):
         Field(None, description="用户信息"),
         ExcelColumn(title="用户信息", converter=JsonConverter()),
     ]
+
+    @computed_field
+    @property
+    def browser(self) -> str | None:
+        if not self.user_agent:
+            return None
+        browser = parse_user_agent(self.user_agent).browser
+        return f"{browser.family} {browser.version_string}".strip()
+
+    @computed_field
+    @property
+    def os(self) -> str | None:
+        if not self.user_agent:
+            return None
+        system = parse_user_agent(self.user_agent).os
+        return f"{system.family} {system.version_string}".strip()
+
     model_config = {
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
+                    "id": "1024",
                     "traceId": "89aca178-a370-411c-ae02-3f0d672be4ab",
-                    "userId": 1024,
+                    "userId": "1024",
                     "type": "订单",
                     "subType": "创建订单",
-                    "bizId": 1,
+                    "bizId": "1",
                     "action": "修改编号为 1 的用户信息，将性别从男改成女，将姓名从渡山改成源码。",
                     "extra": "{'orderId': 1}",
                     "requestMethod": "GET",

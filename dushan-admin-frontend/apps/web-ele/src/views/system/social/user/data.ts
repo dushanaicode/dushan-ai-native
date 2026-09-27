@@ -20,14 +20,14 @@ export function useGridFormSchema(): VbenFormSchema[] {
   return [
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(
           DICT_TYPE.SYSTEM_SOCIAL_TYPE,
           'number',
         ),
         placeholder: '请选择社交平台',
-      },
+      }),
       fieldName: 'type',
       label: '社交平台',
     },

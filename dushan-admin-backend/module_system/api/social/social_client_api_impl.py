@@ -3,6 +3,9 @@ from __future__ import annotations
 from typing import override
 
 from framework.common.exception import ServiceException
+from framework.starter_auth.public import (
+    AuthorizationRequest,
+)
 from framework.starter_di.public import (
     Inject,
     service,
@@ -41,11 +44,13 @@ class SocialClientApiImpl(SocialClientApi):
     social_user_service: SocialUserService = Inject()
 
     @override
-    async def get_authorize_url(self, social_type: int, user_type: int, redirect_uri: str) -> str:
+    async def get_authorize_url(
+        self, social_type: int, user_type: int, redirect_uri: str, *, binding: str
+    ) -> AuthorizationRequest:
         if not redirect_uri:
             raise ValueError("redirect_uri 不能为空")
         return await self.social_client_service.get_authorize_url(
-            social_type, user_type, redirect_uri
+            social_type, user_type, redirect_uri, binding=binding
         )
 
     @override

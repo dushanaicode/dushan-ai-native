@@ -2,7 +2,7 @@ import type { PageParam, PageResult } from '#/api/types';
 
 import { requestClient } from '#/api/request';
 
-/** 系统通知端点（`/system/notification/notice`）。ID 均为雪花字符串。 */
+/** 系统通知端点（`/system/notification`）。ID 均为雪花字符串。 */
 export namespace SystemNoticeApi {
   /** 通知信息 RespVO */
   export interface NoticeRespVO {
@@ -57,7 +57,7 @@ export namespace SystemNoticeApi {
 /** 查询通知分页 */
 export async function getNoticePage(params: SystemNoticeApi.NoticePageReqVO) {
   return requestClient.get<PageResult<SystemNoticeApi.NoticeRespVO>>(
-    '/system/notification/notice/page',
+    '/system/notification/page',
     { params, paramsSerializer: 'repeat' },
   );
 }
@@ -65,23 +65,23 @@ export async function getNoticePage(params: SystemNoticeApi.NoticePageReqVO) {
 /** 查询通知详情 */
 export async function getNotice(id: string) {
   return requestClient.get<SystemNoticeApi.NoticeRespVO>(
-    `/system/notification/notice/get?id=${encodeURIComponent(id)}`,
+    `/system/notification/get?id=${encodeURIComponent(id)}`,
   );
 }
 
 /** 创建通知 */
 export async function createNotice(data: SystemNoticeApi.NoticeSaveReqVO) {
-  return requestClient.post('/system/notification/notice/create', data);
+  return requestClient.post('/system/notification/create', data);
 }
 
 /** 更新通知 */
 export async function updateNotice(data: SystemNoticeApi.NoticeSaveReqVO) {
-  return requestClient.put('/system/notification/notice/update', data);
+  return requestClient.put('/system/notification/update', data);
 }
 
 /** 修改通知状态 */
 export async function updateNoticeStatus(id: string, status: number) {
-  return requestClient.put('/system/notification/notice/update-status', {
+  return requestClient.put('/system/notification/update-status', {
     id,
     status,
   });
@@ -90,13 +90,13 @@ export async function updateNoticeStatus(id: string, status: number) {
 /** 删除通知 */
 export async function deleteNotice(id: string) {
   return requestClient.delete(
-    `/system/notification/notice/delete?id=${encodeURIComponent(id)}`,
+    `/system/notification/delete?id=${encodeURIComponent(id)}`,
   );
 }
 
 /** 批量删除通知 */
 export async function deleteNoticeList(ids: string[]) {
-  return requestClient.delete('/system/notification/notice/delete-list', {
+  return requestClient.delete('/system/notification/delete-list', {
     params: { ids },
     paramsSerializer: 'repeat',
   });
@@ -106,5 +106,5 @@ export async function deleteNoticeList(ids: string[]) {
 export async function pushNoticeToTargets(
   data: SystemNoticeApi.NoticeSendReqVO,
 ) {
-  return requestClient.post('/system/notification/notice/push-targets', data);
+  return requestClient.post('/system/notification/push-targets', data);
 }

@@ -11,6 +11,8 @@ from module_system.dal.dataobject.oauth2.oauth2_access_token_do import OAuth2Acc
 
 @runtime_checkable
 class OAuth2TokenService(Protocol):
+    async def get_token_tenant(self, token: str, *, refresh: bool) -> str | None: ...
+
     async def create_access_token(
         self, user_id: int, user_type: int, client_id: str, scopes: list[str]
     ) -> OAuth2AccessTokenRespDTO: ...

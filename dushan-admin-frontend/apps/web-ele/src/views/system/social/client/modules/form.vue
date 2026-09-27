@@ -32,6 +32,19 @@ interface SocialClientFormValues extends Omit<
 
 type SocialClientSavePayload = SystemSocialClientApi.SocialClientSaveReqVO;
 
+/** 新建时给出后端契约要求的字段骨架，避免填成旧的驼峰字段被拒绝。 */
+const AUTH_CONFIG_TEMPLATE = JSON.stringify(
+  {
+    credentials: {},
+    options: {},
+    pkce: false,
+    redirect_uri: null,
+    scopes: [],
+  },
+  null,
+  2,
+);
+
 const formData = ref<SystemSocialClientApi.SocialClientRespVO>();
 
 const title = computed(() =>
@@ -67,6 +80,7 @@ function parseAuthConfig(
 
 function buildSaveData(
   values: SocialClientFormValues,
+  isUpdate: boolean,
 ): SocialClientSavePayload {
   const {
     authConfigJson,
@@ -79,15 +93,15 @@ function buildSaveData(
     rest.socialType === SystemUserSocialTypeEnum.WECHAT_ENTERPRISE.type ||
     rest.socialType === SystemUserSocialTypeEnum.WECHAT_ENTERPRISE_v2.type;
   const clientSecret = rawClientSecret?.trim();
-  if (!clientSecret) {
-    throw new Error('必须填写客户端密钥或平台私钥（后端契约必填）');
+  if (!clientSecret && !isUpdate) {
+    throw new Error('请输入客户端密钥或平台私钥');
   }
 
   return {
     ...rest,
     agentId: isWechatEnterprise ? rest.agentId : undefined,
     authConfig,
-    clientSecret,
+    ...(clientSecret ? { clientSecret } : {}),
   };
 }
 
@@ -115,7 +129,7 @@ const [Modal, modalApi] = useVbenModal({
     const isUpdate = Boolean(formData.value?.id);
     let data: SocialClientSavePayload;
     try {
-      data = buildSaveData(values);
+      data = buildSaveData(values, isUpdate);
     } catch (error) {
       ElMessage.error((error as Error).message);
       return;
@@ -138,17 +152,17 @@ const [Modal, modalApi] = useVbenModal({
   async onOpenChange(isOpen: boolean) {
     if (!isOpen) {
       formData.value = undefined;
-      await formApi.resetForm();
+      await formApi.reset();
       return;
     }
 
-    await formApi.resetForm();
+    await formApi.reset();
     const data = modalApi.getData() as
       | SystemSocialClientApi.SocialClientRespVO
       | undefined;
     if (!data?.id) {
       await formApi.setValues({
-        authConfigJson: '{}',
+        authConfigJson: AUTH_CONFIG_TEMPLATE,
         status: SwitchStatus.DISABLED,
         userType: UserTypeEnum.ADMIN,
       });

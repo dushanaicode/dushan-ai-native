@@ -41,7 +41,7 @@ async function onExport() {
   exportTableRef.value?.setData({
     columns: fields,
     exportApi: exportSmsLog,
-    fileName: '短信日志数据.xls',
+    fileName: '短信日志数据.xlsx',
     searchParams: formValues,
   });
   exportTableRef.value?.open();

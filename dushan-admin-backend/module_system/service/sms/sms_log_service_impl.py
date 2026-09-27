@@ -12,6 +12,7 @@ from framework.starter_di.public import (
     Inject,
     service,
 )
+from framework.starter_security.public import SecurityErrorCodes, SecurityException
 from module_system.controller.admin.sms.vo.log.log_page_req_vo import SmsLogPageReqVO
 from module_system.dal.dataobject.sms.sms_log_do import SmsLogDO
 from module_system.dal.mapper.sms.sms_log_mapper import SmsLogMapper
@@ -73,14 +74,20 @@ class SmsLogServiceImpl(SmsLogService):
         receive_status = (
             SmsReceiveStatusEnum.SUCCESS.code if req.success else SmsReceiveStatusEnum.FAILURE.code
         )
-        update_obj = SmsLogDO(
-            id=req.id,
-            receive_status=receive_status,
-            receive_time=req.receive_time,
-            api_receive_code=req.api_receive_code,
-            api_receive_msg=req.api_receive_msg,
+        matched = await self.sms_log_mapper.update_by_condition(
+            {
+                "receive_status": receive_status,
+                "receive_time": req.receive_time,
+                "api_receive_code": req.api_receive_code,
+                "api_receive_msg": req.api_receive_msg,
+            },
+            SmsLogDO.id == req.id,
+            SmsLogDO.channel_id == req.channel_id,
         )
-        await self.sms_log_mapper.update_by_id(update_obj)
+        if matched != 1:
+            raise SecurityException(
+                SecurityErrorCodes.DENIED, detail="回执日志不属于当前租户或通道"
+            )
 
     @override
     async def get_sms_log_page(self, page_req_vo: SmsLogPageReqVO) -> PageResult[SmsLogDO]:

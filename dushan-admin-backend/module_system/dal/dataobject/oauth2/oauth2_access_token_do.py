@@ -24,6 +24,7 @@ class OAuth2AccessTokenDO(TenantBaseDO):
     __tablename__ = "system_oauth2_access_token"
     __table_args__ = (
         Index("ix_system_oauth2_access_token_tenant", "tenant_id"),
+        Index("ix_system_oauth2_access_token_lookup", "application_id", "domain", "token_digest"),
         ForeignKeyConstraint(
             ["tenant_id", "refresh_token_id"],
             ["system_oauth2_refresh_token.tenant_id", "system_oauth2_refresh_token.id"],

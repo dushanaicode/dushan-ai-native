@@ -7,12 +7,13 @@ import { ref } from 'vue';
 import { confirm, Page, useVbenModal } from '@vben/common-ui';
 import { isEmpty } from '@vben/utils';
 
-import { ElLoading, ElMessage } from 'element-plus';
+import { ElLoading, ElMessage, ElMessageBox } from 'element-plus';
 
 import { ACTION_ICON, TableAction, useVbenVxeGrid } from '#/adapter/vxe-table';
 import {
   deleteSmsChannel,
   deleteSmsChannelList,
+  getSmsChannelCallbackUrl,
   getSmsChannelPage,
   updateSmsChannelStatus,
 } from '#/api/system/sms/channel';
@@ -44,6 +45,16 @@ function onCreate() {
 
 function onEdit(row: SystemSmsChannelApi.SmsChannelRespVO) {
   smsChannelFormModalApi.setData(row).open();
+}
+
+async function onCallbackUrl(row: SystemSmsChannelApi.SmsChannelRespVO) {
+  const url = await getSmsChannelCallbackUrl(row.id);
+  await ElMessageBox.alert(url, '短信回执地址', {
+    confirmButtonText: '关闭',
+    customClass: 'break-all',
+    showClose: false,
+    closeOnPressEscape: false,
+  });
 }
 
 async function onDelete(row: SystemSmsChannelApi.SmsChannelRespVO) {
@@ -80,22 +91,21 @@ async function onDeleteBatch() {
 async function handleStatusChange(
   newStatus: number,
   row: SystemSmsChannelApi.SmsChannelRespVO,
-): Promise<boolean | undefined> {
-  return new Promise((resolve, reject) => {
-    const statusLabel = dictionary.getDictLabel(
-      DICT_TYPE.COMMON_STATUS,
-      newStatus,
-    );
-    confirm({
-      content: `确认将【${row.signature}】的状态切换为【${statusLabel}】？`,
-    })
-      .then(async () => {
-        await updateSmsChannelStatus(row.id, newStatus);
-        ElMessage.success($t('ui.actionMessage.operationSuccess'));
-        resolve(true);
-      })
-      .catch(() => reject(new Error('取消')));
-  });
+): Promise<boolean> {
+  const statusLabel = dictionary.getDictLabel(
+    DICT_TYPE.COMMON_STATUS,
+    newStatus,
+  );
+  const confirmed = await confirm({
+    content: `确认将【${row.signature}】的状态切换为【${statusLabel}】？`,
+  }).then(
+    () => true,
+    () => false,
+  );
+  if (!confirmed) return false;
+  await updateSmsChannelStatus(row.id, newStatus);
+  ElMessage.success($t('ui.actionMessage.operationSuccess'));
+  return true;
 }
 
 function handleRowCheckboxChange({
@@ -181,6 +191,12 @@ const [Grid, gridApi] = useVbenVxeGrid({
               icon: ACTION_ICON.EDIT,
               auth: ['system:sms:channel:update'],
               onClick: onEdit.bind(null, row),
+            },
+            {
+              label: '回执地址',
+              type: 'text',
+              auth: ['system:sms:channel:query'],
+              onClick: onCallbackUrl.bind(null, row),
             },
             {
               label: $t('common.delete'),

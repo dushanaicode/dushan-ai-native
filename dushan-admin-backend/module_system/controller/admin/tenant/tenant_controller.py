@@ -43,7 +43,7 @@ class TenantController:
     @staticmethod
     @tenant_controller.get("/get-id-by-name", summary="使用租户名，获得租户编号")
     @AccessLogPolicy(enabled=False)
-    @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT)
+    @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT, roles=("super_admin",))
     async def get_tenant_id_by_name(
         req_vo: TenantNameReqVO = Query(),
         tenant_service: TenantService = Depends(DiDependency(TenantService)),
@@ -59,7 +59,7 @@ class TenantController:
         description="只包含被开启的租户，用于【首页】功能的选择租户选项",
     )
     @AccessLogPolicy(enabled=False)
-    @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT)
+    @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT, roles=("super_admin",))
     async def get_tenant_simple_list(
         tenant_service: TenantService = Depends(DiDependency(TenantService)),
     ) -> Result[list[TenantSimpleRespVO]]:
@@ -72,7 +72,7 @@ class TenantController:
     @staticmethod
     @tenant_controller.get("/get-by-website", summary="获取租户")
     @AccessLogPolicy(enabled=False)
-    @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT)
+    @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT, roles=("super_admin",))
     async def get_tenant_by_website(
         req_vo: TenantWebsiteReqVO = Query(),
         tenant_service: TenantService = Depends(DiDependency(TenantService)),
@@ -84,7 +84,10 @@ class TenantController:
     @staticmethod
     @tenant_controller.post("/create", summary="创建租户")
     @RoutePolicy(
-        permissions=("system:tenant:create",), tenant_required=True, realm=SecurityRealm.TENANT
+        permissions=("system:tenant:create",),
+        tenant_required=True,
+        realm=SecurityRealm.TENANT,
+        roles=("super_admin",),
     )
     async def create_tenant(
         create_req_vo: TenantSaveReqVO,
@@ -96,7 +99,10 @@ class TenantController:
     @staticmethod
     @tenant_controller.put("/update", summary="更新租户")
     @RoutePolicy(
-        permissions=("system:tenant:update",), tenant_required=True, realm=SecurityRealm.TENANT
+        permissions=("system:tenant:update",),
+        tenant_required=True,
+        realm=SecurityRealm.TENANT,
+        roles=("super_admin",),
     )
     async def update_tenant(
         update_req_vo: TenantUpdateReqVO,
@@ -108,7 +114,10 @@ class TenantController:
     @staticmethod
     @tenant_controller.put("/update-status", summary="修改租户状态")
     @RoutePolicy(
-        permissions=("system:tenant:update",), tenant_required=True, realm=SecurityRealm.TENANT
+        permissions=("system:tenant:update",),
+        tenant_required=True,
+        realm=SecurityRealm.TENANT,
+        roles=("super_admin",),
     )
     async def update_status(
         req_vo: UpdateStatusReqVO, service: TenantService = Depends(DiDependency(TenantService))
@@ -119,7 +128,10 @@ class TenantController:
     @staticmethod
     @tenant_controller.delete("/delete", summary="删除租户")
     @RoutePolicy(
-        permissions=("system:tenant:delete",), tenant_required=True, realm=SecurityRealm.TENANT
+        permissions=("system:tenant:delete",),
+        tenant_required=True,
+        realm=SecurityRealm.TENANT,
+        roles=("super_admin",),
     )
     async def delete_tenant(
         req_vo: IdReqVO = Query(),
@@ -131,7 +143,10 @@ class TenantController:
     @staticmethod
     @tenant_controller.delete("/delete-list", summary="批量删除租户")
     @RoutePolicy(
-        permissions=("system:tenant:delete",), tenant_required=True, realm=SecurityRealm.TENANT
+        permissions=("system:tenant:delete",),
+        tenant_required=True,
+        realm=SecurityRealm.TENANT,
+        roles=("super_admin",),
     )
     async def delete_tenant_batch(
         req_vo: IdListReqVO = Query(),
@@ -142,7 +157,7 @@ class TenantController:
 
     @staticmethod
     @tenant_controller.get("/get", summary="获得租户")
-    @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT)
+    @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT, roles=("super_admin",))
     async def get_tenant(
         req_vo: IdReqVO = Query(),
         tenant_service: TenantService = Depends(DiDependency(TenantService)),
@@ -154,7 +169,10 @@ class TenantController:
     @staticmethod
     @tenant_controller.get("/page", summary="获得租户分页")
     @RoutePolicy(
-        permissions=("system:tenant:query",), tenant_required=True, realm=SecurityRealm.TENANT
+        permissions=("system:tenant:query",),
+        tenant_required=True,
+        realm=SecurityRealm.TENANT,
+        roles=("super_admin",),
     )
     async def get_tenant_page(
         page_req_vo: TenantPageReqVO = Query(),
@@ -167,7 +185,10 @@ class TenantController:
     @staticmethod
     @tenant_controller.get("/export-fields", summary="获取租户可导出字段列表")
     @RoutePolicy(
-        permissions=("system:tenant:export",), tenant_required=True, realm=SecurityRealm.TENANT
+        permissions=("system:tenant:export",),
+        tenant_required=True,
+        realm=SecurityRealm.TENANT,
+        roles=("super_admin",),
     )
     async def get_export_tenant_fields() -> Result[list[dict[str, str]]]:
         export_fields = ExcelWriter.export_fields(TenantRespVO)
@@ -178,7 +199,10 @@ class TenantController:
         "/export-excel", summary="导出租户 Excel", response_class=StreamingResponse
     )
     @RoutePolicy(
-        permissions=("system:tenant:export",), tenant_required=True, realm=SecurityRealm.TENANT
+        permissions=("system:tenant:export",),
+        tenant_required=True,
+        realm=SecurityRealm.TENANT,
+        roles=("super_admin",),
     )
     async def export_tenant_excel(
         page_req_vo: TenantExportReqVO = Query(),

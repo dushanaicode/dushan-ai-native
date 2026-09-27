@@ -37,7 +37,7 @@ class NoticeSaveReqVO(BaseRequestVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
+                    "id": "1024",
                     "title": "系统升级通知",
                     "type": 1,
                     "userType": 1,

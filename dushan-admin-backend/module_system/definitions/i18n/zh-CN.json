@@ -9,7 +9,15 @@
       "mobile_not_exists": "手机号不存在",
       "register_captcha_code_error": "注册验证码验证失败",
       "invalid_token_code": "非法令牌格式",
-      "token_not_found": "访问令牌不存在"
+      "token_not_found": "访问令牌不存在",
+      "reset_code_invalid": "验证码错误或已失效",
+      "reset_send_limit": "获取验证码过于频繁，请稍后再试",
+      "qr_disabled": "扫码登录未开启",
+      "qr_expired": "二维码已过期或已使用，请重新生成",
+      "qr_browser": "请在生成二维码的浏览器中继续登录",
+      "qr_tenant": "手机账号与电脑选择的租户不一致",
+      "qr_changed": "二维码状态已变化，请重新扫码",
+      "qr_identity_changed": "手机登录状态已变化，请重新登录并扫码"
     },
     "menu": {
       "name_duplicate": "已经存在该名字的菜单",
@@ -97,7 +105,8 @@
       "api_audit_fail": "短信 API 模版无法使用，原因：审批不通过，{}",
       "api_not_found": "短信 API 模版无法使用，原因：模版不存在",
       "api_audit_unknown": "短信模板({}) 审核状态({}) 不正确",
-      "can_not_update_builtin": "不能操作内置短信模板"
+      "can_not_update_builtin": "不能操作内置短信模板",
+      "disabled": "短信模板未启用"
     },
     "sms_send": {
       "mobile_not_exists": "手机号不存在",
@@ -111,7 +120,8 @@
       "used": "验证码已使用",
       "not_correct": "验证码不正确",
       "exceed_send_max_per_day": "超过每日短信发送数量",
-      "send_too_fast": "短信发送过于频繁"
+      "send_too_fast": "短信发送过于频繁",
+      "attempts_exceeded": "验证码错误次数过多，请重新获取"
     },
     "tenant": {
       "not_exists": "租户不存在",
@@ -154,7 +164,8 @@
     },
     "mail_template": {
       "not_exists": "邮件模版不存在",
-      "code_exists": "邮件模版 code({}) 已存在"
+      "code_exists": "邮件模版 code({}) 已存在",
+      "disabled": "邮件模板未启用"
     },
     "mail_send": {
       "template_param_miss": "模板参数({})缺失",
@@ -199,7 +210,8 @@
       "weixin_mini_app_qrcode_error": "微信小程序获取二维码失败：{}",
       "weixin_mini_app_subscribe_template_error": "微信小程序获取订阅模板失败：{}",
       "weixin_mini_app_subscribe_message_error": "微信小程序发送订阅消息失败：{}",
-      "platform_not_exist": "社交平台【{}】不存在"
+      "platform_not_exist": "社交平台【{}】不存在",
+      "client_auth_config_invalid": "社交客户端认证配置结构无效：{}"
     }
   }
 }

@@ -109,17 +109,17 @@ class SmsLogRespVO(BaseVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
-                    "channelId": 10,
+                    "id": "1024",
+                    "channelId": "10",
                     "channelCode": "ALIYUN",
-                    "templateId": 20,
+                    "templateId": "20",
                     "templateCode": "test-01",
                     "templateType": 1,
                     "templateContent": "你好，你的验证码是 1024",
                     "templateParams": {"name": "", "code": ""},
                     "apiTemplateId": "SMS_207945135",
                     "mobile": "18888888888",
-                    "userId": 10,
+                    "userId": "10",
                     "userType": 1,
                     "sendStatus": 1,
                     "sendTime": "2020-05-20T05:20:00Z",

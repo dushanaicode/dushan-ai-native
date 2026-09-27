@@ -1,4 +1,6 @@
-import { requestClient } from '#/api/request';
+import { preferences } from '@vben/preferences';
+
+import { authenticationClient } from '#/api/request';
 
 /**
  * 验证码端点。challenge/verification 由后端 framework 普通 BaseModel 序列化，
@@ -39,9 +41,10 @@ export namespace CaptchaApi {
 
 /** 获取验证码配置 */
 export async function getCaptchaConfig(signal?: AbortSignal) {
-  return requestClient.get<CaptchaApi.CaptchaConfig>('/system/captcha/config', {
-    signal,
-  });
+  return authenticationClient.get<CaptchaApi.CaptchaConfig>(
+    '/system/captcha/config',
+    captchaRequest(signal),
+  );
 }
 
 /** 获取验证码挑战 */
@@ -49,10 +52,10 @@ export async function getCaptchaChallenge(
   purpose: string,
   signal?: AbortSignal,
 ) {
-  return requestClient.post<CaptchaApi.CaptchaChallenge>(
+  return authenticationClient.post<CaptchaApi.CaptchaChallenge>(
     '/system/captcha/get',
     { purpose },
-    { signal },
+    captchaRequest(signal),
   );
 }
 
@@ -63,9 +66,14 @@ export async function checkCaptcha(
   answer: CaptchaApi.CaptchaAnswer,
   signal?: AbortSignal,
 ) {
-  return requestClient.post<CaptchaApi.CaptchaVerification>(
+  return authenticationClient.post<CaptchaApi.CaptchaVerification>(
     '/system/captcha/check',
     { answer, challengeId, purpose },
-    { signal },
+    captchaRequest(signal),
   );
+}
+
+/** 公开验证码由弹窗呈现错误，不触发全局消息或已有会话的刷新。 */
+function captchaRequest(signal?: AbortSignal) {
+  return { signal, headers: { 'Accept-Language': preferences.app.locale } };
 }

@@ -1,3 +1,5 @@
+import { createRandomId } from '../../utils/random-id';
+
 export interface SessionSnapshot {
   readonly generation: string;
   readonly token: null | string;
@@ -126,7 +128,7 @@ export class SessionCoordinator {
   replace(token: null | string) {
     this.assertActive();
     this.expiration = undefined;
-    const next = { generation: crypto.randomUUID(), token };
+    const next = { generation: createRandomId(), token };
     this.ports.write(next);
     this.adopt(next, 'local');
   }

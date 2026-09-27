@@ -52,6 +52,10 @@ const [Modal, modalApi] = useVbenModal({
     modalApi.lock();
     const data =
       (await formApi.getValues()) as SystemSmsChannelApi.SmsChannelSaveReqVO;
+    if (formData.value?.id) {
+      if (!data.apiKey) delete data.apiKey;
+      if (!data.apiSecret) delete data.apiSecret;
+    }
     try {
       await (formData.value?.id
         ? updateSmsChannel(data)
@@ -66,8 +70,11 @@ const [Modal, modalApi] = useVbenModal({
   async onOpenChange(isOpen: boolean) {
     if (!isOpen) {
       formData.value = undefined;
+      await formApi.reset();
       return;
     }
+
+    await formApi.reset();
 
     const data = modalApi.getData() as
       | SystemSmsChannelApi.SmsChannelRespVO
@@ -80,7 +87,7 @@ const [Modal, modalApi] = useVbenModal({
     modalApi.lock();
     try {
       formData.value = await getSmsChannel(data.id);
-      await formApi.setValues(formData.value);
+      await formApi.setValues({ ...formData.value, apiKey: '', apiSecret: '' });
     } finally {
       modalApi.unlock();
     }

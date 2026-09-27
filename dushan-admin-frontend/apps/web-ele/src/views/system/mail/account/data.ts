@@ -47,7 +47,14 @@ export function useFormSchema(): VbenFormSchema[] {
       },
       fieldName: 'password',
       label: '密码',
-      rules: 'required',
+      dependencies: {
+        resolve: ({ values }) => ({
+          rules: values.id
+            ? z.string().optional()
+            : requiredString('请输入密码'),
+        }),
+        triggerFields: ['id'],
+      },
     },
     {
       component: 'Input',

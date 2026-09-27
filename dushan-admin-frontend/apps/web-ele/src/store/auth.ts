@@ -1,6 +1,8 @@
-import type { Recordable, UserInfo } from '@vben/types';
+import type { UserInfo } from '@vben/types';
 
 import type { MenuNode } from '../router/menu-adapter';
+
+import type { AuthApi } from '#/api/core/auth';
 
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
@@ -12,13 +14,23 @@ import { useAccessStore, useTabbarStore, useUserStore } from '@vben/stores';
 import { ElNotification } from 'element-plus';
 import { defineStore } from 'pinia';
 
-import { getPermissionInfoApi, loginApi, logoutApi } from '#/api';
+import {
+  getPermissionInfoApi,
+  loginApi,
+  logoutApi,
+  registerApi,
+  smsLoginApi,
+  socialLoginApi,
+} from '#/api';
+import { consumeQrLogin } from '#/api/core/qr-login';
 import { $t } from '#/locales';
 
 import { getSession } from '../services/session/runtime';
+import { useTenantStore } from './tenant';
 
 export const useAuthStore = defineStore('auth', () => {
   const accessStore = useAccessStore();
+  const tenantStore = useTenantStore();
   const userStore = useUserStore();
   const tabbarStore = useTabbarStore();
   const router = useRouter();
@@ -30,6 +42,7 @@ export const useAuthStore = defineStore('auth', () => {
   let logoutPromise: Promise<void> | undefined;
 
   function clearSessionAccess() {
+    tenantStore.currentTenantId = null;
     accessMenus.value = undefined;
     tabbarStore.$reset();
     tabbarStore.renderRouteView = false;
@@ -46,17 +59,44 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function authLogin(
-    params: Recordable<any>,
+    params: AuthApi.LoginParams,
+    tenantId?: string,
     onSuccess?: () => Promise<void> | void,
   ) {
-    loginPromise ??= runLogin(params, onSuccess).finally(() => {
+    return startLogin(() => loginApi(params, tenantId), onSuccess);
+  }
+
+  function authSmsLogin(params: AuthApi.SmsLoginParams, tenantId?: string) {
+    return startLogin(() => smsLoginApi(params, tenantId));
+  }
+
+  function authQrLogin(ticket: string) {
+    return startLogin(() => consumeQrLogin(ticket));
+  }
+
+  function authRegister(params: AuthApi.RegisterParams, tenantId?: string) {
+    return startLogin(() => registerApi(params, tenantId));
+  }
+
+  function authSocialLogin(
+    params: AuthApi.SocialLoginParams,
+    onSuccess?: () => Promise<void> | void,
+  ) {
+    return startLogin(() => socialLoginApi(params), onSuccess);
+  }
+
+  function startLogin(
+    login: () => Promise<AuthApi.LoginResult>,
+    onSuccess?: () => Promise<void> | void,
+  ) {
+    loginPromise ??= runLogin(login, onSuccess).finally(() => {
       loginPromise = undefined;
     });
     return loginPromise;
   }
 
   async function runLogin(
-    params: Recordable<any>,
+    login: () => Promise<AuthApi.LoginResult>,
     onSuccess?: () => Promise<void> | void,
   ) {
     const session = getSession();
@@ -65,9 +105,10 @@ export const useAuthStore = defineStore('auth', () => {
     let scope = session.capture();
     loginLoading.value = true;
     try {
-      const { accessToken } = await loginApi(params);
+      const { accessToken, tenantId } = await login();
       session.assertCurrent(scope);
       session.replace(accessToken);
+      tenantStore.currentTenantId = tenantId;
       scope = session.capture();
       const userInfo = await fetchUserInfo();
       session.assertCurrent(scope);
@@ -151,6 +192,7 @@ export const useAuthStore = defineStore('auth', () => {
     const scope = getSession().capture();
     const info = await getPermissionInfoApi();
     getSession().assertCurrent(scope);
+    tenantStore.currentTenantId = info.tenantId;
     accessMenus.value = info.menus;
     accessStore.setAccessCodes(info.permissions);
     userStore.setUserInfo(info.user);
@@ -171,6 +213,10 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     $reset,
     authLogin,
+    authQrLogin,
+    authRegister,
+    authSocialLogin,
+    authSmsLogin,
     clearSessionAccess,
     expireSession,
     fetchUserInfo,

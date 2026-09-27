@@ -16,7 +16,9 @@ class PermissionAssignUserRoleReqVO(BaseRequestVO):
     role_ids: Annotated[
         set[SnowflakeIdInput], Field(default_factory=set, description="角色编号列表")
     ]
-    model_config = {"json_schema_extra": {"examples": [{"userId": 1, "roleIds": [1, 3, 5]}]}}
+    model_config = {
+        "json_schema_extra": {"examples": [{"userId": "1", "roleIds": ["1", "3", "5"]}]}
+    }
 
     @field_validator("user_id", mode="before")
     @classmethod

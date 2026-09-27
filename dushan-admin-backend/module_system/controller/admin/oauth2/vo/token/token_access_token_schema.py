@@ -25,8 +25,8 @@ class OAuth2AccessTokenSchema(BaseRequestVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
-                    "userId": 2048,
+                    "id": "1024",
+                    "userId": "2048",
                     "userType": 2,
                     "userInfo": '{"id":2048,"username":"admin"}',
                     "accessToken": "e5d142bf-3394-4f29-a947-7d2c52e517fc",

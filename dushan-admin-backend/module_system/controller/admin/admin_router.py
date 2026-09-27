@@ -5,6 +5,7 @@ from module_system.controller.admin.announcement.announcement_controller import 
 )
 from module_system.controller.admin.area.area_controller import area_controller
 from module_system.controller.admin.auth.auth_controller import auth_controller
+from module_system.controller.admin.auth.qr_login_controller import qr_login_controller
 from module_system.controller.admin.captcha.captcha_controller import captcha_controller
 from module_system.controller.admin.dept.dept_controller import dept_controller
 from module_system.controller.admin.dept.post_controller import post_controller
@@ -52,6 +53,7 @@ admin_router = APIRouter()
 # 包含三级路由（控制器）
 admin_router.include_router(area_controller, tags=["System - 地区管理"])
 admin_router.include_router(auth_controller, tags=["System - 认证管理"])
+admin_router.include_router(qr_login_controller)
 admin_router.include_router(captcha_controller, tags=["System - 验证码管理"])
 admin_router.include_router(dept_controller, tags=["System - 部门管理"])
 admin_router.include_router(post_controller, tags=["System - 岗位管理"])

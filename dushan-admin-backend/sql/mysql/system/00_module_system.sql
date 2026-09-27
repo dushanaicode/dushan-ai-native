@@ -330,7 +330,7 @@ CREATE TABLE system_oauth2_client (
 	refresh_token_validity_seconds INTEGER NOT NULL COMMENT '刷新令牌的有效期',
 	redirect_uris JSON NOT NULL COMMENT '可重定向的 URI 地址 (JSON 数组)',
 	authorized_grant_types JSON NOT NULL COMMENT '授权类型 (JSON 数组)',
-	scopes JSON COMMENT '授权范围 (JSON 数组)',
+	scopes JSON NOT NULL COMMENT '授权范围 (JSON 数组)',
 	auto_approve_scopes JSON COMMENT '自动通过的授权范围 (JSON 数组)',
 	authorities JSON COMMENT '权限 (JSON 数组)',
 	resource_ids JSON COMMENT '资源 (JSON 数组)',
@@ -398,6 +398,7 @@ CREATE TABLE system_oauth2_refresh_token (
 )COMMENT='OAuth2 刷新令牌' ENGINE=InnoDB CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE INDEX ix_system_oauth2_refresh_token_family ON system_oauth2_refresh_token (tenant_id, family_id);
 CREATE INDEX ix_system_oauth2_refresh_token_tenant ON system_oauth2_refresh_token (tenant_id);
+CREATE INDEX ix_system_oauth2_refresh_token_lookup ON system_oauth2_refresh_token (application_id, domain, token_digest);
 
 
 -- system_operate_log：操作日志记录
@@ -494,7 +495,8 @@ CREATE TABLE system_sms_channel (
 	updater VARCHAR(64) NOT NULL,
 	update_time DATETIME NOT NULL,
 	deleted BOOL NOT NULL,
-	PRIMARY KEY (id)
+	PRIMARY KEY (id),
+	CONSTRAINT uq_system_sms_channel_tenant_id UNIQUE (tenant_id, id)
 )COMMENT='短信渠道信息表' ENGINE=InnoDB CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE INDEX ix_system_sms_channel_tenant ON system_sms_channel (tenant_id);
 
@@ -571,14 +573,19 @@ CREATE TABLE system_sms_template (
 	api_template_id VARCHAR(63) NOT NULL COMMENT '短信 API 的模板编号',
 	channel_id BIGINT NOT NULL COMMENT '短信渠道编号',
 	channel_code VARCHAR(63) NOT NULL COMMENT '短信渠道编码',
+	active_key SMALLINT GENERATED ALWAYS AS (CASE WHEN deleted = 0 THEN 1 ELSE NULL END) COMMENT '仅有效记录参与业务唯一约束',
+	tenant_id VARCHAR(32) NOT NULL,
 	id BIGINT NOT NULL AUTO_INCREMENT,
 	creator VARCHAR(64) NOT NULL,
 	create_time DATETIME NOT NULL,
 	updater VARCHAR(64) NOT NULL,
 	update_time DATETIME NOT NULL,
 	deleted BOOL NOT NULL,
-	PRIMARY KEY (id)
+	PRIMARY KEY (id),
+	CONSTRAINT uq_system_sms_template_active_0 UNIQUE (tenant_id, code, active_key),
+	CONSTRAINT fk_system_sms_template_channel_id FOREIGN KEY (tenant_id, channel_id) REFERENCES system_sms_channel (tenant_id, id)
 )COMMENT='短信模板表' ENGINE=InnoDB CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE INDEX ix_system_sms_template_tenant ON system_sms_template (tenant_id);
 
 
 -- system_social_client：社交客户端表
@@ -587,7 +594,7 @@ CREATE TABLE system_social_client (
 	social_type SMALLINT NOT NULL COMMENT '社交平台的类型【SocialTypeEnum】',
 	user_type SMALLINT NOT NULL COMMENT '用户类型（枚举）【UserTypeEnum】',
 	client_id VARCHAR(255) NOT NULL COMMENT '客户端编号',
-	client_secret VARCHAR(255) NOT NULL COMMENT '客户端密钥',
+	client_secret TEXT NOT NULL COMMENT '客户端密钥，支付宝等渠道存放 PEM 私钥',
 	agent_id VARCHAR(255) COMMENT '代理编号',
 	auth_config JSON NOT NULL COMMENT '认证配置，JSON格式' DEFAULT ('{}'),
 	status SMALLINT NOT NULL COMMENT '开启状态（1-启用，0-禁用）',
@@ -700,6 +707,7 @@ CREATE TABLE system_oauth2_access_token (
 )COMMENT='OAuth2 访问令牌' ENGINE=InnoDB CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE INDEX ix_system_oauth2_access_token_family ON system_oauth2_access_token (tenant_id, family_id);
 CREATE INDEX ix_system_oauth2_access_token_tenant ON system_oauth2_access_token (tenant_id);
+CREATE INDEX ix_system_oauth2_access_token_lookup ON system_oauth2_access_token (application_id, domain, token_digest);
 
 
 -- system_role_menu：角色和菜单关联表

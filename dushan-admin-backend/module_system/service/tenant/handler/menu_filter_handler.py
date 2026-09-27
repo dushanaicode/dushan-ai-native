@@ -11,8 +11,8 @@ class MenuListFilterHandler(TenantMenuHandler):
         self.original_menus: list[MenuDO] = original_menus
         self.filtered_result: list[MenuDO] = []
 
-    async def handle(self, allowed_menu_ids: set[int]) -> None:
-        self.filtered_result = [menu for menu in self.original_menus if menu.id in allowed_menu_ids]
+    async def handle(self, menu_ids: set[int]) -> None:
+        self.filtered_result = [menu for menu in self.original_menus if menu.id in menu_ids]
 
     def get_filtered_menus(self) -> list[MenuDO]:
         return self.filtered_result

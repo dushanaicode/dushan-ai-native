@@ -26,6 +26,9 @@ from module_system.dal.dataobject.tenant.tenant_do import TenantDO
 from module_system.dal.dataobject.tenant.tenant_package_do import TenantPackageDO
 from module_system.dal.mapper.tenant.tenant_package_mapper import TenantPackageMapper
 from module_system.definitions.constants.error_code_constants import ErrorCodeConstants
+from module_system.service.permission.authorization_revision_service import (
+    AuthorizationRevisionService,
+)
 from module_system.service.tenant.tenant_package_service import TenantPackageService
 from module_system.service.tenant.tenant_service import TenantService
 
@@ -36,6 +39,7 @@ class TenantPackageServiceImpl(TenantPackageService):
     database: SessionProvider = Inject()
     tenant_package_mapper: TenantPackageMapper = Inject()
     tenant_service: TenantService = Inject()
+    revisions: AuthorizationRevisionService = Inject()
     default_ttl: int = 3600
 
     @override
@@ -61,15 +65,26 @@ class TenantPackageServiceImpl(TenantPackageService):
         )
         tenant_package = await self._validate_tenant_package_exists(update_req_vo.id)
         await self._validate_tenant_package_name_unique(update_req_vo.id, update_req_vo.name)
+        menus_changed = set(tenant_package.menu_ids) != set(update_req_vo.menu_ids)
+        status_changed = tenant_package.status != update_req_vo.status
         update_obj = TenantPackageDO(**update_req_vo.model_dump(by_alias=False))
         await self.tenant_package_mapper.update_by_id(update_obj)
-        if tenant_package.menu_ids != update_req_vo.menu_ids:
-            tenants: list[TenantDO] = await self.tenant_service.get_tenant_list_by_package_id(
-                tenant_package.id
-            )
-            for tenant in tenants:
-                menu_ids_set: set[int] = set(update_req_vo.menu_ids or [])
-                await self.tenant_service.update_tenant_role_menu(tenant.id, menu_ids_set)
+        if menus_changed or status_changed:
+            await self.revisions.advance()
+        # 各租户的授权作用域不能嵌入平台套餐事务；提交后按最新套餐幂等同步，重试保存也可补齐。
+        self.database.after_commit(
+            lambda: self._sync_tenant_menus(update_req_vo.id),
+            required=True,
+            name="tenant-package-menus",
+        )
+
+    async def _sync_tenant_menus(self, package_id: int) -> None:
+        package = await self._validate_tenant_package_exists(package_id)
+        tenants: list[TenantDO] = await self.tenant_service.get_tenant_list_by_package_id(
+            package_id
+        )
+        for tenant in tenants:
+            await self.tenant_service.update_tenant_role_menu(tenant.id, set(package.menu_ids))
 
     @override
     @transactional
@@ -83,6 +98,7 @@ class TenantPackageServiceImpl(TenantPackageService):
         await self._validate_tenant_package_exists(package_id)
         update_obj = TenantPackageDO(id=package_id, status=status)
         await self.tenant_package_mapper.update_by_id(update_obj)
+        await self.revisions.advance()
 
     @override
     @transactional

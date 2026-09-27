@@ -1,6 +1,7 @@
 import type { VbenFormSchema } from '#/adapter/form';
 import type { VxeTableGridOptions } from '#/adapter/vxe-table';
 
+import { createUserSelectPorts } from '#/services/user-select/ports';
 import { getRangePickerDefaultProps } from '#/utils/range-picker';
 
 /** 操作日志搜索表单 */
@@ -10,6 +11,7 @@ export function useGridFormSchema(): VbenFormSchema[] {
       component: 'UserSelectFormField',
       componentProps: {
         placeholder: '请选择操作人员',
+        ports: createUserSelectPorts(),
         showDeptFilter: false,
       },
       fieldName: 'userId',

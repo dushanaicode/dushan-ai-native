@@ -23,14 +23,14 @@ export function useFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(
           DICT_TYPE.SYSTEM_SMS_TEMPLATE_TYPE,
           'number',
         ),
         placeholder: '请选择短信类型',
-      },
+      }),
       fieldName: 'type',
       label: '短信类型',
       rules: 'selectRequired',
@@ -74,10 +74,10 @@ export function useFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'RadioGroup',
-      componentProps: {
+      componentProps: () => ({
         isButton: true,
         options: dictionary.getDictOptions(DICT_TYPE.COMMON_STATUS, 'number'),
-      },
+      }),
       fieldName: 'status',
       label: '开启状态',
       rules: z.number().default(SwitchStatus.ENABLED),
@@ -158,24 +158,24 @@ export function useGridFormSchema(): VbenFormSchema[] {
   return [
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(
           DICT_TYPE.SYSTEM_SMS_TEMPLATE_TYPE,
           'number',
         ),
         placeholder: '请选择短信类型',
-      },
+      }),
       fieldName: 'type',
       label: '短信类型',
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(DICT_TYPE.COMMON_STATUS, 'number'),
         placeholder: '请选择开启状态',
-      },
+      }),
       fieldName: 'status',
       label: '开启状态',
     },
@@ -265,12 +265,8 @@ export function useGridColumns(
     {
       align: 'center',
       cellRender: {
-        attrs: { beforeChange: onStatusChange },
         name: 'CellSwitch',
-        props: {
-          checkedValue: SwitchStatus.ENABLED,
-          unCheckedValue: SwitchStatus.DISABLED,
-        },
+        props: { change: onStatusChange },
       },
       field: 'status',
       title: '状态',

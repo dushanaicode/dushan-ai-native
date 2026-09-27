@@ -6,7 +6,7 @@ import { requestClient } from '#/api/request';
 export namespace SystemSmsChannelApi {
   /** 短信渠道信息 RespVO */
   export interface SmsChannelRespVO {
-    apiKey: string;
+    apiKey?: string;
     apiSecret?: string;
     callbackUrl?: string;
     code: string;
@@ -19,7 +19,7 @@ export namespace SystemSmsChannelApi {
 
   /** 短信渠道创建/修改 ReqVO */
   export interface SmsChannelSaveReqVO {
-    apiKey: string;
+    apiKey?: string;
     apiSecret?: string;
     callbackUrl?: string;
     code: string;
@@ -87,6 +87,13 @@ export async function getSmsChannel(id: string) {
   return requestClient.get<SystemSmsChannelApi.SmsChannelRespVO>(
     `/system/sms/channel/get?id=${encodeURIComponent(id)}`,
   );
+}
+
+/** 获得当前租户通道的签名回执地址 */
+export async function getSmsChannelCallbackUrl(id: string) {
+  return requestClient.get<string>('/system/sms/channel/callback-url', {
+    params: { id },
+  });
 }
 
 /** 获得短信渠道分页 */

@@ -48,10 +48,6 @@ class DeptUserPostMapper(BaseMapper[UserPostDO]):
         )
         await self.write(stmt)
 
-    async def insert_batch(self, user_post_list: list[UserPostDO]) -> None:
-        for user_post in user_post_list:
-            await self.insert(user_post)
-
     async def insert_batch_by_user_id(self, user_id: int, post_ids: Collection[int]) -> None:
         """批量插入用户岗位关联"""
         for post_id in post_ids:

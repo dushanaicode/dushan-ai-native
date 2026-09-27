@@ -18,9 +18,9 @@ class AreaNodeRespVO(BaseVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 110000,
+                    "id": "110000",
                     "name": "北京",
-                    "children": [{"id": 110100, "name": "北京市", "children": None}],
+                    "children": [{"id": "110100", "name": "北京市", "children": None}],
                 }
             ]
         }

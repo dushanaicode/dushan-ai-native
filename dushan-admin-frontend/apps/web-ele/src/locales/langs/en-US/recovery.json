@@ -1,0 +1,15 @@
+{
+  "channel": "Recovery method",
+  "sms": "Mobile number",
+  "email": "Email",
+  "subtitle": "Verify your linked mobile number or email to reset your password",
+  "mobileTip": "Enter your account's mobile number",
+  "emailTip": "Enter your account's email address",
+  "password": "New password",
+  "passwordRule": "Use 4–16 characters",
+  "submit": "Reset password",
+  "checkFields": "Complete the required fields first",
+  "unavailable": "Wait for the current operation to finish",
+  "sent": "Request accepted. If the account details match, check for a verification code. If it does not arrive, retry later or contact an administrator",
+  "success": "Password reset. Sign in with your new password"
+}

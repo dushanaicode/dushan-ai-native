@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from framework.starter_captcha.public import (
-    CaptchaService as FrameworkCaptchaService,
+    CaptchaException,
+    CaptchaSettings,
 )
 from framework.starter_captcha.public import (
-    CaptchaSettings,
+    CaptchaService as FrameworkCaptchaService,
 )
 from framework.starter_di.public import (
     Inject,
@@ -36,6 +37,16 @@ class CaptchaServiceImpl(CaptchaService):
         )
 
     async def verification(self, req_vo, purpose="login") -> bool:
-        if self.settings.enabled:
+        """凭证消费成功返回 True；凭证无效等业务拒绝返回 False，缓存等系统故障继续上抛。
+
+        调用方据此写登录日志并给出自己的业务错误码，因此这里不能把失败也报成通过。
+        """
+        if not self.settings.enabled:
+            return True
+        try:
             await self.delegate.consume(req_vo.verification, purpose)
+        except CaptchaException as error:
+            if error.is_system_error:
+                raise
+            return False
         return True

@@ -21,7 +21,7 @@ class DictTypeSaveReqVO(BaseRequestVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
+                    "id": "1024",
                     "name": "性别",
                     "type": "sys_common_sex",
                     "status": 1,

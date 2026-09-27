@@ -83,6 +83,11 @@ class SmsTemplateServiceImpl(SmsTemplateService):
         await self._validate_for_update(template_id)
         update_obj = SmsTemplateDO(id=template_id, status=status)
         await self.sms_template_mapper.update_by_id(update_obj)
+        self.database.after_commit(
+            lambda: self.cache_handler.delete_all(SystemCacheKeys.SMS_TEMPLATE),
+            required=True,
+            name="system-cache",
+        )
 
     @override
     @transactional
@@ -108,7 +113,7 @@ class SmsTemplateServiceImpl(SmsTemplateService):
         return await self.sms_template_mapper.delete_by_ids(ids)
 
     @override
-    async def get_sms_template(self, id: int) -> SmsTemplateDO:
+    async def get_sms_template(self, id: int) -> SmsTemplateDO | None:
         return await self.sms_template_mapper.select_by_id(id)
 
     @cache(

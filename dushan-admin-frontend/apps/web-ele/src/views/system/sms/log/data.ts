@@ -44,14 +44,14 @@ export function useGridFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(
           DICT_TYPE.SYSTEM_SMS_SEND_STATUS,
           'number',
         ),
         placeholder: '请选择发送状态',
-      },
+      }),
       fieldName: 'sendStatus',
       label: '发送状态',
     },
@@ -66,14 +66,14 @@ export function useGridFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(
           DICT_TYPE.SYSTEM_SMS_RECEIVE_STATUS,
           'number',
         ),
         placeholder: '请选择接收状态',
-      },
+      }),
       fieldName: 'receiveStatus',
       label: '接收状态',
     },

@@ -2,12 +2,16 @@
 import type { ProfileApi } from '#/api/core/profile';
 
 import { onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 
 import { Page } from '@vben/common-ui';
 
-import { ElCard, ElTabPane, ElTabs } from 'element-plus';
+import { ElButton, ElCard, ElTabPane, ElTabs } from 'element-plus';
 
 import { getUserProfile } from '#/api/core/profile';
+import { isQrLoginEnabled } from '#/api/core/qr-login';
+import { $t } from '#/locales';
+import { isMobileWeb } from '#/services/qr-login';
 import { useAuthStore } from '#/store';
 
 import AiPreference from './modules/ai-preference.vue';
@@ -19,6 +23,12 @@ import ResetPwd from './modules/reset-pwd.vue';
 defineOptions({ name: 'CoreProfile' });
 
 const authStore = useAuthStore();
+const router = useRouter();
+const showScanner = ref(false);
+onMounted(async () => {
+  if (isMobileWeb())
+    showScanner.value = await isQrLoginEnabled().catch(() => false);
+});
 const activeName = ref('basicInfo');
 const loading = ref(false);
 const profile = ref<ProfileApi.UserProfileRespVO>();
@@ -42,6 +52,14 @@ onMounted(loadProfile);
 
 <template>
   <Page auto-content-height>
+    <ElButton
+      v-if="showScanner"
+      class="mb-4"
+      type="primary"
+      @click="router.push({ name: 'QrLoginScan' })"
+    >
+      {{ $t('qrLogin.scan') }}
+    </ElButton>
     <div
       v-loading="loading"
       class="grid min-h-0 grid-cols-1 gap-4 lg:grid-cols-[320px_minmax(0,1fr)]"

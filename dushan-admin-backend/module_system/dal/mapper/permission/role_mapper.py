@@ -59,8 +59,3 @@ class RoleMapper(BaseMapper[RoleDO]):
         stmt = select(RoleDO).where(RoleDO.id.in_(ids))
         result = await self.read(stmt)
         return list(result.scalars().all())
-
-    async def select_list(self) -> list[RoleDO]:
-        stmt = select(RoleDO)
-        result = await self.read(stmt)
-        return list(result.scalars().all())

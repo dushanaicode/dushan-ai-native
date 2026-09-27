@@ -58,11 +58,6 @@ class DictTypeMapper(BaseMapper[DictTypeDO]):
         )
         await self.write(stmt)
 
-    async def select_list(self) -> list[DictTypeDO]:
-        stmt = select(DictTypeDO)
-        result = await self.read(stmt)
-        return list(result.scalars().all())
-
     async def select_list_by_field(self, field: str, value: Any) -> list[DictTypeDO]:
         column = DictTypeDO.__table__.c.get(field)
         if column is None:

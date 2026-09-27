@@ -5,10 +5,13 @@ import random
 import string
 import time
 from typing import override
+from urllib.parse import urlencode, urlsplit
 
 import httpx
+from pydantic import ValidationError
 
-from framework.common.exception import ServiceException
+from framework.common.enums import UserTypeEnum
+from framework.common.exception import IllegalArgumentException, ServiceException
 from framework.common.page import PageResult
 from framework.starter_auth.public import (
     AuthClientProvider,
@@ -28,6 +31,7 @@ from framework.starter_security.public import (
     SecurityException,
     SecuritySettings,
 )
+from framework.starter_tenant.public import TenantContext
 from framework.starter_web.public import (
     RequestContext,
 )
@@ -41,6 +45,9 @@ from module_system.api.social.dto.social_wxa_order_upload_shipping_info_req_dto 
 from module_system.api.social.dto.social_wxa_subscribe_message_send_req_dto import (
     SocialWxaSubscribeMessageSendReqDTO,
 )
+from module_system.controller.admin.auth.vo.auth_social_provider_resp_vo import (
+    AuthSocialProviderRespVO,
+)
 from module_system.controller.admin.social.vo.client.social_client_page_req_vo import (
     SocialClientPageReqVO,
 )
@@ -52,6 +59,8 @@ from module_system.dal.dataobject.social.social_client_do import SocialClientDO
 from module_system.dal.mapper.social.social_client_mapper import SocialClientMapper
 from module_system.definitions.constants.error_code_constants import ErrorCodeConstants
 from module_system.definitions.enums.social.social_type_enum import SocialTypeEnum
+from module_system.framework.social.model.social_auth_config import SocialAuthConfig
+from module_system.framework.social.model.social_callback_relay import SocialCallbackRelay
 from module_system.framework.social.model.social_template_info import SocialTemplateInfo
 from module_system.framework.social.model.social_wx_jsapi_signature import SocialWxJsapiSignature
 from module_system.framework.social.model.social_wx_ma_phone_number_info import (
@@ -68,6 +77,7 @@ from module_system.service.social.social_client_service import SocialClientServi
 class SocialClientServiceImpl(SocialClientService):
     social_client_mapper: SocialClientMapper = Inject()
     cache_handler: CacheHandler = Inject()
+    tenant_context: TenantContext = Inject()
     CACHE_PREFIX_SOCIAL_CLIENT = "social_client"
     CACHE_TTL_SOCIAL_CLIENT = 3600
     WXA_CODE_ENV_VERSION = "release"
@@ -348,12 +358,37 @@ class SocialClientServiceImpl(SocialClientService):
             type_name = social_type_enum.label if social_type_enum else f"类型{social_type}"
             raise ServiceException(ErrorCodeConstants.SOCIAL_CLIENT_UNIQUE, type_name)
 
+    @staticmethod
+    def _validate_auth_config(value: dict) -> None:
+        """保存前校验认证配置的结构和凭据取值，只回报字段名，不回显字段值。
+
+        创建与更新走同一入口，凭据为空的提示也归一到业务错误码，不再以原始 ValueError 变成 500。
+        """
+        try:
+            SocialAuthConfig.model_validate(value)
+            SocialAuthConfigSecurity.validate_auth_config_secret_values(value)
+        except ValidationError as error:
+            fields = ", ".join(
+                ".".join(str(part) for part in item["loc"]) for item in error.errors()
+            )
+            raise ServiceException(
+                ErrorCodeConstants.SOCIAL_CLIENT_AUTH_CONFIG_INVALID, fields
+            ) from error
+        except ValueError as error:
+            raise ServiceException(
+                ErrorCodeConstants.SOCIAL_CLIENT_AUTH_CONFIG_INVALID, str(error)
+            ) from error
+
     @override
     @transactional
     async def create_social_client(self, create_req_vo: SocialClientSaveReqVO) -> int:
+        if create_req_vo.id is not None:
+            raise IllegalArgumentException(msg="新增社交客户端不能指定编号")
         await self._validate_social_client_unique(
             None, create_req_vo.user_type, create_req_vo.social_type
         )
+        if create_req_vo.auth_config is not None:
+            self._validate_auth_config(create_req_vo.auth_config)
         client_do = SocialClientDO(**create_req_vo.model_dump(exclude_unset=True, by_alias=False))
         inserted_client = await self.social_client_mapper.insert(client_do)
         return inserted_client.id
@@ -366,11 +401,14 @@ class SocialClientServiceImpl(SocialClientService):
             update_req_vo.id, update_req_vo.user_type, update_req_vo.social_type
         )
         values = update_req_vo.model_dump(exclude_unset=True, by_alias=False)
+        if update_req_vo.client_secret is None:
+            values.pop("client_secret", None)
         if "auth_config" in values:
-            SocialAuthConfigSecurity.validate_auth_config_secret_values(values["auth_config"])
+            # 校验最终入库的配置：合并会补回管理端看不到的凭据，提交值单独校验会误判缺失。
             values["auth_config"] = SocialAuthConfigSecurity.merge_preserved_auth_config_secrets(
                 existing.auth_config, values["auth_config"]
             )
+            self._validate_auth_config(values["auth_config"])
         update_obj = SocialClientDO(**values)
         await self.social_client_mapper.update_by_id(update_obj)
 
@@ -412,6 +450,34 @@ class SocialClientServiceImpl(SocialClientService):
         return await self.social_client_mapper.select_list_by_status()
 
     @override
+    def get_provider_types(self) -> list[AuthSocialProviderRespVO]:
+        return [
+            AuthSocialProviderRespVO(
+                type=entry.code,
+                name=entry.label,
+                source=entry.auth_source,
+                mode=self.auth.registry.capability(entry.auth_source).mode,
+                code_parameter=self.auth.callback_parameter(entry.auth_source),
+            )
+            for entry in SocialTypeEnum
+        ]
+
+    @override
+    async def get_login_providers(self) -> list[AuthSocialProviderRespVO]:
+        """只公开当前租户已启用的后台浏览器渠道，不返回客户端凭据。"""
+        if not self.auth.settings.enabled:
+            return []
+        clients = await self.get_enabled_social_clients()
+        types = {item.type: item for item in self.get_provider_types()}
+        return [
+            types[client.social_type].model_copy(update={"name": client.name})
+            for client in sorted(clients, key=lambda row: row.social_type)
+            if client.user_type == UserTypeEnum.ADMIN.code
+            and types[client.social_type].mode == "browser"
+            and SocialAuthConfig.model_validate(client.auth_config).redirect_uri
+        ]
+
+    @override
     async def get_social_client_by_type(
         self, social_type: int, user_type: int | None
     ) -> SocialClientDO | None:
@@ -428,25 +494,86 @@ class SocialClientServiceImpl(SocialClientService):
         return f"{self.settings.application_id}-{suffix}"
 
     def _get_source_type(self, social_type):
-        source = SocialTypeEnum.from_code(social_type).label
-        return "WECHAT_ENTERPRISE_WEB" if source == "WECHAT_ENTERPRISE_V2" else source
+        return SocialTypeEnum.from_code(social_type).auth_source
 
     async def get_authorize_url(self, social_type, user_type, redirect_uri, *, binding):
         application = self._application_id(user_type)
         source = self._get_source_type(social_type)
         client = await self.clients.get_client(application, source)
-        if client is None or redirect_uri != client.redirect_uri:
+        if client is None:
             raise SecurityException(SecurityErrorCodes.INVALID)
+        row = await self.get_social_client_by_type(social_type, user_type)
+        config = SocialAuthConfig.model_validate(row.auth_config)
+        expected_redirect = (
+            config.frontend_redirect_uri
+            if config.frontend_redirect_uri is not None
+            else client.redirect_uri
+        )
+        if redirect_uri != expected_redirect:
+            raise SecurityException(SecurityErrorCodes.INVALID)
+        if (
+            config.frontend_redirect_uri is not None
+            and urlsplit(client.redirect_uri).path != "/admin-api/system/auth/social-callback"
+        ):
+            raise SecurityException(
+                SecurityErrorCodes.CONFIGURATION, detail="表单回调须配置后端social-callback地址"
+            )
         authorization = await self.auth.begin(application, source, binding=binding)
+        await self.cache_handler.set(
+            SystemCacheKeys.SOCIAL_LOGIN_TENANT,
+            hashlib.sha256(binding.encode()).hexdigest(),
+            self.tenant_context.get_required_tenant_id(),
+            ttl_seconds=authorization.expires_in,
+        )
+        if config.frontend_redirect_uri is not None:
+            await self.cache_handler.set(
+                SystemCacheKeys.SOCIAL_CALLBACK_RELAY,
+                hashlib.sha256(authorization.state.encode()).hexdigest(),
+                SocialCallbackRelay(
+                    redirect_uri=redirect_uri, code_parameter=self.auth.callback_parameter(source)
+                ).model_dump(),
+                ttl_seconds=authorization.expires_in,
+            )
         return authorization
+
+    @override
+    async def relay_callback(self, parameters: list[tuple[str, str]]) -> str:
+        """转交厂商 GET/form_post 回调；此处不认证，最终仍校验浏览器 Cookie 与一次性 state。"""
+        states = [value for key, value in parameters if key == "state"]
+        if len(states) != 1 or len(states[0]) != 64:
+            raise SecurityException(SecurityErrorCodes.INVALID)
+        key = hashlib.sha256(states[0].encode()).hexdigest()
+        cached = await self.cache_handler.get(SystemCacheKeys.SOCIAL_CALLBACK_RELAY, key)
+        if not cached.hit:
+            raise SecurityException(SecurityErrorCodes.INVALID)
+        relay = SocialCallbackRelay.model_validate(cached.value)
+        forwarded = [
+            (name, value)
+            for name, value in parameters
+            if name in {"state", "error", relay.code_parameter}
+        ]
+        if len({name for name, _ in forwarded}) != len(forwarded) or len(forwarded) != 2:
+            raise SecurityException(SecurityErrorCodes.INVALID)
+        await self.cache_handler.delete(SystemCacheKeys.SOCIAL_CALLBACK_RELAY, key)
+        return relay.redirect_uri + "?" + urlencode(forwarded)
 
     async def get_auth_user(self, social_type, user_type, code, state) -> AuthResult:
         binding = RequestContext.current().connection.cookies.get("system_social_binding")
         if binding is None:
             raise SecurityException(SecurityErrorCodes.INVALID)
-        return await self.auth.complete(
+        key = hashlib.sha256(binding.encode()).hexdigest()
+        found = await self.cache_handler.get(SystemCacheKeys.SOCIAL_LOGIN_TENANT, key)
+        if not found.hit or found.value != self.tenant_context.get_required_tenant_id():
+            raise SecurityException(
+                SecurityErrorCodes.INVALID, detail="社交授权流程与当前租户不一致"
+            )
+        source = self._get_source_type(social_type)
+        # 授权码参数名随渠道不同：支付宝是 auth_code，钉钉 V2 是 authCode，按渠道原样回传。
+        result = await self.auth.complete(
             self._application_id(user_type),
-            self._get_source_type(social_type),
-            [("code", code), ("state", state)],
+            source,
+            [(self.auth.callback_parameter(source), code), ("state", state)],
             binding=binding,
         )
+        await self.cache_handler.delete(SystemCacheKeys.SOCIAL_LOGIN_TENANT, key)
+        return result

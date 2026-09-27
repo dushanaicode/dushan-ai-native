@@ -45,6 +45,7 @@ from module_system.service.permission.permission_cache_service import (
 )
 from module_system.service.permission.permission_service import PermissionService
 from module_system.service.permission.role_service import RoleService
+from module_system.service.permission.system_access_policy import SystemAccessPolicy
 
 
 @service(interface=RoleService)
@@ -59,6 +60,7 @@ class RoleServiceImpl(RoleService):
     revisions: AuthorizationRevisionService = Inject()
     permission_cache: PermissionCacheService = Inject()
     default_ttl: int = 3600
+    access_policy: SystemAccessPolicy = Inject()
 
     @log_record(
         LogRecordSpec(
@@ -174,6 +176,8 @@ class RoleServiceImpl(RoleService):
         role = await self.role_mapper.select_by_id(role_id)
         if role is None:
             raise ServiceException(ErrorCodeConstants.ROLE_NOT_EXISTS)
+        if RoleCodeEnum.is_super_admin(role.code):
+            raise ServiceException(ErrorCodeConstants.ROLE_CAN_NOT_UPDATE_SYSTEM_TYPE_ROLE)
         allow_modify = self.settings.allow_modify_system_role
         if not allow_modify and role.builtin == BuiltinTypeEnum.BUILTIN.code:
             raise ServiceException(ErrorCodeConstants.ROLE_CAN_NOT_UPDATE_SYSTEM_TYPE_ROLE)
@@ -196,7 +200,10 @@ class RoleServiceImpl(RoleService):
 
     @override
     async def get_role_list_by_status(self, statuses: Collection[int]) -> list[RoleDO]:
-        return await self.role_mapper.select_list_by_status(statuses)
+        roles = await self.role_mapper.select_list_by_status(statuses)
+        if not self.access_policy.is_current_owner():
+            roles = [role for role in roles if not RoleCodeEnum.is_super_admin(role.code)]
+        return roles
 
     @override
     async def get_role_list_by_ids(self, ids: Collection[int]) -> list[RoleDO]:

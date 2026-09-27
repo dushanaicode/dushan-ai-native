@@ -1,12 +1,12 @@
 from typing import Annotated
 
-from pydantic import Field, field_validator
+from pydantic import Field, ValidationInfo, field_validator
 
 from framework.common.contracts import (
     SnowflakeIdInput,
 )
 from framework.common.schemas import BaseRequestVO
-from framework.common.validator import URL, InEnum, NotNull
+from framework.common.validator import URL, InEnum, NotEmpty, NotNull
 from module_system.framework.sms.enums.sms_channel_enum import SmsChannelEnum
 
 
@@ -18,7 +18,7 @@ class SmsChannelSaveReqVO(BaseRequestVO):
     code: Annotated[str, Field(..., description="渠道编码，参见 SmsChannelEnum 枚举类")]
     status: Annotated[int, Field(..., description="启用状态")]
     remark: Annotated[str | None, Field(None, description="备注")]
-    api_key: Annotated[str, Field(..., description="短信 API 的账号")]
+    api_key: Annotated[str | None, Field(None, description="短信 API 的账号；更新省略时保留原值")]
     api_secret: Annotated[str | None, Field(None, description="短信 API 的密钥")]
     callback_url: Annotated[str | None, Field(None, description="短信发送回调 URL")]
     model_config = {
@@ -63,8 +63,11 @@ class SmsChannelSaveReqVO(BaseRequestVO):
 
     @field_validator("api_key", mode="before")
     @classmethod
-    def _validate_api_key(cls, v: str) -> str:
-        NotNull.require_not_null(field_name="api_key", value=v, error_msg="短信 API 的账号不能为空")
+    def _validate_api_key(cls, v: str | None, info: ValidationInfo) -> str | None:
+        if info.data.get("id") is None or v is not None:
+            NotEmpty.require_not_empty(
+                field_name="api_key", value=v, error_msg="短信 API 的账号不能为空"
+            )
         return v
 
     @field_validator("callback_url", mode="before")

@@ -1,14 +1,16 @@
 import type { RouteRecordRaw } from 'vue-router';
 
-import { describe, expect, it, vi } from 'vitest';
+import type { MenuNode } from '../../dushan-admin-frontend/apps/web-ele/src/router/menu-adapter';
+
 import { createMemoryHistory, createRouter } from 'vue-router';
 
 import { cloneDeep } from '@vben/utils';
 
+import { describe, expect, it, vi } from 'vitest';
+
 import {
   menusToRoutes,
   parseMenus,
-  type MenuNode,
 } from '../../dushan-admin-frontend/apps/web-ele/src/router/menu-adapter';
 import {
   installSessionAccess,
@@ -97,6 +99,48 @@ function sessionFixture() {
 }
 
 describe('菜单纯函数与协议边界', () => {
+  it.each([
+    ['/infra/job/index.vue', '/infra/job-log/index.vue', 'log'],
+    ['/infra/mq/index.vue', '/infra/mq/logger/index.vue', 'log'],
+    ['/infra/codegen/index.vue', '/infra/codegen/edit/index.vue', 'edit'],
+  ])(
+    '受保护菜单 %s 的操作子页能解析，缺少父级授权时不生成入口',
+    (component, detail, suffix) => {
+      const pages = {
+        ...pageMap,
+        [`../views${component}`]: async () => ({ default: Page }),
+        [`../views${detail}`]: async () => ({ default: Page }),
+      };
+      const routes = menusToRoutes(
+        [menu({ id: '9007199254740993', component })],
+        pages,
+        layouts,
+        reserved,
+      );
+      expect(routes).toHaveLength(2);
+      expect(routes[1]?.meta).toMatchObject({
+        hideInMenu: true,
+        activePath: '/page',
+        keepAlive: false,
+      });
+      const router = createRouter({
+        history: createMemoryHistory(),
+        routes: routes.map((route) => ({
+          ...route,
+          component: Page,
+        })) as RouteRecordRaw[],
+      });
+      expect(
+        router.resolve({
+          name: `menu-9007199254740993-${suffix}`,
+          query: { id: '9007199254740994' },
+        }).fullPath,
+      ).toBe(`/page/${suffix}?id=9007199254740994`);
+      expect(router.resolve(`/page/${suffix}`).matched).toHaveLength(1);
+      expect(menusToRoutes([], pages, layouts, reserved)).toEqual([]);
+      router.options.history.destroy();
+    },
+  );
   it('字符串 ID、排序与显示属性保留，输入不变，重复转换一致且名称不依赖标题', () => {
     const input = [
       menu({ id: '9223372036854775807', order: 1 }),
@@ -128,7 +172,7 @@ describe('菜单纯函数与协议边界', () => {
       first[1]?.name,
     );
     expect(() =>
-      parseMenus([{ ...input[0], id: 9_223_372_036_854_775_807 }]),
+      parseMenus([{ ...input[0], id: Number(9_223_372_036_854_775_807n) }]),
     ).toThrow();
   });
 

@@ -36,7 +36,7 @@ class PostRespVO(BaseVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
+                    "id": "1024",
                     "name": "渡山",
                     "code": "dushan",
                     "sort": 1024,

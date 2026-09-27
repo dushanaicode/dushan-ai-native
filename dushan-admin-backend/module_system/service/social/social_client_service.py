@@ -16,6 +16,9 @@ from module_system.api.social.dto.social_wxa_order_upload_shipping_info_req_dto 
 from module_system.api.social.dto.social_wxa_subscribe_message_send_req_dto import (
     SocialWxaSubscribeMessageSendReqDTO,
 )
+from module_system.controller.admin.auth.vo.auth_social_provider_resp_vo import (
+    AuthSocialProviderRespVO,
+)
 from module_system.controller.admin.social.vo.client.social_client_page_req_vo import (
     SocialClientPageReqVO,
 )
@@ -74,6 +77,10 @@ class SocialClientService(Protocol):
 
     async def get_enabled_social_clients(self) -> list[SocialClientDO]: ...
 
+    def get_provider_types(self) -> list[AuthSocialProviderRespVO]: ...
+
+    async def get_login_providers(self) -> list[AuthSocialProviderRespVO]: ...
+
     async def get_social_client_by_type(
         self, social_type: int, user_type: int | None
     ) -> SocialClientDO | None: ...
@@ -81,3 +88,5 @@ class SocialClientService(Protocol):
     async def get_authorize_url(self, social_type, user_type, redirect_uri, *, binding): ...
 
     async def get_auth_user(self, social_type, user_type, code, state) -> AuthResult: ...
+
+    async def relay_callback(self, parameters: list[tuple[str, str]]) -> str: ...

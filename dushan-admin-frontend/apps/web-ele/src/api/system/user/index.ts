@@ -142,11 +142,8 @@ export async function importUserTemplate() {
 
 /** 导入用户（multipart：file + updateSupport） */
 export async function importUser(file: File, updateSupport: boolean) {
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('updateSupport', String(updateSupport));
-  return requestClient.post<SystemUserApi.UserImportRespVO>(
+  return requestClient.upload<SystemUserApi.UserImportRespVO>(
     '/system/user/import',
-    formData,
+    { file, updateSupport: String(updateSupport) },
   );
 }

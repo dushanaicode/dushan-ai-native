@@ -70,7 +70,7 @@ class PostServiceImpl(PostService):
     ) -> list[PostDO]:
         if ids is not None and len(ids) == 0:
             return []
-        return await self.post_mapper.select_list(ids, statuses)
+        return await self.post_mapper.select_filtered_list(ids, statuses)
 
     @override
     async def get_post_page(self, req_vo: PostPageReqVO) -> PageResult[PostDO]:

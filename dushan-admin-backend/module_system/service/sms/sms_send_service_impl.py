@@ -81,6 +81,10 @@ class SmsSendServiceImpl(SmsSendService):
             template.status == StatusEnum.ENABLE.code
             and sms_channel.status == StatusEnum.ENABLE.code
         )
+        if req.require_delivery and not is_send:
+            if sms_channel.status != StatusEnum.ENABLE.code:
+                raise ServiceException(ErrorCodeConstants.SMS_CHANNEL_DISABLE)
+            raise ServiceException(ErrorCodeConstants.SMS_TEMPLATE_DISABLED)
         content = self.sms_template_service.format_sms_template_content(
             template.content, req.template_params
         )
@@ -203,14 +207,16 @@ class SmsSendServiceImpl(SmsSendService):
             raise ServiceException(ErrorCodeConstants.SMS_SEND_MOBILE_NOT_EXISTS)
         return Mobile.require_mobile("mobile", mobile)
 
-    async def receive_sms_status(self, channel_code: str, text: str):
-        client = self.sms_client_factory.get_sms_client_by_code(channel_code)
-        if client is None:
-            raise ServiceException(ErrorCodeConstants.SMS_CHANNEL_NOT_EXISTS)
+    async def receive_sms_status(self, channel_id: int, text: str):
+        channel = await self._validate_sms_channel(channel_id)
+        client = self.sms_client_factory.create_or_update_sms_client(
+            SmsChannelProperties.model_validate(channel)
+        )
         for result in await client.parse_sms_receive_status(text):
             await self.sms_log_service.update_sms_receive_result(
                 SmsReceiveResultBO(
                     id=result.log_id,
+                    channel_id=channel_id,
                     success=result.success,
                     receive_time=result.receive_time,
                     api_receive_code=result.error_code,

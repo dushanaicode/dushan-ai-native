@@ -61,7 +61,6 @@ class NotificationDispatcherImpl(NotificationDispatcher):
         context = dispatch_context or NotificationDispatchContext()
         user_ids = {user.id for user in users}
         failed_user_ids: set[int] = set()
-        notice_message_id_by_user_id = {}
         try:
             notice_message_id_by_user_id, failed_user_ids = await self._create_notice_messages(
                 notice, users, context.notice_log_id, context.publisher_info

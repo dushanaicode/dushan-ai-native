@@ -10,7 +10,7 @@ export namespace SystemMailAccountApi {
     host: string;
     id: string;
     mail: string;
-    password: string;
+    password?: string;
     port: number;
     sslEnable: boolean;
     starttlsEnable: boolean;
@@ -22,7 +22,7 @@ export namespace SystemMailAccountApi {
     host: string;
     id?: string;
     mail: string;
-    password: string;
+    password?: string;
     port: number;
     sslEnable: boolean;
     starttlsEnable: boolean;

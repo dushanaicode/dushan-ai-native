@@ -26,11 +26,11 @@ class DeptSaveReqVO(BaseRequestVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
+                    "id": "1024",
                     "name": "渡山",
-                    "parentId": 1024,
+                    "parentId": "1024",
                     "sort": 1024,
-                    "leaderUserId": 2048,
+                    "leaderUserId": "2048",
                     "phone": "18888888888",
                     "email": "729227973@qq.com",
                     "status": 1,
@@ -69,6 +69,8 @@ class DeptSaveReqVO(BaseRequestVO):
     @field_validator("email", mode="before")
     @classmethod
     def _validate_email(cls, v: Any) -> Any:
+        if v == "":
+            return None
         Size.require_size(
             field_name="email", value=v, max_length=50, error_msg="邮箱长度不能超过 50 个字符"
         )

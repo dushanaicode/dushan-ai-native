@@ -49,8 +49,3 @@ class MailTemplateMapper(BaseMapper[MailTemplateDO]):
         stmt = select(func.count()).where(MailTemplateDO.account_id == account_id)
         result = await self.read(stmt)
         return result.scalar_one()
-
-    async def select_list(self) -> list[MailTemplateDO]:
-        stmt = select(MailTemplateDO)
-        result = await self.read(stmt)
-        return list(result.scalars().all())

@@ -14,7 +14,7 @@ class TenantSimpleRespVO(BaseVO):
 
     id: Annotated[SnowflakeIdStr, Field(..., description="租户编号")]
     name: Annotated[str, Field(..., description="租户名")]
-    model_config = {"json_schema_extra": {"examples": [{"id": 1024, "name": "渡山"}]}}
+    model_config = {"json_schema_extra": {"examples": [{"id": "1024", "name": "渡山"}]}}
 
     @field_validator("id", mode="before")
     @classmethod

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import override
 
-from framework.common.exception import ServiceException
+from framework.common.exception import IllegalArgumentException, ServiceException
 from framework.common.page import PageResult
 from framework.starter_cache.public import CacheHandler, cache
 from framework.starter_database.public import (
@@ -36,6 +36,8 @@ class MailAccountServiceImpl(MailAccountService):
     @override
     @transactional
     async def create_mail_account(self, create_req_vo: MailAccountSaveReqVO) -> int:
+        if create_req_vo.id is not None:
+            raise IllegalArgumentException(msg="新增邮箱账号不能指定编号")
         account = MailAccountDO(**create_req_vo.model_dump(by_alias=False))
         await self.mail_account_mapper.insert(account)
         return account.id
@@ -49,7 +51,10 @@ class MailAccountServiceImpl(MailAccountService):
             name="system-cache",
         )
         await self._validate_exists(update_req_vo.id)
-        update_obj = MailAccountDO(**update_req_vo.model_dump(by_alias=False))
+        values = update_req_vo.model_dump(by_alias=False)
+        if update_req_vo.password is None:
+            values.pop("password")
+        update_obj = MailAccountDO(**values)
         await self.mail_account_mapper.update_by_id(update_obj)
 
     @override

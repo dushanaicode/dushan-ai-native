@@ -2,16 +2,17 @@ from typing import Annotated, Any
 
 from pydantic import Field, field_validator
 
-from framework.common.schemas import BaseRequestVO
-from framework.common.validator import Mobile, NotEmpty, Size
+from framework.common.validator import NotEmpty, Size
+from module_system.controller.admin.auth.vo.auth_recovery_contact_req_vo import (
+    AuthRecoveryContactReqVO,
+)
 
 
-class AuthResetPasswordReqVO(BaseRequestVO):
-    """管理后台 - 短信重置账号密码 Request VO"""
+class AuthResetPasswordReqVO(AuthRecoveryContactReqVO):
+    """管理后台 - 通过已绑定的手机号或邮箱重置密码。"""
 
     password: Annotated[str, Field(..., description="密码")]
-    mobile: Annotated[str, Field(..., description="手机号")]
-    code: Annotated[str, Field(..., description="手机短信验证码")]
+    code: Annotated[str, Field(..., description="收到的验证码", pattern=r"^\d{4,6}$")]
     model_config = {
         "json_schema_extra": {
             "examples": [{"password": "1234", "mobile": "13312341234", "code": "123456"}]
@@ -31,15 +32,8 @@ class AuthResetPasswordReqVO(BaseRequestVO):
         )
         return v
 
-    @field_validator("mobile", mode="before")
-    @classmethod
-    def _validate_mobile(cls, v: Any) -> Any:
-        NotEmpty.require_not_empty(field_name="mobile", value=v, error_msg="手机号不能为空")
-        Mobile.require_mobile(field_name="mobile", value=v, error_msg="手机号格式不正确")
-        return v
-
     @field_validator("code", mode="before")
     @classmethod
     def _validate_code(cls, v: Any) -> Any:
-        NotEmpty.require_not_empty(field_name="code", value=v, error_msg="手机短信验证码不能为空")
+        NotEmpty.require_not_empty(field_name="code", value=v, error_msg="验证码不能为空")
         return v

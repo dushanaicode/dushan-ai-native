@@ -39,12 +39,11 @@ class MenuSaveVO(BaseRequestVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
+                    "id": "1024",
                     "name": "渡山",
                     "permission": "sys:menu:add",
-                    "type": 1,
                     "sort": 1024,
-                    "parentId": 1024,
+                    "parentId": "1024",
                     "path": "post",
                     "icon": "/menu/list",
                     "component": "system/post/index",
@@ -53,6 +52,7 @@ class MenuSaveVO(BaseRequestVO):
                     "visible": False,
                     "keepAlive": False,
                     "alwaysShow": False,
+                    "kind": "page",
                 }
             ]
         }

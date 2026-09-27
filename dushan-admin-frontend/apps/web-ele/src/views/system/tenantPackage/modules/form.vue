@@ -84,20 +84,12 @@ function buildQuotaConfig(values: TenantPackageFormValues) {
   };
 }
 
-function toStringIds(value: unknown): string[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value.map(String);
-}
-
 function normalizeFormValues(
   values: TenantPackageFormValues,
 ): SystemTenantPackageApi.TenantPackageSaveReqVO {
   return {
     id: values.id,
-    menuIds: toStringIds(values.menuIds),
+    menuIds: values.menuIds,
     name: values.name,
     quotaConfig: buildQuotaConfig(values),
     remark: values.remark || undefined,
@@ -191,7 +183,7 @@ const [Modal, modalApi] = useVbenModal({
     <Form class="mx-4">
       <template #menuIds="slotProps">
         <Tree
-          v-bind="slotProps"
+          v-bind="slotProps.componentProps"
           bordered
           children-field="children"
           class="max-h-96 overflow-y-auto rounded border p-2"

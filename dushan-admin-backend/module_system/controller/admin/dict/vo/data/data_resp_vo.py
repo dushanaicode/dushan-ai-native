@@ -45,7 +45,7 @@ class DictDataRespVO(BaseVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
+                    "id": "1024",
                     "sort": 1024,
                     "label": "渡山",
                     "value": "dushan",

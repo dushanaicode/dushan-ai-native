@@ -23,6 +23,7 @@ class AuthConvert:
             access_token.expires_time.replace(tzinfo=timezone.utc).timestamp() * 1000
         )
         return AuthLoginRespVO(
+            tenant_id=access_token.tenant_id,
             user_id=access_token.user_id,
             access_token=access_token.access_token,
             refresh_token=access_token.refresh_token,
@@ -38,6 +39,7 @@ class AuthConvert:
     ) -> AuthPermissionInfoRespVO:
         """将用户、角色、菜单信息组装为权限信息响应"""
         return AuthPermissionInfoRespVO(
+            tenant_id=user.tenant_id,
             user=UserVO(
                 id=user.id,
                 username=user.username,
@@ -78,7 +80,10 @@ class AuthConvert:
         filtered_menus = [m for m in menu_list if m.kind in {"group", "page", "link", "iframe"}]
         if not filtered_menus:
             return []
-        node_list: list[MenuVO] = [AuthConvert._convert_tree_node(m) for m in filtered_menus]
+        node_list: list[MenuVO] = [
+            AuthConvert._convert_tree_node(m)
+            for m in sorted(filtered_menus, key=lambda m: (m.sort, m.id))
+        ]
         children_map = defaultdict(list)
         for node in node_list:
             parent_id = node.parent_id
@@ -87,8 +92,10 @@ class AuthConvert:
         def build_tree(pid: int) -> list[MenuVO]:
             tree: list[MenuVO] = []
             children_nodes = children_map.get(pid, [])
-            for tree_node in sorted(children_nodes, key=lambda x: int(x.id)):
+            for tree_node in children_nodes:
                 child_tree: list[MenuVO] = build_tree(tree_node.id)
+                if tree_node.kind == "group" and not child_tree:
+                    continue
                 if child_tree:
                     tree_node.children = child_tree
                 tree.append(tree_node)

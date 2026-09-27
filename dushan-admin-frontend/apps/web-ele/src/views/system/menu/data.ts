@@ -65,8 +65,8 @@ function buildMenuTree(
   const nodeMap = new Map<string, MenuTreeNode>();
   const roots: MenuTreeNode[] = [];
 
+  // 保留被排除节点的挂载点，子节点随整棵子树一起隐藏。
   for (const item of list) {
-    if (item.id === excludeId) continue;
     nodeMap.set(item.id, {
       ...item,
       // 按钮/链接/内嵌不能作为父级
@@ -126,33 +126,31 @@ export function useFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'ApiTreeSelect',
-      componentProps: (ctx) => {
-        return {
-          api: async () => {
-            const data = await getMenuList();
-            return [
-              {
-                children: buildMenuTree(data, ctx.rootValues?.id),
-                id: '0',
-                kind: 'group',
-                name: '顶级菜单',
-                parentId: '-1',
-              },
-            ];
-          },
-          checkStrictly: true,
-          childrenField: 'children',
-          clearable: true,
-          labelField: 'name',
-          nodeKey: 'id',
-          placeholder: '请选择上级菜单',
-          props: { children: 'children', disabled: 'disabled', label: 'name' },
-          treeDefaultExpandAll: true,
-          valueField: 'id',
-        };
-      },
       dependencies: {
         triggerFields: ['id'],
+        resolve: ({ values }) => ({
+          componentProps: {
+            api: async () => {
+              const data = await getMenuList();
+              return [
+                {
+                  children: buildMenuTree(data, values.id),
+                  id: '0',
+                  kind: 'group',
+                  name: '顶级菜单',
+                  parentId: '-1',
+                },
+              ];
+            },
+            checkStrictly: true,
+            childrenField: 'children',
+            clearable: true,
+            labelField: 'name',
+            placeholder: '请选择上级菜单',
+            defaultExpandAll: true,
+            valueField: 'id',
+          },
+        }),
       },
       fieldName: 'parentId',
       label: '上级菜单',

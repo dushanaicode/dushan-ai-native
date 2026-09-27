@@ -1,12 +1,12 @@
 from typing import Annotated, Any
 
-from pydantic import Field, field_validator
+from pydantic import Field, ValidationInfo, field_validator
 
 from framework.common.contracts import (
     SnowflakeIdInput,
 )
 from framework.common.schemas import BaseRequestVO
-from framework.common.validator import Email, NotNull
+from framework.common.validator import Email, NotEmpty, NotNull
 
 
 class MailAccountSaveReqVO(BaseRequestVO):
@@ -15,7 +15,7 @@ class MailAccountSaveReqVO(BaseRequestVO):
     id: Annotated[SnowflakeIdInput | None, Field(None, description="编号")]
     mail: Annotated[str, Field(..., description="邮箱")]
     username: Annotated[str, Field(..., description="用户名")]
-    password: Annotated[str, Field(..., description="密码")]
+    password: Annotated[str | None, Field(None, description="密码；更新省略时保留原值")]
     host: Annotated[str, Field(..., description="SMTP 服务器域名")]
     port: Annotated[int, Field(..., description="SMTP 服务器端口")]
     ssl_enable: Annotated[bool, Field(..., description="是否开启 ssl")]
@@ -24,7 +24,7 @@ class MailAccountSaveReqVO(BaseRequestVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
+                    "id": "1024",
                     "mail": "729227973@qq.com",
                     "username": "dushan",
                     "password": "123456",
@@ -52,8 +52,9 @@ class MailAccountSaveReqVO(BaseRequestVO):
 
     @field_validator("password", mode="before")
     @classmethod
-    def _validate_password(cls, v: Any) -> Any:
-        NotNull.require_not_null(field_name="password", value=v, error_msg="密码必填")
+    def _validate_password(cls, v: Any, info: ValidationInfo) -> Any:
+        if info.data.get("id") is None or v is not None:
+            NotEmpty.require_not_empty(field_name="password", value=v, error_msg="密码必填")
         return v
 
     @field_validator("host", mode="before")

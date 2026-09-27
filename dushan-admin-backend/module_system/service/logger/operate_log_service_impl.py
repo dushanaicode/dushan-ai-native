@@ -12,6 +12,8 @@ from framework.starter_di.public import (
     Inject,
     service,
 )
+from framework.starter_ip.config.ip_settings import IpSettings
+from framework.starter_ip.public import IpLocationService
 from framework.starter_security.public import (
     LogRecordReservation,
 )
@@ -22,6 +24,7 @@ from module_system.controller.admin.logger.vo.operatelog.operatelog_operate_log_
 )
 from module_system.dal.dataobject.logger.operate_log_do import OperateLogDO
 from module_system.dal.mapper.logger.operate_log_mapper import OperateLogMapper
+from module_system.dal.mapper.user.admin_user_mapper import AdminUserMapper
 from module_system.service.logger.operate_log_service import OperateLogService
 
 
@@ -30,6 +33,9 @@ class OperateLogServiceImpl(OperateLogService):
     """操作日志服务实现类"""
 
     operate_log_mapper: OperateLogMapper = Inject()
+    users: AdminUserMapper = Inject()
+    ip_locations: IpLocationService = Inject()
+    ip_settings: IpSettings = Inject()
 
     @override
     @transactional
@@ -50,6 +56,22 @@ class OperateLogServiceImpl(OperateLogService):
     @transactional(propagation="requires_new")
     async def reserve(self, operation):
         request = operation.request
+        user = await self.users.select_by_id(int(operation.identity.principal_id))
+        user_info = (
+            {}
+            if user is None
+            else {
+                "username": user.username,
+                "nickname": user.nickname,
+                "dept_id": None if user.dept_id is None else str(user.dept_id),
+            }
+        )
+        if request is not None and request.user_ip:
+            if self.ip_settings.enabled:
+                location = await self.ip_locations.lookup(request.user_ip)
+                user_info.update(location=location.location, location_status=location.status)
+            else:
+                user_info["location_status"] = "disabled"
         entry = OperateLogDO(
             event_id=operation.event_id,
             result="pending",
@@ -63,7 +85,7 @@ class OperateLogServiceImpl(OperateLogService):
             biz_id=0,
             action="",
             extra="",
-            user_info={},
+            user_info=user_info,
             request_method="" if request is None else request.request_method,
             request_url="" if request is None else request.request_url,
             user_ip="" if request is None else request.user_ip or "",

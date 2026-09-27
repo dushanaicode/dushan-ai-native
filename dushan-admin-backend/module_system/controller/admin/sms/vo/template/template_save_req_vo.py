@@ -25,7 +25,7 @@ class SmsTemplateSaveReqVO(BaseRequestVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
+                    "id": "1024",
                     "type": 1,
                     "status": 1,
                     "code": "test_01",
@@ -33,7 +33,7 @@ class SmsTemplateSaveReqVO(BaseRequestVO):
                     "content": "你好，{name}。你长的太{like}啦！",
                     "remark": "哈哈哈",
                     "apiTemplateId": "4383920",
-                    "channelId": 10,
+                    "channelId": "10",
                 }
             ]
         }

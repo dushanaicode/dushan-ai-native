@@ -31,11 +31,11 @@ class UserPageReqVO(PageQuery):
                     "mobile": "18888888888",
                     "status": 1,
                     "createTime": ["2020-05-20T05:20:00Z", "2022-07-01T23:59:59Z"],
-                    "deptId": 1024,
-                    "roleId": 1024,
-                    "pageNo": 1,
+                    "deptId": "1024",
+                    "roleId": "1024",
                     "pageSize": 10,
                     "fields": ["username", "mobile", "status", "createTime"],
+                    "page": 1,
                 }
             ]
         }

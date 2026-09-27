@@ -30,7 +30,7 @@ class PermissionAssignRoleDataScopeReqVO(BaseRequestVO):
     ]
     model_config = {
         "json_schema_extra": {
-            "examples": [{"roleId": 1, "dataScope": 1, "dataScopeDeptIds": [10, 20, 30]}]
+            "examples": [{"roleId": "1", "dataScope": 1, "dataScopeDeptIds": ["10", "20", "30"]}]
         }
     }
 

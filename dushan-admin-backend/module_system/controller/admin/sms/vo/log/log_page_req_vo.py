@@ -27,15 +27,15 @@ class SmsLogPageReqVO(PageQuery):
         "json_schema_extra": {
             "examples": [
                 {
-                    "channelId": 10,
-                    "templateId": 20,
+                    "channelId": "10",
+                    "templateId": "20",
                     "mobile": "18888888888",
                     "sendStatus": 1,
                     "sendTime": ["2024-01-01 12:00:00", "2024-01-02 12:00:00"],
                     "receiveStatus": 0,
                     "receiveTime": ["2024-01-01 12:00:00", "2024-01-02 12:00:00"],
-                    "pageNo": 1,
                     "pageSize": 10,
+                    "page": 1,
                 }
             ]
         }

@@ -35,8 +35,8 @@ class OAuth2ClientDO(GlobalControlDO):
     authorized_grant_types: Mapped[list[str]] = mapped_column(
         JSON, nullable=False, comment="授权类型 (JSON 数组)"
     )
-    scopes: Mapped[list[str] | None] = mapped_column(
-        JSON, nullable=True, comment="授权范围 (JSON 数组)"
+    scopes: Mapped[list[str]] = mapped_column(
+        JSON, nullable=False, default=list, comment="授权范围 (JSON 数组)"
     )
     auto_approve_scopes: Mapped[list[str] | None] = mapped_column(
         JSON, nullable=True, comment="自动通过的授权范围 (JSON 数组)"

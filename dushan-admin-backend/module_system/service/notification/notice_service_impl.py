@@ -113,6 +113,10 @@ class NoticeServiceImpl(NoticeService):
         notice = await self.get_notice(notice_id)
         if notice is None:
             raise ServiceException(ErrorCodeConstants.NOTICE_NOT_FOUND)
+        if notice.user_type != UserTypeEnum.ADMIN.code:
+            raise ServiceException(
+                GlobalErrorCodeConstants.BAD_REQUEST, msg="当前通知不支持该用户类型"
+            )
         target_user_ids: set[int] = set()
         if user_ids:
             target_user_ids.update(user_ids)
@@ -128,17 +132,11 @@ class NoticeServiceImpl(NoticeService):
                 )
                 target_user_ids.update(user.id for user in dept_users)
         if not target_user_ids:
-            return
+            raise ServiceException(ErrorCodeConstants.NOTICE_SEND_USER_NOT_EXISTS)
         final_user_ids = list(target_user_ids)
-        user_info_list = []
-        if notice.user_type == UserTypeEnum.ADMIN.code:
-            user_info_list = await self.admin_user_service.get_user_info_list_by_ids(final_user_ids)
-        else:
-            logger.warning(
-                f"【NoticeServiceImpl】用户类型 {notice.user_type} 暂不支持批量获取用户信息, 通知ID: {notice_id}, 跳过发送"
-            )
+        user_info_list = await self.admin_user_service.get_user_info_list_by_ids(final_user_ids)
         if not user_info_list:
-            return
+            raise ServiceException(ErrorCodeConstants.NOTICE_SEND_USER_NOT_EXISTS)
         has_user = bool(user_ids)
         has_dept = bool(dept_ids)
         if has_user and has_dept:

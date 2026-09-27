@@ -17,7 +17,7 @@ class SmsChannelSimpleRespVO(BaseVO):
     code: Annotated[str, Field(..., description="渠道编码，参见 SmsChannelEnum 枚举类")]
     model_config = {
         "json_schema_extra": {
-            "examples": [{"id": 1024, "signature": "渡山源码", "code": "DUSHAN_YUANMA"}]
+            "examples": [{"id": "1024", "signature": "渡山源码", "code": "DUSHAN_YUANMA"}]
         }
     }
 

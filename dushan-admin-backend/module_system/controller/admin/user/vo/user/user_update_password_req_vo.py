@@ -14,7 +14,7 @@ class UserUpdatePasswordReqVO(BaseRequestVO):
 
     id: Annotated[SnowflakeIdInput, Field(..., description="用户编号")]
     password: Annotated[str, Field(..., description="密码")]
-    model_config = {"json_schema_extra": {"examples": [{"id": 1024, "password": "123456"}]}}
+    model_config = {"json_schema_extra": {"examples": [{"id": "1024", "password": "123456"}]}}
 
     @field_validator("id", mode="before")
     @classmethod

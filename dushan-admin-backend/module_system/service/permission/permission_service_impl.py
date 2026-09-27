@@ -59,6 +59,7 @@ from module_system.service.permission.permission_cache_service import (
     PermissionCacheService,
 )
 from module_system.service.permission.permission_service import PermissionService
+from module_system.service.permission.system_access_policy import SystemAccessPolicy
 
 
 @service(interface=PermissionService)
@@ -75,6 +76,7 @@ class PermissionServiceImpl(PermissionService):
     events: PermissionCacheService = Inject()
     tenant: TenantContext = Inject()
     security: SecurityContext = Inject()
+    access_policy: SystemAccessPolicy = Inject()
 
     async def _roles(self, user_id):
         result = await self.roles.read_from_primary(
@@ -82,17 +84,21 @@ class PermissionServiceImpl(PermissionService):
             .join(UserRoleDO, RoleDO.id == UserRoleDO.role_id)
             .where(UserRoleDO.user_id == user_id, RoleDO.status == StatusEnum.ENABLE.code)
         )
-        return list(result.scalars().all())
+        roles = list(result.scalars().all())
+        if not self.access_policy.is_owner(user_id, self.tenant.get_required_tenant_id()):
+            roles = [role for role in roles if not RoleCodeEnum.is_super_admin(role.code)]
+        return roles
 
-    @staticmethod
-    def _super(roles):
-        return any(role.code == RoleCodeEnum.SUPER_ADMIN.code for role in roles)
+    def _super(self, roles):
+        return self.access_policy.is_current_owner() and any(
+            RoleCodeEnum.is_super_admin(role.code) for role in roles
+        )
 
     async def has_any_permissions(self, user_id: int, *permissions: str) -> bool:
         if not permissions:
             return True
         roles = await self._roles(user_id)
-        if self._super(roles):
+        if self.access_policy.is_owner(user_id, self.tenant.get_required_tenant_id()):
             return True
         ids = await self.get_role_menu_list_by_role_ids({role.id for role in roles})
         menus = await self.menus.select_by_ids(ids)
@@ -111,7 +117,10 @@ class PermissionServiceImpl(PermissionService):
         )
 
     async def has_any_roles(self, user_id: int, *roles: str) -> bool:
-        return not roles or bool(set(roles) & {role.code for role in await self._roles(user_id)})
+        granted = {role.code for role in await self._roles(user_id)}
+        if self.access_policy.is_owner(user_id, self.tenant.get_required_tenant_id()):
+            granted.add(RoleCodeEnum.SUPER_ADMIN.code)
+        return not roles or bool(set(roles) & granted)
 
     async def get_role_menu_list_by_role_id(self, role_id: int) -> set[int]:
         return await self.get_role_menu_list_by_role_ids({role_id})
@@ -120,9 +129,19 @@ class PermissionServiceImpl(PermissionService):
         roles = await self.roles.select_by_ids(role_ids)
         if self._super(roles):
             return {menu.id for menu in await self.menus.select_list()}
+        roles = [
+            role
+            for role in roles
+            if role.status == StatusEnum.ENABLE.code and not RoleCodeEnum.is_super_admin(role.code)
+        ]
+        identity = self.security.require()
+        allowed = await self.access_policy.menu_ids(identity.account_id, identity.tenant_id)
         return {
-            row.menu_id for row in await self.role_menu_mapper.select_list_by_role_ids(role_ids)
-        }
+            row.menu_id
+            for row in await self.role_menu_mapper.select_list_by_role_ids(
+                {role.id for role in roles}
+            )
+        } & allowed
 
     @cache(SystemCacheKeys.MENU_ROLE_ID_LIST, key="{{menu_id}}", ttl_seconds=3600)
     async def get_menu_role_id_list_by_menu_id_from_cache(self, menu_id: int) -> set[int]:
@@ -132,8 +151,16 @@ class PermissionServiceImpl(PermissionService):
     async def assign_user_role(self, user_id: int, role_ids: set[int]) -> None:
         if await self.users.select_by_id(user_id) is None:
             raise ServiceException(ErrorCodeConstants.USER_NOT_EXISTS)
-        if len(await self.roles.select_by_ids(role_ids)) != len(role_ids):
+        roles = await self.roles.select_by_ids(role_ids)
+        if len(roles) != len(role_ids):
             raise ServiceException(ErrorCodeConstants.ROLE_NOT_EXISTS)
+        owner = self.access_policy.is_owner(user_id, self.tenant.get_required_tenant_id())
+        if owner:
+            self.access_policy.require_owner()
+        if any(RoleCodeEnum.is_super_admin(role.code) for role in roles) != owner:
+            raise SecurityException(
+                SecurityErrorCodes.DENIED, detail="超级管理员角色仅属于唯一作者，不能转授或移除"
+            )
         current = await self.get_user_role_id_list_by_user_id(user_id)
         for role_id in role_ids - current:
             await self.user_role_mapper.insert(UserRoleDO(user_id=user_id, role_id=role_id))
@@ -152,18 +179,16 @@ class PermissionServiceImpl(PermissionService):
         return await self.get_user_role_id_list_by_user_id(user_id)
 
     async def get_enable_user_role_list_by_user_id_from_cache(self, user_id: int):
-        ids = await self.get_user_role_id_list_by_user_id_from_cache(user_id)
-        return [
-            role
-            for role in await self.roles.select_by_ids(ids)
-            if role.status == StatusEnum.ENABLE.code
-        ]
+        return await self._roles(user_id)
 
     @transactional
     async def assign_role_data_scope(self, req: PermissionAssignRoleDataScopeReqVO) -> None:
         scope = DataScope.from_code(req.data_scope)
-        if await self.roles.select_by_id(req.role_id) is None:
+        role = await self.roles.select_by_id(req.role_id)
+        if role is None:
             raise ServiceException(ErrorCodeConstants.ROLE_NOT_EXISTS)
+        if RoleCodeEnum.is_super_admin(role.code):
+            self.access_policy.require_owner()
         if scope is DataScope.DEPT_CUSTOM and len(
             await self.departments.select_by_ids(req.data_scope_dept_ids)
         ) != len(req.data_scope_dept_ids):
@@ -211,10 +236,19 @@ class PermissionServiceImpl(PermissionService):
 
     @transactional
     async def assign_role_menu(self, role_id: int, menu_ids: set[int]) -> None:
-        if await self.roles.select_by_id(role_id) is None:
+        role = await self.roles.select_by_id(role_id)
+        if role is None:
             raise ServiceException(ErrorCodeConstants.ROLE_NOT_EXISTS)
+        if RoleCodeEnum.is_super_admin(role.code):
+            self.access_policy.require_owner()
         if len(await self.menus.select_by_ids(menu_ids)) != len(menu_ids):
             raise ServiceException(ErrorCodeConstants.MENU_NOT_EXISTS)
+        identity = self.security.require()
+        allowed = await self.access_policy.menu_ids(identity.account_id, identity.tenant_id)
+        if not menu_ids <= allowed:
+            raise SecurityException(
+                SecurityErrorCodes.DENIED, detail="角色菜单不能超出租户套餐范围"
+            )
         current = {
             row.menu_id for row in await self.role_menu_mapper.select_list_by_role_id(role_id)
         }
@@ -298,7 +332,8 @@ class PermissionServiceImpl(PermissionService):
         else:
             role_list = await self._roles(int(session.account_id))
             roles = frozenset(role.code for role in role_list)
-            if self._super(role_list):
+            if self.access_policy.is_owner(session.account_id, session.tenant_id):
+                roles = roles | {RoleCodeEnum.SUPER_ADMIN.code}
                 permissions = frozenset({"*:*:*"})
             else:
                 statement = (
@@ -310,7 +345,10 @@ class PermissionServiceImpl(PermissionService):
                     )
                 )
                 menus = (await self.menus.read_from_primary(statement)).scalars().all()
-                permissions = frozenset(menu.permission for menu in menus if menu.permission)
+                allowed = await self.access_policy.menu_ids(session.account_id, session.tenant_id)
+                permissions = frozenset(
+                    menu.permission for menu in menus if menu.permission and menu.id in allowed
+                )
         await self._check_revision(session)
         return PermissionSnapshot(
             binding=binding,
@@ -321,6 +359,8 @@ class PermissionServiceImpl(PermissionService):
 
     async def data_rules(self, session) -> tuple[DataScopeRule, ...]:
         await self._check_revision(session)
+        if self.access_policy.is_owner(session.account_id, session.tenant_id):
+            return (DataScopeRule(scope=DataScope.ALL),)
         roles = await self._roles(int(session.account_id))
         rules = tuple(
             DataScopeRule(

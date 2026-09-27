@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import json
-
 from sqlalchemy import select
 
 from framework.common.page import PageResult
@@ -22,11 +20,6 @@ from module_system.dal.dataobject.tenant.tenant_package_do import TenantPackageD
 class TenantPackageMapper(BaseMapper[TenantPackageDO]):
     def __init__(self):
         super().__init__(TenantPackageDO)
-
-    def _convert_row(self, obj: TenantPackageDO) -> TenantPackageDO:
-        if isinstance(obj.menu_ids, str):
-            obj.menu_ids = set(json.loads(obj.menu_ids))
-        return obj
 
     async def select_page(self, req_vo: TenantPackagePageReqVO) -> PageResult[TenantPackageDO]:
         stmt = select(TenantPackageDO)

@@ -15,7 +15,7 @@ class UserUpdateStatusReqVO(BaseRequestVO):
 
     id: Annotated[SnowflakeIdInput, Field(..., description="用户编号")]
     status: Annotated[int, Field(..., description="状态，见 StatusEnum 枚举")]
-    model_config = {"json_schema_extra": {"examples": [{"id": 1024, "status": 1}]}}
+    model_config = {"json_schema_extra": {"examples": [{"id": "1024", "status": 1}]}}
 
     @field_validator("id", mode="before")
     @classmethod

@@ -4,6 +4,7 @@ from framework.common.schemas import BaseBO
 
 
 class SmsDispatchBO(BaseBO):
+    require_delivery: bool = False
     mobile: str | None
     user_id: int | None
     user_type: int

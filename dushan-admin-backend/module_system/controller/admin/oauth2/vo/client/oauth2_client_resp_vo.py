@@ -25,7 +25,7 @@ class OAuth2ClientRespVO(BaseVO):
     authorized_grant_types: Annotated[
         list[str], Field(..., description="授权类型，参见 OAuth2GrantTypeEnum 枚举")
     ]
-    scopes: Annotated[list[str] | None, Field(None, description="授权范围")]
+    scopes: Annotated[list[str], Field(..., description="授权范围")]
     auto_approve_scopes: Annotated[list[str] | None, Field(None, description="自动通过的授权范围")]
     authorities: Annotated[list[str] | None, Field(None, description="权限")]
     resource_ids: Annotated[list[str] | None, Field(None, description="资源")]
@@ -35,9 +35,8 @@ class OAuth2ClientRespVO(BaseVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
+                    "id": "1024",
                     "clientId": "dushan",
-                    "secret": "fan",
                     "name": "渡山",
                     "logo": "https://www.dushan.info/xx.png",
                     "description": "我是一个应用",

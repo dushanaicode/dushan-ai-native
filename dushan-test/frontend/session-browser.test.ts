@@ -32,6 +32,29 @@ afterEach(() => {
 });
 
 describe('浏览器会话接线', () => {
+  it('局域网 HTTP 缺少 randomUUID 时仍可启动、登录、同步和退出', () => {
+    const getRandomValues = crypto.getRandomValues.bind(crypto);
+    vi.stubGlobal('crypto', { getRandomValues });
+    state.token = state.stored = null;
+    const session = setupSession({
+      namespace: 'lan-http',
+      refresh: async () => 'refreshed',
+      expire: async () => {},
+    });
+    const initial = session.capture().generation;
+    session.replace('lan-access-token');
+    const loggedIn = session.capture();
+    expect(loggedIn.token).toBe('lan-access-token');
+    expect(loggedIn.generation).not.toBe(initial);
+    expect(localStorage.getItem('lan-http:session')).not.toContain(
+      'lan-access-token',
+    );
+    session.replace(null);
+    expect(session.capture().token).toBeNull();
+    expect(session.capture().generation).not.toBe(loggedIn.generation);
+    session.dispose();
+  });
+
   it('存储标记不含令牌，真实 storage 事件同步身份，dispose 移除监听', () => {
     state.token = state.stored = 'old';
     const session = setupSession({

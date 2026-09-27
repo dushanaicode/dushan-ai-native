@@ -23,30 +23,23 @@ class SmsClientFactoryImpl(SmsClientFactory):
     def __init__(self) -> None:
         """初始化封装框架短信相关领域能力。"""
         self.channel_id_clients: dict[int, AbstractSmsClient] = {}
-        self.channel_code_clients: dict[str, AbstractSmsClient] = {}
 
     def get_sms_client_by_id(self, channel_id: int) -> SmsClient | None:
         """按短信渠道编号获取客户端实例。"""
         return self.channel_id_clients.get(channel_id)
 
-    def get_sms_client_by_code(self, channel_code: str) -> SmsClient | None:
-        """按短信渠道编码获取客户端实例。"""
-        return self.channel_code_clients.get(channel_code)
-
     def create_or_update_sms_client(self, properties: SmsChannelProperties) -> SmsClient:
         """创建或刷新框架短信客户端实例。"""
-        client: AbstractSmsClient = self.channel_id_clients.get(properties.id)
+        client = self.channel_id_clients.get(properties.id)
         if client is None:
             concrete_client = self._create_sms_client(properties)
             concrete_client.init()
             self.channel_id_clients[concrete_client.get_id()] = concrete_client
-            self.channel_code_clients[properties.code] = concrete_client
             client = concrete_client
         else:
             if client.properties.code != properties.code:
                 raise ValueError("短信渠道创建后不能更换厂商，请创建新渠道")
             client.refresh(properties)
-            self.channel_code_clients[properties.code] = client
         return client
 
     def _create_sms_client(self, properties: SmsChannelProperties) -> AbstractSmsClient:

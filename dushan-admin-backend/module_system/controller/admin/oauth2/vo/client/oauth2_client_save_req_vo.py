@@ -1,6 +1,7 @@
+import re
 from typing import Annotated, Any
 
-from pydantic import Field, field_validator
+from pydantic import Field, ValidationInfo, field_validator
 
 from framework.common.contracts import (
     SnowflakeIdInput,
@@ -15,31 +16,39 @@ class OAuth2ClientSaveReqVO(BaseRequestVO):
     """管理后台 - OAuth2 客户端创建/修改 Request VO"""
 
     id: Annotated[SnowflakeIdInput | None, Field(None, description="编号")]
-    client_id: Annotated[str, Field(..., description="客户端ID")]
+    client_id: Annotated[str, Field(..., max_length=255, description="客户端ID")]
     secret: Annotated[str | None, Field(None, description="客户端密钥")]
-    name: Annotated[str, Field(..., description="应用名称")]
-    logo: Annotated[str, Field(..., description="应用图标")]
-    description: Annotated[str | None, Field(None, description="应用描述")]
+    name: Annotated[str, Field(..., max_length=255, description="应用名称")]
+    logo: Annotated[str, Field(..., max_length=255, description="应用图标")]
+    description: Annotated[str | None, Field(None, max_length=255, description="应用描述")]
     status: Annotated[int, Field(..., description="状态,参见 StatusEnum 枚举")]
     user_type: Annotated[int | None, Field(None, description="绑定的用户类型")]
-    access_token_validity_seconds: Annotated[int, Field(..., description="访问令牌的有效期")]
-    refresh_token_validity_seconds: Annotated[int, Field(..., description="刷新令牌的有效期")]
+    access_token_validity_seconds: Annotated[
+        int, Field(..., gt=0, le=2147483647, description="访问令牌的有效期")
+    ]
+    refresh_token_validity_seconds: Annotated[
+        int, Field(..., gt=0, le=2147483647, description="刷新令牌的有效期")
+    ]
     redirect_uris: Annotated[list[str], Field(..., description="可重定向的 URI 地址")]
     authorized_grant_types: Annotated[
         list[str], Field(..., description="授权类型，参见 OAuth2GrantTypeEnum 枚举")
     ]
-    scopes: Annotated[list[str] | None, Field(None, description="授权范围")]
+    scopes: Annotated[
+        list[str], Field(default_factory=list, description="授权范围，无范围时为空数组")
+    ]
     auto_approve_scopes: Annotated[list[str] | None, Field(None, description="自动通过的授权范围")]
     authorities: Annotated[list[str] | None, Field(None, description="权限")]
     resource_ids: Annotated[list[str] | None, Field(None, description="资源")]
-    additional_information: Annotated[str | None, Field(None, description="附加信息")]
+    additional_information: Annotated[
+        str | None, Field(None, max_length=255, description="附加信息")
+    ]
     model_config = {
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
+                    "id": "1024",
                     "clientId": "lele",
-                    "secret": "fan",
+                    "secret": "Example-OAuth-Secret-123456789!AaBb",
                     "name": "乐乐",
                     "logo": "https://www.dushan.info/xx.png",
                     "description": "我是一个应用",
@@ -66,8 +75,21 @@ class OAuth2ClientSaveReqVO(BaseRequestVO):
 
     @field_validator("secret", mode="before")
     @classmethod
-    def _validate_secret(cls, v: Any) -> Any:
-        NotNull.require_not_null(field_name="secret", value=v, error_msg="客户端密钥不能为空")
+    def _validate_secret(cls, v: Any, info: ValidationInfo) -> Any:
+        if info.data.get("id") is None:
+            NotNull.require_not_null(field_name="secret", value=v, error_msg="客户端密钥不能为空")
+        if v is None:
+            return None
+        if not isinstance(v, str) or not 32 <= len(v) <= 255 or re.fullmatch(r"[!-~]+", v) is None:
+            raise ValueError("客户端密钥须为32至255位无空白ASCII可打印字符")
+        if (
+            sum(
+                bool(re.search(pattern, v))
+                for pattern in (r"[a-z]", r"[A-Z]", r"\d", r"[^A-Za-z0-9]")
+            )
+            < 3
+        ):
+            raise ValueError("客户端密钥须至少包含大小写字母、数字、符号中的三类")
         return v
 
     @field_validator("name", mode="before")
@@ -89,26 +111,6 @@ class OAuth2ClientSaveReqVO(BaseRequestVO):
         NotNull.require_not_null(field_name="status", value=v, error_msg="状态不能为空")
         InEnum.require_in_enum(
             field_name="status", value=v, enum_class=StatusEnum, error_msg="状态必须在指定范围"
-        )
-        return v
-
-    @field_validator("access_token_validity_seconds", mode="before")
-    @classmethod
-    def _validate_access_token_validity_seconds(cls, v: Any) -> Any:
-        NotNull.require_not_null(
-            field_name="access_token_validity_seconds",
-            value=v,
-            error_msg="访问令牌的有效期不能为空",
-        )
-        return v
-
-    @field_validator("refresh_token_validity_seconds", mode="before")
-    @classmethod
-    def _validate_refresh_token_validity_seconds(cls, v: Any) -> Any:
-        NotNull.require_not_null(
-            field_name="refresh_token_validity_seconds",
-            value=v,
-            error_msg="刷新令牌的有效期不能为空",
         )
         return v
 

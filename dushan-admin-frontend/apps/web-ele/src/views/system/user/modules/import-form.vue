@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import type { UploadRawFile } from 'element-plus';
+import type { UploadFile, UploadRawFile } from 'element-plus';
 
 import type { SystemUserApi } from '#/api/system/user';
 
@@ -52,7 +52,9 @@ const [Modal, modalApi] = useVbenModal({
   },
 });
 
-function beforeUpload(rawFile: UploadRawFile) {
+function onChange(upload: UploadFile) {
+  const rawFile = upload.raw;
+  if (!rawFile) return;
   const isExcel =
     rawFile.type ===
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
@@ -63,15 +65,18 @@ function beforeUpload(rawFile: UploadRawFile) {
 
   if (!isExcel) {
     ElMessage.error('只允许上传 xls、xlsx 文件');
-    return false;
+    file.value = undefined;
+    uploadRef.value?.clearFiles();
+    return;
   }
   if (!isLt10M) {
     ElMessage.error('文件大小不能超过 10MB');
-    return false;
+    file.value = undefined;
+    uploadRef.value?.clearFiles();
+    return;
   }
 
   file.value = rawFile;
-  return false;
 }
 
 function onExceed(files: File[]) {
@@ -88,7 +93,7 @@ function onRemove() {
 
 async function downloadTemplate() {
   const data = await importUserTemplate();
-  downloadFileFromBlobPart({ fileName: '用户导入模板.xls', source: data });
+  downloadFileFromBlobPart({ fileName: '用户导入模板.xlsx', source: data });
 }
 
 function formatFailureNames(failureUsernames?: Record<string, string>) {
@@ -101,7 +106,7 @@ function formatFailureNames(failureUsernames?: Record<string, string>) {
 
 <template>
   <Modal
-    :confirm-button-text="importResult ? '关闭' : '确认导入'"
+    :confirm-text="importResult ? '关闭' : '确认导入'"
     :show-cancel-button="!importResult"
     class="w-1/2"
     title="用户导入"
@@ -109,10 +114,11 @@ function formatFailureNames(failureUsernames?: Record<string, string>) {
     <div v-if="!importResult" class="space-y-4">
       <ElUpload
         ref="uploadRef"
-        :before-upload="beforeUpload"
+        :auto-upload="false"
         :limit="1"
         accept=".xls,.xlsx"
         drag
+        @change="onChange"
         @exceed="onExceed"
         @remove="onRemove"
       >

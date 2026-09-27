@@ -65,13 +65,13 @@ class UserRespVO(BaseVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
+                    "id": "1024",
                     "username": "dushan",
                     "nickname": "渡山",
                     "remark": "我是一个用户",
-                    "deptId": 1024,
+                    "deptId": "1024",
                     "deptName": "IT 部",
-                    "postIds": [1],
+                    "postIds": ["1"],
                     "email": "729227973@qq.com",
                     "mobile": "18888888888",
                     "sex": 1,

@@ -198,7 +198,11 @@ describe('实际 Axios 请求与刷新边界', () => {
     client.requestSSE = () => {
       throw failure;
     };
-    configureSessionStreaming(client, () => session, () => true);
+    configureSessionStreaming(
+      client,
+      () => session,
+      () => true,
+    );
     await expect(client.requestSSE('/events')).rejects.toBe(failure);
     expect(release).toHaveBeenCalledTimes(1);
     session.dispose();
@@ -216,7 +220,11 @@ describe('实际 Axios 请求与刷新边界', () => {
         await pending.promise;
         options?.onEnd?.();
       };
-      configureSessionStreaming(client, () => session, () => true);
+      configureSessionStreaming(
+        client,
+        () => session,
+        () => true,
+      );
       const request = Promise.allSettled([
         client.requestSSE('/events', undefined, { onEnd }),
       ]);
@@ -250,7 +258,11 @@ describe('实际 Axios 请求与刷新边界', () => {
         if (config.headers.Authorization === 'Bearer new') return 'ok';
         throw failure();
       };
-      configureSessionRequests(client, () => session, () => true);
+      configureSessionRequests(
+        client,
+        () => session,
+        () => true,
+      );
       return { client, seen, session, shared };
     };
     const http401 = () =>
@@ -263,14 +275,22 @@ describe('实际 Axios 请求与刷新边界', () => {
 
     for (const failure of [http401, code401]) {
       const on = make(failure);
-      configureSessionStreaming(on.client, () => on.session, () => true);
+      configureSessionStreaming(
+        on.client,
+        () => on.session,
+        () => true,
+      );
       expect(await on.client.requestSSE('/events')).toBe('ok');
       expect(on.shared.refresh).toHaveBeenCalledTimes(1);
       expect(on.seen).toEqual(['Bearer old', 'Bearer new']);
     }
 
     const off = make(http401);
-    configureSessionStreaming(off.client, () => off.session, () => false);
+    configureSessionStreaming(
+      off.client,
+      () => off.session,
+      () => false,
+    );
     await expect(off.client.requestSSE('/events')).rejects.toMatchObject({
       status: 401,
     });
@@ -343,7 +363,7 @@ describe('实际 Axios 请求与刷新边界', () => {
     expect(adapter).toHaveBeenCalledTimes(4);
   });
 
-  it('再次401不循环；写请求须明确允许；认证端点不递归刷新', async () => {
+  it('再次401不循环；通用401写请求须明确允许；认证端点不递归刷新', async () => {
     for (const [url, method, options, count, refreshes] of [
       ['/always', 'get', {}, 2, 1],
       ['/write', 'post', {}, 1, 1],
@@ -370,6 +390,31 @@ describe('实际 Axios 请求与刷新边界', () => {
       ).rejects.toMatchObject({ code: 401 });
       expect(adapter).toHaveBeenCalledTimes(count);
       expect(shared.refresh).toHaveBeenCalledTimes(refreshes);
+    }
+  });
+
+  it('Native写请求过期只重试一次，显式禁止时不重试，其他业务错误不刷新', async () => {
+    for (const [code, options, requests, refreshes] of [
+      [1004003, {}, 2, 1],
+      [1004003, { allowAuthReplay: false }, 1, 1],
+      [1004007, {}, 1, 0],
+      [500, {}, 1, 0],
+    ] as const) {
+      const shared = createShared();
+      const session = shared.create();
+      const client = new RequestClient({ responseReturn: 'data' });
+      configureSessionRequests(
+        client,
+        () => session,
+        () => true,
+      );
+      const adapter = vi.fn(async (config) => response(config, code));
+      await expect(
+        client.post('/native-write', { value: 1 }, { adapter, ...options }),
+      ).rejects.toMatchObject({ code });
+      expect(adapter).toHaveBeenCalledTimes(requests);
+      expect(shared.refresh).toHaveBeenCalledTimes(refreshes);
+      session.dispose();
     }
   });
 

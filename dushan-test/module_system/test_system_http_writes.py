@@ -105,7 +105,7 @@ async def payload_for(client, domain):
             return {
                 "clientId": key,
                 "name": key,
-                "secret": "test-only",
+                "secret": "Test-only-OAuth-credential-123456789!",
                 "logo": "https://example.test/logo.png",
                 "status": 1,
                 "userType": 2,
@@ -262,6 +262,7 @@ async def test_batch_token_revoke_only_selected_sessions(admin_client, system_ap
                 await user.post(
                     "/admin-api/system/auth/login",
                     json={"username": payload["username"], "password": payload["password"]},
+                    headers={"X-Tenant-Id": "1"},
                 )
             ).json()
             assert login["code"] == 0, login

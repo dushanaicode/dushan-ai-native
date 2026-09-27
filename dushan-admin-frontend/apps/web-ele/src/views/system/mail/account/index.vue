@@ -45,7 +45,7 @@ async function onExport() {
   exportTableRef.value?.setData({
     columns: fields,
     exportApi: exportMailAccount,
-    fileName: '邮箱账号数据.xls',
+    fileName: '邮箱账号数据.xlsx',
     searchParams: formValues,
   });
   exportTableRef.value?.open();

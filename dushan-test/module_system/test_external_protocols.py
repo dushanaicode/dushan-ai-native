@@ -3,6 +3,7 @@ from types import SimpleNamespace
 import aiosmtplib
 import httpx
 import pytest
+from pydantic import ValidationError
 
 from module_system.framework.mail.client.smtp_mail_client import SmtpMailClient
 from module_system.framework.mail.model.mail_account import MailAccount
@@ -24,6 +25,15 @@ from module_system.framework.sms.model.sms_channel_properties import SmsChannelP
 from module_system.framework.social.security.social_auth_config_security import (
     SocialAuthConfigSecurity,
 )
+
+
+@pytest.mark.parametrize("id_fields", [{}, {"id": None}], ids=["missing", "none"])
+def test_sms_channel_requires_persisted_id(id_fields):
+    with pytest.raises(ValidationError) as error:
+        SmsChannelProperties.model_validate(
+            {"code": "ALIYUN", "api_key": "access", "api_secret": "secret", **id_fields}
+        )
+    assert [item["loc"] for item in error.value.errors()] == [("id",)]
 
 
 @pytest.mark.parametrize(
@@ -114,8 +124,12 @@ async def test_sms_factory_keeps_provider_and_refreshes_same_channel():
         with pytest.raises(ValueError, match="不能更换厂商"):
             factory.create_or_update_sms_client(properties.model_copy(update={"code": "TENCENT"}))
         assert first.properties == updated
-        assert factory.get_sms_client_by_code("TENCENT") is None
-        assert factory.get_sms_client_by_code("ALIYUN") is first
+        same_provider = factory.create_or_update_sms_client(
+            properties.model_copy(update={"id": 3, "api_key": "another-tenant"})
+        )
+        assert same_provider is not first
+        assert first.properties.api_key == "access"
+        assert same_provider.properties.api_key == "another-tenant"
         second = factory.create_or_update_sms_client(
             properties.model_copy(update={"id": 2, "code": "TENCENT", "api_key": "access sdk-app"})
         )

@@ -51,6 +51,7 @@ const [Modal, modalApi] = useVbenModal({
     modalApi.lock();
     const data =
       (await formApi.getValues()) as SystemMailAccountApi.MailAccountSaveReqVO;
+    if (formData.value?.id && !data.password) delete data.password;
 
     try {
       await (formData.value?.id
@@ -66,8 +67,11 @@ const [Modal, modalApi] = useVbenModal({
   async onOpenChange(isOpen: boolean) {
     if (!isOpen) {
       formData.value = undefined;
+      await formApi.reset();
       return;
     }
+
+    await formApi.reset();
 
     const data = modalApi.getData() as
       | SystemMailAccountApi.MailAccountRespVO

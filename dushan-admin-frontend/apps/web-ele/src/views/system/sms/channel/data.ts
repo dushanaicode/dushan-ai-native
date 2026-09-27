@@ -34,24 +34,24 @@ export function useFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(
           DICT_TYPE.SYSTEM_SMS_CHANNEL_CODE,
           'string',
         ),
         placeholder: '请选择渠道编码',
-      },
+      }),
       fieldName: 'code',
       label: '渠道编码',
       rules: 'selectRequired',
     },
     {
       component: 'RadioGroup',
-      componentProps: {
+      componentProps: () => ({
         isButton: true,
         options: dictionary.getDictOptions(DICT_TYPE.COMMON_STATUS, 'number'),
-      },
+      }),
       fieldName: 'status',
       label: '启用状态',
       rules: z.number().default(SwitchStatus.ENABLED),
@@ -66,7 +66,14 @@ export function useFormSchema(): VbenFormSchema[] {
       },
       fieldName: 'apiKey',
       label: 'API 账号',
-      rules: 'required',
+      dependencies: {
+        resolve: ({ values }) => ({
+          rules: values.id
+            ? z.string().optional()
+            : z.string().min(1, '请输入短信 API 账号'),
+        }),
+        triggerFields: ['id'],
+      },
     },
     {
       component: 'VbenInputPassword',
@@ -119,24 +126,24 @@ export function useGridFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(
           DICT_TYPE.SYSTEM_SMS_CHANNEL_CODE,
           'string',
         ),
         placeholder: '请选择渠道编码',
-      },
+      }),
       fieldName: 'code',
       label: '渠道编码',
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(DICT_TYPE.COMMON_STATUS, 'number'),
         placeholder: '请选择状态',
-      },
+      }),
       fieldName: 'status',
       label: '状态',
     },
@@ -183,12 +190,8 @@ export function useGridColumns(
     {
       align: 'center',
       cellRender: {
-        attrs: { beforeChange: onStatusChange },
         name: 'CellSwitch',
-        props: {
-          checkedValue: SwitchStatus.ENABLED,
-          unCheckedValue: SwitchStatus.DISABLED,
-        },
+        props: { change: onStatusChange },
       },
       field: 'status',
       title: '状态',
@@ -227,7 +230,7 @@ export function useGridColumns(
     {
       align: 'center',
       fixed: 'right',
-      minWidth: 130,
+      minWidth: 230,
       slots: { default: 'actions' },
       title: '操作',
     },

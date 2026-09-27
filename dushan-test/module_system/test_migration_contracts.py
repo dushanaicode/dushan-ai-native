@@ -316,32 +316,32 @@ ENUMS = [
         ("refresh_token", "刷新模式"),
     ),
     (
-        "module_system.definitions.enums.permission.permission_data_scope_enum",
-        "PermissionDataScopeEnum",
+        "framework.starter_data_permission.public",
+        "DataScope",
         "ALL",
         (1, "全部数据权限"),
     ),
     (
-        "module_system.definitions.enums.permission.permission_data_scope_enum",
-        "PermissionDataScopeEnum",
+        "framework.starter_data_permission.public",
+        "DataScope",
         "DEPT_CUSTOM",
         (2, "指定部门数据权限"),
     ),
     (
-        "module_system.definitions.enums.permission.permission_data_scope_enum",
-        "PermissionDataScopeEnum",
+        "framework.starter_data_permission.public",
+        "DataScope",
         "DEPT_ONLY",
         (3, "部门数据权限"),
     ),
     (
-        "module_system.definitions.enums.permission.permission_data_scope_enum",
-        "PermissionDataScopeEnum",
+        "framework.starter_data_permission.public",
+        "DataScope",
         "DEPT_AND_CHILD",
         (4, "部门及以下数据权限"),
     ),
     (
-        "module_system.definitions.enums.permission.permission_data_scope_enum",
-        "PermissionDataScopeEnum",
+        "framework.starter_data_permission.public",
+        "DataScope",
         "SELF",
         (5, "仅本人数据权限"),
     ),
@@ -1207,6 +1207,11 @@ ERRORS = [
         1002032013,
         "system.social.weixin_mini_app_order_confirm_receive_error",
     ),
+    (
+        "SOCIAL_CLIENT_AUTH_CONFIG_INVALID",
+        1002032014,
+        "system.social.client_auth_config_invalid",
+    ),
 ]
 
 
@@ -1229,7 +1234,7 @@ def test_error_codes_and_bilingual_resources():
     root = (
         Path(__file__).resolve().parents[2] / "dushan-admin-backend/module_system/definitions/i18n"
     )
-    assert len(ERRORS) == 144
+    assert len(ERRORS) == 145
     for locale in ("zh-CN", "en-US"):
         messages = json.loads((root / (locale + ".json")).read_text(encoding="utf-8"))
         for name, code, key in ERRORS:

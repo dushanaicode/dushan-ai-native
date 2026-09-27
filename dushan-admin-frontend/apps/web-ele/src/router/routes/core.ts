@@ -83,8 +83,29 @@ const coreRoutes: RouteRecordRaw[] = [
         },
       },
       {
+        name: 'SocialLogin',
+        path: 'social-login',
+        beforeEnter: () =>
+          import.meta.env.VITE_APP_SOCIAL_LOGIN_ENABLE === 'true' || {
+            path: LOGIN_PATH,
+            replace: true,
+          },
+        component: () =>
+          import('#/views/_core/authentication/social-login.vue'),
+        meta: { title: $t('socialLogin.title') },
+      },
+      {
         name: 'Register',
         path: 'register',
+        beforeEnter: async () => {
+          const { isRegistrationEnabled } = await import('#/api/core/auth');
+          return (
+            (await isRegistrationEnabled()) || {
+              path: LOGIN_PATH,
+              replace: true,
+            }
+          );
+        },
         component: () => import('#/views/_core/authentication/register.vue'),
         meta: {
           title: $t('page.auth.register'),

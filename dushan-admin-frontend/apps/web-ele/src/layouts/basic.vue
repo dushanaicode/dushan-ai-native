@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { computed, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { AuthenticationLoginExpiredModal } from '@vben/common-ui';
@@ -10,12 +10,14 @@ import { preferences, usePreferences } from '@vben/preferences';
 import { useAccessStore, useUserStore } from '@vben/stores';
 import { openWindow } from '@vben/utils';
 
+import { isQrLoginEnabled } from '#/api/core/qr-login';
 import { $t } from '#/locales';
 import {
   buildDocUrl,
   projectLinks,
   useDocLinkConfig,
 } from '#/services/doc-links';
+import { isMobileWeb } from '#/services/qr-login';
 import { useAuthStore } from '#/store';
 import LoginForm from '#/views/_core/authentication/login.vue';
 
@@ -30,6 +32,11 @@ const authStore = useAuthStore();
 const accessStore = useAccessStore();
 const { destroyWatermark, updateWatermark } = useWatermark();
 const { isDark } = usePreferences();
+const showScanner = ref(false);
+onMounted(async () => {
+  if (isMobileWeb())
+    showScanner.value = await isQrLoginEnabled().catch(() => false);
+});
 
 const { docSite, deepDiveSite } = useDocLinkConfig();
 
@@ -38,6 +45,15 @@ function openLink(url: string) {
 }
 
 const menus = computed(() => [
+  ...(showScanner.value
+    ? [
+        {
+          handler: () => router.push({ name: 'QrLoginScan' }),
+          icon: 'lucide:scan-line',
+          text: $t('qrLogin.scan'),
+        },
+      ]
+    : []),
   {
     handler: () => {
       router.push({ name: 'Profile' });

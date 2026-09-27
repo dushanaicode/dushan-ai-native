@@ -1,0 +1,5 @@
+{
+  "checkFields": "Complete the required fields first.",
+  "ready": "Your verification code is ready. Enter the code to continue.",
+  "captchaFailed": "Unable to load the verification challenge."
+}

@@ -1,4 +1,6 @@
+import type { NativeRequestConfig } from '#/api/response';
 import type { PageParam, PageResult } from '#/api/types';
+import type { SessionSnapshot } from '#/services/session/coordinator';
 
 import { requestClient } from '#/api/request';
 
@@ -30,12 +32,20 @@ export namespace SystemSocialUserApi {
 }
 
 /** 社交绑定（使用 code 授权码） */
-export async function bindSocialUser(data: {
-  code: string;
-  state: string;
-  type: number;
-}) {
-  return requestClient.post<string>('/system/social/user/bind', data);
+export async function bindSocialUser(
+  data: {
+    code: string;
+    state: string;
+    type: number;
+  },
+  session: SessionSnapshot,
+) {
+  const config: NativeRequestConfig = {
+    withCredentials: true,
+    errorMessageMode: 'form',
+    __session: session,
+  };
+  return requestClient.post<string>('/system/social/user/bind', data, config);
 }
 
 /** 取消社交绑定（body 传参） */

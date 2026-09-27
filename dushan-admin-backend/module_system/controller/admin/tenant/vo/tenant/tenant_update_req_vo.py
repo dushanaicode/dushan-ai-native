@@ -26,13 +26,13 @@ class TenantUpdateReqVO(BaseRequestVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
+                    "id": "1024",
                     "name": "渡山",
                     "contactName": "渡山",
                     "contactMobile": "18888888888",
                     "status": 1,
                     "websites": ["https://www.dushan.cn"],
-                    "packageId": 1024,
+                    "packageId": "1024",
                     "expireTime": "2020-05-20T05:20:00Z",
                     "accountCount": 1024,
                 }

@@ -17,6 +17,9 @@ from module_system.api.social.dto.social_wxa_subscribe_message_send_req_dto impo
     SocialWxaSubscribeMessageSendReqDTO,
 )
 from module_system.api.social.social_client_api import SocialClientApi
+from module_system.controller.admin.auth.vo.auth_social_provider_resp_vo import (
+    AuthSocialProviderRespVO,
+)
 from module_system.controller.admin.social.vo.client.social_client_page_req_vo import (
     SocialClientPageReqVO,
 )
@@ -34,6 +37,14 @@ social_client_controller = APIRouter(prefix="/social/client", tags=["System - �
 
 
 class SocialClientController:
+    @staticmethod
+    @social_client_controller.get("/types", summary="获得授权组件支持的渠道类型")
+    @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT)
+    async def provider_types(
+        service: SocialClientService = Depends(DiDependency(SocialClientService)),
+    ) -> Result[list[AuthSocialProviderRespVO]]:
+        return Result.success(service.get_provider_types())
+
     @staticmethod
     @social_client_controller.post("/create", summary="创建社交客户端")
     @RoutePolicy(

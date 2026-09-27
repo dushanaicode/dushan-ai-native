@@ -247,7 +247,7 @@ class UserController:
         list_data: list[UserImportExcelVO] = [
             UserImportExcelVO(
                 username="dushan1",
-                dept_id=1,
+                dept_id=None,
                 email="ds1@qq.com",
                 mobile="15666666666",
                 nickname="渡山1",
@@ -256,7 +256,7 @@ class UserController:
             ),
             UserImportExcelVO(
                 username="dushan2",
-                dept_id=2,
+                dept_id=None,
                 email="ds2@qq.com",
                 mobile="15777777777",
                 nickname="渡山2",

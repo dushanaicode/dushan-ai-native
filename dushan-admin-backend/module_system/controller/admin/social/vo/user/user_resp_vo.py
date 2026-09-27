@@ -32,16 +32,11 @@ class SocialUserRespVO(BaseVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 14569,
+                    "id": "14569",
                     "type": 30,
                     "openid": "666",
-                    "token": "666",
-                    "rawTokenInfo": "{}",
                     "nickname": "渡山",
                     "avatar": "https://www.dushan.info/xxx.png",
-                    "rawUserInfo": "{}",
-                    "code": "666666",
-                    "state": "123456",
                     "createTime": "2020-05-20T05:20:00Z",
                     "updateTime": "2020-05-20T05:20:00Z",
                 }

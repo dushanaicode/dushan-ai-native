@@ -60,7 +60,7 @@ const [Grid] = useVbenVxeGrid({
         <TableAction
           :actions="[
             {
-              label: $t('ui.actionTitle.detail'),
+              label: $t('ui.actionTitle.view', ['']),
               type: 'text',
               icon: ACTION_ICON.VIEW,
               auth: ['system:social:user:query'],

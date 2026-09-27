@@ -14,7 +14,7 @@ class Post(BaseVO):
 
     id: Annotated[SnowflakeIdStr, Field(..., description="岗位编号")]
     name: Annotated[str, Field(..., description="岗位名称")]
-    model_config = {"json_schema_extra": {"examples": [{"id": 1, "name": "开发"}]}}
+    model_config = {"json_schema_extra": {"examples": [{"id": "1", "name": "开发"}]}}
 
     @field_validator("id", mode="before")
     @classmethod

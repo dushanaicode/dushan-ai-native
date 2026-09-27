@@ -88,7 +88,7 @@ export class CaptchaController {
     this.disposed = true;
   }
 
-  async reload() {
+  async reload(error?: unknown) {
     const flow = this.flow;
     if (!flow || this.disposed)
       throw new DOMException('没有进行中的验证', 'InvalidStateError');
@@ -102,6 +102,7 @@ export class CaptchaController {
       ...this.state.value,
       challenge: null,
       status: 'loading',
+      error,
     };
     try {
       const config = captchaConfigSchema.parse(
@@ -178,7 +179,7 @@ export class CaptchaController {
         this.state.value = { ...this.state.value, status: 'error', error };
 
         try {
-          await this.reload();
+          await this.reload(error);
         } catch (reloadError) {
           this.report(reloadError);
         }

@@ -27,7 +27,7 @@ class AnnouncementRespVO(BaseVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
+                    "id": "1024",
                     "title": "系统升级通知",
                     "content": "系统将于2023年10月1日进行升级，届时将暂停服务2小时",
                     "status": 1,

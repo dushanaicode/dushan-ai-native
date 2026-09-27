@@ -1,6 +1,7 @@
 import secrets
 
 from fastapi import APIRouter, Depends, Query, Request, Response
+from starlette.responses import RedirectResponse
 
 from framework.starter_di.public import (
     DiDependency,
@@ -31,6 +32,7 @@ from module_system.controller.admin.auth.vo.auth_login_resp_vo import AuthLoginR
 from module_system.controller.admin.auth.vo.auth_permission_info_resp_vo import (
     AuthPermissionInfoRespVO,
 )
+from module_system.controller.admin.auth.vo.auth_recovery_send_req_vo import AuthRecoverySendReqVO
 from module_system.controller.admin.auth.vo.auth_register_req_vo import AuthRegisterReqVO
 from module_system.controller.admin.auth.vo.auth_reset_password_req_vo import AuthResetPasswordReqVO
 from module_system.controller.admin.auth.vo.auth_sms_login_req_vo import AuthSmsLoginReqVO
@@ -39,19 +41,78 @@ from module_system.controller.admin.auth.vo.auth_social_auth_redirect_req_vo imp
     AuthSocialAuthRedirectReqVO,
 )
 from module_system.controller.admin.auth.vo.auth_social_login_req_vo import AuthSocialLoginReqVO
+from module_system.controller.admin.auth.vo.auth_social_provider_resp_vo import (
+    AuthSocialProviderRespVO,
+)
+from module_system.controller.admin.auth.vo.auth_tenant_config_resp_vo import AuthTenantConfigRespVO
+from module_system.definitions.constants.public_contexts import PublicContexts
 from module_system.definitions.enums.logger.login_log_type_enum import LoginLogTypeEnum
 from module_system.service.auth.auth_admin_auth_service import AuthAdminAuthService
 from module_system.service.oauth2.oauth2_token_service import OAuth2TokenService
 from module_system.service.social.social_client_service import SocialClientService
-from module_system.service.workload.system_workload_service import SystemWorkloadService
+from module_system.service.tenant.tenant_service import TenantService
 
 auth_controller = APIRouter(prefix="/auth", tags=["System - 认证管理"])
 
 
 class AuthController:
     @staticmethod
-    @auth_controller.post("/login")
+    @auth_controller.get("/social-callback")
+    @auth_controller.post("/social-callback")
     @RoutePolicy.public()
+    @AccessLogPolicy(enabled=False)
+    async def social_callback(
+        request: Request,
+        clients: SocialClientService = Depends(DiDependency(SocialClientService)),
+    ) -> RedirectResponse:
+        parameters = (
+            request.query_params
+            if request.method == "GET"
+            else await request.form(max_fields=10, max_files=0)
+        )
+        url = await clients.relay_callback(list(parameters.multi_items()))
+        return RedirectResponse(
+            url,
+            status_code=303,
+            headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"},
+        )
+
+    @staticmethod
+    @auth_controller.get("/social-providers")
+    @RoutePolicy.public(context=PublicContexts.TENANT_SELECTION)
+    @AccessLogPolicy(enabled=False)
+    async def social_providers(
+        clients: SocialClientService = Depends(DiDependency(SocialClientService)),
+    ) -> Result[list[AuthSocialProviderRespVO]]:
+        return Result.success(await clients.get_login_providers())
+
+    @staticmethod
+    @auth_controller.get("/registration-enabled")
+    @RoutePolicy.public()
+    @AccessLogPolicy(enabled=False)
+    async def registration_enabled(
+        settings: SystemSettings = Depends(DiDependency(SystemSettings)),
+    ) -> Result[bool]:
+        return Result.success(settings.user_register_enabled)
+
+    @staticmethod
+    @auth_controller.get("/tenants")
+    @RoutePolicy.public()
+    @AccessLogPolicy(enabled=False)
+    async def tenants(
+        settings: TenantSettings = Depends(DiDependency(TenantSettings)),
+        service: TenantService = Depends(DiDependency(TenantService)),
+    ) -> Result[AuthTenantConfigRespVO]:
+        return Result.success(
+            AuthTenantConfigRespVO(
+                enabled=settings.enabled,
+                tenants=await service.get_login_tenants() if settings.enabled else [],
+            )
+        )
+
+    @staticmethod
+    @auth_controller.post("/login")
+    @RoutePolicy.public(context=PublicContexts.TENANT_SELECTION)
     @AccessLogPolicy(enabled=False)
     @rate_limit(
         "system.auth.login", rules=(RateLimitRule(algorithm="fixed", capacity=5, window_ms=60000),)
@@ -61,19 +122,15 @@ class AuthController:
         response: Response,
         req_vo: AuthLoginReqVO,
         auth: AuthAdminAuthService = Depends(DiDependency(AuthAdminAuthService)),
-        workloads: SystemWorkloadService = Depends(DiDependency(SystemWorkloadService)),
         settings: SystemSettings = Depends(DiDependency(SystemSettings)),
-        tenant: TenantSettings = Depends(DiDependency(TenantSettings)),
     ) -> Result[AuthLoginRespVO]:
-        AuthCookies.check_origin(request, settings)
-        async with workloads.scope("system.auth", tenant.default_tenant_id):
-            value = await auth.login(req_vo)
+        value = await auth.login(req_vo)
         AuthCookies.set_refresh(response, value, settings)
         return Result.success(value)
 
     @staticmethod
     @auth_controller.post("/register")
-    @RoutePolicy.public()
+    @RoutePolicy.public(context=PublicContexts.TENANT_SELECTION)
     @AccessLogPolicy(enabled=False)
     @rate_limit(
         "system.auth.register",
@@ -84,19 +141,15 @@ class AuthController:
         response: Response,
         req_vo: AuthRegisterReqVO,
         auth: AuthAdminAuthService = Depends(DiDependency(AuthAdminAuthService)),
-        workloads: SystemWorkloadService = Depends(DiDependency(SystemWorkloadService)),
         settings: SystemSettings = Depends(DiDependency(SystemSettings)),
-        tenant: TenantSettings = Depends(DiDependency(TenantSettings)),
     ) -> Result[AuthLoginRespVO]:
-        AuthCookies.check_origin(request, settings)
-        async with workloads.scope("system.auth", tenant.default_tenant_id):
-            value = await auth.register(req_vo)
+        value = await auth.register(req_vo)
         AuthCookies.set_refresh(response, value, settings)
         return Result.success(value)
 
     @staticmethod
     @auth_controller.post("/sms-login")
-    @RoutePolicy.public()
+    @RoutePolicy.public(context=PublicContexts.TENANT_SELECTION)
     @AccessLogPolicy(enabled=False)
     @rate_limit(
         "system.auth.sms_login",
@@ -107,19 +160,15 @@ class AuthController:
         response: Response,
         req_vo: AuthSmsLoginReqVO,
         auth: AuthAdminAuthService = Depends(DiDependency(AuthAdminAuthService)),
-        workloads: SystemWorkloadService = Depends(DiDependency(SystemWorkloadService)),
         settings: SystemSettings = Depends(DiDependency(SystemSettings)),
-        tenant: TenantSettings = Depends(DiDependency(TenantSettings)),
     ) -> Result[AuthLoginRespVO]:
-        AuthCookies.check_origin(request, settings)
-        async with workloads.scope("system.auth", tenant.default_tenant_id):
-            value = await auth.sms_login(req_vo)
+        value = await auth.sms_login(req_vo)
         AuthCookies.set_refresh(response, value, settings)
         return Result.success(value)
 
     @staticmethod
     @auth_controller.post("/social-login")
-    @RoutePolicy.public()
+    @RoutePolicy.public(context=PublicContexts.SOCIAL_LOGIN)
     @AccessLogPolicy(enabled=False)
     @rate_limit(
         "system.auth.social_login",
@@ -130,19 +179,15 @@ class AuthController:
         response: Response,
         req_vo: AuthSocialLoginReqVO,
         auth: AuthAdminAuthService = Depends(DiDependency(AuthAdminAuthService)),
-        workloads: SystemWorkloadService = Depends(DiDependency(SystemWorkloadService)),
         settings: SystemSettings = Depends(DiDependency(SystemSettings)),
-        tenant: TenantSettings = Depends(DiDependency(TenantSettings)),
     ) -> Result[AuthLoginRespVO]:
-        AuthCookies.check_origin(request, settings)
-        async with workloads.scope("system.auth", tenant.default_tenant_id):
-            value = await auth.social_login(req_vo)
+        value = await auth.social_login(req_vo)
         AuthCookies.set_refresh(response, value, settings)
         return Result.success(value)
 
     @staticmethod
     @auth_controller.post("/send-sms-code")
-    @RoutePolicy.public()
+    @RoutePolicy.public(context=PublicContexts.TENANT_SELECTION)
     @AccessLogPolicy(enabled=False)
     @rate_limit(
         "system.auth.send_sms_code",
@@ -150,21 +195,30 @@ class AuthController:
     )
     async def send_sms_code(
         request: Request,
-        response: Response,
         req_vo: AuthSmsSendReqVO,
         auth: AuthAdminAuthService = Depends(DiDependency(AuthAdminAuthService)),
-        workloads: SystemWorkloadService = Depends(DiDependency(SystemWorkloadService)),
-        settings: SystemSettings = Depends(DiDependency(SystemSettings)),
-        tenant: TenantSettings = Depends(DiDependency(TenantSettings)),
-    ) -> Result[bool]:
-        AuthCookies.check_origin(request, settings)
-        async with workloads.scope("system.auth", tenant.default_tenant_id):
-            await auth.send_sms_code(req_vo)
-        return Result.success(True)
+    ) -> Result[int]:
+        length = await auth.send_sms_code(req_vo)
+        return Result.success(length)
+
+    @staticmethod
+    @auth_controller.post("/send-password-reset-code")
+    @RoutePolicy.public(context=PublicContexts.TENANT_SELECTION)
+    @AccessLogPolicy(enabled=False)
+    @rate_limit(
+        "system.auth.send_reset_code",
+        rules=(RateLimitRule(algorithm="fixed", capacity=5, window_ms=60000),),
+    )
+    async def send_recovery_code(
+        request: Request,
+        req_vo: AuthRecoverySendReqVO,
+        auth: AuthAdminAuthService = Depends(DiDependency(AuthAdminAuthService)),
+    ) -> Result[int]:
+        return Result.success(await auth.send_recovery_code(req_vo))
 
     @staticmethod
     @auth_controller.post("/reset-password")
-    @RoutePolicy.public()
+    @RoutePolicy.public(context=PublicContexts.TENANT_SELECTION)
     @AccessLogPolicy(enabled=False)
     @rate_limit(
         "system.auth.reset_password",
@@ -172,16 +226,10 @@ class AuthController:
     )
     async def reset_password(
         request: Request,
-        response: Response,
         req_vo: AuthResetPasswordReqVO,
         auth: AuthAdminAuthService = Depends(DiDependency(AuthAdminAuthService)),
-        workloads: SystemWorkloadService = Depends(DiDependency(SystemWorkloadService)),
-        settings: SystemSettings = Depends(DiDependency(SystemSettings)),
-        tenant: TenantSettings = Depends(DiDependency(TenantSettings)),
     ) -> Result[bool]:
-        AuthCookies.check_origin(request, settings)
-        async with workloads.scope("system.auth", tenant.default_tenant_id):
-            await auth.reset_password(req_vo)
+        await auth.reset_password(req_vo)
         return Result.success(True)
 
     @staticmethod
@@ -192,16 +240,13 @@ class AuthController:
         request: Request,
         response: Response,
         auth: AuthAdminAuthService = Depends(DiDependency(AuthAdminAuthService)),
-        workloads: SystemWorkloadService = Depends(DiDependency(SystemWorkloadService)),
         settings: SystemSettings = Depends(DiDependency(SystemSettings)),
-        tenant: TenantSettings = Depends(DiDependency(TenantSettings)),
     ) -> Result[AuthLoginRespVO]:
         AuthCookies.check_origin(request, settings, required=True)
         secret = request.cookies.get(settings.refresh_cookie_name)
         if secret is None:
             raise SecurityException(SecurityErrorCodes.MISSING)
-        async with workloads.scope("system.auth", tenant.default_tenant_id):
-            value = await auth.refresh_token(secret, settings.default_client_id)
+        value = await auth.refresh_token(secret, settings.default_client_id)
         AuthCookies.set_refresh(response, value, settings)
         return Result.success(value)
 
@@ -213,17 +258,14 @@ class AuthController:
         request: Request,
         response: Response,
         auth: AuthAdminAuthService = Depends(DiDependency(AuthAdminAuthService)),
-        workloads: SystemWorkloadService = Depends(DiDependency(SystemWorkloadService)),
         settings: SystemSettings = Depends(DiDependency(SystemSettings)),
-        tenant: TenantSettings = Depends(DiDependency(TenantSettings)),
     ) -> Result[bool]:
         AuthCookies.check_origin(
             request, settings, required=settings.refresh_cookie_name in request.cookies
         )
         scheme, _, secret = request.headers.get("authorization", "").partition(" ")
         if scheme.lower() == "bearer" and secret:
-            async with workloads.scope("system.auth", tenant.default_tenant_id):
-                await auth.logout(secret, LoginLogTypeEnum.LOGOUT_SELF.code)
+            await auth.logout(secret, LoginLogTypeEnum.LOGOUT_SELF.code)
         AuthCookies.clear_refresh(response, settings)
         return Result.success(True)
 
@@ -259,20 +301,17 @@ class AuthController:
 
     @staticmethod
     @auth_controller.get("/social-auth-redirect")
-    @RoutePolicy.public()
+    @RoutePolicy.public(context=PublicContexts.TENANT_SELECTION)
     async def social_auth_redirect(
         response: Response,
         req_vo: AuthSocialAuthRedirectReqVO = Query(),
         clients: SocialClientService = Depends(DiDependency(SocialClientService)),
-        workloads: SystemWorkloadService = Depends(DiDependency(SystemWorkloadService)),
         settings: SystemSettings = Depends(DiDependency(SystemSettings)),
-        tenant: TenantSettings = Depends(DiDependency(TenantSettings)),
     ) -> Result[str | None]:
         binding = secrets.token_urlsafe(48)
-        async with workloads.scope("system.auth", tenant.default_tenant_id):
-            authorization = await clients.get_authorize_url(
-                req_vo.type, 2, req_vo.redirect_uri, binding=binding
-            )
+        authorization = await clients.get_authorize_url(
+            req_vo.type, 2, req_vo.redirect_uri, binding=binding
+        )
         response.set_cookie(
             "system_social_binding",
             binding,

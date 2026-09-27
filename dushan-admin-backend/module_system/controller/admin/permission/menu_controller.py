@@ -29,6 +29,7 @@ class MenuController:
     @menu_controller.post("/create", summary="创建菜单")
     @RoutePolicy(
         permissions=("system:permission:menu:create",),
+        roles=("super_admin",),
         tenant_required=True,
         realm=SecurityRealm.TENANT,
     )
@@ -43,6 +44,7 @@ class MenuController:
     @menu_controller.put("/update", summary="修改菜单")
     @RoutePolicy(
         permissions=("system:permission:menu:update",),
+        roles=("super_admin",),
         tenant_required=True,
         realm=SecurityRealm.TENANT,
     )
@@ -57,6 +59,7 @@ class MenuController:
     @menu_controller.put("/update-status", summary="修改菜单状态")
     @RoutePolicy(
         permissions=("system:permission:menu:update",),
+        roles=("super_admin",),
         tenant_required=True,
         realm=SecurityRealm.TENANT,
     )
@@ -71,6 +74,7 @@ class MenuController:
     @menu_controller.delete("/delete", summary="删除菜单")
     @RoutePolicy(
         permissions=("system:permission:menu:delete",),
+        roles=("super_admin",),
         tenant_required=True,
         realm=SecurityRealm.TENANT,
     )
@@ -85,6 +89,7 @@ class MenuController:
     @menu_controller.delete("/delete-list", summary="批量删除菜单")
     @RoutePolicy(
         permissions=("system:permission:menu:delete",),
+        roles=("super_admin",),
         tenant_required=True,
         realm=SecurityRealm.TENANT,
     )

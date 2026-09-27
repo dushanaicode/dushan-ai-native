@@ -48,7 +48,7 @@ class UserImportExcelVO(BaseRequestVO):
                 {
                     "username": "dushan",
                     "nickname": "渡山",
-                    "deptId": 1024,
+                    "deptId": "1024",
                     "email": "729227973@qq.com",
                     "mobile": "18888888888",
                     "sex": 1,

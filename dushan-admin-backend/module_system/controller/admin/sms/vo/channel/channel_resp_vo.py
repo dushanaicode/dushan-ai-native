@@ -27,13 +27,11 @@ class SmsChannelRespVO(BaseVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
+                    "id": "1024",
                     "signature": "渡山源码",
-                    "code": "YUN_PIAN",
+                    "code": "ALIYUN",
                     "status": 1,
                     "remark": "好吃！",
-                    "apiKey": "dushan",
-                    "apiSecret": "yuanma",
                     "callbackUrl": "https://www.dushan.info",
                     "createTime": "2020-05-20T05:20:00Z",
                 }

@@ -14,7 +14,7 @@ class MailAccountSimpleRespVO(BaseVO):
 
     id: Annotated[SnowflakeIdStr, Field(..., description="邮箱编号")]
     mail: Annotated[str, Field(..., description="邮箱")]
-    model_config = {"json_schema_extra": {"examples": [{"id": 1024, "mail": "729227973@qq.com"}]}}
+    model_config = {"json_schema_extra": {"examples": [{"id": "1024", "mail": "729227973@qq.com"}]}}
 
     @field_validator("id", mode="before")
     @classmethod

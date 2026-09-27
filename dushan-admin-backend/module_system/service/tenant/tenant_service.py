@@ -4,11 +4,14 @@ from typing import Protocol, runtime_checkable
 
 from framework.common.page import PageResult
 from module_system.controller.admin.tenant.vo.tenant.tenant_page_req_vo import TenantPageReqVO
+from module_system.controller.admin.tenant.vo.tenant.tenant_simple_resp_vo import TenantSimpleRespVO
 from module_system.dal.dataobject.tenant.tenant_do import TenantDO
 
 
 @runtime_checkable
 class TenantService(Protocol):
+    async def get_login_tenants(self) -> list[TenantSimpleRespVO]: ...
+
     async def get_tenant_id_list(self, include_disabled: bool = False) -> list[int]: ...
 
     async def update_status(self, tenant_id: int, status: int) -> None: ...

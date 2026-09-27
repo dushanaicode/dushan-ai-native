@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Body, Depends, Query
 
+from framework.common.contracts import SnowflakeIdStr
 from framework.starter_di.public import (
     DiDependency,
 )
@@ -27,8 +28,6 @@ from module_system.controller.admin.permission.vo.permission.role_menu_req_vo im
     RoleMenuReqVO,
 )
 from module_system.service.permission.permission_service import PermissionService
-from module_system.service.tenant.handler.role_menu_id_filter_handler import RoleMenuIdFilterHandler
-from module_system.service.tenant.tenant_service import TenantService
 
 permission_controller = APIRouter(prefix="/permission", tags=["System - 权限管理"])
 
@@ -44,7 +43,7 @@ class PermissionController:
     async def get_role_menu_list(
         req_vo: RoleMenuReqVO = Query(),
         permission_service: PermissionService = Depends(DiDependency(PermissionService)),
-    ) -> Result[set[int]]:
+    ) -> Result[set[SnowflakeIdStr]]:
         menu_ids = await permission_service.get_role_menu_list_by_role_id(req_vo.role_id)
         return Result.success(data=menu_ids)
 
@@ -58,7 +57,7 @@ class PermissionController:
     async def get_role_menu_list_by_ids(
         req_vo: RoleIdsReqVO = Query(),
         permission_service: PermissionService = Depends(DiDependency(PermissionService)),
-    ) -> Result[set[int]]:
+    ) -> Result[set[SnowflakeIdStr]]:
         role_ids = req_vo.role_ids
         menu_ids = await permission_service.get_role_menu_list_by_role_ids(set(role_ids))
         return Result.success(data=menu_ids)
@@ -72,13 +71,9 @@ class PermissionController:
     )
     async def assign_role_menu(
         req_vo: PermissionAssignRoleMenuReqVO = Body(...),
-        tenant_service: TenantService = Depends(DiDependency(TenantService)),
         permission_service: PermissionService = Depends(DiDependency(PermissionService)),
     ) -> Result[bool]:
-        id_filter_handler = RoleMenuIdFilterHandler(req_vo.menu_ids)
-        await tenant_service.handle_tenant_menu(id_filter_handler)
-        filtered_menu_ids = id_filter_handler.get_filtered_ids()
-        await permission_service.assign_role_menu(req_vo.role_id, filtered_menu_ids)
+        await permission_service.assign_role_menu(req_vo.role_id, req_vo.menu_ids)
         return Result.success(data=True)
 
     @staticmethod
@@ -105,7 +100,7 @@ class PermissionController:
     async def list_admin_roles(
         req_vo: PermissionUserRoleReqVO = Query(),
         permission_service: PermissionService = Depends(DiDependency(PermissionService)),
-    ) -> Result[set[int]]:
+    ) -> Result[set[SnowflakeIdStr]]:
         role_ids = await permission_service.get_user_role_id_list_by_user_id(req_vo.user_id)
         return Result.success(data=role_ids)
 

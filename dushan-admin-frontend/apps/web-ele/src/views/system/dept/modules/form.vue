@@ -45,7 +45,8 @@ const [Modal, modalApi] = useVbenModal({
     }
 
     modalApi.lock();
-    const data = (await formApi.getValues()) as SystemDeptApi.DeptSaveReqVO;
+    const values = await formApi.getValues<SystemDeptApi.DeptSaveReqVO>();
+    const data = { ...values, leaderUserId: values.leaderUserId ?? null };
 
     try {
       await (formData.value?.id ? updateDept(data) : createDept(data));

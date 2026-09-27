@@ -7,6 +7,7 @@ import { DICT_TYPE } from '#/constants/dict-types';
 import { UserTypeEnum } from '#/constants/enums';
 import { SwitchStatus } from '#/constants/status';
 import { useDictionary } from '#/services/dictionary/context';
+import { createFilePorts } from '#/services/file/ports';
 import { getRangePickerDefaultProps } from '#/utils/range-picker';
 
 function useTagSelectProps(placeholder: string) {
@@ -17,6 +18,7 @@ function useTagSelectProps(placeholder: string) {
     collapseTagsTooltip: true,
     filterable: true,
     multiple: true,
+    options: [],
     placeholder,
   };
 }
@@ -93,7 +95,7 @@ export function useFormSchema(): VbenFormSchema[] {
     {
       component: 'ImageUpload',
       componentProps: {
-        directory: 'oauth2/client',
+        ports: createFilePorts({ directory: 'oauth2/client' }),
         helpText: '支持 jpg/png/webp，建议使用正方形图片',
         maxNumber: 1,
       },
@@ -103,20 +105,20 @@ export function useFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'RadioGroup',
-      componentProps: {
+      componentProps: () => ({
         isButton: true,
         options: dictionary.getDictOptions(DICT_TYPE.COMMON_STATUS, 'number'),
-      },
+      }),
       fieldName: 'status',
       label: '状态',
       rules: z.number().default(SwitchStatus.ENABLED),
     },
     {
       component: 'RadioGroup',
-      componentProps: {
+      componentProps: () => ({
         isButton: true,
         options: dictionary.getDictOptions(DICT_TYPE.USER_TYPE, 'number'),
-      },
+      }),
       fieldName: 'userType',
       label: '主体类型',
       rules: z.number().default(UserTypeEnum.ADMIN),
@@ -153,7 +155,7 @@ export function useFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         collapseTags: true,
         collapseTagsTooltip: true,
@@ -163,7 +165,7 @@ export function useFormSchema(): VbenFormSchema[] {
           'string',
         ),
         placeholder: '请选择授权类型',
-      },
+      }),
       fieldName: 'authorizedGrantTypes',
       formItemClass: 'col-span-2',
       label: '授权类型',
@@ -243,21 +245,21 @@ export function useGridFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(DICT_TYPE.COMMON_STATUS, 'number'),
         placeholder: '请选择状态',
-      },
+      }),
       fieldName: 'status',
       label: '状态',
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(DICT_TYPE.USER_TYPE, 'number'),
         placeholder: '请选择主体类型',
-      },
+      }),
       fieldName: 'userType',
       label: '主体类型',
     },
@@ -313,12 +315,8 @@ export function useGridColumns(
     {
       align: 'center',
       cellRender: {
-        attrs: { beforeChange: onStatusChange },
         name: 'CellSwitch',
-        props: {
-          checkedValue: SwitchStatus.ENABLED,
-          unCheckedValue: SwitchStatus.DISABLED,
-        },
+        props: { change: onStatusChange },
       },
       field: 'status',
       title: '状态',

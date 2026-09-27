@@ -6,7 +6,7 @@ from typing import Collection, override
 from sqlalchemy import select
 
 from framework.common.enums import StatusEnum
-from framework.common.exception import ServiceException
+from framework.common.exception import IllegalArgumentException, ServiceException
 from framework.common.page import PageResult
 from framework.starter_cache.public import CacheHandler, cache
 from framework.starter_database.public import (
@@ -42,6 +42,8 @@ class OAuth2ClientServiceImpl(OAuth2ClientService):
     @override
     @transactional
     async def create_oauth2_client(self, create_vo: OAuth2ClientSaveReqVO) -> int:
+        if create_vo.id is not None:
+            raise IllegalArgumentException(msg="新增 OAuth2 客户端不能指定编号")
         await self._validate_client_id_unique(None, create_vo.client_id)
         client = OAuth2ClientDO(**create_vo.model_dump(by_alias=False))
         await self.oauth2_client_mapper.insert(client)
@@ -148,7 +150,7 @@ class OAuth2ClientServiceImpl(OAuth2ClientService):
             raise ServiceException(
                 ErrorCodeConstants.OAUTH2_CLIENT_AUTHORIZED_GRANT_TYPE_NOT_EXISTS
             )
-        if scopes and (not set(scopes).issubset(set(client_dto.scopes or []))):
+        if scopes and not set(scopes).issubset(client_dto.scopes):
             raise ServiceException(ErrorCodeConstants.OAUTH2_CLIENT_SCOPE_OVER)
         if redirect_uri is not None and redirect_uri not in client_dto.redirect_uris:
             raise ServiceException(

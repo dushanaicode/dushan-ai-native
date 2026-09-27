@@ -51,7 +51,7 @@ async function onExport() {
   exportTableRef.value?.setData({
     columns: fields,
     exportApi: exportOperateLog,
-    fileName: '操作日志.xls',
+    fileName: '操作日志.xlsx',
     searchParams: normalizeSearchParams(formValues),
   });
   exportTableRef.value?.open();

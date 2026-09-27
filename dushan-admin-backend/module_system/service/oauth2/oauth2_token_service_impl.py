@@ -4,10 +4,12 @@ from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 from sqlalchemy import select
+from user_agents import parse as parse_user_agent
 
 from framework.common.enums import StatusEnum, UserTypeEnum
 from framework.starter_cache.public import CacheHandler
 from framework.starter_database.public import (
+    AuthenticationReader,
     SessionProvider,
     transactional,
 )
@@ -15,6 +17,8 @@ from framework.starter_di.public import (
     Inject,
     service,
 )
+from framework.starter_ip.config.ip_settings import IpSettings
+from framework.starter_ip.public import IpLocationService
 from framework.starter_security.public import (
     LoginSession,
     OpaqueToken,
@@ -26,8 +30,8 @@ from framework.starter_security.public import (
 )
 from framework.starter_tenant.public import (
     TenantContext,
-    TenantSettings,
 )
+from framework.starter_web.public import RequestContext
 from module_system.api.oauth2.dto.oauth2_access_token_resp_dto import OAuth2AccessTokenRespDTO
 from module_system.dal.cache.cache_key_constants import SystemCacheKeys
 from module_system.dal.cache.oauth2.oauth2_access_token_redis_dao import OAuth2AccessTokenRedisDAO
@@ -44,7 +48,6 @@ from module_system.service.workload.system_workload_service import SystemWorkloa
 @service(interface=OAuth2TokenService)
 class OAuth2TokenServiceImpl(OAuth2TokenService):
     workloads: SystemWorkloadService = Inject()
-    tenant_settings: TenantSettings = Inject()
     ticket_cache: CacheHandler = Inject()
     database: SessionProvider = Inject()
     settings: SecuritySettings = Inject()
@@ -54,6 +57,8 @@ class OAuth2TokenServiceImpl(OAuth2TokenService):
     access_tokens: OAuth2AccessTokenMapper = Inject()
     refresh_tokens: OAuth2RefreshTokenMapper = Inject()
     cache: OAuth2AccessTokenRedisDAO = Inject()
+    ip_locations: IpLocationService = Inject()
+    ip_settings: IpSettings = Inject()
 
     async def _subject(self, user_id, user_type, client):
         if client.user_type is not None and client.user_type != user_type:
@@ -87,6 +92,24 @@ class OAuth2TokenServiceImpl(OAuth2TokenService):
         self, user_id, user_type, client, scopes, revision, info, family_id, *, refresh_expires=None
     ):
         now = datetime.now(timezone.utc).replace(tzinfo=None)
+        if user_type == UserTypeEnum.ADMIN.code:
+            request = RequestContext.current()
+            user_agent = request.connection.headers.get("user-agent", "")[:512]
+            agent = parse_user_agent(user_agent)
+            location = (
+                await self.ip_locations.lookup(request.client_ip)
+                if self.ip_settings.enabled and request.client_ip
+                else None
+            )
+            # 登录与续期均记录当前连接，在线设备不再丢失请求信息。
+            info = {
+                **info,
+                "ipaddr": request.client_ip,
+                "login_location": None if location is None else location.location,
+                "user_agent": user_agent,
+                "browser": f"{agent.browser.family} {agent.browser.version_string}".strip(),
+                "os": f"{agent.os.family} {agent.os.version_string}".strip(),
+            }
         access_secret, refresh_secret = OpaqueToken.generate(), OpaqueToken.generate()
         refresh = OAuth2RefreshTokenDO(
             token_digest=OpaqueToken.digest(refresh_secret),
@@ -139,6 +162,22 @@ class OAuth2TokenServiceImpl(OAuth2TokenService):
     async def refresh_access_token(
         self, refresh_token: str, client_id: str
     ) -> OAuth2AccessTokenRespDTO:
+        tenant_id = await self.get_token_tenant(refresh_token, refresh=True)
+        if tenant_id is None:
+            raise SecurityException(SecurityErrorCodes.INVALID)
+        async with self.workloads.scope("system.auth", tenant_id):
+            return await self._refresh_in_tenant(refresh_token, client_id)
+
+    async def get_token_tenant(self, token: str, *, refresh: bool) -> str | None:
+        return await AuthenticationReader.token_tenant(
+            self.database,
+            OAuth2RefreshTokenDO if refresh else OAuth2AccessTokenDO,
+            token_digest=OpaqueToken.digest(token),
+            application_id=self.settings.application_id,
+            domain=self.settings.default_domain,
+        )
+
+    async def _refresh_in_tenant(self, refresh_token: str, client_id: str):
         digest = OpaqueToken.digest(refresh_token)
         client = await self.clients.validate_client(client_id, grant_type="refresh_token")
         failure = None
@@ -291,7 +330,16 @@ class OAuth2TokenServiceImpl(OAuth2TokenService):
         )
 
     async def revoke_session(self, session: LoginSession):
-        async with self.workloads.scope("system.auth", self.tenant_settings.default_tenant_id):
+        tenant_id = await AuthenticationReader.token_tenant(
+            self.database,
+            OAuth2AccessTokenDO,
+            token_digest=session.token_digest,
+            application_id=session.application_id,
+            domain=session.domain,
+        )
+        if tenant_id is None:
+            return
+        async with self.workloads.scope("system.auth.revoke", tenant_id):
             await self._revoke_family(session.family_id)
 
     @transactional

@@ -21,14 +21,14 @@ export function useGridFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(
           DICT_TYPE.SYSTEM_MAIL_SEND_STATUS,
           'number',
         ),
         placeholder: '请选择发送状态',
-      },
+      }),
       fieldName: 'sendStatus',
       label: '发送状态',
     },
@@ -101,11 +101,11 @@ export function useGridFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(DICT_TYPE.USER_TYPE, 'number'),
         placeholder: '请选择用户类型',
-      },
+      }),
       fieldName: 'userType',
       label: '用户类型',
     },

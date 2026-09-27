@@ -23,9 +23,9 @@ class OAuth2OpenCheckTokenRespVO(BaseVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "userId": 666,
+                    "userId": "666",
                     "userType": 2,
-                    "tenantId": 1024,
+                    "tenantId": "1024",
                     "clientId": "car",
                     "scopes": ["user_info"],
                     "accessToken": "dushan",

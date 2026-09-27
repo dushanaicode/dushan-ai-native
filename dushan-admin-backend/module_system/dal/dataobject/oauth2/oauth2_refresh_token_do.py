@@ -22,6 +22,7 @@ class OAuth2RefreshTokenDO(TenantBaseDO):
     __tablename__ = "system_oauth2_refresh_token"
     __table_args__ = (
         Index("ix_system_oauth2_refresh_token_tenant", "tenant_id"),
+        Index("ix_system_oauth2_refresh_token_lookup", "application_id", "domain", "token_digest"),
         UniqueConstraint("tenant_id", "id", name="uq_system_oauth2_refresh_token_tenant_id"),
         UniqueConstraint("tenant_id", "token_digest", name="uq_system_oauth2_refresh_token_digest"),
         Index("ix_system_oauth2_refresh_token_family", "tenant_id", "family_id"),

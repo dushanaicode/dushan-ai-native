@@ -38,10 +38,9 @@ class MailAccountRespVO(BaseVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
+                    "id": "1024",
                     "mail": "729227973@qq.com",
                     "username": "dushan",
-                    "password": "123456",
                     "host": "www.dushan.info",
                     "port": 80,
                     "sslEnable": True,

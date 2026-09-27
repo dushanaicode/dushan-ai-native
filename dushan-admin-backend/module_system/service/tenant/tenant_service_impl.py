@@ -3,12 +3,13 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import override
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 from framework.common.dates import DateUtils
 from framework.common.enums import BuiltinTypeEnum, StatusEnum
 from framework.common.exception import ServiceException
 from framework.common.page import PageResult
+from framework.starter_data_permission.public import DataScope
 from framework.starter_database.public import (
     SessionProvider,
     transactional,
@@ -32,6 +33,7 @@ from framework.starter_tenant.public import (
     TenantSettings,
 )
 from module_system.controller.admin.tenant.vo.tenant.tenant_page_req_vo import TenantPageReqVO
+from module_system.controller.admin.tenant.vo.tenant.tenant_simple_resp_vo import TenantSimpleRespVO
 from module_system.dal.dataobject.permission.permission_user_role_do import UserRoleDO
 from module_system.dal.dataobject.permission.role_do import RoleDO
 from module_system.dal.dataobject.permission.role_menu_do import RoleMenuDO
@@ -53,6 +55,7 @@ from module_system.definitions.enums.permission.role_code_enum import (
 from module_system.service.permission.authorization_revision_service import (
     AuthorizationRevisionService,
 )
+from module_system.service.permission.system_access_policy import SystemAccessPolicy
 from module_system.service.tenant.tenant_service import TenantService
 from module_system.service.workload.system_workload_service import SystemWorkloadService
 
@@ -61,6 +64,18 @@ from module_system.service.workload.system_workload_service import SystemWorkloa
 class TenantServiceImpl(TenantService):
     tenant_mapper: TenantMapper = Inject()
     date_utils: DateUtils = Inject()
+
+    async def get_login_tenants(self) -> list[TenantSimpleRespVO]:
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        result = await self.tenant_mapper.read_from_primary(
+            select(TenantDO.id, TenantDO.name)
+            .where(
+                TenantDO.status == StatusEnum.ENABLE.code,
+                or_(TenantDO.expire_time.is_(None), TenantDO.expire_time > now),
+            )
+            .order_by(TenantDO.id)
+        )
+        return [TenantSimpleRespVO.model_validate(row) for row in result.mappings().all()]
 
     @override
     async def get_tenant_id_list(self, include_disabled: bool = False) -> list[int]:
@@ -156,6 +171,7 @@ class TenantServiceImpl(TenantService):
     authentication: SystemAuthenticationMapper = Inject()
     workloads: SystemWorkloadService = Inject()
     revisions: AuthorizationRevisionService = Inject()
+    access_policy: SystemAccessPolicy = Inject()
 
     async def _package(self, package_id):
         package = await self.packages.select_by_id(package_id)
@@ -184,7 +200,7 @@ class TenantServiceImpl(TenantService):
                         sort=0,
                         builtin=BuiltinTypeEnum.BUILTIN.code,
                         status=StatusEnum.ENABLE.code,
-                        data_scope=1,
+                        data_scope=DataScope.ALL.code,
                         data_scope_dept_ids=[],
                         remark="租户管理员",
                     )
@@ -226,18 +242,21 @@ class TenantServiceImpl(TenantService):
     async def update_tenant_role_menu(self, tenant_id, menu_ids):
         async with self.workloads.scope("system.tenant.provision", str(tenant_id)):
             async with self.database.transaction():
-                await self._apply_role_menus(menu_ids)
-                await self.revisions.advance()
+                if await self._apply_role_menus(menu_ids):
+                    await self.revisions.advance()
 
     async def _apply_role_menus(self, menu_ids):
+        changed = False
         for role in await self.roles.select_list():
             current = {row.menu_id for row in await self.role_menus.select_list_by_role_id(role.id)}
             wanted = menu_ids if role.code == RoleCodeEnum.TENANT_ADMIN.code else current & menu_ids
+            changed = changed or current != wanted
             if current - wanted:
                 await self.role_menus.delete_list_by_role_id_and_menu_ids(role.id, current - wanted)
             await self.role_menus.insert_batch(
                 [RoleMenuDO(role_id=role.id, menu_id=menu_id) for menu_id in wanted - current]
             )
+        return changed
 
     async def handle_tenant_info(self, handler):
         tenant = await self.get_tenant(int(self.tenant_context.get_required_tenant_id()))
@@ -246,14 +265,8 @@ class TenantServiceImpl(TenantService):
         await handler.handle(tenant)
 
     async def handle_tenant_menu(self, handler):
-        tenant = await self.get_tenant(int(self.tenant_context.get_required_tenant_id()))
-        if tenant is None:
-            raise ServiceException(ErrorCodeConstants.TENANT_NOT_EXISTS)
-        if tenant.package_id == TenantDO.PACKAGE_ID_SYSTEM:
-            menu_ids = {menu.id for menu in await self.menus.select_list()}
-        else:
-            package = await self._package(tenant.package_id)
-            menu_ids = set(package.menu_ids)
+        identity = self.access_policy.security.require()
+        menu_ids = await self.access_policy.menu_ids(identity.account_id, identity.tenant_id)
         await handler.handle(menu_ids)
 
     async def valid_tenant(self, id):
@@ -314,7 +327,7 @@ class TenantServiceImpl(TenantService):
                 )
             ),
             expires_at=identity.expires_at,
-            allow_unavailable=capability == "system.tenant.provision",
+            allow_unavailable=capability in {"system.tenant.provision", "system.auth.revoke"},
         )
 
     async def enabled_tenant_ids(self):

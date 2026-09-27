@@ -10,9 +10,6 @@ from framework.starter_database.public import (
 from framework.starter_di.public import (
     repository,
 )
-from framework.starter_tenant.public import (
-    TenantSettings,
-)
 from module_system.dal.dataobject.oauth2.oauth2_access_token_do import OAuth2AccessTokenDO
 from module_system.dal.dataobject.oauth2.oauth2_client_do import OAuth2ClientDO
 from module_system.dal.dataobject.permission.authorization_revision_do import (
@@ -25,8 +22,8 @@ from module_system.dal.dataobject.user.admin_user_do import AdminUserDO
 class SystemAuthenticationMapper:
     """认证所需的有限主库投影；普通用户 CRUD 仍使用受保护 AdminUserMapper。"""
 
-    def __init__(self, database: SessionProvider, tenant: TenantSettings):
-        self.database, self.tenant = (database, tenant)
+    def __init__(self, database: SessionProvider):
+        self.database = database
 
     def _reader(self, tenant_id: str):
         return AuthenticationReader(
@@ -35,24 +32,34 @@ class SystemAuthenticationMapper:
             tenant_id=tenant_id,
         )
 
-    async def user_by_username(self, username: str):
-        return await self._user(AdminUserDO.__table__.c.username == username)
+    async def user_by_username(self, username: str, tenant_id: str):
+        return await self._user(AdminUserDO.__table__.c.username == username, tenant_id=tenant_id)
 
-    async def user_by_mobile(self, mobile: str):
-        return await self._user(AdminUserDO.__table__.c.mobile == mobile)
+    async def user_by_mobile(self, mobile: str, tenant_id: str):
+        return await self._user(AdminUserDO.__table__.c.mobile == mobile, tenant_id=tenant_id)
 
-    async def user_by_id(self, user_id: int, tenant_id: str | None = None):
+    async def user_by_email(self, email: str, tenant_id: str):
+        return await self._user(AdminUserDO.__table__.c.email == email, tenant_id=tenant_id)
+
+    async def user_by_id(self, user_id: int, tenant_id: str):
         return await self._user(AdminUserDO.__table__.c.id == user_id, tenant_id=tenant_id)
 
-    async def _user(self, condition, *, tenant_id: str | None = None):
-        rows = await self._reader(
-            self.tenant.default_tenant_id if tenant_id is None else tenant_id
-        ).read(select(AdminUserDO.__table__).where(condition))
+    async def _user(self, condition, *, tenant_id: str):
+        rows = await self._reader(tenant_id).read(select(AdminUserDO.__table__).where(condition))
         if len(rows) > 1:
             raise ValueError("认证标识不唯一")
         return None if not rows else AdminUserDO(**rows[0])
 
     async def session_facts(self, digest: str, application_id: str, domain: str):
+        tenant_id = await AuthenticationReader.token_tenant(
+            self.database,
+            OAuth2AccessTokenDO,
+            token_digest=digest,
+            application_id=application_id,
+            domain=domain,
+        )
+        if tenant_id is None:
+            return None
         access, user, client, revision = (
             OAuth2AccessTokenDO.__table__,
             AdminUserDO.__table__,
@@ -91,7 +98,7 @@ class SystemAuthenticationMapper:
                 access.c.domain == domain,
             )
         )
-        rows = await self._reader(self.tenant.default_tenant_id).read(statement)
+        rows = await self._reader(tenant_id).read(statement)
         return None if not rows else rows[0]
 
     async def authorization_revision(self, user_id: int, tenant_id: str):

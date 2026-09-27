@@ -1,7 +1,11 @@
 import { initPreferences, updatePreferences } from '@vben/preferences';
 import { unmountGlobalLoading } from '@vben/utils';
 
-import { applicationAccessMode, overridesPreferences } from './preferences';
+import {
+  applicationAccessMode,
+  applicationEnableRefreshToken,
+  overridesPreferences,
+} from './preferences';
 
 /**
  * 应用初始化完成之后再进行页面加载渲染
@@ -18,8 +22,13 @@ async function initApplication() {
     namespace,
     overrides: overridesPreferences,
   });
-  // 权限来源由应用固定，浏览器保存的偏好不能关闭后端菜单接入。
-  updatePreferences({ app: { accessMode: applicationAccessMode } });
+  // 应用认证策略覆盖旧偏好缓存，升级后不必清空用户的其他设置。
+  updatePreferences({
+    app: {
+      accessMode: applicationAccessMode,
+      enableRefreshToken: applicationEnableRefreshToken,
+    },
+  });
 
   // 启动应用并挂载
   // vue应用主要逻辑及视图

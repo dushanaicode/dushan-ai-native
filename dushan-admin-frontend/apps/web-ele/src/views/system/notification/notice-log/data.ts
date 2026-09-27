@@ -30,40 +30,40 @@ export function useGridFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(
           DICT_TYPE.SYSTEM_NOTICE_TYPE,
           'number',
         ),
         placeholder: '请选择通知类型',
-      },
+      }),
       fieldName: 'noticeType',
       label: '通知类型',
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(
           DICT_TYPE.SYSTEM_PUSH_TARGET_TYPE,
           'number',
         ),
         placeholder: '请选择推送目标',
-      },
+      }),
       fieldName: 'pushTargetType',
       label: '推送目标',
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(
           DICT_TYPE.SYSTEM_NOTICE_PUSH_STATUS,
           'number',
         ),
         placeholder: '请选择推送状态',
-      },
+      }),
       fieldName: 'pushStatus',
       label: '推送状态',
     },

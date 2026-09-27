@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
+from framework.starter_auth.public import (
+    AuthorizationRequest,
+)
 from module_system.api.social.dto.social_wx_jsapi_signature_resp_dto import (
     SocialWxJsapiSignatureRespDTO,
 )
@@ -27,8 +30,10 @@ from module_system.api.social.dto.social_wxa_subscribe_template_resp_dto import 
 class SocialClientApi(Protocol):
     """社交应用 API 接口"""
 
-    async def get_authorize_url(self, social_type: int, user_type: int, redirect_uri: str) -> str:
-        """获取授权 URL"""
+    async def get_authorize_url(
+        self, social_type: int, user_type: int, redirect_uri: str, *, binding: str
+    ) -> AuthorizationRequest:
+        """获取授权请求；binding 由调用方生成并下发到受保护的浏览器会话。"""
         ...
 
     async def create_wx_mp_jsapi_signature(

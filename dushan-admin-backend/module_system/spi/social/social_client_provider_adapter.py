@@ -1,11 +1,13 @@
 from datetime import timezone
 
-from pydantic import SecretStr
+from pydantic import SecretStr, ValidationError
 
 from framework.common.enums import StatusEnum, UserTypeEnum
 from framework.starter_auth.public import (
     AuthClientConfig,
     AuthClientProvider,
+    AuthErrorCodes,
+    AuthException,
 )
 from framework.starter_database.public import (
     DatabaseSettings,
@@ -20,6 +22,7 @@ from framework.starter_security.public import (
 )
 from module_system.dal.mapper.social.social_client_mapper import SocialClientMapper
 from module_system.definitions.enums.social.social_type_enum import SocialTypeEnum
+from module_system.framework.social.model.social_auth_config import SocialAuthConfig
 
 
 @service(interface=AuthClientProvider)
@@ -35,8 +38,7 @@ class SocialClientProviderAdapter(AuthClientProvider):
         }
         if application_id not in applications:
             return None
-        types = {entry.label: entry.code for entry in SocialTypeEnum}
-        types["WECHAT_ENTERPRISE_WEB"] = types.pop("WECHAT_ENTERPRISE_V2")
+        types = {entry.auth_source: entry.code for entry in SocialTypeEnum}
         if source not in types:
             return None
         row = await self.mapper.select_by_social_type_and_user_type(
@@ -44,7 +46,7 @@ class SocialClientProviderAdapter(AuthClientProvider):
         )
         if row is None:
             return None
-        config = row.auth_config
+        config = self._auth_config(row.auth_config)
         return AuthClientConfig(
             application_id=application_id,
             source=source,
@@ -52,9 +54,17 @@ class SocialClientProviderAdapter(AuthClientProvider):
             revision=int(row.update_time.replace(tzinfo=timezone.utc).timestamp() * 1000000),
             client_id=row.client_id,
             client_secret=SecretStr(row.client_secret),
-            redirect_uri=config["redirect_uri"],
-            scopes=tuple(config["scopes"]),
-            pkce=config["pkce"],
-            options=config["options"],
-            credentials={name: SecretStr(value) for name, value in config["credentials"].items()},
+            redirect_uri=config.redirect_uri,
+            scopes=config.scopes,
+            pkce=config.pkce,
+            options=config.options,
+            credentials={name: SecretStr(value) for name, value in config.credentials.items()},
         )
+
+    @staticmethod
+    def _auth_config(value) -> SocialAuthConfig:
+        """库里的认证配置是外部输入，结构不符按授权配置错误返回，不回显字段值。"""
+        try:
+            return SocialAuthConfig.model_validate(value)
+        except ValidationError as error:
+            raise AuthException(AuthErrorCodes.CONFIG, cause=error) from error

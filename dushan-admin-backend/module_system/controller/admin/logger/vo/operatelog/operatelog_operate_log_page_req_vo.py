@@ -24,14 +24,14 @@ class OperateLogPageReqVO(PageQuery):
         "json_schema_extra": {
             "examples": [
                 {
-                    "userId": 1024,
-                    "bizId": 1,
+                    "userId": "1024",
+                    "bizId": "1",
                     "type": "订单",
                     "subType": "创建订单",
                     "action": "修改编号为 1 的用户信息",
                     "createTime": ["2020-05-20T05:20:00Z", "2022-07-01T23:59:59Z"],
-                    "pageNo": 1,
                     "pageSize": 10,
+                    "page": 1,
                 }
             ]
         }

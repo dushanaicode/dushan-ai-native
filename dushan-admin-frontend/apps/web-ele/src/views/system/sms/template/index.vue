@@ -68,7 +68,7 @@ async function onExport() {
   exportTableRef.value?.setData({
     columns: fields,
     exportApi: exportSmsTemplate,
-    fileName: '短信模板数据.xls',
+    fileName: '短信模板数据.xlsx',
     searchParams: formValues,
   });
   exportTableRef.value?.open();
@@ -115,25 +115,24 @@ async function onDeleteBatch() {
 async function handleStatusChange(
   newStatus: number,
   row: SystemSmsTemplateApi.SmsTemplateRespVO,
-): Promise<boolean | undefined> {
-  return new Promise((resolve, reject) => {
-    const statusLabel = dictionary.getDictLabel(
-      DICT_TYPE.COMMON_STATUS,
-      newStatus,
-    );
-    confirm({
-      content: `确认将【${row.name}】的状态切换为【${statusLabel}】？`,
-    })
-      .then(async () => {
-        if (!row.id) {
-          return reject(new Error('缺少编号'));
-        }
-        await updateSmsTemplateStatus(row.id, newStatus);
-        ElMessage.success($t('ui.actionMessage.operationSuccess'));
-        resolve(true);
-      })
-      .catch(() => reject(new Error('取消')));
-  });
+): Promise<boolean> {
+  const statusLabel = dictionary.getDictLabel(
+    DICT_TYPE.COMMON_STATUS,
+    newStatus,
+  );
+  const confirmed = await confirm({
+    content: `确认将【${row.name}】的状态切换为【${statusLabel}】？`,
+  }).then(
+    () => true,
+    () => false,
+  );
+  if (!confirmed) return false;
+  if (!row.id) {
+    throw new Error('缺少编号');
+  }
+  await updateSmsTemplateStatus(row.id, newStatus);
+  ElMessage.success($t('ui.actionMessage.operationSuccess'));
+  return true;
 }
 
 function handleRowCheckboxChange({

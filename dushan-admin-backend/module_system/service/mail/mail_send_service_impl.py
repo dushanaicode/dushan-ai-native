@@ -134,6 +134,8 @@ class MailSendServiceImpl(MailSendService):
         self._validate_mail(req.mail)
         self._validate_template_params(template, req.template_params)
         is_send = template.status == StatusEnum.ENABLE.code
+        if req.require_delivery and not is_send:
+            raise ServiceException(ErrorCodeConstants.MAIL_TEMPLATE_DISABLED)
         title = self.mail_template_service.format_mail_template_content(
             template.title, req.template_params
         )
@@ -178,6 +180,22 @@ class MailSendServiceImpl(MailSendService):
     async def send_multiple_mail(self, req: MailBatchDispatchBO) -> int:
         template = await self._validate_template(req.template_code)
         account = await self._validate_account(template.account_id)
+        return await self._send_multiple_mail(req, template, account)
+
+    @transactional
+    @override
+    async def send_multiple_mail_from_account(
+        self, req: MailBatchDispatchBO, account_id: int | None
+    ) -> int:
+        template = await self._validate_template(req.template_code)
+        if template.status != StatusEnum.ENABLE.code:
+            raise ServiceException(ErrorCodeConstants.MAIL_TEMPLATE_DISABLED)
+        account = await self._validate_account(account_id)
+        return await self._send_multiple_mail(req, template, account)
+
+    async def _send_multiple_mail(
+        self, req: MailBatchDispatchBO, template: MailTemplateDO, account: MailAccountDO
+    ) -> int:
         if not req.to_mails:
             raise ServiceException(ErrorCodeConstants.MAIL_SEND_MAIL_NOT_EXISTS)
         for mail in req.to_mails:
@@ -240,8 +258,10 @@ class MailSendServiceImpl(MailSendService):
             raise ServiceException(ErrorCodeConstants.MAIL_TEMPLATE_NOT_EXISTS)
         return template
 
-    async def _validate_account(self, account_id: int) -> MailAccountDO:
+    async def _validate_account(self, account_id: int | None) -> MailAccountDO:
         """校验邮箱账号是否存在"""
+        if account_id is None:
+            raise ServiceException(ErrorCodeConstants.MAIL_ACCOUNT_NOT_EXISTS)
         account = await self.mail_account_service.get_mail_account(account_id)
         if account is None:
             raise ServiceException(ErrorCodeConstants.MAIL_ACCOUNT_NOT_EXISTS)

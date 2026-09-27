@@ -1,13 +1,13 @@
 from typing import Annotated, Any
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, ValidationInfo, field_validator, model_validator
 
 from framework.common.contracts import (
     SnowflakeIdInput,
 )
 from framework.common.enums import StatusEnum, UserTypeEnum
 from framework.common.schemas import BaseRequestVO
-from framework.common.validator import InEnum, NotNull
+from framework.common.validator import InEnum, NotEmpty, NotNull
 from module_system.definitions.enums.social.social_type_enum import SocialTypeEnum
 
 
@@ -19,7 +19,7 @@ class SocialClientSaveReqVO(BaseRequestVO):
     social_type: Annotated[int, Field(..., description="社交平台的类型")]
     user_type: Annotated[int, Field(..., description="用户类型")]
     client_id: Annotated[str, Field(..., description="客户端编号")]
-    client_secret: Annotated[str, Field(..., description="客户端密钥")]
+    client_secret: Annotated[str | None, Field(None, description="客户端密钥；更新省略时保留原值")]
     agent_id: Annotated[str | None, Field(None, description="授权方的网页应用编号")]
     auth_config: Annotated[dict[str, Any] | None, Field(None, description="认证配置")]
     status: Annotated[int, Field(..., description="状态")]
@@ -27,7 +27,7 @@ class SocialClientSaveReqVO(BaseRequestVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
+                    "id": "1024",
                     "name": "dushan商城",
                     "socialType": 31,
                     "userType": 2,
@@ -35,11 +35,11 @@ class SocialClientSaveReqVO(BaseRequestVO):
                     "clientSecret": "peter",
                     "agentId": "2000045",
                     "authConfig": {
-                        "redirectUri": "https://www.example.com/callback",
-                        "loginType": "CorpApp",
+                        "redirect_uri": "https://www.example.com/callback",
+                        "scopes": ["snsapi_base"],
                         "pkce": False,
-                        "unionId": False,
-                        "ignoreCheckState": False,
+                        "options": {"agent_id": "2000045", "lang": "zh"},
+                        "credentials": {},
                     },
                     "status": 1,
                 }
@@ -95,10 +95,11 @@ class SocialClientSaveReqVO(BaseRequestVO):
 
     @field_validator("client_secret", mode="before")
     @classmethod
-    def require_client_secret(cls, v: Any) -> Any:
-        NotNull.require_not_null(
-            field_name="client_secret", value=v, error_msg="客户端密钥不能为空"
-        )
+    def require_client_secret(cls, v: Any, info: ValidationInfo) -> Any:
+        if info.data.get("id") is None or v is not None:
+            NotEmpty.require_not_empty(
+                field_name="client_secret", value=v, error_msg="客户端密钥不能为空"
+            )
         return v
 
     @field_validator("status", mode="before")

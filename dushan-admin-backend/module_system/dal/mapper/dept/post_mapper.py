@@ -26,7 +26,7 @@ class PostMapper(BaseMapper[PostDO]):
         result = await self.read(stmt)
         return list(result.scalars().all())
 
-    async def select_list(
+    async def select_filtered_list(
         self, ids: Collection[int] | None = None, statuses: Collection[int] | None = None
     ) -> list[PostDO]:
         stmt = select(PostDO)

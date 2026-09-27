@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
-  NotificationRuntime,
   type NotificationRecord,
+  NotificationRuntime,
 } from '../../dushan-admin-frontend/apps/web-ele/src/services/notifications/runtime';
 import { SessionCoordinator } from '../../dushan-admin-frontend/apps/web-ele/src/services/session/coordinator';
 import {
@@ -104,17 +104,21 @@ describe('通知状态与故障边界', () => {
   it('推送新增有明确返回值，补拉与推送按 ID 合并，事件去重可恢复', async () => {
     const { notifications, ports, make } = fixture();
     const pending = Promise.withResolvers<unknown>();
-    ports.list.mockReturnValue(pending.promise);
+    ports.list
+      .mockReturnValueOnce(pending.promise)
+      .mockResolvedValue({ items: [notice('one')], total: 1 });
     const loading = notifications.refresh();
     const frame = {
       type: 'notification',
       timestamp: 0,
       requestId: 'event-1',
-      payload: notice('one'),
+      payload: { messageId: 'one' },
     };
-    expect(notifications.handle(frame)).toBe(true);
-    expect(notifications.handle(frame)).toBe(false);
-    expect(notifications.handle({ ...frame, requestId: 'event-2' })).toBe(
+    const received = notifications.handle(frame);
+    expect(notifications.handle(frame)).toBe(received);
+    expect(await received).toBe(true);
+    expect(await notifications.handle(frame)).toBe(false);
+    expect(await notifications.handle({ ...frame, requestId: 'event-2' })).toBe(
       false,
     );
     pending.resolve({ items: [notice('one'), notice('two')], total: 2 });
@@ -124,11 +128,59 @@ describe('通知状态与故障边界', () => {
       'two',
     ]);
     expect(ports.notify).toHaveBeenCalledOnce();
-    expect(ports.notify.mock.calls[0]![0].content).toBe(frame.payload.content);
+    expect(ports.notify.mock.calls[0]![0].content).toBe(notice('one').content);
     notifications.dispose();
     const restored = make();
     cleanup.push(() => restored.dispose());
-    expect(restored.handle(frame)).toBe(false);
+    expect(await restored.handle(frame)).toBe(false);
+  });
+
+  it('通知提示重读失败可重试，换会话后不接受迟到的通知内容', async () => {
+    const { notifications, ports, session } = fixture();
+    const frame = {
+      type: 'notification',
+      timestamp: 0,
+      requestId: 'event',
+      payload: { messageId: 'one' },
+    };
+    const failure = new Error('读取失败');
+    ports.list
+      .mockRejectedValueOnce(failure)
+      .mockResolvedValueOnce({ items: [notice('one')], total: 1 });
+    await expect(notifications.handle(frame)).rejects.toBe(failure);
+    expect(ports.notify).not.toHaveBeenCalled();
+    expect(await notifications.handle(frame)).toBe(true);
+    const pending = Promise.withResolvers<unknown>();
+    ports.list.mockReturnValueOnce(pending.promise);
+    const received = Promise.allSettled([
+      notifications.handle({ ...frame, requestId: 'late' }),
+    ]);
+    const signal = ports.list.mock.calls.at(-1)![0];
+    session.replace('other');
+    expect(signal.aborted).toBe(true);
+    pending.resolve({ items: [notice('one')], total: 1 });
+    expect((await received)[0]).toMatchObject({
+      status: 'rejected',
+      reason: { name: 'AbortError' },
+    });
+    expect(notifications.notifications).toEqual([]);
+    expect(ports.notify).toHaveBeenCalledOnce();
+  });
+
+  it('通知只接受定位消息；不在本人未读列表的条目不会弹出', async () => {
+    const { notifications, ports } = fixture();
+    const frame = {
+      type: 'notification',
+      timestamp: 0,
+      requestId: 'event',
+      payload: { messageId: 'hidden' },
+    };
+    expect(() =>
+      notifications.handle({ ...frame, payload: notice('hidden') }),
+    ).toThrow();
+    expect(await notifications.handle(frame)).toBe(false);
+    expect(ports.notify).not.toHaveBeenCalled();
+    expect(notifications.needRefresh).toBe(true);
   });
 
   it('已读接口失败保持原状态，成功才更新；全部已读也保留错误', async () => {
@@ -194,11 +246,11 @@ describe('通知状态与故障边界', () => {
   it('去重记录最多512条，损坏缓存清除并报告，不阻断后续通知', async () => {
     const { notifications, ports, make } = fixture();
     for (let index = 0; index < 513; index++)
-      notifications.handle({
+      await notifications.handle({
         type: 'notification',
         timestamp: 0,
         requestId: `event-${index}`,
-        payload: notice(`notice-${index}`),
+        payload: { messageId: `notice-${index}` },
       });
     await vi.advanceTimersByTimeAsync(0);
     expect(JSON.parse(sessionStorage.getItem('notice-test')!).ids).toHaveLength(
@@ -209,12 +261,13 @@ describe('通知状态与故障边界', () => {
     const restored = make();
     cleanup.push(() => restored.dispose());
     expect(ports.onError).toHaveBeenCalled();
+    ports.list.mockResolvedValueOnce({ items: [notice('new')], total: 1 });
     expect(
-      restored.handle({
+      await restored.handle({
         type: 'notification',
         timestamp: 0,
         requestId: 'new',
-        payload: notice('new'),
+        payload: { messageId: 'new' },
       }),
     ).toBe(true);
     await vi.advanceTimersByTimeAsync(0);

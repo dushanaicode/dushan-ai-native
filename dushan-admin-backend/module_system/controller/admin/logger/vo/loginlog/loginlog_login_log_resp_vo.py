@@ -47,13 +47,13 @@ class LoginLogRespVO(BaseVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
+                    "id": "1024",
                     "logType": 1,
-                    "userId": 666,
+                    "userId": "666",
                     "userType": 2,
                     "traceId": "89aca178-a370-411c-ae02-3f0d672be4ab",
                     "username": "dushan",
-                    "result": 1,
+                    "result": 0,
                     "userIp": "127.0.0.1",
                     "userAgent": "Mozilla/5.0",
                     "createTime": "2020-05-20T05:20:00Z",

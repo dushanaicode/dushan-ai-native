@@ -46,10 +46,7 @@ export function useFormSchema(): VbenFormSchema[] {
   return [
     {
       component: 'Input',
-      dependencies: {
-        show: () => false,
-        triggerFields: [''],
-      },
+      hide: true,
       fieldName: 'id',
     },
     {
@@ -60,8 +57,8 @@ export function useFormSchema(): VbenFormSchema[] {
         showWordLimit: true,
       },
       dependencies: {
-        disabled: (values) => !!values.id,
         triggerFields: ['id'],
+        resolve: ({ values }) => ({ disabled: !!values.id }),
       },
       fieldName: 'username',
       label: '用户账号',
@@ -76,8 +73,8 @@ export function useFormSchema(): VbenFormSchema[] {
         showWordLimit: true,
       },
       dependencies: {
-        show: (values) => !values.id,
         triggerFields: ['id'],
+        resolve: ({ values }) => ({ show: !values.id }),
       },
       fieldName: 'password',
       label: '用户密码',
@@ -108,10 +105,8 @@ export function useFormSchema(): VbenFormSchema[] {
         childrenField: 'children',
         clearable: true,
         labelField: 'name',
-        nodeKey: 'id',
         placeholder: '请选择归属部门',
-        props: { children: 'children', label: 'name' },
-        treeDefaultExpandAll: true,
+        defaultExpandAll: true,
         valueField: 'id',
       },
       fieldName: 'deptId',
@@ -172,6 +167,7 @@ export function useFormSchema(): VbenFormSchema[] {
         showWordLimit: true,
       },
       fieldName: 'remark',
+      formItemClass: 'md:col-span-2',
       label: '备注',
     },
   ];
@@ -181,10 +177,7 @@ export function useResetPasswordFormSchema(): VbenFormSchema[] {
   return [
     {
       component: 'Input',
-      dependencies: {
-        show: () => false,
-        triggerFields: [''],
-      },
+      hide: true,
       fieldName: 'id',
     },
     {
@@ -217,10 +210,7 @@ export function useAssignRoleFormSchema(): VbenFormSchema[] {
   return [
     {
       component: 'Input',
-      dependencies: {
-        show: () => false,
-        triggerFields: [''],
-      },
+      hide: true,
       fieldName: 'id',
     },
     {

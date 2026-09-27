@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { NotificationRuntime } from '../services/notifications/runtime';
 
-import { computed, ref, watch } from 'vue';
+import { computed, ref, shallowRef, watch } from 'vue';
 
 import { useVbenModal } from '@vben/common-ui';
 import { Bell } from '@vben/icons';
@@ -16,12 +16,24 @@ import {
   ElScrollbar,
 } from 'element-plus';
 
+import { takeErrorMessage } from '#/api/error-feedback';
+
 import NotificationContent from './notification-content.vue';
 
 const props = defineProps<{ runtime: NotificationRuntime }>();
 const visible = ref(false);
 const selectedId = ref<string>();
-const failure = ref(false);
+const localError = shallowRef<unknown>();
+const failure = ref('');
+watch(
+  () => localError.value ?? props.runtime.error,
+  (error) => {
+    failure.value = error
+      ? takeErrorMessage(error, $t('utils.notification.failed'))
+      : '';
+  },
+  { immediate: true },
+);
 const selected = computed(() =>
   props.runtime.notifications.find((item) => item.id === selectedId.value),
 );
@@ -30,12 +42,12 @@ watch(selected, (item) => {
   if (!item) modal.close();
 });
 async function run(action: () => Promise<void>) {
-  failure.value = false;
+  localError.value = undefined;
   try {
     await action();
   } catch (error) {
     if (!(error instanceof DOMException && error.name === 'AbortError'))
-      failure.value = true;
+      localError.value = error;
   }
 }
 function open(id: string) {
@@ -75,9 +87,9 @@ function open(id: string) {
       </ElButton>
     </div>
     <ElAlert
-      v-if="failure || runtime.error"
+      v-if="failure && visible"
       type="error"
-      :title="$t('utils.notification.failed')"
+      :title="failure"
       :closable="false"
     />
     <ElScrollbar max-height="400px" :aria-busy="runtime.loading">
@@ -106,12 +118,7 @@ function open(id: string) {
     </ElButton>
   </ElPopover>
   <Modal :title="selected?.title">
-    <ElAlert
-      v-if="failure"
-      type="error"
-      :title="$t('utils.notification.failed')"
-      :closable="false"
-    />
+    <ElAlert v-if="failure" type="error" :title="failure" :closable="false" />
     <template v-if="selected">
       <time>{{ selected.createTime }}</time>
       <NotificationContent :content="selected.content" />

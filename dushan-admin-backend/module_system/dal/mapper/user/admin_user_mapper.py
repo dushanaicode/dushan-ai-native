@@ -113,8 +113,3 @@ class AdminUserMapper(BaseMapper[AdminUserDO]):
 
     async def select_batch_ids(self, id_list: Collection[int]) -> list[AdminUserDO]:
         return await self.select_by_ids(id_list)
-
-    async def select_by_ids(self, id_list: Collection[int]) -> list[AdminUserDO]:
-        stmt = select(AdminUserDO).where(AdminUserDO.id.in_(id_list))
-        result = await self.read(stmt)
-        return list(result.scalars().all())

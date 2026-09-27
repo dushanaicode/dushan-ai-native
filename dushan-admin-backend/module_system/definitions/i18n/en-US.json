@@ -9,7 +9,15 @@
       "mobile_not_exists": "Mobile number does not exist",
       "register_captcha_code_error": "Registration captcha verification failed",
       "invalid_token_code": "Invalid token format",
-      "token_not_found": "Access token does not exist"
+      "token_not_found": "Access token does not exist",
+      "reset_code_invalid": "The verification code is invalid or expired",
+      "reset_send_limit": "Please wait before requesting another verification code",
+      "qr_disabled": "QR code login is disabled",
+      "qr_expired": "This QR code has expired or was used. Generate a new one",
+      "qr_browser": "Continue in the browser that generated this QR code",
+      "qr_tenant": "Your mobile account and this computer belong to different tenants",
+      "qr_changed": "The QR code state has changed. Please scan again",
+      "qr_identity_changed": "Your mobile session has changed. Sign in and scan again"
     },
     "menu": {
       "name_duplicate": "A menu with this name already exists",
@@ -97,7 +105,8 @@
       "api_audit_fail": "SMS API template unavailable: review rejected, {}",
       "api_not_found": "SMS API template unavailable: template not found",
       "api_audit_unknown": "SMS template ({}) audit status ({}) is incorrect",
-      "can_not_update_builtin": "Cannot modify built-in SMS templates"
+      "can_not_update_builtin": "Cannot modify built-in SMS templates",
+      "disabled": "The SMS template is disabled"
     },
     "sms_send": {
       "mobile_not_exists": "Mobile number does not exist",
@@ -111,7 +120,8 @@
       "used": "Verification code has been used",
       "not_correct": "Verification code is incorrect",
       "exceed_send_max_per_day": "Daily SMS sending limit exceeded",
-      "send_too_fast": "SMS sending too frequently"
+      "send_too_fast": "SMS sending too frequently",
+      "attempts_exceeded": "Too many incorrect attempts, please request a new code"
     },
     "tenant": {
       "not_exists": "Tenant does not exist",
@@ -154,7 +164,8 @@
     },
     "mail_template": {
       "not_exists": "Mail template does not exist",
-      "code_exists": "Mail template code ({}) already exists"
+      "code_exists": "Mail template code ({}) already exists",
+      "disabled": "The email template is disabled"
     },
     "mail_send": {
       "template_param_miss": "Template parameter ({}) is missing",
@@ -199,7 +210,8 @@
       "weixin_mini_app_qrcode_error": "WeChat Mini Program get QR code failed: {}",
       "weixin_mini_app_subscribe_template_error": "WeChat Mini Program get subscribe template failed: {}",
       "weixin_mini_app_subscribe_message_error": "WeChat Mini Program send subscribe message failed: {}",
-      "platform_not_exist": "Social platform [{}] does not exist"
+      "platform_not_exist": "Social platform [{}] does not exist",
+      "client_auth_config_invalid": "Invalid social client auth configuration: {}"
     }
   }
 }

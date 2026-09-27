@@ -64,7 +64,7 @@ class AbstractSmsClient(SmsClient):
         self.properties = properties
         self.init()
 
-    def get_id(self) -> int | None:
+    def get_id(self) -> int:
         """获得短信渠道的编号"""
         return self.properties.id
 

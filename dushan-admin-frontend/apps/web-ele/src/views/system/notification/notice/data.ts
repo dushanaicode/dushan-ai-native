@@ -10,6 +10,7 @@ import { getSimpleSmsTemplateList } from '#/api/system/sms/template';
 import { DICT_TYPE } from '#/constants/dict-types';
 import { SwitchStatus } from '#/constants/status';
 import { useDictionary } from '#/services/dictionary/context';
+import { createUserSelectPorts } from '#/services/user-select/ports';
 import { getRangePickerDefaultProps } from '#/utils/range-picker';
 
 interface DeptTreeNode extends SystemDeptApi.DeptSimpleRespVO {
@@ -73,30 +74,30 @@ export function useFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         options: dictionary.getDictOptions(
           DICT_TYPE.SYSTEM_NOTICE_TYPE,
           'number',
         ),
         placeholder: '请选择通知类型',
-      },
+      }),
       fieldName: 'type',
       label: '通知类型',
       rules: 'selectRequired',
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         options: dictionary.getDictOptions(DICT_TYPE.USER_TYPE, 'number'),
         placeholder: '请选择用户类型',
-      },
+      }),
       fieldName: 'userType',
       label: '用户类型',
       rules: 'selectRequired',
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         collapseTags: true,
         multiple: true,
@@ -105,7 +106,7 @@ export function useFormSchema(): VbenFormSchema[] {
           'string',
         ),
         placeholder: '请选择推送渠道',
-      },
+      }),
       fieldName: 'channels',
       label: '推送渠道',
       rules: z.array(z.string()).min(1, '请选择推送渠道'),
@@ -162,10 +163,10 @@ export function useFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'RadioGroup',
-      componentProps: {
+      componentProps: () => ({
         isButton: true,
         options: dictionary.getDictOptions(DICT_TYPE.COMMON_STATUS, 'number'),
-      },
+      }),
       fieldName: 'status',
       label: '状态',
       rules: z.number().default(SwitchStatus.ENABLED),
@@ -200,11 +201,9 @@ export function usePushTargetFormSchema(): VbenFormSchema[] {
         collapseTags: true,
         labelField: 'name',
         multiple: true,
-        nodeKey: 'id',
         placeholder: '请选择目标部门',
-        props: { label: 'name', children: 'children' },
         showCheckbox: true,
-        treeDefaultExpandAll: true,
+        defaultExpandAll: true,
         valueField: 'id',
       },
       fieldName: 'deptIds',
@@ -215,6 +214,7 @@ export function usePushTargetFormSchema(): VbenFormSchema[] {
       componentProps: {
         multiple: true,
         placeholder: '请选择目标用户',
+        ports: createUserSelectPorts(),
         showDeptFilter: true,
       },
       fieldName: 'userIds',
@@ -237,30 +237,30 @@ export function useGridFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(
           DICT_TYPE.SYSTEM_NOTICE_TYPE,
           'number',
         ),
         placeholder: '请选择通知类型',
-      },
+      }),
       fieldName: 'type',
       label: '通知类型',
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(DICT_TYPE.USER_TYPE, 'number'),
         placeholder: '请选择用户类型',
-      },
+      }),
       fieldName: 'userType',
       label: '用户类型',
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         collapseTags: true,
         multiple: true,
@@ -269,7 +269,7 @@ export function useGridFormSchema(): VbenFormSchema[] {
           'string',
         ),
         placeholder: '请选择推送渠道',
-      },
+      }),
       fieldName: 'channels',
       label: '推送渠道',
     },
@@ -284,11 +284,11 @@ export function useGridFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(DICT_TYPE.COMMON_STATUS, 'number'),
         placeholder: '请选择状态',
-      },
+      }),
       fieldName: 'status',
       label: '状态',
     },
@@ -371,12 +371,8 @@ export function useGridColumns(
     {
       align: 'center',
       cellRender: {
-        attrs: { beforeChange: onStatusChange },
         name: 'CellSwitch',
-        props: {
-          checkedValue: SwitchStatus.ENABLED,
-          unCheckedValue: SwitchStatus.DISABLED,
-        },
+        props: { change: onStatusChange },
       },
       field: 'status',
       title: '状态',

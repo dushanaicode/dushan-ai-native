@@ -165,9 +165,9 @@ class HuaweiSmsClient(AbstractSmsClient):
         self.raise_for_definite_http_failure(response)
         return json.loads(response.text)
 
-    async def parse_sms_receive_status(self, request_body: str) -> list[SmsReceiveRespDTO]:
+    async def parse_sms_receive_status(self, text: str) -> list[SmsReceiveRespDTO]:
         """解析华为短信回执状态"""
-        params = {k: v[0] for k, v in parse_qs(request_body).items()}
+        params = {k: v[0] for k, v in parse_qs(text).items()}
         update_time_str = params.get("updateTime")
         try:
             receive_time = (

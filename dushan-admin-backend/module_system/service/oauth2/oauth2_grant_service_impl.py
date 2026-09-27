@@ -20,6 +20,7 @@ from module_system.service.oauth2.oauth2_client_service import OAuth2ClientServi
 from module_system.service.oauth2.oauth2_code_service import OAuth2CodeService
 from module_system.service.oauth2.oauth2_grant_service import OAuth2GrantService
 from module_system.service.oauth2.oauth2_token_service import OAuth2TokenService
+from module_system.service.workload.system_workload_service import SystemWorkloadService
 
 
 @service(interface=OAuth2GrantService)
@@ -30,6 +31,7 @@ class OAuth2GrantServiceImpl(OAuth2GrantService):
     oauth2_code_service: OAuth2CodeService = Inject()
     oauth2_admin_auth_service: AuthAdminAuthService = Inject()
     oauth2_client_service: OAuth2ClientService = Inject()
+    workloads: SystemWorkloadService = Inject()
 
     @override
     async def grant_implicit(
@@ -116,5 +118,6 @@ class OAuth2GrantServiceImpl(OAuth2GrantService):
         access_token_do = await self.oauth2_token_service.get_access_token(access_token)
         if not access_token_do or access_token_do.client_id != client_id:
             return False
-        removed = await self.oauth2_token_service.remove_access_token(access_token)
+        async with self.workloads.scope("system.auth.revoke", access_token_do.tenant_id):
+            removed = await self.oauth2_token_service.remove_access_token(access_token)
         return removed is not None

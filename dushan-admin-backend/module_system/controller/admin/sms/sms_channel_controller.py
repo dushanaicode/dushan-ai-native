@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 
 from framework.common.contracts import SnowflakeIdStr
 from framework.common.page import PageResult
@@ -10,6 +10,7 @@ from framework.starter_security.public import (
     SecurityRealm,
 )
 from framework.starter_web.public import (
+    AccessLogPolicy,
     Result,
     RoutePolicy,
 )
@@ -26,6 +27,21 @@ sms_channel_controller = APIRouter(prefix="/sms/channel", tags=["System - 短信
 
 
 class SmsChannelController:
+    @staticmethod
+    @sms_channel_controller.get("/callback-url", summary="获取本租户短信通道的回执地址")
+    @RoutePolicy(
+        permissions=("system:sms:channel:query",), tenant_required=True, realm=SecurityRealm.TENANT
+    )
+    @AccessLogPolicy(enabled=False)
+    async def get_callback_url(
+        request: Request,
+        req_vo: IdReqVO = Query(),
+        service: SmsChannelService = Depends(DiDependency(SmsChannelService)),
+    ) -> Result[str]:
+        token = await service.get_callback_token(req_vo.id)
+        url = request.url_for("receive_sms_status").include_query_params(token=token)
+        return Result.success(str(url))
+
     @staticmethod
     @sms_channel_controller.post("/create", summary="创建短信渠道")
     @RoutePolicy(

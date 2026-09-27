@@ -1,24 +1,30 @@
-import type { UserInfo } from '@vben/types';
 import type { Router, RouteRecordRaw } from 'vue-router';
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { UserInfo } from '@vben/types';
+
 import { createApp } from 'vue';
-import { createPinia, setActivePinia } from 'pinia';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
 import { useAccessStore, useTabbarStore, useUserStore } from '@vben/stores';
 import { cloneDeep } from '@vben/utils';
 
+import { createPinia, setActivePinia } from 'pinia';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { createRouterGuard } from '../../dushan-admin-frontend/apps/web-ele/src/router/guard';
 import { installSessionAccess } from '../../dushan-admin-frontend/apps/web-ele/src/router/session-access';
 import {
-  SessionCoordinator,
   SessionChangedError,
+  SessionCoordinator,
 } from '../../dushan-admin-frontend/apps/web-ele/src/services/session/coordinator';
 import { useAuthStore } from '../../dushan-admin-frontend/apps/web-ele/src/store/auth';
+import { useTenantStore } from '../../dushan-admin-frontend/apps/web-ele/src/store/tenant';
 
 const stubs = vi.hoisted(() => ({
   login: vi.fn(),
+  sms: vi.fn(),
+  register: vi.fn(),
+  social: vi.fn(),
   logout: vi.fn(),
   info: vi.fn(),
   notify: vi.fn(),
@@ -27,6 +33,9 @@ const stubs = vi.hoisted(() => ({
 }));
 vi.mock('#/api', () => ({
   loginApi: stubs.login,
+  smsLoginApi: stubs.sms,
+  registerApi: stubs.register,
+  socialLoginApi: stubs.social,
   logoutApi: stubs.logout,
   getPermissionInfoApi: stubs.info,
 }));
@@ -70,12 +79,17 @@ const user: UserInfo = {
 const cleanups: Array<() => void> = [];
 /** 后端 /system/auth/get-permission-info 的一次响应：身份、权限码与授权菜单同源。 */
 function permissionInfo(roles: string[] = ['admin']) {
-  return { user: { ...user, roles }, permissions: ['read'], menus: [] };
+  return {
+    tenantId: '1',
+    user: { ...user, roles },
+    permissions: ['read'],
+    menus: [],
+  };
 }
 
 beforeEach(() => {
   vi.resetAllMocks();
-  stubs.login.mockResolvedValue({ accessToken: 'new-token' });
+  stubs.login.mockResolvedValue({ accessToken: 'new-token', tenantId: '1' });
   stubs.logout.mockResolvedValue(undefined);
   stubs.info.mockResolvedValue(permissionInfo());
   stubs.generate.mockImplementation(
@@ -166,6 +180,62 @@ async function fixture() {
 }
 
 describe('实际认证 store 与路由边界', () => {
+  it('社交登录复用会话装配和成功回调，实际租户来自服务端', async () => {
+    const { auth, session } = await fixture();
+    stubs.social.mockResolvedValue({
+      accessToken: 'social-token',
+      tenantId: '1',
+    });
+    const params = { type: 20, code: 'vendor-code', state: 'state' };
+    const success = vi.fn();
+    await auth.authSocialLogin(params, success);
+    expect(stubs.social).toHaveBeenCalledWith(params);
+    expect(success).toHaveBeenCalledOnce();
+    expect(session.capture().token).toBe('social-token');
+    expect(useTenantStore().currentTenantId).toBe('1');
+  });
+  it('注册复用同一套会话与实际租户绑定', async () => {
+    const { auth, session } = await fixture();
+    stubs.register.mockResolvedValue({
+      accessToken: 'registered-token',
+      tenantId: '1',
+    });
+    const params = {
+      username: 'newuser',
+      nickname: 'New',
+      password: 'Password123',
+    };
+    await auth.authRegister(params, '1');
+    expect(stubs.register).toHaveBeenCalledWith(params, '1');
+    expect(stubs.login).not.toHaveBeenCalled();
+    expect(session.capture().token).toBe('registered-token');
+    expect(useTenantStore().currentTenantId).toBe('1');
+  });
+  it('手机号登录使用同一套会话、用户与权限装配流程', async () => {
+    const { auth, session } = await fixture();
+    stubs.sms.mockResolvedValue({ accessToken: 'sms-token', tenantId: '1' });
+    const params = { mobile: '13800001001', code: '8888' };
+    await auth.authSmsLogin(params, '1');
+    expect(stubs.sms).toHaveBeenCalledWith(params, '1');
+    expect(stubs.login).not.toHaveBeenCalled();
+    expect(session.capture().token).toBe('sms-token');
+    expect(useTenantStore().currentTenantId).toBe('1');
+  });
+
+  it('实际租户来自服务端，跨标签页会话变化清除当前租户并保留登录选择', async () => {
+    const { auth, session, changeExternal } = await fixture();
+    const tenants = useTenantStore();
+    tenants.lastTenantId = '2';
+    tenants.currentTenantId = 'old';
+    stubs.info.mockResolvedValue({ ...permissionInfo(), tenantId: '2' });
+    await auth.fetchUserInfo();
+    expect(tenants.currentTenantId).toBe('2');
+    changeExternal();
+    session.capture();
+    expect(tenants.currentTenantId).toBeNull();
+    expect(tenants.lastTenantId).toBe('2');
+  });
+
   it('会话清理卸载内容，新的权限导航完成后才允许重新挂载', async () => {
     const { router, session, tabs } = await fixture();
     createRouterGuard(router);
@@ -189,7 +259,7 @@ describe('实际认证 store 与路由边界', () => {
     const pending = Promise.withResolvers<void>();
     const onSuccess = vi.fn(() => pending.promise);
     const result = Promise.allSettled([
-      auth.authLogin({ username: 'u', password: 'p' }, onSuccess),
+      auth.authLogin({ username: 'u', password: 'p' }, undefined, onSuccess),
     ]);
     await vi.waitFor(() => expect(onSuccess).toHaveBeenCalledOnce());
     session.replace('another-user');
@@ -242,6 +312,7 @@ describe('实际认证 store 与路由边界', () => {
     const push = vi.spyOn(router, 'push');
     await auth.authLogin(
       { username: 'u', password: 'p', verification: 'verified' },
+      undefined,
       onSuccess,
     );
     expect(access.loginExpired).toBe(false);
@@ -250,7 +321,11 @@ describe('实际认证 store 与路由边界', () => {
     expect(onSuccess).not.toHaveBeenCalled();
     expect(stubs.notify).not.toHaveBeenCalled();
     expect(users.userInfo?.userId).toBe('9223372036854775807');
-    await auth.authLogin({ username: 'u', password: 'p' }, onSuccess);
+    await auth.authLogin(
+      { username: 'u', password: 'p' },
+      undefined,
+      onSuccess,
+    );
     expect(onSuccess).toHaveBeenCalledOnce();
     expect(stubs.notify).toHaveBeenCalledOnce();
   });

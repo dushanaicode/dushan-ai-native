@@ -76,15 +76,15 @@ class MailLogRespVO(BaseVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 31020,
-                    "userId": 30883,
+                    "id": "31020",
+                    "userId": "30883",
                     "userType": 2,
                     "toMail": "729227973@qq.com",
                     "ccMail": "cc1@example.com,cc2@example.com",
                     "bccMail": "bcc1@example.com,bcc2@example.com",
-                    "accountId": 18107,
+                    "accountId": "18107",
                     "fromMail": "729227973@qq.com",
-                    "templateId": 5678,
+                    "templateId": "5678",
                     "templateCode": "test_01",
                     "templateNickname": "渡山",
                     "templateTitle": "测试标题",

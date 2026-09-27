@@ -1,0 +1,8 @@
+{
+  "tenant": "Tenant",
+  "select": "Select a tenant",
+  "empty": "No tenants are available. Contact your administrator.",
+  "loadFailed": "Unable to load tenant information. Please retry.",
+  "configuration": "Tenant selection is not enabled. Contact your administrator.",
+  "retry": "Reload"
+}

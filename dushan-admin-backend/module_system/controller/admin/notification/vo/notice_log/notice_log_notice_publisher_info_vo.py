@@ -3,15 +3,15 @@ from typing import Annotated
 from pydantic import Field
 
 from framework.common.contracts import (
-    SnowflakeIdInput,
+    SnowflakeIdStr,
 )
-from framework.common.schemas import BaseRequestVO
+from framework.common.schemas import BaseVO
 
 
-class NoticePublisherInfoVO(BaseRequestVO):
+class NoticePublisherInfoVO(BaseVO):
     """管理后台 - 站内信发布者信息 VO"""
 
-    id: Annotated[SnowflakeIdInput | None, Field(None, description="发布者用户ID")]
+    id: Annotated[SnowflakeIdStr | None, Field(None, description="发布者用户ID")]
     username: Annotated[str | None, Field(None, description="发布者用户名")]
     nickname: Annotated[str | None, Field(None, description="发布者昵称")]
     avatar: Annotated[str | None, Field(None, description="发布者头像地址")]

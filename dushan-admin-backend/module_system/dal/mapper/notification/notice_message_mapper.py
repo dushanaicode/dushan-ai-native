@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Collection
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import MergedResult, func, select, update
 
@@ -79,7 +79,7 @@ class NoticeMessageMapper(BaseMapper[NoticeMessageDO]):
                 NoticeMessageDO.read_status.is_(False),
                 NoticeMessageDO.deleted.is_(False),
             )
-            .values(read_status=True, read_time=datetime.now())
+            .values(read_status=True, read_time=datetime.now(timezone.utc).replace(tzinfo=None))
         )
         result: MergedResult = await self.write(stmt)
         return result.rowcount
@@ -93,7 +93,7 @@ class NoticeMessageMapper(BaseMapper[NoticeMessageDO]):
                 NoticeMessageDO.read_status.is_(False),
                 NoticeMessageDO.deleted.is_(False),
             )
-            .values(read_status=True, read_time=datetime.now())
+            .values(read_status=True, read_time=datetime.now(timezone.utc).replace(tzinfo=None))
         )
         result: MergedResult = await self.write(stmt)
         return result.rowcount

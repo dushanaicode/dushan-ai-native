@@ -1,4 +1,4 @@
-from sqlalchemy import Index, SmallInteger, String
+from sqlalchemy import Index, SmallInteger, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from framework.common.enums import StatusEnum
@@ -11,6 +11,7 @@ class SmsChannelDO(TenantBaseDO):
     __tablename__ = "system_sms_channel"
     __table_args__ = (
         Index("ix_system_sms_channel_tenant", "tenant_id"),
+        UniqueConstraint("tenant_id", "id", name="uq_system_sms_channel_tenant_id"),
         {**TenantBaseDO.__table_args__, **{"comment": "短信渠道信息表"}},
     )
 

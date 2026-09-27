@@ -12,7 +12,7 @@ from module_system.framework.sms.model.sms_template_resp_dto import SmsTemplateR
 class SmsClient(Protocol):
     """短信客户端接口，用于对接各短信平台的 SDK，实现短信发送等功能"""
 
-    def get_id(self) -> int | None:
+    def get_id(self) -> int:
         """获得渠道编号"""
         ...
 

@@ -23,6 +23,9 @@ const recentSchema = z
   })
   .strict();
 const countSchema = z.number().int().nonnegative();
+const notificationHintSchema = z
+  .object({ messageId: z.string().min(1) })
+  .strict();
 const dedupSchema = z
   .object({ generation: z.string(), ids: z.array(z.string().min(1)).max(512) })
   .strict();
@@ -60,6 +63,7 @@ export class NotificationRuntime {
   private countPending: Promise<void> | undefined;
   private disposed = false;
   private epoch = 0;
+  private hints = new Map<string, Promise<boolean>>();
   private listPending: Promise<void> | undefined;
   private polling: ReturnType<typeof setInterval> | undefined;
   private reads = new Map<string, Promise<void>>();
@@ -124,6 +128,7 @@ export class NotificationRuntime {
     this.listPending = undefined;
     this.countPending = undefined;
     this.reads.clear();
+    this.hints.clear();
     this.allRead = undefined;
     this.updated.clear();
     this.seen.clear();
@@ -150,6 +155,7 @@ export class NotificationRuntime {
     this.options.session.signal.removeEventListener('abort', this.onDispose);
     for (const stop of this.subscriptions) stop();
     this.subscriptions.clear();
+    this.hints.clear();
     this.listPending = undefined;
     this.countPending = undefined;
     this.reads.clear();
@@ -168,25 +174,50 @@ export class NotificationRuntime {
     return this.needRefresh ? this.refresh() : Promise.resolve();
   }
 
-  handle(message: SocketMessage) {
+  handle(message: SocketMessage): Promise<boolean> {
     this.assertActive();
-    this.options.session.capture();
-    if (message.requestId === undefined)
-      throw new TypeError('通知消息缺少 requestId');
-    if (this.seen.has(message.requestId)) return false;
-    const notification = Object.freeze(
-      notificationSchema.parse(message.payload),
-    );
-    const added = this.addNotification(notification);
-    this.remember(message.requestId);
-    if (added) {
-      try {
-        this.options.ports.notify(notification);
-      } finally {
-        this.requestCount();
-      }
-    }
-    return added;
+    const scope = this.options.session.capture();
+    const epoch = this.epoch;
+    const { requestId } = message;
+    if (requestId === undefined) throw new TypeError('通知消息缺少 requestId');
+    const { messageId } = notificationHintSchema.parse(message.payload);
+    if (this.seen.has(requestId)) return Promise.resolve(false);
+    const existing = this.hints.get(requestId);
+    if (existing) return existing;
+    // 后端只发送定位信息；用当前会话的未读接口重新取得可见内容。
+    // 此请求必须在事件之后发起，不能复用事件之前开始的旧列表请求。
+    const pending = this.options.ports
+      .list(this.controller.signal)
+      .then((value) => {
+        this.assertCurrent(epoch, scope.generation);
+        const { items } = recentSchema.parse(value);
+        const notification = items.find((item) => item.id === messageId);
+        this.remember(requestId);
+        this.patch({ error: undefined, needRefresh: true });
+        if (!notification || notification.isRead) {
+          this.requestCount();
+          return false;
+        }
+        const added = this.addNotification(Object.freeze(notification));
+        if (added) {
+          try {
+            this.options.ports.notify(notification);
+          } finally {
+            this.requestCount();
+          }
+        }
+        return added;
+      })
+      .catch((error: unknown) => {
+        this.assertCurrent(epoch, scope.generation);
+        this.patch({ error, needRefresh: true });
+        throw error;
+      })
+      .finally(() => {
+        if (this.hints.get(requestId) === pending) this.hints.delete(requestId);
+      });
+    this.hints.set(requestId, pending);
+    return pending;
   }
 
   markAllRead(): Promise<void> {

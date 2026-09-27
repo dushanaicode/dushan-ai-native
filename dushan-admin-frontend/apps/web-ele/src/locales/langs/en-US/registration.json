@@ -1,0 +1,7 @@
+{
+  "nickname": "Nickname",
+  "nicknameTip": "Enter a nickname (up to 30 characters)",
+  "usernameRule": "Use 4–30 letters or digits for your username",
+  "passwordRule": "Use 4–16 characters for your password",
+  "disabled": "Account registration is not available"
+}

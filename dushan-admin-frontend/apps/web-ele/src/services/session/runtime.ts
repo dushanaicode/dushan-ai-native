@@ -1,5 +1,6 @@
 import { useAccessStore } from '@vben/stores';
 
+import { createRandomId } from '../../utils/random-id';
 import { SessionCoordinator } from './coordinator';
 
 let session: SessionCoordinator;
@@ -12,8 +13,9 @@ export function setupSession(options: {
   const access = useAccessStore();
   const key = `${options.namespace}:session`;
   if (localStorage.getItem(key) === null) {
-    localStorage.setItem(key, `${crypto.randomUUID()}:${crypto.randomUUID()}`);
+    localStorage.setItem(key, `${createRandomId()}:${createRandomId()}`);
   }
+  let hydratedMarker: null | string | undefined;
   session = new SessionCoordinator({
     expire: options.expire,
     async lock(operation) {
@@ -23,8 +25,15 @@ export function setupSession(options: {
     },
     read() {
       const marker = localStorage.getItem(key);
-      if (marker === null) return { generation: 'cleared', token: null };
-      access.$hydrate();
+      if (marker === null) {
+        hydratedMarker = null;
+        return { generation: 'cleared', token: null };
+      }
+      // 同一会话的读取不能覆盖尚未持久化的新权限；仅外部标记变化时同步存储。
+      if (marker !== hydratedMarker) {
+        access.$hydrate();
+        hydratedMarker = marker;
+      }
       return {
         generation: marker.split(':')[0] as string,
         token: access.accessToken,
@@ -46,10 +55,9 @@ export function setupSession(options: {
       access.setAccessToken(snapshot.token);
       access.$persist();
       // 标记只含随机代次；令牌继续使用现有 Pinia 持久化策略。
-      localStorage.setItem(
-        key,
-        `${snapshot.generation}:${crypto.randomUUID()}`,
-      );
+      const marker = `${snapshot.generation}:${createRandomId()}`;
+      localStorage.setItem(key, marker);
+      hydratedMarker = marker;
     },
   });
   session.subscribe((snapshot) => access.setAccessToken(snapshot.token));

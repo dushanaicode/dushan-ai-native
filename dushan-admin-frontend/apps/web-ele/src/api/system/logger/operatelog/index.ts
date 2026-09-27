@@ -8,9 +8,11 @@ export namespace SystemOperateLogApi {
   export interface OperateLogRespVO {
     action?: string;
     bizId?: string;
+    browser: null | string;
     createTime: string;
     extra?: string;
     id: string;
+    os: null | string;
     requestMethod: string;
     requestUrl?: string;
     subType?: string;
@@ -18,7 +20,13 @@ export namespace SystemOperateLogApi {
     type?: string;
     userAgent?: string;
     userId?: string;
-    userInfo?: Record<string, unknown>;
+    userInfo?: {
+      dept_id?: null | string;
+      location?: null | string;
+      location_status?: string;
+      nickname?: string;
+      username?: string;
+    };
     userIp?: string;
   }
 

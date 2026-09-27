@@ -23,4 +23,10 @@ class MailSendService(Protocol):
 
     async def send_multiple_mail(self, req: MailBatchDispatchBO) -> int: ...
 
+    async def send_multiple_mail_from_account(
+        self, req: MailBatchDispatchBO, account_id: int | None
+    ) -> int:
+        """从明确选择的账号发送；缺少账号或模板禁用时拒绝，不使用模板账号兜底。"""
+        ...
+
     async def do_send_mail(self, message: MailSendMessage) -> None: ...

@@ -14,7 +14,7 @@ class MailTemplateSimpleRespVO(BaseVO):
 
     id: Annotated[SnowflakeIdStr, Field(..., description="编号")]
     name: Annotated[str, Field(..., description="模版名称")]
-    model_config = {"json_schema_extra": {"examples": [{"id": 1024, "name": "测试邮件模版"}]}}
+    model_config = {"json_schema_extra": {"examples": [{"id": "1024", "name": "测试邮件模版"}]}}
 
     @field_validator("id", mode="before")
     @classmethod

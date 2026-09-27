@@ -1,0 +1,11 @@
+{
+  "title": "Third-party sign-in",
+  "loadFailed": "Third-party sign-in is unavailable. Check the provider configuration and retry.",
+  "failed": "Authorization expired or could not be completed. Return to sign-in and start again.",
+  "denied": "Third-party authorization was cancelled",
+  "sessionChanged": "The account or tenant changed during binding. Start again.",
+  "processing": "Completing third-party sign-in…",
+  "bindTitle": "Link an existing account",
+  "bindDescription": "This identity is not linked. Verify an existing account in the selected tenant, then authorize again to link it. No account will be created.",
+  "bindAction": "Verify account and authorize"
+}

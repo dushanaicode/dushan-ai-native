@@ -20,7 +20,7 @@ export namespace SystemOAuth2ClientApi {
     redirectUris: string[];
     refreshTokenValiditySeconds: number;
     resourceIds?: string[];
-    scopes?: string[];
+    scopes: string[];
     secret: string;
     status: number;
   }

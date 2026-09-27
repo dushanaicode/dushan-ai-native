@@ -60,7 +60,7 @@ class SmsTemplateRespVO(BaseVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
+                    "id": "1024",
                     "type": 1,
                     "status": 1,
                     "code": "test_01",
@@ -69,7 +69,7 @@ class SmsTemplateRespVO(BaseVO):
                     "params": ["name", "code"],
                     "remark": "哈哈哈",
                     "apiTemplateId": "4383920",
-                    "channelId": 10,
+                    "channelId": "10",
                     "channelCode": "ALIYUN",
                     "createTime": "2020-05-20T05:20:00Z",
                 }

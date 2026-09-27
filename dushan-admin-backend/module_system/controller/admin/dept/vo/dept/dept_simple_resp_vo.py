@@ -16,5 +16,5 @@ class DeptSimpleRespVO(BaseVO):
     name: Annotated[str | None, Field(..., description="部门名称")]
     parent_id: Annotated[SnowflakeCursorStr | None, Field(..., description="父部门 ID")]
     model_config = {
-        "json_schema_extra": {"examples": [{"id": 1024, "name": "渡山", "parentId": 1024}]}
+        "json_schema_extra": {"examples": [{"id": "1024", "name": "渡山", "parentId": "1024"}]}
     }

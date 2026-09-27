@@ -67,7 +67,7 @@ async function onExport() {
   exportTableRef.value?.setData({
     columns: fields,
     exportApi: exportMailTemplate,
-    fileName: '邮件模板数据.xls',
+    fileName: '邮件模板数据.xlsx',
     searchParams: formValues,
   });
   exportTableRef.value?.open();
@@ -107,22 +107,21 @@ async function onDelete(row: SystemMailTemplateApi.MailTemplateRespVO) {
 async function handleStatusChange(
   newStatus: number,
   row: SystemMailTemplateApi.MailTemplateRespVO,
-): Promise<boolean | undefined> {
-  return new Promise((resolve, reject) => {
-    const statusLabel = dictionary.getDictLabel(
-      DICT_TYPE.COMMON_STATUS,
-      newStatus,
-    );
-    confirm({
-      content: `确认将【${row.name}】的状态切换为【${statusLabel}】？`,
-    })
-      .then(async () => {
-        await updateMailTemplateStatus(row.id, newStatus);
-        ElMessage.success($t('ui.actionMessage.operationSuccess'));
-        resolve(true);
-      })
-      .catch(() => reject(new Error('取消')));
-  });
+): Promise<boolean> {
+  const statusLabel = dictionary.getDictLabel(
+    DICT_TYPE.COMMON_STATUS,
+    newStatus,
+  );
+  const confirmed = await confirm({
+    content: `确认将【${row.name}】的状态切换为【${statusLabel}】？`,
+  }).then(
+    () => true,
+    () => false,
+  );
+  if (!confirmed) return false;
+  await updateMailTemplateStatus(row.id, newStatus);
+  ElMessage.success($t('ui.actionMessage.operationSuccess'));
+  return true;
 }
 
 async function onDeleteBatch() {

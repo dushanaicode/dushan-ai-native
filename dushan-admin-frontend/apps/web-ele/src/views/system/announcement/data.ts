@@ -35,39 +35,39 @@ export function useFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         options: dictionary.getDictOptions(
           DICT_TYPE.SYSTEM_ANNOUNCEMENT_CATEGORY,
           'number',
         ),
         placeholder: '请选择公告类别',
-      },
+      }),
       fieldName: 'category',
       label: '公告类别',
       rules: 'selectRequired',
     },
     {
       component: 'RadioGroup',
-      componentProps: {
+      componentProps: () => ({
         isButton: true,
         options: dictionary.getDictOptions(
           DICT_TYPE.SYSTEM_ANNOUNCEMENT_STATUS,
           'number',
         ),
-      },
+      }),
       fieldName: 'status',
       label: '公告状态',
       rules: z.number().default(0),
     },
     {
       component: 'RadioGroup',
-      componentProps: {
+      componentProps: () => ({
         isButton: true,
         options: dictionary.getDictOptions(
           DICT_TYPE.INFRA_BOOLEAN_STRING,
           'boolean',
         ),
-      },
+      }),
       fieldName: 'isTop',
       label: '是否置顶',
       rules: z.boolean().default(false),
@@ -143,40 +143,40 @@ export function useGridFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(
           DICT_TYPE.SYSTEM_ANNOUNCEMENT_CATEGORY,
           'number',
         ),
         placeholder: '请选择公告类别',
-      },
+      }),
       fieldName: 'category',
       label: '公告类别',
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(
           DICT_TYPE.SYSTEM_ANNOUNCEMENT_STATUS,
           'number',
         ),
         placeholder: '请选择公告状态',
-      },
+      }),
       fieldName: 'status',
       label: '公告状态',
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(
           DICT_TYPE.INFRA_BOOLEAN_STRING,
           'boolean',
         ),
         placeholder: '请选择是否置顶',
-      },
+      }),
       fieldName: 'isTop',
       label: '是否置顶',
     },

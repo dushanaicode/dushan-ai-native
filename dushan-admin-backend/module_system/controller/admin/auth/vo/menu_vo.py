@@ -33,8 +33,8 @@ class MenuVO(BaseVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
-                    "parentId": 0,
+                    "id": "1024",
+                    "parentId": "0",
                     "name": "渡山",
                     "path": "post",
                     "component": "system/post/index",
@@ -45,8 +45,8 @@ class MenuVO(BaseVO):
                     "alwaysShow": False,
                     "children": [
                         {
-                            "id": 2048,
-                            "parentId": 1024,
+                            "id": "2048",
+                            "parentId": "1024",
                             "name": "用户管理",
                             "path": "user",
                             "component": "system/user/index",
@@ -56,8 +56,10 @@ class MenuVO(BaseVO):
                             "keepAlive": True,
                             "alwaysShow": False,
                             "children": [],
+                            "kind": "page",
                         }
                     ],
+                    "kind": "group",
                 }
             ]
         }

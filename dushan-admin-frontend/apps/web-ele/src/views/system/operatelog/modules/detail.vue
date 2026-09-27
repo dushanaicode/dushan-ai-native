@@ -14,27 +14,6 @@ const formData = ref<SystemOperateLogApi.OperateLogRespVO>();
 
 const userInfo = computed(() => formData.value?.userInfo || {});
 
-const deptId = computed(() => userInfo.value.deptId ?? userInfo.value.dept_id);
-
-const loginLocation = computed(
-  () => userInfo.value.loginLocation ?? userInfo.value.login_location,
-);
-
-const loginTime = computed(() => {
-  const time = userInfo.value.loginTime ?? userInfo.value.login_time;
-  if (
-    typeof time !== 'number' &&
-    typeof time !== 'string' &&
-    !(time instanceof Date)
-  ) {
-    return '';
-  }
-  const numericTime = Number(time);
-  return formatDateTime(
-    Number.isNaN(numericTime) ? time : numericTime,
-  ) as string;
-});
-
 const [Modal, modalApi] = useVbenModal({
   async onOpenChange(isOpen: boolean) {
     if (!isOpen) {
@@ -105,7 +84,7 @@ const [Modal, modalApi] = useVbenModal({
           {{ formData.userId ?? '-' }}
         </ElDescriptionsItem>
         <ElDescriptionsItem label="部门ID">
-          {{ deptId ?? '-' }}
+          {{ userInfo.dept_id ?? '-' }}
         </ElDescriptionsItem>
       </ElDescriptions>
 
@@ -117,19 +96,20 @@ const [Modal, modalApi] = useVbenModal({
           {{ formData.requestUrl || '-' }}
         </ElDescriptionsItem>
         <ElDescriptionsItem label="操作IP">
-          {{ userInfo.ipaddr || formData.userIp || '-' }}
+          {{ formData.userIp || '-' }}
         </ElDescriptionsItem>
-        <ElDescriptionsItem label="登录位置">
-          {{ loginLocation || '-' }}
+        <ElDescriptionsItem label="操作位置">
+          {{
+            userInfo.location_status === 'disabled'
+              ? 'IP 定位未启用'
+              : userInfo.location || '未记录'
+          }}
         </ElDescriptionsItem>
         <ElDescriptionsItem label="浏览器">
-          {{ userInfo.browser || '-' }}
+          {{ formData.browser || '未记录' }}
         </ElDescriptionsItem>
         <ElDescriptionsItem label="操作系统">
-          {{ userInfo.os || '-' }}
-        </ElDescriptionsItem>
-        <ElDescriptionsItem v-if="loginTime" label="登录时间">
-          {{ loginTime }}
+          {{ formData.os || '未记录' }}
         </ElDescriptionsItem>
         <ElDescriptionsItem label="UserAgent" :span="2">
           <span class="break-all text-xs text-muted-foreground">

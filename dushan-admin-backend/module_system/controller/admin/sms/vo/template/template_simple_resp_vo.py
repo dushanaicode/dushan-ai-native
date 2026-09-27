@@ -16,6 +16,6 @@ class SmsTemplateSimpleRespVO(BaseVO):
     name: Annotated[str, Field(..., description="模板名称")]
     model_config = {
         "json_schema_extra": {
-            "examples": [{"id": 1024, "code": "system-notice", "name": "系统通知"}]
+            "examples": [{"id": "1024", "code": "system-notice", "name": "系统通知"}]
         }
     }

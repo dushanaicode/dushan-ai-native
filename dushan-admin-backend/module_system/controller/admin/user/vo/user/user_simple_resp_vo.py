@@ -17,6 +17,6 @@ class UserSimpleRespVO(BaseVO):
     dept_name: Annotated[str | None, Field(None, description="部门名称")]
     model_config = {
         "json_schema_extra": {
-            "examples": [{"id": 1024, "nickname": "渡山", "deptId": 1024, "deptName": "IT 部"}]
+            "examples": [{"id": "1024", "nickname": "渡山", "deptId": "1024", "deptName": "IT 部"}]
         }
     }

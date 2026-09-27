@@ -46,7 +46,5 @@ class AreaController:
         req_vo: IpReqVO = Query(),
         ip_location_service: IpLocationService = Depends(DiDependency(IpLocationService)),
     ) -> Result[str]:
-        location = None
-        if req_vo.ip:
-            location = await ip_location_service.get_ip_location(req_vo.ip)
-        return Result.success(data=location if location else "未知")
+        location = await ip_location_service.lookup(req_vo.ip)
+        return Result.success(data=location.location or "未知")

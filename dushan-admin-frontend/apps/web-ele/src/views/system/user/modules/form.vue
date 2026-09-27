@@ -30,12 +30,11 @@ const [Form, formApi] = useVbenForm({
     componentProps: {
       class: 'w-full',
     },
-    formItemClass: 'col-span-2',
   },
   layout: 'horizontal',
   schema: useFormSchema(),
   showDefaultActions: false,
-  wrapperClass: 'grid-cols-2',
+  wrapperClass: 'grid-cols-1 md:grid-cols-2',
 });
 
 const [Modal, modalApi] = useVbenModal({
@@ -109,7 +108,7 @@ function normalizeUserValues(
 </script>
 
 <template>
-  <Modal :title="title" class="w-1/2">
+  <Modal :title="title" class="w-[min(820px,calc(100vw-2rem))]">
     <Form />
   </Modal>
 </template>

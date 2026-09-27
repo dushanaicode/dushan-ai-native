@@ -35,27 +35,27 @@ export function useGridFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(
           DICT_TYPE.SYSTEM_LOGIN_TYPE,
           'number',
         ),
         placeholder: '请选择操作类型',
-      },
+      }),
       fieldName: 'logType',
       label: '操作类型',
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(
           DICT_TYPE.SYSTEM_LOGIN_RESULT,
           'number',
         ),
         placeholder: '请选择登录结果',
-      },
+      }),
       fieldName: 'result',
       label: '登录结果',
     },

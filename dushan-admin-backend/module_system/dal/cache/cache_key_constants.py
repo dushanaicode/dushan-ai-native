@@ -6,6 +6,39 @@ from framework.starter_di.public import (
 
 @framework(providers=[CacheKeyContainer])
 class SystemCacheKeys(CacheKeyContainer):
+    QR_LOGIN = CacheKey(
+        key="system:qr_login",
+        remark="第一方扫码登录票据，原子状态及浏览器/租户绑定",
+        client_name="default",
+        namespace=CacheNamespace.GLOBAL,
+    )
+    SOCIAL_CALLBACK_RELAY = CacheKey(
+        key="system:social_callback_relay",
+        remark="按服务端state转交厂商表单回调",
+        client_name="default",
+        namespace=CacheNamespace.GLOBAL,
+        default_ttl_seconds=300,
+    )
+    SOCIAL_LOGIN_TENANT = CacheKey(
+        key="system:social_login_tenant",
+        remark="按安全浏览器绑定定位社交授权租户",
+        client_name="default",
+        namespace=CacheNamespace.GLOBAL,
+        default_ttl_seconds=300,
+    )
+    EMAIL_PASSWORD_RESET = CacheKey(
+        key="system:email_password_reset",
+        remark="邮箱找回密码校验与发送计数",
+        client_name="default",
+        namespace=CacheNamespace.TENANT,
+        default_ttl_seconds=86400,
+    )
+    SMS_CODE_ATTEMPTS = CacheKey(
+        key="system:sms_code_attempts",
+        remark="单条短信验证码的校验次数，原子脚本按有效期设置过期",
+        client_name="default",
+        namespace=CacheNamespace.TENANT,
+    )
     WEBSOCKET_TICKET = CacheKey(
         key="system:websocket_ticket",
         remark="一次性 WebSocket 会话票据",
@@ -94,7 +127,7 @@ class SystemCacheKeys(CacheKeyContainer):
         key="system:sms_template",
         remark="短信模版",
         client_name="default",
-        namespace=CacheNamespace.GLOBAL,
+        namespace=CacheNamespace.TENANT,
         default_ttl_seconds=3600,
     )
     WXA_SUBSCRIBE_TEMPLATE = CacheKey(

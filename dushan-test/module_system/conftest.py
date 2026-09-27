@@ -63,8 +63,59 @@ def system_database():
         connection.close()
 
 
+@pytest.fixture(scope="module")
+def tenant_enabled():
+    return True
+
+
+@pytest.fixture(scope="module")
+def sms_captcha_overrides():
+    return {}
+
+
+@pytest.fixture(scope="module")
+def user_register_enabled():
+    return True
+
+
+@pytest.fixture(scope="module")
+def auth_enabled():
+    return False
+
+
+@pytest.fixture(scope="module", params=[True])
+def qr_login_enabled(request):
+    return request.param
+
+
+@pytest.fixture(scope="module")
+def system_routers():
+    return ()
+
+
+@pytest.fixture(scope="module")
+def system_allowed_origins():
+    return ["http://testserver"]
+
+
+@pytest.fixture(scope="module")
+def system_settings_overrides():
+    return {}
+
+
 @pytest_asyncio.fixture(scope="module", loop_scope="module")
-async def system_app(system_database, tmp_path_factory):
+async def system_app(
+    system_database,
+    tmp_path_factory,
+    tenant_enabled,
+    sms_captcha_overrides,
+    system_routers,
+    system_allowed_origins,
+    system_settings_overrides,
+    user_register_enabled,
+    auth_enabled,
+    qr_login_enabled,
+):
     from server.starter_server import create_app
 
     resources, name, _ = system_database
@@ -75,6 +126,10 @@ async def system_app(system_database, tmp_path_factory):
     values["log"]["enable_file_overall"] = False
     values["log"]["console_level"] = "WARNING"
     models = values["config"]["models"]
+    models["tenant"]["enabled"] = tenant_enabled
+    models["sms_captcha"].update(sms_captcha_overrides)
+    models["auth"]["enabled"] = auth_enabled
+    models["qr_login"]["enabled"] = qr_login_enabled
     models["database"].update(
         enabled=True,
         health_check_enabled=False,
@@ -97,17 +152,19 @@ async def system_app(system_database, tmp_path_factory):
     models["data_permission"].update(enabled=True, cache_enabled=True)
     models["protection"]["enabled"] = True
     models["system"].update(
-        user_register_enabled=True,
+        user_register_enabled=user_register_enabled,
         workload_credential=uuid4().hex + uuid4().hex,
         message_signing_key=uuid4().hex + uuid4().hex,
+        sms_callback_token=uuid4().hex + uuid4().hex,
         refresh_cookie_secure=False,
-        allowed_origins=["http://testserver"],
+        allowed_origins=system_allowed_origins,
     )
+    models["system"].update(system_settings_overrides)
     values["page"]["fetch_all_enabled"] = True
     (folder / "application.yaml").write_text(
         yaml.safe_dump(values, allow_unicode=True), encoding="utf-8"
     )
-    app = create_app(base_dir=folder, app_env="dev", environ={})
+    app = create_app(base_dir=folder, app_env="dev", environ={}, routers=system_routers)
     app.add_middleware(HttpRouteCoverage)
     async with app.router.lifespan_context(app):
         HttpRouteCoverage.register(app)
@@ -121,7 +178,9 @@ async def admin_client(system_app):
     ) as client:
         result = (
             await client.post(
-                "/admin-api/system/auth/login", json={"username": "admin", "password": "admin123"}
+                "/admin-api/system/auth/login",
+                json={"username": "admin", "password": "admin123"},
+                headers={"X-Tenant-Id": "1"},
             )
         ).json()
         assert result["code"] == 0, result

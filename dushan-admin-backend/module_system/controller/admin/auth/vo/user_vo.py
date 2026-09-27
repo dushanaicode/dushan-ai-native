@@ -21,10 +21,10 @@ class UserVO(BaseVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
+                    "id": "1024",
                     "nickname": "渡山源码",
                     "avatar": "https://www.dushan.info/xx.jpg",
-                    "deptId": 2048,
+                    "deptId": "2048",
                     "username": "dushan",
                     "email": "729227973@qq.com",
                 }

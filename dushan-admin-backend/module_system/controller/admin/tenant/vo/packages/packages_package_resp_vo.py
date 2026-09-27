@@ -40,11 +40,11 @@ class TenantPackageRespVO(BaseVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
+                    "id": "1024",
                     "name": "VIP",
                     "status": 1,
                     "remark": "备注",
-                    "menuIds": [1, 2, 3, 4, 5],
+                    "menuIds": ["1", "2", "3", "4", "5"],
                     "createTime": "2020-05-20T05:20:00Z",
                 }
             ]

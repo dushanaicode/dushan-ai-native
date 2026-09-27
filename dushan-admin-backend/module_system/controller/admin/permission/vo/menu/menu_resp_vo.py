@@ -40,12 +40,11 @@ class MenuRespVO(BaseVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
+                    "id": "1024",
                     "name": "渡山",
                     "permission": "sys:menu:add",
-                    "type": 1,
                     "sort": 1024,
-                    "parentId": 1024,
+                    "parentId": "1024",
                     "path": "post",
                     "icon": "/menu/list",
                     "component": "system/post/index",
@@ -54,6 +53,7 @@ class MenuRespVO(BaseVO):
                     "visible": False,
                     "keepAlive": False,
                     "createTime": "2020-05-20T05:20:00Z",
+                    "kind": "page",
                 }
             ]
         }
