@@ -19,7 +19,7 @@ import type {
   UploadProps,
 } from 'element-plus';
 
-import type { Component } from 'vue';
+import type { Component, FunctionalComponent } from 'vue';
 
 import type {
   ApiComponentSharedProps,
@@ -218,12 +218,14 @@ export type ComponentType =
   | 'Input'
   | 'InputNumber'
   | 'RadioGroup'
+  | 'RangePicker'
   | 'RichTextarea'
   | 'Select'
   | 'Space'
   | 'StatusSwitch'
   | 'Switch'
   | 'TagEditor'
+  | 'Textarea'
   | 'TimePicker'
   | 'TreeSelect'
   | 'Upload'
@@ -244,6 +246,7 @@ export interface ComponentPropsMap {
   Input: InputProps;
   InputNumber: InputNumberProps;
   RadioGroup: RadioGroupProps;
+  RangePicker: DatePickerProps;
   Select: SelectV2Props;
   Space: SpaceProps;
   StatusSwitch: Omit<SwitchProps, 'activeValue' | 'inactiveValue'>;
@@ -256,12 +259,25 @@ export interface ComponentPropsMap {
     typeof UserSelectFormFieldComponent
   >['$props'];
   TagEditor: InstanceType<typeof TagEditorComponent>['$props'];
+  Textarea: InputProps;
   TimePicker: ElTimePickerSchemaProps;
   TreeSelect: ElTreeSelectSchemaProps;
   Upload: UploadProps;
 }
 
 async function initComponentAdapter() {
+  const datePicker: FunctionalComponent<Recordable<any>> = (
+    props,
+    { attrs, slots },
+  ) => {
+    const { name, id, type } = props;
+    const rangeProps: Recordable<any> = {};
+    if (type?.includes('range')) {
+      if (name && !Array.isArray(name)) rangeProps.name = [name, `${name}_end`];
+      if (id && !Array.isArray(id)) rangeProps.id = [id, `${id}_end`];
+    }
+    return h(ElDatePicker, { ...props, ...attrs, ...rangeProps }, slots);
+  };
   const components: Partial<Record<ComponentType, Component>> = {
     // 如果你的组件体积比较大，可以使用异步加载
     // Button: () =>
@@ -315,11 +331,11 @@ async function initComponentAdapter() {
     },
     // 自定义默认按钮
     DefaultButton: (props, { attrs, slots }) => {
-      return h(ElButton, { ...props, attrs, type: 'info' }, slots);
+      return h(ElButton, { ...props, ...attrs, type: 'info' }, slots);
     },
     // 自定义主要按钮
     PrimaryButton: (props, { attrs, slots }) => {
-      return h(ElButton, { ...props, attrs, type: 'primary' }, slots);
+      return h(ElButton, { ...props, ...attrs, type: 'primary' }, slots);
     },
     Divider: ElDivider,
     IconPicker: withDefaultPlaceholder(IconPicker, 'select', {
@@ -349,7 +365,7 @@ async function initComponentAdapter() {
       );
     },
     Select: (props, { attrs, slots }) => {
-      return h(ElSelectV2, { ...props, attrs }, slots);
+      return h(ElSelectV2, { ...props, ...attrs }, slots);
     },
     Space: ElSpace,
     StatusSwitch: (props, { attrs, slots }) =>
@@ -361,6 +377,10 @@ async function initComponentAdapter() {
     RichTextarea,
     UserSelectFormField,
     TagEditor,
+    Textarea: withDefaultPlaceholder(ElInput, 'input', {
+      rows: 3,
+      type: 'textarea',
+    }),
     TimePicker: (props, { attrs, slots }) => {
       const { name, id, isRange } = props;
       const extraProps: Recordable<any> = {};
@@ -382,27 +402,9 @@ async function initComponentAdapter() {
         slots,
       );
     },
-    DatePicker: (props, { attrs, slots }) => {
-      const { name, id, type } = props;
-      const extraProps: Recordable<any> = {};
-      if (type && type.includes('range')) {
-        if (name && !Array.isArray(name)) {
-          extraProps.name = [name, `${name}_end`];
-        }
-        if (id && !Array.isArray(id)) {
-          extraProps.id = [id, `${id}_end`];
-        }
-      }
-      return h(
-        ElDatePicker,
-        {
-          ...props,
-          ...attrs,
-          ...extraProps,
-        },
-        slots,
-      );
-    },
+    DatePicker: datePicker,
+    RangePicker: (props, context) =>
+      datePicker({ type: 'datetimerange', ...props }, context),
     TreeSelect: withDefaultPlaceholder(ElTreeSelect, 'select'),
     Upload: ElUpload,
   };

@@ -15,6 +15,8 @@ import { downloadFileFromUrl } from '@vben/utils';
 
 import { ElAlert, ElButton, ElDialog, ElImage, ElProgress } from 'element-plus';
 
+import { takeErrorMessage } from '#/api/error-feedback';
+
 import { fileIds, parseFileAccess, UploadQueue } from './files';
 
 const props = withDefaults(defineProps<FileUploadProps>(), {
@@ -34,7 +36,8 @@ const emit = defineEmits<{
 }>();
 const model = defineModel<FileValue>();
 const input = useTemplateRef<HTMLInputElement>('input');
-const failed = ref(false);
+const failed = ref('');
+const retryAvailable = ref(false);
 const access = shallowRef(new Map<string, FileAccess>());
 const preview = ref('');
 const previewOpen = ref(false);
@@ -79,7 +82,8 @@ async function load() {
   controller = new AbortController();
   const signal = controller.signal;
   access.value = new Map();
-  failed.value = false;
+  failed.value = '';
+  retryAvailable.value = false;
   if (queue.ids.length === 0) return;
   const ids = [...queue.ids];
   try {
@@ -94,7 +98,8 @@ async function load() {
   }
 }
 function report(error: unknown) {
-  failed.value = true;
+  retryAvailable.value = true;
+  failed.value = takeErrorMessage(error, $t('utils.upload.failed'));
   emit('error', error);
 }
 async function choose(event: Event) {
@@ -102,7 +107,8 @@ async function choose(event: Event) {
   const files = [...(element.files as FileList)];
   element.value = '';
   if (props.disabled) return;
-  failed.value = false;
+  failed.value = '';
+  retryAvailable.value = false;
   try {
     await queue.add(files);
   } catch (error) {
@@ -158,16 +164,14 @@ defineExpose({ cancel: () => queue.cancelAll() });
     <p v-else-if="showDescription" class="text-muted-foreground text-sm">
       {{ accept || '*' }} · {{ maxSize }} MB
     </p>
-    <ElAlert
-      v-if="failed"
-      type="error"
-      :title="$t('utils.upload.failed')"
-      :closable="false"
-    >
+    <ElAlert v-if="failed" type="error" :title="failed" :closable="false">
       <ElButton text @click="load">
         <span>{{ $t('utils.upload.retry') }}</span>
       </ElButton>
     </ElAlert>
+    <ElButton v-if="retryAvailable && !failed" text @click="load">
+      <span>{{ $t('utils.upload.retry') }}</span>
+    </ElButton>
     <div
       v-for="job in queue.jobs"
       :key="job.key"

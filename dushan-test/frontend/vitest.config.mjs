@@ -51,6 +51,7 @@ export default defineConfig({
     },
   },
   test: {
+    server: { deps: { inline: [/element-plus/] } },
     environment: 'happy-dom',
     include: [
       resolve(root, 'dushan-test/frontend/**/*.test.ts').replaceAll('\\', '/'),

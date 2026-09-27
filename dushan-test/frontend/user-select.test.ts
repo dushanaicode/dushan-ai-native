@@ -1,7 +1,12 @@
 import { createApp, h, nextTick, ref } from 'vue';
 
+import { $t } from '@vben/locales';
+
+import { ElMessage } from 'element-plus';
 import { afterEach, expect, it, vi } from 'vitest';
 
+import { BusinessError } from '../../dushan-admin-frontend/apps/web-ele/src/api/business-error';
+import { notifyError } from '../../dushan-admin-frontend/apps/web-ele/src/api/error-feedback';
 import UserSelectFormField from '../../dushan-admin-frontend/apps/web-ele/src/components/user-select/user-select-form-field.vue';
 import UserSelectModal from '../../dushan-admin-frontend/apps/web-ele/src/components/user-select/user-select-modal.vue';
 
@@ -38,6 +43,84 @@ function ports() {
     })),
   };
 }
+it('可选用户字段接受后端的null，回填和清空不破坏渲染', async () => {
+  const loaders = ports();
+  const value = ref<null | string>(null);
+  const { container, errors } = mount(() =>
+    h(UserSelectFormField, { modelValue: value.value, ports: loaders }),
+  );
+  await nextTick();
+  expect(errors).toEqual([]);
+  expect(loaders.selected).not.toHaveBeenCalled();
+  value.value = largeId;
+  await vi.waitFor(() =>
+    expect(container.textContent).toContain(`用户${largeId}`),
+  );
+  value.value = null;
+  await vi.waitFor(() =>
+    expect(container.textContent).not.toContain(`用户${largeId}`),
+  );
+  expect(errors).toEqual([]);
+});
+it('用户选择横幅使用后端原文，外层error监听不再重复弹窗', async () => {
+  const message = vi
+    .spyOn(ElMessage, 'error')
+    .mockImplementation(() => ({ close: vi.fn() }));
+  const loaders = ports();
+  loaders.departments.mockRejectedValueOnce(
+    new BusinessError(
+      {
+        code: 400,
+        message: '此部门不允许选择用户',
+        data: null,
+        error: null,
+      },
+      {},
+    ),
+  );
+  mount(() =>
+    h(UserSelectModal, {
+      visible: true,
+      modelValue: largeId,
+      ports: loaders,
+      onError: (error: unknown) => notifyError(error, '外层固定失败'),
+    }),
+  );
+  await vi.waitFor(() => {
+    const alerts = document.querySelectorAll('[role="dialog"] [role="alert"]');
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0].textContent).toContain('此部门不允许选择用户');
+  });
+  expect(message).not.toHaveBeenCalled();
+});
+it('请求层已经提示后不重复横幅，但保留重试入口', async () => {
+  const message = vi
+    .spyOn(ElMessage, 'error')
+    .mockImplementation(() => ({ close: vi.fn() }));
+  const failure = new BusinessError(
+    { code: 400, message: '部门服务暂不可用', data: null, error: null },
+    {},
+  );
+  notifyError(failure);
+  const loaders = ports();
+  loaders.departments.mockRejectedValueOnce(failure);
+  mount(() =>
+    h(UserSelectModal, { visible: true, modelValue: largeId, ports: loaders }),
+  );
+  let retry: HTMLButtonElement | undefined;
+  await vi.waitFor(() => {
+    retry = [
+      ...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'),
+    ].find(
+      (button) => button.textContent?.trim() === $t('utils.userSelect.retry'),
+    );
+    expect(retry).toBeDefined();
+  });
+  expect(document.querySelector('[role="dialog"] [role="alert"]')).toBeNull();
+  expect(message).toHaveBeenCalledExactlyOnceWith('部门服务暂不可用');
+  retry!.click();
+  await vi.waitFor(() => expect(loaders.departments).toHaveBeenCalledTimes(2));
+});
 it('初始化失败后可以同时重试部门和所选用户，恢复确认', async () => {
   const loaders = ports();
   const confirmed = vi.fn();

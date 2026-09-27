@@ -7,6 +7,8 @@ import { $t } from '@vben/locales';
 
 import { ElAlert, ElButton, ElTag } from 'element-plus';
 
+import { takeErrorMessage } from '#/api/error-feedback';
+
 import { parseSelected, selectionValue, userIds } from './selection';
 import UserSelectModal from './user-select-modal.vue';
 
@@ -22,7 +24,8 @@ const emit = defineEmits<{
 }>();
 const model = defineModel<UserValue>();
 const visible = ref(false);
-const failed = ref(false);
+const failed = ref('');
+const retryAvailable = ref(false);
 const cache = shallowRef(new Map<string, UserRecord>());
 const ids = computed(() => userIds(model.value));
 let controller = new AbortController();
@@ -39,7 +42,8 @@ async function load() {
   controller = new AbortController();
   const signal = controller.signal;
   cache.value = new Map();
-  failed.value = false;
+  failed.value = '';
+  retryAvailable.value = false;
   const requested = [...ids.value];
   if (requested.length === 0) return;
   try {
@@ -51,7 +55,8 @@ async function load() {
     cache.value = new Map(users.map((user) => [user.id, user]));
   } catch (error) {
     if (!signal.aborted) {
-      failed.value = true;
+      retryAvailable.value = true;
+      failed.value = takeErrorMessage(error, $t('utils.userSelect.failed'));
       emit('error', error);
     }
   }
@@ -106,16 +111,14 @@ onUnmounted(() => controller.abort());
         <span>{{ $t('utils.userSelect.clear') }}</span>
       </ElButton>
     </div>
-    <ElAlert
-      v-if="failed"
-      type="error"
-      :title="$t('utils.userSelect.failed')"
-      :closable="false"
-    >
+    <ElAlert v-if="failed" type="error" :title="failed" :closable="false">
       <ElButton text @click="load">
         <span>{{ $t('utils.userSelect.retry') }}</span>
       </ElButton>
     </ElAlert>
+    <ElButton v-if="retryAvailable && !failed" text @click="load">
+      <span>{{ $t('utils.userSelect.retry') }}</span>
+    </ElButton>
     <UserSelectModal
       v-if="visible"
       v-model:visible="visible"

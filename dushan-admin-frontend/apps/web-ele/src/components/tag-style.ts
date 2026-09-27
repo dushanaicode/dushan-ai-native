@@ -86,10 +86,19 @@ export function tagPresentation(
       };
     }
     case 'light': {
+      const themeColor = [
+        'danger',
+        'info',
+        'primary',
+        'success',
+        'warning',
+      ].includes(colorType)
+        ? `var(--el-color-${colorType})`
+        : base.toHexString();
       return {
-        backgroundColor: base.clone().setAlpha(0.15).toRgbString(),
-        borderColor: 'transparent',
-        color: base.toHexString(),
+        backgroundColor: `color-mix(in srgb, ${themeColor} 12%, var(--el-bg-color))`,
+        borderColor: `color-mix(in srgb, ${themeColor} 28%, var(--el-bg-color))`,
+        color: `color-mix(in srgb, ${themeColor} 35%, var(--el-text-color-primary))`,
       };
     }
   }

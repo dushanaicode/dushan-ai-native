@@ -1,7 +1,6 @@
 import type { FormValues } from '@vben/common-ui';
 import type { VxeTableGridOptions } from '@vben/plugins/vxe-table';
 
-import type { SwitchStatusValue } from '../constants/status';
 import type { ComponentPropsMap, ComponentType } from './component';
 
 import { h } from 'vue';
@@ -75,10 +74,7 @@ setupVbenVxeTable({
     vxeUI.renderer.add('CellSwitch', {
       renderTableDefault({ props }, { column, row }) {
         const { change, ...switchProps } = props as {
-          change: (
-            value: SwitchStatusValue,
-            record: typeof row,
-          ) => Promise<unknown>;
+          change: (value: number, record: typeof row) => Promise<unknown>;
         };
         return h(CellSwitch, {
           ...switchProps,

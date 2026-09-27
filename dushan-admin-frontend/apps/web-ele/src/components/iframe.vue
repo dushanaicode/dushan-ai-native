@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 
+import { VbenLoading } from '@vben/common-ui';
 import { $t } from '@vben/locales';
 
 import { ElButton, ElEmpty } from 'element-plus';
@@ -105,13 +106,12 @@ defineExpose({ reload });
         @load="loaded"
         @error="error"
       ></iframe>
-      <div
+      <VbenLoading
         v-if="showLoading && loading"
-        class="bg-background absolute inset-0 flex items-center justify-center"
+        spinning
         role="status"
-      >
-        {{ loadingText ?? $t('utils.iframe.loading') }}
-      </div>
+        :text="loadingText ?? $t('utils.iframe.loading')"
+      />
       <ElEmpty
         v-if="failed"
         :description="errorText ?? $t('utils.iframe.failed')"

@@ -16,7 +16,8 @@ const entrySchema = z
     dictType: z.string().min(1),
     label: z.string().min(1),
     value: z.string().min(1),
-    colorType: z.string().min(1).nullable().optional(),
+    // 空字符串表示未指定颜色，与后端默认值及字典编辑页一致。
+    colorType: z.string().nullable().optional(),
     permission: z.string().nullable().optional(),
     tagStyle: z
       .object({

@@ -1,7 +1,7 @@
 import { createApp, h, nextTick, ref } from 'vue';
 
-import { useAccessStore } from '@vben/stores';
 import { RequestClient } from '@vben/request';
+import { useAccessStore } from '@vben/stores';
 
 import { createPinia } from 'pinia';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -41,6 +41,107 @@ function mount(render: () => ReturnType<typeof h>) {
   return { container, access, errors };
 }
 describe('表格展示交互', () => {
+  it('鼠标打开删除确认后保持可见，取消和再次确认各自生效', async () => {
+    const request = Promise.withResolvers<void>();
+    const confirm = vi.fn(() => request.promise);
+    const cancel = vi.fn();
+    const { container } = mount(() =>
+      h(TableAction, {
+        actions: [
+          {
+            label: '删除条目',
+            popConfirm: {
+              title: '确认删除条目',
+              okText: '确认执行',
+              cancelText: '取消执行',
+              confirm,
+              cancel,
+            },
+          },
+        ],
+      }),
+    );
+    const click = (element: HTMLElement) =>
+      element.dispatchEvent(
+        new MouseEvent('click', { button: 0, bubbles: true }),
+      );
+    const trigger = container.querySelector('button')!;
+    const popupVisible = () => {
+      const popup = document.querySelector<HTMLElement>('.el-popconfirm');
+      return (
+        popup !== null &&
+        getComputedStyle(popup.closest<HTMLElement>('.el-popper')!).display !==
+          'none'
+      );
+    };
+    click(trigger);
+    await vi.waitFor(() => expect(popupVisible()).toBe(true));
+    // 超过 Popconfirm 默认关闭延迟，确保不是仅在闪现期间通过断言。
+    await new Promise((resolve) => setTimeout(resolve, 450));
+    const popupButton = (label: string) =>
+      [
+        ...document.querySelectorAll<HTMLButtonElement>(
+          '.el-popconfirm button',
+        ),
+      ].find((button) => button.textContent === label);
+    expect(popupVisible()).toBe(true);
+    expect(confirm).not.toHaveBeenCalled();
+    click(popupButton('取消执行')!);
+    await vi.waitFor(() => expect(cancel).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(popupVisible()).toBe(false));
+    click(trigger);
+    await vi.waitFor(() => expect(popupVisible()).toBe(true));
+    click(popupButton('确认执行')!);
+    await vi.waitFor(() => expect(confirm).toHaveBeenCalledOnce());
+    await new Promise((resolve) => setTimeout(resolve, 450));
+    expect(popupVisible()).toBe(false);
+    request.resolve();
+    await vi.waitFor(() =>
+      expect(trigger.classList.contains('is-loading')).toBe(false),
+    );
+    expect(popupVisible()).toBe(false);
+  });
+  it('下拉菜单项保留确认操作，按 Enter 可打开确认框', async () => {
+    const confirm = vi.fn();
+    const { container, errors } = mount(() =>
+      h(TableAction, {
+        dropDownActions: [
+          {
+            label: '删除条目',
+            danger: true,
+            popConfirm: { title: '确认删除条目', confirm, okText: '确认执行' },
+          },
+        ],
+      }),
+    );
+    container.querySelector('button')!.click();
+    await vi.waitFor(() =>
+      expect(document.querySelector('.el-dropdown-menu__item')).not.toBeNull(),
+    );
+    const item = document.querySelector<HTMLElement>(
+      '.el-dropdown-menu__item',
+    )!;
+    item.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'Enter',
+        code: 'Enter',
+        bubbles: true,
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(document.querySelector('.el-popconfirm__action')).not.toBeNull(),
+    );
+    expect(confirm).not.toHaveBeenCalled();
+    [
+      ...document.querySelectorAll<HTMLButtonElement>(
+        '.el-popconfirm__action button',
+      ),
+    ]
+      .find((button) => button.textContent === '确认执行')!
+      .click();
+    await vi.waitFor(() => expect(confirm).toHaveBeenCalledOnce());
+    expect(errors).toEqual([]);
+  });
   it('更多菜单实际触发动作，在途动作不重复执行', async () => {
     const pending = Promise.withResolvers<undefined>();
     const onClick = vi.fn(() => pending.promise);
@@ -49,10 +150,11 @@ describe('表格展示交互', () => {
     );
     container.querySelector('button')!.click();
     await vi.waitFor(() =>
-      expect(document.querySelector('.el-dropdown-menu button')).not.toBeNull(),
+      expect(document.querySelector('.el-dropdown-menu__item')).not.toBeNull(),
     );
-    const button = document.querySelector<HTMLButtonElement>(
-      '.el-dropdown-menu button',
+    expect(document.querySelector('.el-dropdown-menu button')).toBeNull();
+    const button = document.querySelector<HTMLElement>(
+      '.el-dropdown-menu__item',
     )!;
     button.click();
     button.click();

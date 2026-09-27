@@ -83,13 +83,69 @@ export const InfraApiErrorLogProcessStatusEnum = {
   IGNORE: 2,
 } as const;
 
-/** 数据库类型（infra_data_source_type 字典，驱动字符串值） */
+/** 数据库类型与 Native 异步连接协议；TiDB 共用 MySQL 协议。 */
 export const InfraDbTypeEnum = {
-  DM: { label: '达梦数据库 (DM Database)', value: 'dm' },
-  GAUSSDB: { label: '华为 GaussDB', value: 'gaussdb' },
-  KINGBASE: { label: '人大金仓 (KingbaseES)', value: 'kingbase' },
-  MSSQL: { label: 'Microsoft SQL Server (微软)', value: 'mssql' },
-  MYSQL: { label: 'MySQL/MariaDB', value: 'mysql' },
-  ORACLE: { label: 'Oracle Database (甲骨文)', value: 'oracle' },
-  POSTGRESQL: { label: 'PostgreSQL', value: 'postgresql' },
+  MYSQL: {
+    label: 'MySQL/MariaDB',
+    value: 'mysql',
+    protocol: 'mysql+aiomysql',
+    port: 3306,
+    enabled: true,
+  },
+  POSTGRESQL: {
+    label: 'PostgreSQL',
+    value: 'postgresql',
+    protocol: 'postgresql+asyncpg',
+    port: 5432,
+    enabled: true,
+  },
+  DM: {
+    label: '达梦数据库 (DM Database)',
+    value: 'dm',
+    protocol: 'dm+dushan_async',
+    port: 5236,
+    enabled: true,
+  },
+  OPENGAUSS: {
+    label: 'openGauss',
+    value: 'opengauss',
+    protocol: 'opengauss+asyncpg',
+    port: 5432,
+    enabled: true,
+  },
+  KINGBASE: {
+    label: '人大金仓 (PostgreSQL 模式)',
+    value: 'kingbase',
+    protocol: 'kingbase+asyncpg',
+    port: 54_321,
+    enabled: true,
+  },
+  OCEANBASE: {
+    label: 'OceanBase (MySQL 模式)',
+    value: 'oceanbase',
+    protocol: 'oceanbase+aiomysql',
+    port: 2881,
+    enabled: true,
+  },
+  TIDB: {
+    label: 'TiDB',
+    value: 'tidb',
+    protocol: 'mysql+aiomysql',
+    port: 4000,
+    enabled: true,
+  },
+  MSSQL: {
+    label: 'Microsoft SQL Server',
+    value: 'mssql',
+    protocol: 'mssql+aioodbc',
+    port: 1433,
+    enabled: false,
+  },
+  ORACLE: {
+    label: 'Oracle Database',
+    value: 'oracle',
+    protocol: 'oracle+oracledb',
+    port: 1521,
+    enabled: false,
+  },
 } as const;

@@ -270,7 +270,8 @@ export class SocketConnection {
       this.send({ type: 'pong' });
       return;
     }
-    if (message.type === 'pong') return;
+    // 自动保活不刷业务日志；带关联编号的手动心跳仍交给订阅者。
+    if (message.type === 'pong' && !message.requestId) return;
     const handlers = [
       ...(this.handlers.get(message.type) ?? []),
       ...(this.handlers.get('*') ?? []),

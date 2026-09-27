@@ -2,7 +2,7 @@
   "$schema": "https://unpkg.com/@changesets/config@3.0.0/schema.json",
   "changelog": [
     "@changesets/changelog-github",
-    { "repo": "vbenjs/vue-vben-admin" }
+    { "repo": "dushanaicode/dushan-ai-native" }
   ],
   "commit": false,
   "fixed": [["@vben-core/*", "@vben/*"]],
@@ -12,7 +12,7 @@
   "privatePackages": { "version": true, "tag": true },
   "linked": [],
   "access": "public",
-  "baseBranch": "main",
+  "baseBranch": "dev",
   "updateInternalDependencies": "patch",
   "ignore": []
 }

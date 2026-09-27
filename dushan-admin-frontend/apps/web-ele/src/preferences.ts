@@ -3,6 +3,7 @@ import { defineOverridesPreferences } from '@vben/preferences';
 import { projectLinks } from '#/services/doc-links';
 
 export const applicationAccessMode = 'mixed';
+export const applicationEnableRefreshToken = true;
 
 /**
  * @description 项目配置文件
@@ -15,6 +16,7 @@ export const overridesPreferences = defineOverridesPreferences({
     // 后端菜单（System/Infra）与本地路由（dashboard/profile/demos）合并：
     // 后端菜单种子没有首页节点，纯 backend 模式会让 defaultHomePath 落到 404。
     accessMode: applicationAccessMode,
+    enableRefreshToken: applicationEnableRefreshToken,
     name: import.meta.env.VITE_APP_TITLE,
   },
   copyright: {

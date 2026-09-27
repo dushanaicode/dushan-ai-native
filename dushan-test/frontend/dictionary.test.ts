@@ -1,5 +1,11 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import type {
+  DictionaryEntry,
+  TagStyle,
+} from '../../dushan-admin-frontend/apps/web-ele/src/services/dictionary/types';
+
 import { computed, createApp, h, nextTick, ref } from 'vue';
+
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import DictTag from '../../dushan-admin-frontend/apps/web-ele/src/components/dict-tag.vue';
 import TagEditor from '../../dushan-admin-frontend/apps/web-ele/src/components/tag-editor.vue';
@@ -9,10 +15,6 @@ import {
   convertDictionaryValue,
   DictionaryRuntime,
 } from '../../dushan-admin-frontend/apps/web-ele/src/services/dictionary/runtime';
-import type {
-  DictionaryEntry,
-  TagStyle,
-} from '../../dushan-admin-frontend/apps/web-ele/src/services/dictionary/types';
 import { SessionCoordinator } from '../../dushan-admin-frontend/apps/web-ele/src/services/session/coordinator';
 
 vi.mock('@vben/locales', () => ({ $t: (key: string) => key }));
@@ -57,6 +59,7 @@ describe('字典单一来源与失效', () => {
     const { dictionary, loader, entries } = setup();
     for (const entry of [
       { ...entries[0], value: 0 },
+      { ...entries[0], colorType: 0 },
       { ...entries[0], tagStyle: '{"variant":"solid"}' },
       { ...entries[0], extra: 'unsupported' },
     ]) {
@@ -171,6 +174,58 @@ describe('字典单一来源与失效', () => {
 });
 
 describe('字典展示与标签编辑', () => {
+  it('合法空颜色不阻断整批字典，内置类型与无颜色标签均能显示', async () => {
+    const { dictionary, entries } = setup();
+    entries.push(
+      { dictType: 'system_user_sex', value: '0', label: '未知', colorType: '' },
+      {
+        dictType: 'common_builtin_type',
+        value: '1',
+        label: '内置',
+        colorType: 'primary',
+      },
+      {
+        dictType: 'common_builtin_type',
+        value: '2',
+        label: '自定义',
+        colorType: 'success',
+      },
+      {
+        dictType: 'custom',
+        value: '1',
+        label: '自定义样式',
+        colorType: '',
+        tagStyle: { color: '#ff0000', textColor: '', variant: 'solid' },
+      },
+    );
+    const element = document.createElement('div');
+    const errors: unknown[] = [];
+    const app = createApp(() =>
+      h('div', [
+        h(DictTag, { type: 'common_builtin_type', value: 1 }),
+        h(DictTag, { type: 'common_builtin_type', value: 2 }),
+        h(DictTag, { type: 'system_user_sex', value: 0 }),
+        h(DictTag, { type: 'custom', value: 1 }),
+      ]),
+    );
+    app.config.errorHandler = (error) => errors.push(error);
+    provideDictionary(app, dictionary);
+    app.mount(element);
+    cleanup.push(() => app.unmount());
+    await vi.waitFor(() => expect(dictionary.status).toBe('ready'));
+    await vi.waitFor(() =>
+      expect(element.textContent).toBe('内置自定义未知自定义样式'),
+    );
+    expect(element.querySelector('button')).toBeNull();
+    const tags = element.querySelectorAll<HTMLElement>('.el-tag');
+    expect(tags).toHaveLength(4);
+    expect(element.querySelector('.el-tag--small')).toBeNull();
+    expect(tags[2]!.style.backgroundColor).toBe(tags[0]!.style.backgroundColor);
+    expect(tags[3]!.style.backgroundColor).toBe('#ff0000');
+    expect(dictionary.getDictData('system_user_sex', 0)?.colorType).toBe('');
+    expect(errors).toEqual([]);
+  });
+
   it('加载失败显示重试，保留原始错误事件，重试成功后显示标签', async () => {
     const { dictionary, loader } = setup();
     const failure = new Error('加载失败');
@@ -233,6 +288,25 @@ describe('字典展示与标签编辑', () => {
     ).toBe('transparent');
     expect(() => tagPresentation(null, 'not-a-color', 'solid')).toThrow();
   });
+
+  it.each(['solid', 'outline', 'text', 'link'] as const)(
+    '字典 tagStyle 的 %s 样式与文字颜色优先于组件默认样式',
+    (variant) => {
+      const configured: TagStyle = {
+        color: '#663399',
+        textColor: '#ffffff',
+        variant,
+      };
+      const presentation = tagPresentation(configured, 'success', 'light');
+      expect(presentation.color).toBe('#ffffff');
+      expect(presentation).toEqual(
+        tagPresentation(configured, 'danger', 'solid'),
+      );
+      expect(presentation.backgroundColor).toBe(
+        variant === 'solid' ? '#663399' : 'transparent',
+      );
+    },
+  );
 
   it('编辑草稿在确认前不改模型，取消与清除行为明确', async () => {
     const value = ref<null | TagStyle>(null);

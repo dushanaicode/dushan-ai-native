@@ -43,7 +43,7 @@ export type NativeRequestConfig = {
   /** 只在客户端保存会话上下文，不发送为请求头。 */
   __session?: SessionSnapshot;
   __isRetryRequest?: boolean;
-  /** GET/HEAD/OPTIONS 默认可重放，写请求须由调用方明确允许。 */
+  /** 读取请求及Native认证层的过期拒绝默认可重放一次；false明确禁止。 */
   allowAuthReplay?: boolean;
   /** form只将业务错误交给提交表单，网络故障仍由请求层提示。 */
   errorMessageMode?: 'form' | 'message';
@@ -89,6 +89,21 @@ export function parseApiResponse(value: unknown): ApiResponse<unknown> {
 /** 对普通业务JSON解包一次，保留文件下载等body/raw调用方式。 */
 export function nativeResponseInterceptor() {
   return {
+    rejected(error: unknown) {
+      if (isAxiosError(error) && error.response) {
+        const response = error.response;
+        if (
+          typeof response.data === 'object' &&
+          response.data !== null &&
+          Object.hasOwn(response.data, 'code')
+        ) {
+          const body = parseApiResponse(response.data);
+          if (body.code !== 0)
+            throw new BusinessError(body, response.config, response);
+        }
+      }
+      throw error;
+    },
     async fulfilled(response: RequestResponse) {
       // 文件失败是JSON且没有下载头，不能把业务错误保存为一个下载文件。
       const mediaType = String(response.headers['content-type'] ?? '')
@@ -127,15 +142,22 @@ export function nativeResponseInterceptor() {
   };
 }
 
+const expiredCredentialCode = 1_004_003;
+
+/** Native认证守卫在进入业务处理器前返回的EXPIRED拒绝。 */
+export function isExpiredCredentialFailure(error: unknown): boolean {
+  return error instanceof BusinessError && error.code === expiredCredentialCode;
+}
+
 // 公共未登录码及 SecurityErrorCodes 的凭据失效码；与后端定义逐项对应。
 const authenticationErrorCodes = new Set([
   401,
   1_004_001, // MISSING
   1_004_002, // INVALID
-  1_004_003, // EXPIRED
   1_004_004, // REVOKED
   1_004_005, // DISABLED
   1_004_006, // CREDENTIALS
+  expiredCredentialCode, // EXPIRED
 ]);
 
 /** 普通 JSON 按业务 code 判断；真实 HTTP 401 由请求层统一处理。 */

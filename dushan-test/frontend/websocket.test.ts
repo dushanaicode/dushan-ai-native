@@ -46,19 +46,22 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function fixture(random = 0.5) {
+function fixture(random = 0.5, sharedSession?: SessionCoordinator) {
   let snapshot = { generation: 'first', token: 'old' as null | string };
   const refresh = vi.fn(async (_signal: AbortSignal) => 'new');
-  const session = new SessionCoordinator({
-    read: () => snapshot,
-    write: (value) => {
-      snapshot = { ...value };
-    },
-    refresh,
-    expire: async () => {},
-    lock: (operation) => operation(),
-    subscribe: () => () => {},
-  });
+  const expire = vi.fn(async () => {});
+  const session =
+    sharedSession ??
+    new SessionCoordinator({
+      read: () => snapshot,
+      write: (value) => {
+        snapshot = { ...value };
+      },
+      refresh,
+      expire,
+      lock: (operation) => operation(),
+      subscribe: () => () => {},
+    });
   const sockets: FakeSocket[] = [];
   const getTicket = vi.fn(async (_signal: AbortSignal) => ({
     ticket: 'single-use',
@@ -94,10 +97,52 @@ function fixture(random = 0.5) {
     connection.dispose();
     session.dispose();
   });
-  return { connection, session, getTicket, sockets, refresh, errors };
+  return { connection, session, getTicket, sockets, refresh, errors, expire };
 }
 
 describe('websocket 生命周期与并发', () => {
+  it('system与infra同时过期并与HTTP共用一次刷新，重连成功无错误提示', async () => {
+    const first = fixture();
+    const second = fixture(0.5, first.session);
+    await Promise.all([
+      first.connection.connect(),
+      second.connection.connect(),
+    ]);
+    at(first.sockets, 0).open();
+    at(second.sockets, 0).open();
+    const pending = Promise.withResolvers<string>();
+    first.refresh.mockReturnValue(pending.promise);
+    const http = first.session.refresh();
+    at(first.sockets, 0).end(4001);
+    at(second.sockets, 0).end(4001);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(first.refresh).toHaveBeenCalledOnce();
+    pending.resolve('renewed');
+    await http;
+    await vi.advanceTimersByTimeAsync(5);
+    for (const item of [first, second]) {
+      expect(item.getTicket).toHaveBeenCalledTimes(2);
+      at(item.sockets, 1).open();
+      expect(item.connection.status).toBe('open');
+      expect(item.errors).toEqual([]);
+    }
+    expect(first.expire).not.toHaveBeenCalled();
+  });
+
+  it('刷新凭据也失效时结束会话，不无限刷新或重新连接', async () => {
+    const { connection, session, sockets, refresh, expire, getTicket } =
+      fixture();
+    await connection.connect();
+    at(sockets, 0).open();
+    refresh.mockRejectedValueOnce(new Error('刷新凭据已失效'));
+    at(sockets, 0).end(4001);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(session.capture().token).toBeNull();
+    expect(refresh).toHaveBeenCalledOnce();
+    expect(expire).toHaveBeenCalledOnce();
+    expect(getTicket).toHaveBeenCalledOnce();
+  });
+
   it('心跳有响应则保活，超时按退避重连', async () => {
     const { connection, sockets, errors } = fixture();
     await connection.connect();

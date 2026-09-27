@@ -1,0 +1,9 @@
+{
+  "actionTitle": {
+    "deleteBatch": "批量删除",
+    "export": "导出{0}"
+  },
+  "actionMessage": {
+    "updating": "正在更新 {0} ..."
+  }
+}

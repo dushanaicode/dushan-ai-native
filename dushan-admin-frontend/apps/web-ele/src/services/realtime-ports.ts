@@ -2,6 +2,8 @@ import type { NotificationPorts } from './notifications/runtime';
 import type { RealtimePorts } from './realtime';
 import type { SocketTicket } from './websocket/connection';
 
+import type { NativeRequestConfig } from '#/api/response';
+
 import { requestClient } from '#/api/request';
 import {
   getUnreadNoticeMessageCount,
@@ -18,11 +20,14 @@ const AUDIENCE = 'system';
 /** 票据本地保守有效期：55 秒（服务端一次性票据，过期即失效） */
 const TICKET_TTL_MS = 55_000;
 
-async function getTicket(signal: AbortSignal): Promise<SocketTicket> {
+export async function getWebSocketTicket(
+  signal: AbortSignal,
+): Promise<SocketTicket> {
+  const config: NativeRequestConfig = { signal, allowAuthReplay: true };
   const ticket = await requestClient.post<string>(
     '/system/auth/websocket-ticket',
     null,
-    { signal },
+    config,
   );
   return { ticket, expiresAtMs: Date.now() + TICKET_TTL_MS };
 }
@@ -51,7 +56,7 @@ const notifications: Omit<NotificationPorts, 'notify' | 'onError'> = {
 };
 
 export const realtimePorts: RealtimePorts = {
-  getTicket,
+  getTicket: getWebSocketTicket,
   buildUrl: (base, ticket) => buildSocketUrl(base, ticket, AUDIENCE),
   classifyClose: classifySocketClose,
   protocol: socketProtocol,

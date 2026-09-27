@@ -5,6 +5,8 @@ import type {
 
 import { z } from '@vben/common-ui';
 
+import { $t } from '#/locales';
+
 export interface MenuNode {
   children: MenuNode[];
   component?: string;
@@ -137,7 +139,48 @@ export function menusToRoutes(
         // 输出绝对路径，避免引擎再次拼接深层路径或跳到未填充的参数。
         if (first && !first.path.includes(':') && !first.meta?.link)
           route.redirect = first.path;
-        return [route];
+        const relatedPages: Record<
+          string,
+          { component: string; suffix: string; title: string }
+        > = {
+          '/infra/codegen/index.vue': {
+            component: '/infra/codegen/edit/index.vue',
+            suffix: 'edit',
+            title: 'infraTools.codegenEdit',
+          },
+          '/infra/job/index.vue': {
+            component: '/infra/job-log/index.vue',
+            suffix: 'log',
+            title: 'infraTools.jobLog',
+          },
+          '/infra/mq/index.vue': {
+            component: '/infra/mq/logger/index.vue',
+            suffix: 'log',
+            title: 'infraTools.mqLog',
+          },
+        };
+        const related = node.component
+          ? relatedPages[node.component]
+          : undefined;
+        if (!related) return [route];
+        const childPath = `${path}/${related.suffix}`;
+        if (paths.has(childPath) || !pages.has(related.component))
+          throw new TypeError(`业务子页配置无效：${childPath}`);
+        paths.add(childPath);
+        return [
+          route,
+          {
+            name: `${String(route.name)}-${related.suffix}`,
+            path: childPath,
+            component: related.component,
+            meta: {
+              title: $t(related.title),
+              hideInMenu: true,
+              activePath: path,
+              keepAlive: false,
+            },
+          },
+        ];
       });
   }
   return convert(menus, '');

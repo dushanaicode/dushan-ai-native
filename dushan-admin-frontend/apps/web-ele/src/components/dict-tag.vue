@@ -23,7 +23,7 @@ const props = defineProps({
     >,
     default: undefined,
   },
-  variant: { type: String as PropType<TagVariant>, default: 'solid' },
+  variant: { type: String as PropType<TagVariant>, default: 'light' },
 });
 const emit = defineEmits<{ error: [error: unknown] }>();
 const dictionary = useDictionary();

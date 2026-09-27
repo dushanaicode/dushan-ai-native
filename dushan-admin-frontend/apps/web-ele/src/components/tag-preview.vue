@@ -15,13 +15,20 @@ const props = withDefaults(
     text: string;
     variant?: TagVariant;
   }>(),
-  { colorType: 'primary', tagStyle: null, variant: 'solid' },
+  { colorType: 'primary', tagStyle: null, variant: 'light' },
 );
 const style = computed(() =>
-  tagPresentation(props.tagStyle, props.colorType ?? 'primary', props.variant),
+  tagPresentation(props.tagStyle, props.colorType || 'primary', props.variant),
 );
 </script>
 
 <template>
-  <ElTag :style="style" size="small">{{ text }}</ElTag>
+  <ElTag :style="style" class="dict-tag">{{ text }}</ElTag>
 </template>
+
+<style scoped>
+.dict-tag {
+  font-size: 13px;
+  font-weight: 500;
+}
+</style>

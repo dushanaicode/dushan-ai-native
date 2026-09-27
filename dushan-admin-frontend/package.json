@@ -14,9 +14,13 @@
     "vue vben admin pro",
     "vue3"
   ],
-  "homepage": "https://github.com/vbenjs/vue-vben-admin",
-  "bugs": "https://github.com/vbenjs/vue-vben-admin/issues",
-  "repository": "vbenjs/vue-vben-admin.git",
+  "homepage": "https://github.com/dushanaicode/dushan-ai-native",
+  "bugs": "https://github.com/dushanaicode/dushan-ai-native/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dushanaicode/dushan-ai-native.git",
+    "directory": "dushan-admin-frontend"
+  },
   "license": "MIT",
   "author": {
     "name": "vben",

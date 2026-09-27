@@ -60,3 +60,7 @@ skills-lock.json
 .atomcode
 datalog
 .playwright-mcp
+
+# 业务表单构建页面不是编译产物。
+!apps/web-ele/src/views/infra/build/
+!apps/web-ele/src/views/infra/build/**

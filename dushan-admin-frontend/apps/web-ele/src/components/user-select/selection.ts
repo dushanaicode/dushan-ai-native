@@ -9,7 +9,7 @@ const userSchema = z
   })
   .strict();
 export type UserRecord = z.infer<typeof userSchema>;
-export type UserValue = string | string[] | undefined;
+export type UserValue = null | string | string[] | undefined;
 export interface DeptNode {
   value: string;
   label: string;
@@ -43,7 +43,7 @@ export interface UserSelectProps {
 }
 export function userIds(value: UserValue): string[] {
   const ids =
-    value === undefined
+    value === undefined || value === null
       ? []
       : z.array(idSchema).parse(Array.isArray(value) ? value : [value]);
   if (new Set(ids).size !== ids.length) throw new TypeError('选择值包含重复ID');

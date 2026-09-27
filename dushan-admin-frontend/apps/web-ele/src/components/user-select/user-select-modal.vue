@@ -8,6 +8,7 @@ import type {
 
 import { computed, onUnmounted, ref, shallowRef, watch } from 'vue';
 
+import { Loading } from '@vben/common-ui';
 import { $t } from '@vben/locales';
 
 import {
@@ -22,8 +23,9 @@ import {
   ElTableColumn,
   ElTag,
   ElTreeSelect,
-  vLoading,
 } from 'element-plus';
+
+import { takeErrorMessage } from '#/api/error-feedback';
 
 import {
   parseDepartments,
@@ -59,7 +61,8 @@ const pageSize = ref(10);
 const keyword = ref('');
 const dept = ref<string>();
 const loading = ref(false);
-const failed = ref(false);
+const failed = ref('');
+const retryAvailable = ref(false);
 let initialController = new AbortController();
 let queryController = new AbortController();
 const selectedUsers = computed(() =>
@@ -89,7 +92,8 @@ watch(
     dept.value = props.deptId;
     page.value = 1;
     keyword.value = '';
-    failed.value = false;
+    failed.value = '';
+    retryAvailable.value = false;
     initialController = new AbortController();
     const signal = initialController.signal;
     void initialize(signal);
@@ -104,7 +108,8 @@ function remember(users: UserRecord[]) {
   ]);
 }
 function report(error: unknown) {
-  failed.value = true;
+  retryAvailable.value = true;
+  failed.value = takeErrorMessage(error, $t('utils.userSelect.failed'));
   emit('error', error);
 }
 async function initialize(signal: AbortSignal) {
@@ -129,7 +134,8 @@ async function search() {
   const signal = queryController.signal;
   loading.value = true;
   rows.value = [];
-  failed.value = false;
+  failed.value = '';
+  retryAvailable.value = false;
   try {
     const data = parseUsers(
       await props.ports.users(
@@ -192,6 +198,11 @@ onUnmounted(() => {
     :model-value="visible"
     :title="$t('utils.userSelect.title')"
     width="min(860px, 95vw)"
+    class="user-select-dialog flex h-[min(720px,calc(100dvh-32px))] flex-col"
+    body-class="flex min-h-0 flex-1 flex-col overflow-hidden"
+    header-class="shrink-0"
+    footer-class="shrink-0"
+    align-center
     append-to-body
     @update:model-value="
       (open) => {
@@ -199,8 +210,8 @@ onUnmounted(() => {
       }
     "
   >
-    <div class="flex flex-col gap-3">
-      <div class="flex flex-wrap gap-2">
+    <div class="flex min-h-0 flex-1 flex-col gap-3">
+      <div class="flex shrink-0 flex-wrap gap-2">
         <ElTreeSelect
           v-if="showDeptFilter"
           v-model="dept"
@@ -211,13 +222,14 @@ onUnmounted(() => {
           :value-on-clear="undefined"
           :disabled="deptId !== undefined || disabled"
           :placeholder="$t('utils.userSelect.department')"
+          class="w-full sm:!w-60"
           @change="filter"
         />
         <ElInput
           v-model="keyword"
           :placeholder="$t('utils.userSelect.keyword')"
           :disabled="disabled"
-          class="!w-60"
+          class="!w-auto min-w-0 flex-1"
           @keyup.enter="filter"
         />
         <ElButton :disabled="disabled" @click="filter">
@@ -226,15 +238,22 @@ onUnmounted(() => {
       </div>
       <ElAlert
         v-if="failed"
-        :title="$t('utils.userSelect.failed')"
+        :title="failed"
         type="error"
         :closable="false"
+        class="shrink-0"
       >
         <ElButton text @click="retry">
           <span>{{ $t('utils.userSelect.retry') }}</span>
         </ElButton>
       </ElAlert>
-      <div class="flex flex-wrap gap-2">
+      <ElButton v-if="retryAvailable && !failed" text @click="retry">
+        <span>{{ $t('utils.userSelect.retry') }}</span>
+      </ElButton>
+      <div
+        v-if="selected.length"
+        class="flex max-h-[min(96px,15dvh)] shrink-0 flex-wrap gap-2 overflow-y-auto"
+      >
         <ElTag
           v-for="id in selected"
           :key="id"
@@ -244,47 +263,51 @@ onUnmounted(() => {
           {{ cache.get(id)?.label ?? id }}
         </ElTag>
       </div>
-      <ElTable
-        v-loading="loading"
-        :data="rows"
-        row-key="id"
-        :aria-busy="loading"
-        @row-click="toggle"
-      >
-        <ElTableColumn width="50">
-          <template #default="{ row }">
-            <ElCheckbox
-              v-if="multiple"
-              :model-value="selected.includes(row.id)"
-              :disabled="disabled"
-              :aria-label="row.label"
-              @click.stop
-              @change="toggle(row as UserRecord)"
-            /><ElRadio
-              v-else
-              :model-value="selected[0]"
-              :value="row.id"
-              :disabled="disabled"
-              :aria-label="row.label"
-              @click.stop
-              @change="toggle(row as UserRecord)"
-            >
-              <span></span>
-            </ElRadio>
-          </template>
-        </ElTableColumn>
-        <ElTableColumn prop="label" :label="$t('utils.userSelect.user')" />
-        <ElTableColumn
-          prop="description"
-          :label="$t('utils.userSelect.description')"
-        />
-        <ElTableColumn prop="id" label="ID" />
-      </ElTable>
+      <Loading :spinning="loading" :aria-busy="loading" class="min-h-0 flex-1">
+        <ElTable
+          :data="rows"
+          row-key="id"
+          height="100%"
+          :aria-busy="loading"
+          @row-click="toggle"
+        >
+          <ElTableColumn width="50">
+            <template #default="{ row }">
+              <ElCheckbox
+                v-if="multiple"
+                :model-value="selected.includes(row.id)"
+                :disabled="disabled"
+                :aria-label="row.label"
+                @click.stop
+                @change="toggle(row as UserRecord)"
+              /><ElRadio
+                v-else
+                :model-value="selected[0]"
+                :value="row.id"
+                :disabled="disabled"
+                :aria-label="row.label"
+                @click.stop
+                @change="toggle(row as UserRecord)"
+              >
+                <span></span>
+              </ElRadio>
+            </template>
+          </ElTableColumn>
+          <ElTableColumn prop="label" :label="$t('utils.userSelect.user')" />
+          <ElTableColumn
+            prop="description"
+            :label="$t('utils.userSelect.description')"
+          />
+          <ElTableColumn prop="id" label="ID" />
+        </ElTable>
+      </Loading>
       <ElPagination
         v-model:current-page="page"
         v-model:page-size="pageSize"
         :page-sizes="[10, 20, 50]"
+        :pager-count="5"
         :total="total"
+        class="shrink-0 flex-wrap gap-y-2"
         layout="total, sizes, prev, pager, next"
         @current-change="search"
         @size-change="filter"

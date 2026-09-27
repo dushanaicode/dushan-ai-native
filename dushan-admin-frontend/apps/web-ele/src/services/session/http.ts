@@ -5,6 +5,7 @@ import type { SessionCoordinator, SessionSnapshot } from './coordinator';
 
 import {
   isAuthenticationFailure,
+  isExpiredCredentialFailure,
   nativeResponseInterceptor,
 } from '../../api/response';
 
@@ -28,6 +29,12 @@ export function configureSessionRequests(
 
   const native = nativeResponseInterceptor();
   client.addResponseInterceptor({
+    rejected(error) {
+      const context = (error.config as NativeRequestConfig | undefined)
+        ?.__session;
+      if (context) getSession().assertCurrent(context);
+      return native.rejected(error);
+    },
     async fulfilled(response) {
       const context = (response.config as NativeRequestConfig)
         .__session as SessionSnapshot;
@@ -63,7 +70,8 @@ export function configureSessionRequests(
       session.assertCurrent(settings.__session);
       const replay =
         settings.allowAuthReplay ??
-        ['get', 'head', 'options'].includes(settings.method as string);
+        (isExpiredCredentialFailure(error) ||
+          ['get', 'head', 'options'].includes(settings.method as string));
       if (!replay) throw error;
       settings.headers = {
         ...settings.headers,

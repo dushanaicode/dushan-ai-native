@@ -1,0 +1,9 @@
+{
+  "actionTitle": {
+    "deleteBatch": "Delete selected",
+    "export": "Export {0}"
+  },
+  "actionMessage": {
+    "updating": "Updating {0} ..."
+  }
+}

@@ -14,12 +14,14 @@ import {
   ElSelect,
 } from 'element-plus';
 
+import { takeErrorMessage } from '#/api/error-feedback';
+
 import { exportColumns, ExportTask } from './task';
 
 const emit = defineEmits<{ close: []; success: []; error: [error: unknown] }>();
 const data = shallowRef<ExportTableData>();
 const fields = ref<string[]>([]);
-const failed = ref(false);
+const failed = ref('');
 const task = new ExportTask();
 const columns = computed(() =>
   data.value ? exportColumns(data.value.columns) : [],
@@ -48,17 +50,17 @@ function setData(value: ExportTableData) {
   task.cancel();
   data.value = value;
   fields.value = exportColumns(value.columns).map((column) => column.field);
-  failed.value = false;
+  failed.value = '';
 }
 async function submit() {
-  failed.value = false;
+  failed.value = '';
   try {
     await task.run(data.value as ExportTableData, fields.value);
     modal.close();
     emit('success');
   } catch (error) {
     if (!(error instanceof DOMException && error.name === 'AbortError')) {
-      failed.value = true;
+      failed.value = takeErrorMessage(error, $t('utils.export.failed'));
       emit('error', error);
     }
   }
@@ -69,12 +71,7 @@ defineExpose({ setData, open: modal.open, close: modal.close });
 
 <template>
   <Modal :title="$t('utils.export.title')">
-    <ElAlert
-      v-if="failed"
-      :title="$t('utils.export.failed')"
-      type="error"
-      :closable="false"
-    />
+    <ElAlert v-if="failed" :title="failed" type="error" :closable="false" />
     <ElSelect v-model="fields" multiple class="w-full" :disabled="task.loading">
       <ElOption
         v-for="column in columns"

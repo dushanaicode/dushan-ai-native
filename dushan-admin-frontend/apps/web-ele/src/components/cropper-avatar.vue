@@ -10,6 +10,8 @@ import { $t } from '@vben/locales';
 
 import { ElAlert, ElButton, ElDialog } from 'element-plus';
 
+import { takeErrorMessage } from '#/api/error-feedback';
+
 import { uploadCroppedAvatar } from './upload/avatar';
 import { parseFileAccess, validateFile } from './upload/files';
 
@@ -42,7 +44,7 @@ const visible = ref(false);
 const source = ref('');
 const preview = ref('');
 const busy = ref(false);
-const failed = ref(false);
+const failed = ref('');
 let accessController = new AbortController();
 let uploadController = new AbortController();
 watch(
@@ -68,7 +70,7 @@ watch(
   { immediate: true },
 );
 function report(error: unknown) {
-  failed.value = true;
+  failed.value = takeErrorMessage(error, $t('utils.avatar.failed'));
   emit('error', error);
 }
 function clearSource() {
@@ -93,7 +95,7 @@ function choose(event: Event) {
       maxNumber: 1,
     });
     close();
-    failed.value = false;
+    failed.value = '';
     source.value = URL.createObjectURL(file);
     visible.value = true;
   } catch (error) {
@@ -103,7 +105,7 @@ function choose(event: Event) {
 async function submit() {
   if (busy.value || props.disabled) return;
   busy.value = true;
-  failed.value = false;
+  failed.value = '';
   uploadController.abort();
   uploadController = new AbortController();
   const signal = uploadController.signal;
@@ -164,8 +166,8 @@ onUnmounted(() => {
       <span>{{ btnText ?? $t('utils.avatar.choose') }}</span>
     </ElButton>
     <ElAlert
-      v-if="failed"
-      :title="$t('utils.avatar.failed')"
+      v-if="failed && !visible"
+      :title="failed"
       type="error"
       :closable="false"
     />
@@ -188,12 +190,7 @@ onUnmounted(() => {
         :width="480"
         :height="360"
       />
-      <ElAlert
-        v-if="failed"
-        :title="$t('utils.avatar.failed')"
-        type="error"
-        :closable="false"
-      />
+      <ElAlert v-if="failed" :title="failed" type="error" :closable="false" />
       <template #footer>
         <ElButton @click="close">
           <span>{{ $t('utils.avatar.cancel') }}</span>

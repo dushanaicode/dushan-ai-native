@@ -7,8 +7,13 @@ import { getRangePickerDefaultProps } from '../../dushan-admin-frontend/apps/web
 import { toSortingFields } from '../../dushan-admin-frontend/apps/web-ele/src/utils/sorting';
 
 vi.mock('@vben/locales', () => ({ $t: (key: string) => key }));
+const notify = vi.hoisted(() => vi.fn());
+vi.mock('#/api/error-feedback', () => ({ notifyError: notify }));
 
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  notify.mockClear();
+});
 
 describe('支撑层数据边界', () => {
   it('排序保持优先级，取消的字段不发送，原始数组不变', () => {
@@ -83,6 +88,41 @@ describe('支撑层数据边界', () => {
 });
 
 describe('CellSwitch 的实际交互', () => {
+  it('任务状态1/2正确切换，初始化和外部刷新不会自动写状态', async () => {
+    const state = ref(2);
+    const change = vi.fn(async (_value: number) => true);
+    const element = document.createElement('div');
+    const app = createApp(() =>
+      h(CellSwitch, {
+        modelValue: state.value,
+        activeValue: 1,
+        inactiveValue: 2,
+        change,
+        'onUpdate:modelValue': (value) => {
+          state.value = value;
+        },
+      }),
+    );
+    const errors: unknown[] = [];
+    app.config.errorHandler = (error) => errors.push(error);
+    app.mount(element);
+    try {
+      await nextTick();
+      expect(change).not.toHaveBeenCalled();
+      const button = element.querySelector<HTMLElement>('.el-switch')!;
+      button.click();
+      await vi.waitFor(() => expect(state.value).toBe(1));
+      button.click();
+      await vi.waitFor(() => expect(state.value).toBe(2));
+      expect(change.mock.calls.map((call) => call[0])).toEqual([1, 2]);
+      state.value = 0;
+      await nextTick();
+      expect(change).toHaveBeenCalledTimes(2);
+      expect(errors).toEqual([]);
+    } finally {
+      app.unmount();
+    }
+  });
   it('明确取消与卸载后的迟到成功都不修改行数据', async () => {
     const cancelled = Promise.withResolvers<false>();
     const pending = Promise.withResolvers<void>();
@@ -149,7 +189,10 @@ describe('CellSwitch 的实际交互', () => {
       first.resolve();
       await vi.waitFor(() => expect(state.value).toBe(1));
       button.click();
-      await vi.waitFor(() => expect(errors).toEqual([failure]));
+      await vi.waitFor(() =>
+        expect(notify).toHaveBeenCalledExactlyOnceWith(failure),
+      );
+      expect(errors).toEqual([]);
       expect(change).toHaveBeenLastCalledWith(0);
       expect(state.value).toBe(1);
       expect(element.querySelector<HTMLInputElement>('input')!.disabled).toBe(

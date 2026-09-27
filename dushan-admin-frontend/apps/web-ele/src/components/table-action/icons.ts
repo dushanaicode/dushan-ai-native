@@ -3,7 +3,7 @@ export const ACTION_ICON = {
   COPY: 'lucide:copy',
   DELETE: 'lucide:trash-2',
   DOWNLOAD: 'lucide:download',
-  EDIT: 'lucide:user-round-pen',
+  EDIT: 'lucide:square-pen',
   FILTER: 'lucide:filter',
   LIBRARY: 'lucide:library-big',
   LOG: 'lucide:file-text',

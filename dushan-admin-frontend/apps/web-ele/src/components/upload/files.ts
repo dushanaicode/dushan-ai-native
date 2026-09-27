@@ -2,6 +2,8 @@ import { shallowRef } from 'vue';
 
 import { z } from '@vben/common-ui';
 
+import { createRandomId } from '../../utils/random-id';
+
 const fileSchema = z
   .object({
     id: z.string().min(1),
@@ -127,7 +129,7 @@ export class UploadQueue {
       throw new RangeError('文件数量超过限制');
     for (const file of files) validateFile(file, limits);
     const jobs = files.map((file) => ({
-      key: crypto.randomUUID(),
+      key: createRandomId(),
       file,
       progress: 0,
       controller: new AbortController(),
