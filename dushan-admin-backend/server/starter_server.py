@@ -14,7 +14,6 @@ from framework.starter_config.provider.bootstrap_config_provider import (
     BootstrapConfigProvider,
 )
 from framework.starter_database.context.database_middleware import DatabaseMiddleware
-from framework.starter_di.context.di_context_middleware import DiContextMiddleware
 from framework.starter_monitor.integration.monitor_middleware import MonitorMiddleware
 from framework.starter_security.bizlog.expression.expression_utils import ExpressionUtils
 from framework.starter_security.exception.security_exception import SecurityException
@@ -24,6 +23,7 @@ from framework.starter_security.integration.security_exception_handler import (
 from framework.starter_tenant.middleware.tenant_selector_middleware import TenantSelectorMiddleware
 from framework.starter_web.exception.exception_handler import GlobalExceptionHandler
 from framework.starter_web.middleware.body_limit_middleware import BodyLimitMiddleware
+from framework.starter_web.middleware.di_context_middleware import DiContextMiddleware
 from framework.starter_web.middleware.http_protocol_middleware import HttpProtocolMiddleware
 from framework.starter_web.middleware.reported_failure_filter import ReportedFailureFilter
 from framework.starter_web.middleware.request_context_middleware import RequestContextMiddleware
@@ -203,6 +203,3 @@ def create_app(
     for registration in routers:
         application.state.web_routes.include(registration)
     return application
-
-
-app = create_app()

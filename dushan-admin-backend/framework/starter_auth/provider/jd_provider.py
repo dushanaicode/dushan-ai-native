@@ -11,6 +11,18 @@ from framework.starter_auth.provider.provider_payload import ProviderPayload as 
 
 
 class JdProvider(OAuthProvider):
+    """京东开放平台 OAuth 2.0 授权。
+
+    官方资料：
+    - 开放平台: https://open.jd.com/
+    - 旧秒送入口（平台提示迁移）: https://opendj.jd.com/
+    实现端点：
+    - authorization: https://open-oauth.jd.com/oauth2/to_login
+    - token: https://open-oauth.jd.com/oauth2/access_token
+    - refresh: https://open-oauth.jd.com/oauth2/refresh_token
+    - userinfo: https://api.jd.com/routerjson
+    """
+
     subject_field = "open_id"
     capabilities = (ProviderCapability("JD", refresh=True),)
     authorization_endpoint = "https://open-oauth.jd.com/oauth2/to_login"

@@ -3,7 +3,7 @@ from framework.starter_di.public import (
     service,
 )
 from module_system.api.auth.workload_api import WorkloadApi
-from module_system.service.auth.system_workload_service import SystemWorkloadService
+from module_system.service.workload.system_workload_service import SystemWorkloadService
 
 
 @service(interface=WorkloadApi)

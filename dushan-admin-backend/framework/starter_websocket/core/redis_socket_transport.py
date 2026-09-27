@@ -2,7 +2,6 @@ import asyncio
 from contextvars import Context
 
 from loguru import logger
-from redis.exceptions import RedisError
 
 from framework.starter_websocket.definitions.constants.websocket_error_codes import (
     WebSocketErrorCodes,
@@ -20,6 +19,10 @@ class RedisSocketTransport:
         self.running = False
         self.connected = False
         self.reconnects = 0
+
+    @property
+    def is_ready(self) -> bool:
+        return self.running and self.connected and self.task is not None and not self.task.done()
 
     async def _subscribe(self):
         subscription = self.client.pubsub(ignore_subscribe_messages=False)
@@ -51,7 +54,10 @@ class RedisSocketTransport:
                         except WebSocketException:
                             self.runtime.rejected_envelopes += 1
                             continue
-                        self.runtime.receive_delivery(envelope)
+                        try:
+                            self.runtime.receive_delivery(envelope)
+                        except Exception as error:
+                            self.runtime.record_error(error)
             except asyncio.CancelledError:
                 raise
             except Exception as error:
@@ -59,23 +65,29 @@ class RedisSocketTransport:
                 self.runtime.record_error(error)
                 logger.warning("WebSocket Redis 订阅中断 error_type={}", type(error).__name__)
             finally:
-                if self.subscription is not None:
-                    await self.subscription.aclose()
-                    self.subscription = None
+                self.connected = False
+                await self._close_subscription()
             while self.running:
                 await asyncio.sleep(self.runtime.settings.transport_restart_seconds)
                 try:
                     await self.runtime.call(self._subscribe())
                 except asyncio.CancelledError:
                     raise
-                except (RedisError, TimeoutError, WebSocketException) as error:
+                except Exception as error:
                     self.runtime.record_error(error)
-                    if self.subscription is not None:
-                        await self.subscription.aclose()
-                        self.subscription = None
+                    await self._close_subscription()
                 else:
                     self.reconnects += 1
                     break
+
+    async def _close_subscription(self):
+        if self.subscription is not None:
+            try:
+                await self.runtime.call(self.subscription.aclose())
+            except Exception as error:
+                self.runtime.record_error(error)
+            finally:
+                self.subscription = None
 
     async def publish(self, envelope):
         return await self.runtime.call(
@@ -91,7 +103,7 @@ class RedisSocketTransport:
             errors.extend(error for error in results if isinstance(error, Exception))
         if self.subscription is not None:
             try:
-                await self.subscription.aclose()
+                await self.runtime.call(self.subscription.aclose())
             except Exception as error:
                 errors.append(error)
             finally:

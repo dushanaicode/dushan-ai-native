@@ -100,14 +100,3 @@ class MessageCodec:
                 envelope.model_dump(exclude={"signature", "attempt", "ready_at", "consumer_key"})
             )
         ).hexdigest()
-
-    def retry(self, envelope, key, delay):
-        now = time.time()
-        ready = now + delay
-        if ready >= envelope.expires_at:
-            raise MQException(MQErrorCodes.EXPIRED)
-        return self.sign(
-            envelope.model_copy(
-                update={"attempt": envelope.attempt + 1, "consumer_key": key, "ready_at": ready}
-            )
-        )

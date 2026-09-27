@@ -9,7 +9,6 @@ class TenantException(BaseBusinessException):
     _system_error_codes = frozenset(
         {
             TenantErrorCodes.CONFIGURATION.code,
-            TenantErrorCodes.MODE.code,
             TenantErrorCodes.MODEL.code,
             TenantErrorCodes.CLOSED.code,
         }

@@ -2,10 +2,11 @@ import os
 from collections.abc import Mapping
 from copy import deepcopy
 from pathlib import Path
-from typing import TypeVar
+from types import UnionType
+from typing import TypeVar, Union, get_args, get_origin
 
 import yaml
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, TypeAdapter, ValidationError
 
 from framework.common.enums.application_environment_enum import ApplicationEnvironmentEnum
 from framework.starter_config.provider.bootstrap_config_error import BootstrapConfigError
@@ -174,9 +175,28 @@ class BootstrapConfigProvider:
                 if field in result or nested:
                     result[field] = nested
             elif key in self._environ:
-                result[field] = self._environ[key]
+                result[field] = self._environment_scalar(
+                    info.annotation, self._environ[key], key, field_path
+                )
                 sources[field_path] = f"环境变量 {key}"
         return result
+
+    @staticmethod
+    def _environment_scalar(annotation, value: str, key: str, field_path: str):
+        """环境标量按已声明类型解析；模型的严格范围约束仍由后续校验执行。"""
+        types = (
+            get_args(annotation) if get_origin(annotation) in {Union, UnionType} else (annotation,)
+        )
+        if value == "null" and type(None) in types and str not in types:
+            return None
+        if str not in types and any(item in {int, float, bool} for item in types):
+            try:
+                return TypeAdapter(annotation).validate_python(value)
+            except ValidationError:
+                raise BootstrapConfigError(
+                    f"环境变量类型无效：{field_path}（来源：环境变量 {key}）"
+                ) from None
+        return value
 
     def _resolve_input(self, settings_type: type[BaseModel], prefix: str):
         """准备同一份校验输入与来源快照，不写回原配置。"""
@@ -236,13 +256,11 @@ class BootstrapConfigProvider:
                 parts = [prefix.rstrip("_").lower()] if prefix else []
                 parts.extend(str(part) for part in detail["loc"])
                 path = ".".join(parts)
-                reason = detail.get("ctx", {}).get("error")
+                reason = detail["type"]
                 if detail["type"] == "missing":
                     reason = "缺少必填配置项"
                 elif detail["type"] == "extra_forbidden":
                     reason = "未声明的配置项"
-                if reason is None:
-                    reason = "值的类型或范围不合法"
                 candidates = {
                     value
                     for key, value in sources.items()

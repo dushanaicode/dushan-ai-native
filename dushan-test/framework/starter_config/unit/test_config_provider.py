@@ -3,18 +3,21 @@ import json
 import threading
 import traceback
 import uuid
+from pathlib import Path
 
 import pytest
 import yaml
 from pydantic import Field, field_validator
 
 from fixtures.config_factory import ConfigFactory
+from framework.common.enums.application_environment_enum import ApplicationEnvironmentEnum
 from framework.starter_config.config.config_model import ConfigModel
 from framework.starter_config.decorator.config_decorator import config_model
 from framework.starter_config.definitions.enums.config_source_enum import ConfigSourceEnum
 from framework.starter_config.provider.bootstrap_config_error import BootstrapConfigError
 from framework.starter_config.provider.bootstrap_config_provider import BootstrapConfigProvider
 from framework.starter_config.provider.config_provider import ConfigProvider
+from framework.starter_config.source.config_values import ConfigValues
 from framework.starter_di.config.di_settings import DiSettings
 from framework.starter_di.core.di_container import DiContainer
 from framework.starter_di.decorators.components import service
@@ -664,3 +667,148 @@ def test_broken_additional_file_does_not_echo_its_content(config_dir, tmp_path, 
     with pytest.raises(BootstrapConfigError, match="配置文件读取失败") as caught:
         ConfigProvider(BootstrapConfigProvider.load(root, environ={}), [])
     assert marker not in "".join(traceback.format_exception(caught.value))
+
+
+@pytest.mark.parametrize("raw, expected", [(' {"value": 7}', 7), ("null", None)])
+def test_optional_nested_model_environment_json(config_dir, raw, expected):
+    class Child(ConfigModel):
+        value: int
+
+    @config_model("optional_child", env_prefix="OPTIONAL_CHILD_")
+    class Settings(ConfigModel):
+        child: Child | None
+
+    root = config_dir({"config": {"models": {"optional_child": {"child": None}}}})
+    bootstrap = BootstrapConfigProvider.load(root, environ={"OPTIONAL_CHILD_CHILD": raw})
+    current = ConfigProvider(bootstrap, [Settings])
+    try:
+        child = current.get_config(Settings).child
+        assert (None if child is None else child.value) == expected
+    finally:
+        current.close()
+
+
+def test_model_union_with_string_keeps_environment_string(config_dir):
+    class Child(ConfigModel):
+        value: int
+
+    @config_model("string_child", env_prefix="STRING_CHILD_")
+    class Settings(ConfigModel):
+        child: Child | str | None
+
+    root = config_dir({"config": {"models": {"string_child": {"child": None}}}})
+    current = ConfigProvider(
+        BootstrapConfigProvider.load(root, environ={"STRING_CHILD_CHILD": "null"}), [Settings]
+    )
+    try:
+        assert current.get_config(Settings).child == "null"
+    finally:
+        current.close()
+
+
+def test_bootstrap_validator_does_not_echo_input(config_dir):
+    marker = f"marker-{uuid.uuid4().hex}"
+
+    class Guarded(ConfigModel):
+        token: str
+
+        @field_validator("token")
+        @classmethod
+        def reject(cls, value):
+            raise ValueError(f"不允许的令牌 {value}")
+
+    bootstrap = BootstrapConfigProvider.load(config_dir({"guarded": {"token": marker}}), environ={})
+    with pytest.raises(BootstrapConfigError, match="value_error") as caught:
+        bootstrap.get_config(Guarded, prefix="GUARDED_")
+    assert marker not in "".join(traceback.format_exception(caught.value))
+
+
+def test_closed_provider_rejects_listener_removal(config_dir):
+    current = provider(config_dir)
+    current.close()
+    with pytest.raises(BootstrapConfigError, match="已关闭"):
+        current.remove_listener(lambda change: None)
+
+
+def test_unresolved_model_annotation_is_a_configuration_error(config_dir):
+    @config_model("unresolved", env_prefix="UNRESOLVED_")
+    class Unresolved(ConfigModel):
+        child: "MissingConfigurationChild"  # noqa: F821
+
+    with pytest.raises(BootstrapConfigError, match="未解析的类型注解"):
+        ConfigProvider(BootstrapConfigProvider.load(config_dir(), environ={}), [Unresolved])
+
+
+@pytest.mark.parametrize("source", ["environment", "memory"])
+@pytest.mark.parametrize(
+    "field, raw, expected",
+    [
+        ("numbers", "[]", []),
+        ("numbers", "[0, 7]", [0, 7]),
+        ("mapping", "{}", {}),
+        ("mapping", '{"next": 0}', {"next": 0}),
+        ("model_mapping", "{}", {}),
+        ("model_mapping", '{"next": {"value": 0}}', {"next": {"value": 0}}),
+        ("optional", "null", None),
+        ("model", '{"value": 7}', {"value": 7}),
+        ("text", "null", "null"),
+        ("text", '{"value": 7}', '{"value": 7}'),
+    ],
+)
+def test_declared_nested_environment_json(source, field, raw, expected):
+    class Leaf(ConfigModel):
+        value: int
+
+    class Child(ConfigModel):
+        numbers: list[int]
+        mapping: dict[str, int]
+        model_mapping: dict[str, Leaf]
+        optional: int | None
+        model: Leaf | None
+        text: Leaf | str | None
+
+    @config_model("nested_json", env_prefix="NESTED_JSON_")
+    class Settings(ConfigModel):
+        child: Child
+
+    values = ConfigFactory.values()
+    values["config"]["reload_enabled"] = True
+    values["config"]["models"] = {
+        "nested_json": {
+            "child": {
+                "numbers": [1],
+                "mapping": {"base": 1},
+                "model_mapping": {"base": {"value": 1}},
+                "optional": 1,
+                "model": None,
+                "text": None,
+            }
+        }
+    }
+    variable = f"NESTED_JSON_CHILD_{field.upper()}"
+    bootstrap = BootstrapConfigProvider(
+        Path.cwd(),
+        ApplicationEnvironmentEnum.DEVELOPMENT,
+        values,
+        {variable: raw} if source == "environment" else {},
+        ConfigValues.sources(values, "application.yaml"),
+        ("application.yaml",),
+    )
+    current = ConfigProvider(bootstrap, [Settings])
+    try:
+        if source == "memory":
+            override = raw if field == "text" else json.loads(raw)
+            current.replace_memory(
+                {"config": {"models": {"nested_json": {"child": {field: override}}}}}
+            )
+        child = current.get_config(Settings).child.model_dump()
+        assert child[field] == expected
+        sources = current.get_sources(Settings)
+        assert sources[f"child.{field}"] == (
+            f"环境变量 {variable}" if source == "environment" else "内存配置覆盖"
+        )
+        if field in {"mapping", "model_mapping"}:
+            assert not any(name.startswith(f"child.{field}.base") for name in sources)
+        assert child["numbers"] == (expected if field == "numbers" else [1])
+    finally:
+        current.close()

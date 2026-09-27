@@ -125,6 +125,17 @@ async def test_channel_authorization_and_unsupported(source):
         await http.close()
 
 
+@pytest.mark.parametrize("source", ["TOUTIAO", "TAOBAO", "CSDN", "ELEME", "MEITUAN"])
+async def test_channels_without_scope_omit_the_parameter(source):
+    provider, _, http = await provider_case(source, [])
+    try:
+        parsed = urlsplit(provider.authorize(FLOW, "challenge"))
+        params = parse_qs(parsed.query, keep_blank_values=True)
+        assert provider.config.scopes == () and "scope" not in params
+    finally:
+        await http.close()
+
+
 @pytest.mark.parametrize("source", CHANNEL_RESPONSES)
 async def test_channel_malformed_token_never_succeeds(source):
     provider, transport, http = await provider_case(

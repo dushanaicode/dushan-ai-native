@@ -6,6 +6,15 @@ from framework.starter_auth.provider.provider_payload import ProviderPayload as 
 
 
 class DouyinProvider(OAuthProvider):
+    """抖音网站应用 OAuth 2.0 授权。
+
+    官方资料：
+    - 授权码: https://developer.open-douyin.com/docs/resource/zh-CN/dop/develop/openapi/account-permission/douyin-get-permission-code
+    - 登录授权: https://developer.open-douyin.com/docs/resource/zh-CN/dop/ability/opensdk/user-authorization/solution
+    - 用户信息: https://developer.open-douyin.com/docs/resource/zh-CN/dop/develop/openapi/account-permission/get-account-open-info
+    - 刷新令牌: https://developer.open-douyin.com/docs/resource/zh-CN/mini-app/develop/server/basic-abilities/interface-request-credential/user-authorization/refresh-user-access-token
+    """
+
     subject_field = "open_id"
     capabilities = (ProviderCapability("DOUYIN", refresh=True),)
     authorization_endpoint = "https://open.douyin.com/platform/oauth/connect"

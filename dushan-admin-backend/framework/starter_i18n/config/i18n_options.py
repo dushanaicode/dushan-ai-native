@@ -3,7 +3,7 @@ from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from framework.starter_i18n.core.i18n_locale_root import I18nLocaleRoot
+from framework.starter_i18n.config.i18n_locale_root import I18nLocaleRoot
 
 LocaleTag = Annotated[str, Field(pattern=r"^[A-Za-z]{1,8}(?:-[A-Za-z0-9]{1,8})*$")]
 

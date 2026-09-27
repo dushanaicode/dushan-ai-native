@@ -1,4 +1,5 @@
 from datetime import UTC, date, datetime, time, timedelta
+from typing import overload
 from zoneinfo import ZoneInfo
 
 from framework.common.dates.date_range_builder import DateRangeBuilder
@@ -33,7 +34,9 @@ class DateUtils:
 
     def get_timezone_offset(self) -> float:
         """返回当前 UTC 偏移小时数，保留半小时或四分之一小时偏移。"""
-        return self.now().utcoffset().total_seconds() / 3600
+        offset = self.now().utcoffset()
+        assert offset is not None
+        return offset.total_seconds() / 3600
 
     def now(self) -> datetime:
         """返回配置时区的带时区当前时间。"""
@@ -42,6 +45,12 @@ class DateUtils:
     def now_naive(self) -> datetime:
         """显式移除配置时区标识，仅用于接收 naive 时间的调用边界。"""
         return self.now().replace(tzinfo=None)
+
+    @overload
+    def localize(self, value: None) -> None: ...
+
+    @overload
+    def localize(self, value: datetime) -> datetime: ...
 
     def localize(self, value: datetime | None) -> datetime | None:
         """将 naive 时间解释为本地时间，拒绝不存在或有歧义的 DST 时刻。"""
@@ -56,9 +65,21 @@ class DateUtils:
             raise ValueError("本地时间不存在或存在 DST 歧义，请提供带偏移的时间")
         return localized
 
+    @overload
+    def to_timezone(self, value: None) -> None: ...
+
+    @overload
+    def to_timezone(self, value: datetime) -> datetime: ...
+
     def to_timezone(self, value: datetime | None) -> datetime | None:
         """把时间转换为配置时区，naive 输入与 localize 使用相同解释。"""
         return None if value is None else self.localize(value).astimezone(self._timezone)
+
+    @overload
+    def to_utc(self, value: None) -> None: ...
+
+    @overload
+    def to_utc(self, value: datetime) -> datetime: ...
 
     def to_utc(self, value: datetime | None) -> datetime | None:
         """将本地或带时区的时间转换为 UTC。"""

@@ -7,6 +7,7 @@ import pytest
 from joserfc import jwt
 
 from framework.starter_auth.core.auth_http_client import AuthHttpClient
+from framework.starter_auth.core.auth_provider_registry import AuthProviderRegistry
 from framework.starter_auth.definitions.constants.auth_error_codes import AuthErrorCodes as Codes
 from framework.starter_auth.exception.auth_exception import AuthException
 from framework.starter_auth.oidc.oidc_metadata import OidcMetadata
@@ -263,6 +264,78 @@ async def test_discovery_must_match_configured_endpoints(key):
                 oidc_token(key, meta, FLOW.nonce), meta, "client-a", FLOW.nonce, access_token=ACCESS
             )
         assert len(transport.requests) == 1 and transport.requests[0].url.host == "issuer.example"
+    finally:
+        await http.close()
+
+
+TENANT_GUID = "72f988bf-86f1-41af-91ab-2d7cd011db47"
+MICROSOFT_META = OidcMetadata(
+    "https://login.microsoftonline.com/common/v2.0",
+    "https://login.microsoftonline.com/common/discovery/v2.0/keys",
+    ("RS256",),
+    "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+    "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+    "https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration",
+    issuer_pattern=AuthProviderRegistry().get("MICROSOFT").oidc_metadata.issuer_pattern,
+)
+
+
+def microsoft_transport(key):
+    return RecordingTransport(
+        [
+            {
+                "issuer": "https://login.microsoftonline.com/{tenantid}/v2.0",
+                "jwks_uri": MICROSOFT_META.jwks_uri,
+                "authorization_endpoint": MICROSOFT_META.authorization_endpoint,
+                "token_endpoint": MICROSOFT_META.token_endpoint,
+                "id_token_signing_alg_values_supported": ["RS256"],
+            },
+            {"keys": [key.as_dict(private=False)]},
+        ]
+    )
+
+
+async def test_discovery_issuer_pattern_accepts_microsoft_tenant_claim(key):
+    http = AuthHttpClient(settings(), transport=microsoft_transport(key))
+    try:
+        claims = await OidcVerifier(http, settings()).verify(
+            oidc_token(
+                key,
+                MICROSOFT_META,
+                FLOW.nonce,
+                iss=f"https://login.microsoftonline.com/{TENANT_GUID}/v2.0",
+            ),
+            MICROSOFT_META,
+            "client-a",
+            FLOW.nonce,
+            access_token=ACCESS,
+        )
+        assert claims["iss"].endswith(f"/{TENANT_GUID}/v2.0")
+    finally:
+        await http.close()
+
+
+@pytest.mark.parametrize(
+    "issuer",
+    [
+        "https://login.microsoftonline.com.evil.test/" + TENANT_GUID + "/v2.0",
+        "https://evil.test/login.microsoftonline.com/" + TENANT_GUID + "/v2.0",
+        "https://login.microsoftonline.com/tenant-123/v2.0",
+        "https://login.microsoftonline.com/" + TENANT_GUID + "/v2.0/extra",
+    ],
+)
+async def test_issuer_pattern_rejects_foreign_or_non_guid_issuer(key, issuer):
+    http = AuthHttpClient(settings(), transport=microsoft_transport(key))
+    try:
+        with pytest.raises(AuthException) as failure:
+            await OidcVerifier(http, settings()).verify(
+                oidc_token(key, MICROSOFT_META, FLOW.nonce, iss=issuer),
+                MICROSOFT_META,
+                "client-a",
+                FLOW.nonce,
+                access_token=ACCESS,
+            )
+        assert failure.value.error_code == Codes.OIDC
     finally:
         await http.close()
 

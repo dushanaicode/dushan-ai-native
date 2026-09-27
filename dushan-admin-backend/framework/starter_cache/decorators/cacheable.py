@@ -46,7 +46,12 @@ class Cacheable:
         wait_seconds: float = CacheLockDefaults.WAIT_SECONDS,
         critical_section_timeout_seconds: float = CacheLockDefaults.CRITICAL_SECTION_TIMEOUT_SECONDS,
     ):
-        """构造装饰器；TTL、锁时序和键模板都在装饰阶段完成校验。"""
+        """构造装饰器；TTL、锁时序和键模板都在装饰阶段完成校验。
+
+        unless 按 unless(返回值, *args, **kwargs) 调用，args/kwargs 是被装饰函数
+        本次收到的原始入参，因此实例方法的第一个位置参数是 self；
+        返回 True 表示本次结果不写缓存，只原样返回。
+        """
         if not isinstance(cache_key, CacheKey):
             raise CacheException(
                 CacheErrorCodes.INVALID_CACHE_KEY, msg="缓存装饰器必须传入 CacheKey"

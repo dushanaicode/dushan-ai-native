@@ -11,7 +11,10 @@ def data_permission(
     tenant_column="tenant_id",
     resource=None,
 ):
-    """声明本人、部门或二者的记录范围；归属列支持整数及字符串 ID。"""
+    """声明本人、部门或二者的记录范围；归属列支持整数及字符串 ID。
+
+    description 仅作为声明处的业务说明，不参与运行时授权或模型登记。
+    """
     expected = {"user_scope": (True, False), "dept_scope": (False, True), "both": (True, True)}
     if permission_type not in expected or expected[permission_type] != (
         user_id_column is not None,

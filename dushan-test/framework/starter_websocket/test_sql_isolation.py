@@ -4,6 +4,9 @@ import pytest
 from websockets.asyncio.client import connect
 
 from fixtures.database_fixtures import TARGETS
+from framework.starter_websocket.definitions.constants.websocket_error_codes import (
+    WebSocketErrorCodes,
+)
 from starter_websocket.conftest import ORIGIN
 
 
@@ -66,7 +69,10 @@ async def test_sender_cannot_cross_tenant_by_target_fields(socket_case):
                     "message": {"type": "echo", "payload": {"text": "cross-tenant"}},
                 },
             )
-            assert result.status_code == 200 and result.json()["code"] == 403, result.text
+            assert (
+                result.status_code == 200
+                and result.json()["code"] == WebSocketErrorCodes.POLICY.code
+            ), result.text
             assert result.json()["data"] is None
         await websocket.send('{"type":"ping"}')
         assert json.loads(await websocket.recv())["type"] == "pong"

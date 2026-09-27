@@ -105,9 +105,12 @@ class ApplicationContext:
             error, cancellation = await CleanupUtils.run_cancellation_safe_cleanup(
                 self.shutdown, "应用 DI 初始化回滚"
             )
+            errors = [] if error is None else [error]
+            if error is not None and primary.__cause__ is not None:
+                errors.insert(0, primary.__cause__)
             CleanupUtils.raise_collected_cleanup_errors(
                 "应用 DI 初始化与回滚失败",
-                [] if error is None else [error],
+                errors,
                 caller_cancellation=cancellation,
                 primary_error=primary,
             )

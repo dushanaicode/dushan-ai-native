@@ -8,6 +8,9 @@ class MessageBackend(ABC):
     async def open(self, definitions): ...
 
     @abstractmethod
+    async def check_health(self) -> bool: ...
+
+    @abstractmethod
     async def publish(self, destination, mode, body): ...
 
     @abstractmethod

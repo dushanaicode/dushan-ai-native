@@ -2,7 +2,7 @@ import hashlib
 import ipaddress
 import json
 import struct
-from importlib.metadata import version
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from threading import RLock
 from typing import Literal
@@ -39,7 +39,6 @@ class Ip2RegionDatabase:
                 else data_dir
             )
             searchers = {}
-            content = b""
             try:
                 manifest_bytes = (path / "manifest.json").read_bytes()
                 if hashlib.sha256(manifest_bytes).hexdigest() != self.MANIFEST_SHA256:
@@ -61,7 +60,7 @@ class Ip2RegionDatabase:
                         xdb_util.IPv4 if family == 4 else xdb_util.IPv6, content
                     )
                 self._searchers = searchers
-            except (OSError, ValueError, KeyError, struct.error) as error:
+            except (OSError, ValueError, KeyError, struct.error, PackageNotFoundError) as error:
                 for searcher in searchers.values():
                     searcher.close()
                 searchers.clear()

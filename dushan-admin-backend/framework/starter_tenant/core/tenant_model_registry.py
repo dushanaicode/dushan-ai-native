@@ -4,7 +4,7 @@ from loguru import logger
 from sqlalchemy import Column, Delete, Insert, Table, UniqueConstraint, Update
 from sqlalchemy.orm import Mapper
 from sqlalchemy.sql import visitors
-from sqlalchemy.sql.elements import ColumnClause
+from sqlalchemy.sql.elements import ColumnClause, TextClause
 from sqlalchemy.sql.selectable import Select, TableClause
 
 from framework.starter_tenant.definitions.constants.tenant_error_codes import TenantErrorCodes
@@ -18,7 +18,7 @@ class TenantModelRegistry:
     """应用模型的唯一所有权快照；未知表与伪造的同名 Table 均拒绝。"""
 
     def __init__(self, models):
-        logger.info("【TenantStarter 】开始登记租户模型与校验隔离约束")
+        logger.info("【TenantStarter】开始登记租户模型与校验隔离约束")
         entries = {}
         for model in models:
             item = model if isinstance(model, TenantModel) else vars(model).get("__tenant_model__")
@@ -48,7 +48,7 @@ class TenantModelRegistry:
                 if item.public or (item.tenant_column, other.tenant_column) not in pairs:
                     raise TenantException(TenantErrorCodes.MODEL)
         logger.info(
-            "【TenantStarter 】模型校验完成：租户表 {} 个，全局表 {} 个",
+            "【TenantStarter】模型校验完成：租户表 {} 个，全局表 {} 个",
             sum(not item.public for item in entries.values()),
             sum(item.public for item in entries.values()),
         )
@@ -72,6 +72,8 @@ class TenantModelRegistry:
             if id(node) in seen:
                 continue
             seen.add(id(node))
+            if isinstance(node, TextClause):
+                raise TenantException(TenantErrorCodes.MODEL)
             if isinstance(node, (Insert, Update, Delete)) and node is not statement:
                 raise TenantException(TenantErrorCodes.MODEL)
             if isinstance(node, Select) and (

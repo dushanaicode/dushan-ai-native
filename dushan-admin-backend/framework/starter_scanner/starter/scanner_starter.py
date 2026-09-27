@@ -10,10 +10,10 @@ class ScannerStarter:
     @staticmethod
     def initialize(settings, roots, modules):
         result = ScannerEngine(settings).scan(roots)
-        logger.info("【ScannerStarter 】开始加载模块显式组件声明")
+        logger.info("【ScannerStarter】开始加载模块显式组件声明")
         result = result.merge_explicit(DefinitionLoader.load(modules))
         logger.info(
-            "【ScannerStarter 】定义发现完成：文件 {} 个，定义 {} 个",
+            "【ScannerStarter】定义发现完成：文件 {} 个，定义 {} 个",
             len(result.files),
             len(result.definitions),
         )

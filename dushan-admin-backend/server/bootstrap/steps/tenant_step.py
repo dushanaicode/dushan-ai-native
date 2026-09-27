@@ -17,7 +17,7 @@ class TenantStep:
     async def run(ctx):
         definitions = ctx.definitions
         if TenantSettings not in definitions.configuration.model_classes:
-            ctx.logger.info("【TenantStarter 】配置模型未装配，跳过启动")
+            ctx.logger.info("【TenantStarter】配置模型未装配，跳过启动")
             yield
             return
         models = TenantModelDiscovery.collect(
@@ -29,7 +29,7 @@ class TenantStep:
             TenantModelRegistry(models)
             if models:
                 raise TenantException(TenantErrorCodes.CONFIGURATION)
-            ctx.logger.info("【TenantStarter 】未启用 DI，运行时未装配")
+            ctx.logger.info("【TenantStarter】未启用 DI，运行时未装配")
             yield
             return
         starter = application.container.get(TenantStarter)

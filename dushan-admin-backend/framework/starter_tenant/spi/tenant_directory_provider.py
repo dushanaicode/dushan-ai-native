@@ -12,7 +12,6 @@ class TenantDirectoryProvider(Protocol):
 
     查询必须使用权威主库。authorize_session 重验成员/托管关系、主体有效性、
     支持审批及资源限制；不能只相信 LoginSession 内的 ID 或客户端目标。
-    租户创建、启停和删除须与部署控制记录采用同一事务并先锁定控制记录。
     租户标识永久不复用；删除目录记录不能使他人接管旧数据或已开通的默认租户。
     """
 

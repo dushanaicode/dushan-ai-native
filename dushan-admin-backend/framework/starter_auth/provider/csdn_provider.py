@@ -4,6 +4,16 @@ from framework.starter_auth.provider.provider_payload import ProviderPayload as 
 
 
 class CsdnProvider(OAuthProvider):
+    """CSDN OAuth 2.0 授权。
+
+    官方站点入口：
+    - https://www.csdn.net/
+    实现端点：
+    - authorization: https://api.csdn.net/oauth2/authorize
+    - token: https://api.csdn.net/oauth2/access_token
+    - userinfo: https://api.csdn.net/user/getinfo
+    """
+
     expires_required = False
     subject_field = "username"
     capabilities = (ProviderCapability("CSDN"),)

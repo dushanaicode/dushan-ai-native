@@ -6,6 +6,9 @@ from framework.common.enums import BuiltinTypeEnum, StatusEnum
 from framework.common.exception import ServiceException
 from framework.common.page import PageResult
 from framework.starter_cache.public import CacheHandler, cache
+from framework.starter_data_permission.public import (
+    DataScope,
+)
 from framework.starter_database.public import (
     SessionProvider,
     transactional,
@@ -31,9 +34,6 @@ from module_system.dal.dataobject.permission.role_do import RoleDO
 from module_system.dal.mapper.permission.role_mapper import RoleMapper
 from module_system.definitions.constants.error_code_constants import ErrorCodeConstants
 from module_system.definitions.constants.log_record_constants import LogRecordConstants
-from module_system.definitions.enums.permission.permission_data_scope_enum import (
-    PermissionDataScopeEnum,
-)
 from module_system.definitions.enums.permission.role_code_enum import (
     RoleCodeEnum,
 )
@@ -77,7 +77,7 @@ class RoleServiceImpl(RoleService):
         role = RoleDO(**create_req_vo.model_dump(by_alias=False))
         role.builtin = builtin if builtin is not None else BuiltinTypeEnum.CUSTOM.code
         role.status = StatusEnum.ENABLE.code
-        role.data_scope = PermissionDataScopeEnum.ALL.code
+        role.data_scope = DataScope.ALL.code
         await self.role_mapper.insert(role)
         await self.permission_cache.invalidate_role_caches()
         if self.security_settings.bizlog_enabled:

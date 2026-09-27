@@ -5,6 +5,8 @@ from framework.starter_job.config.job_settings import JobSettings
 from framework.starter_job.definitions.constants.job_error_codes import JobErrorCodes
 from framework.starter_job.exception.job_exception import JobException
 from framework.starter_job.starter.job_starter import JobStarter
+from framework.starter_security.spi.security_execution_provider import SecurityExecutionProvider
+from framework.starter_tenant.spi.tenant_execution_provider import TenantExecutionProvider
 from server.config.application_settings import ApplicationSettings
 from server.enums.server_engine_enum import ServerEngineEnum
 
@@ -15,7 +17,7 @@ class JobStep:
     async def run(ctx):
         definitions = ctx.definitions
         if JobSettings not in definitions.configuration.model_classes:
-            ctx.logger.info("【JobStarter 】配置模型未装配，跳过启动")
+            ctx.logger.info("【JobStarter】配置模型未装配，跳过启动")
             yield
             return
         settings = definitions.configuration.get_config(JobSettings)
@@ -23,7 +25,7 @@ class JobStep:
         if application is None:
             if settings.enabled:
                 raise JobException(JobErrorCodes.CONFIGURATION)
-            ctx.logger.info("【JobStarter 】任务调度未启用")
+            ctx.logger.info("【JobStarter】任务调度未启用")
             yield
             return
         root = ctx.bootstrap_config.get_config(ApplicationSettings)
@@ -43,8 +45,8 @@ class JobStep:
                 reload=root.server.reload,
                 database=ctx.app.state.database,
                 cache=ctx.app.state.cache,
-                security=ctx.app.state.security,
-                tenant=ctx.app.state.tenant,
+                security=application.container.get_optional(SecurityExecutionProvider),
+                tenant=application.container.get_optional(TenantExecutionProvider),
             )
             if ctx.app.state.job is not None:
                 ctx.before_ready.append(activation)

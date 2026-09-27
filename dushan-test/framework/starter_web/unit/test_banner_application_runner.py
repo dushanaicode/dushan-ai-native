@@ -81,20 +81,19 @@ async def test_disabled_banner_does_not_read_resources_or_emit_info(capsys, monk
 
 
 async def test_info_uses_actual_paths_and_optional_public_metadata(capsys, info):
-    helper = runner(author="维护者", documentation_url="https://docs.example.com/guide")
+    helper = runner(
+        show_mascot=False, author="维护者", documentation_url="https://docs.example.com/guide"
+    )
     await helper.print_startup_complete(info)
     text = capsys.readouterr().out
     assert "示例应用" in text and "2.3.4" in text
-    assert "Swagger：http://127.0.0.1:18080/api/swagger" in text
-    assert "ReDoc：http://127.0.0.1:18080/api/reference" in text
-    assert "OpenAPI：http://127.0.0.1:18080/api/schema.json" in text
+    assert "http://127.0.0.1:18080/api/swagger" in text
+    assert "http://127.0.0.1:18080/api/reference" in text
+    assert "http://127.0.0.1:18080/api/schema.json" in text
     assert "https://docs.example.com/guide" in text and "维护者" in text
     assert "已启用模块" not in text and "未启用模块" not in text
-    assert text.splitlines()[-3:] == [
-        "引擎：granian",
-        "环境：dev",
-        "监听地址：http://127.0.0.1:18080",
-    ]
+    assert "引擎：granian" in text and "环境：dev" in text
+    assert "监听地址：http://127.0.0.1:18080" in text
     assert all(text.count(label) == 1 for label in ("引擎：", "环境：", "监听地址："))
     assert "访问地址：" not in text
 
@@ -122,10 +121,10 @@ async def test_info_switch_and_explicit_module_lists(capsys, info):
     populated = replace(info, enabled_modules=("system",), disabled_modules=("bpm",))
     await runner(show_startup_info=False).print_startup_complete(populated)
     assert capsys.readouterr().out == ""
-    await runner().print_startup_complete(populated)
+    await runner(show_mascot=False).print_startup_complete(populated)
     text = capsys.readouterr().out
-    assert "[+] 已启用模块：system" in text
-    assert "[-] 未启用模块：bpm" in text
+    assert "活动模块 (1)" in text and "system" in text
+    assert "未启用模块：bpm" in text
 
 
 def test_sensitive_text_does_not_escape_into_startup_output(capsys, info):
@@ -141,17 +140,16 @@ def test_banner_settings_require_yaml_values_and_validate_public_url():
             ConfigFactory.build(BannerSettings, "banner", documentation_url=url)
 
 
-async def test_pytest_gate_keeps_plain_metadata_without_entering_animation(
-    monkeypatch, capsys, info
-):
-    def forbidden(*args, **kwargs):
-        pytest.fail("pytest 门禁不能进入动画渲染")
+async def test_explicit_mascot_switch_reaches_the_regular_renderer(monkeypatch, info):
+    calls = []
 
-    monkeypatch.setattr(CatMascotTUI, "play_and_render_completion", forbidden)
-    await runner().print_startup_complete(info)
-    output = capsys.readouterr().out
-    assert "\033" not in output
-    assert all(output.count(label) == 1 for label in ("引擎：", "环境：", "监听地址："))
+    async def render(self, content, *, show_mascot):
+        calls.append((content, show_mascot))
+
+    monkeypatch.setattr(CatMascotTUI, "play_and_render_completion", render)
+    await runner(show_mascot=False).print_startup_complete(info)
+    assert len(calls) == 1 and calls[0][1] is False
+    assert any("/api/swagger" in line for line in calls[0][0])
 
 
 @pytest.mark.parametrize("show_mascot", [True, False])

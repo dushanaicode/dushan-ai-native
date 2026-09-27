@@ -2,11 +2,11 @@ from sqlalchemy import JSON, Computed, Index, Integer, SmallInteger, String, Uni
 from sqlalchemy.orm import Mapped, mapped_column
 
 from framework.common.enums import BuiltinTypeEnum, StatusEnum
+from framework.starter_data_permission.public import (
+    DataScope,
+)
 from framework.starter_tenant.public import (
     TenantBaseDO,
-)
-from module_system.definitions.enums.permission.permission_data_scope_enum import (
-    PermissionDataScopeEnum,
 )
 
 
@@ -25,7 +25,7 @@ class RoleDO(TenantBaseDO):
     data_scope: Mapped[int] = mapped_column(
         SmallInteger,
         nullable=False,
-        default=PermissionDataScopeEnum.ALL.code,
+        default=DataScope.ALL.code,
         comment="数据范围（1：全部数据权限 2：自定数据权限 3：本部门数据权限 4：本部门及以下数据权限 5：本人数据）",
     )
     data_scope_dept_ids: Mapped[list[int]] = mapped_column(

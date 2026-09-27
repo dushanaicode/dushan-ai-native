@@ -15,12 +15,24 @@ class Ip2RegionIpLocationProvider(IpLocationProvider):
         self._database = database
 
     async def query(self, ip: str, remaining_seconds: float) -> str | None:
-        region = self._database.search(ip)
+        try:
+            region = self._database.search(ip)
+        except IpException as error:
+            if error.error_code != IpErrorCodes.QUERY_FAILED:
+                raise
+            raise IpException(
+                IpErrorCodes.QUERY_FAILED,
+                cause=error,
+                context={"provider": self.name, "reason": "database"},
+            ) from error
         if not region:
             return None
         fields = region.split("|")
         if len(fields) != 5 or not all(fields):
-            raise IpException(IpErrorCodes.QUERY_FAILED)
+            raise IpException(
+                IpErrorCodes.QUERY_FAILED,
+                context={"provider": self.name, "reason": "protocol"},
+            )
         country, province, city, _isp, _iso = ("" if field == "0" else field for field in fields)
         if country == "中国":
             province, city = province.removesuffix("省"), city.removesuffix("市")

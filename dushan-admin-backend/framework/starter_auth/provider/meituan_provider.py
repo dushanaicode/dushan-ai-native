@@ -4,6 +4,18 @@ from framework.starter_auth.provider.provider_payload import ProviderPayload as 
 
 
 class MeituanProvider(OAuthProvider):
+    """美团外卖开放平台 OAuth 授权。
+
+    官方资料：
+    - 开放平台: https://openapi.meituan.com/
+    - 服务端文档: https://docs.meituan.com/
+    实现端点：
+    - authorization: https://openapi.waimai.meituan.com/oauth/authorize
+    - token: https://openapi.waimai.meituan.com/oauth/access_token
+    - refresh: https://openapi.waimai.meituan.com/oauth/refresh_token
+    - userinfo: https://openapi.waimai.meituan.com/oauth/userinfo
+    """
+
     subject_field = "openid"
     capabilities = (ProviderCapability("MEITUAN", refresh=True),)
     authorization_endpoint = "https://openapi.waimai.meituan.com/oauth/authorize"

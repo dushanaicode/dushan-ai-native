@@ -15,7 +15,9 @@ from framework.starter_job.spi.job_definition_provider import JobDefinitionProvi
 from framework.starter_job.spi.job_record_provider import JobRecordProvider
 from framework.starter_job.spi.job_request_provider import JobRequestProvider
 from framework.starter_job.spi.tenant_job_target_provider import TenantJobTargetProvider
-from framework.starter_monitor.core.monitor_service import MonitorService
+from framework.starter_monitor.spi.monitor_provider import MonitorProvider
+from framework.starter_security.spi.security_execution_provider import SecurityExecutionProvider
+from framework.starter_tenant.spi.tenant_execution_provider import TenantExecutionProvider
 
 
 @starter
@@ -27,7 +29,16 @@ class JobStarter:
         self.runtime = None
 
     async def open(
-        self, *, components, timezone, workers, reload, database, cache, security, tenant
+        self,
+        *,
+        components,
+        timezone,
+        workers,
+        reload,
+        database,
+        cache,
+        security: SecurityExecutionProvider | None,
+        tenant: TenantExecutionProvider | None,
     ):
         container = self.application.container
         selected = {
@@ -44,7 +55,7 @@ class JobStarter:
             handlers, timezone if self.settings.timezone is None else self.settings.timezone
         )
         if not self.settings.enabled:
-            logger.info("【JobStarter 】任务调度未启用")
+            logger.info("【JobStarter】任务调度未启用")
             return None
         if database is None or cache is None or security is None:
             raise JobException(JobErrorCodes.CONFIGURATION)
@@ -61,10 +72,10 @@ class JobStarter:
             container.get(CacheHandler),
             tenant,
             container.get_optional(TenantJobTargetProvider),
-            container.get(MonitorService),
+            container.get(MonitorProvider),
         )
         self.service.runtime = self.runtime
-        logger.debug("【JobStarter 】运行时 SPI 已绑定，timezone={}", registry.timezone)
+        logger.debug("【JobStarter】运行时 SPI 已绑定，timezone={}", registry.timezone)
         await self.runtime.open()
         return self.runtime
 
@@ -75,4 +86,4 @@ class JobStarter:
         if self.runtime is not None:
             self.service.runtime = None
             await self.runtime.close()
-            logger.info("【JobStarter 】调度与执行资源已关闭")
+            logger.info("【JobStarter】调度与执行资源已关闭")

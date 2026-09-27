@@ -6,6 +6,18 @@ from framework.starter_auth.provider.provider_payload import ProviderPayload as 
 
 
 class BaiduProvider(OAuthProvider):
+    """百度帐号 OAuth 2.0 授权及用户信息读取。
+
+    官方资料：
+    - 文档: https://openauth.baidu.com/doc/doc.html
+    - 入口: https://openauth.baidu.com/doc/
+    实现端点：
+    - authorization: https://openapi.baidu.com/oauth/2.0/authorize
+    - token: https://openapi.baidu.com/oauth/2.0/token
+    - userinfo: https://openapi.baidu.com/rest/2.0/passport/users/getInfo
+    - revoke: https://openapi.baidu.com/rest/2.0/passport/auth/revokeAuthorization
+    """
+
     subject_field = "openid"
     capabilities = (ProviderCapability("BAIDU", refresh=True, revoke=True),)
     authorization_endpoint = "https://openapi.baidu.com/oauth/2.0/authorize"

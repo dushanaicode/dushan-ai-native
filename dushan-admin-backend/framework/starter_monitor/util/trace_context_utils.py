@@ -46,7 +46,7 @@ class TraceContextUtils:
 
     @staticmethod
     def inject_trace_to_headers(headers: dict[str, str] | None = None) -> dict[str, str]:
-        """将当前 W3C 上下文写入请求头，并保留调用方其他头。"""
+        """独立W3C工具，不套用应用白名单；受管应用应使用MonitorService.inject。"""
         result = {} if headers is None else headers
         TraceContextTextMapPropagator().inject(result)
         return result

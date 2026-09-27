@@ -28,6 +28,15 @@ class RowAccessRegistry:
             }
             if len(tenant_columns) > 1:
                 raise rules[0].failure(RowAccessErrorCodes.CONFIGURATION)
+            # 父表更新也可能修改未登记子表，须检查同一 metadata 中的入向外键。
+            if any(
+                constraint.onupdate is not None
+                and constraint.onupdate.upper() not in {"NO ACTION", "RESTRICT"}
+                and (table is first.table or constraint.referred_table is first.table)
+                for table in first.table.metadata.tables.values()
+                for constraint in table.foreign_key_constraints
+            ):
+                raise rules[0].failure(RowAccessErrorCodes.CONFIGURATION)
             entries[key] = RowAccessTarget(
                 first.table,
                 first.model,

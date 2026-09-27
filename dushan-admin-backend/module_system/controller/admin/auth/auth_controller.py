@@ -41,9 +41,9 @@ from module_system.controller.admin.auth.vo.auth_social_auth_redirect_req_vo imp
 from module_system.controller.admin.auth.vo.auth_social_login_req_vo import AuthSocialLoginReqVO
 from module_system.definitions.enums.logger.login_log_type_enum import LoginLogTypeEnum
 from module_system.service.auth.auth_admin_auth_service import AuthAdminAuthService
-from module_system.service.auth.system_workload_service import SystemWorkloadService
 from module_system.service.oauth2.oauth2_token_service import OAuth2TokenService
 from module_system.service.social.social_client_service import SocialClientService
+from module_system.service.workload.system_workload_service import SystemWorkloadService
 
 auth_controller = APIRouter(prefix="/auth", tags=["System - 认证管理"])
 

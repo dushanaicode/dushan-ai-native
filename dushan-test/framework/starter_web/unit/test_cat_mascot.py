@@ -138,14 +138,12 @@ async def test_complete_card_is_flushed_before_wait_and_redraw_never_touches_it(
 
 
 @pytest.mark.parametrize(
-    "mode", ["redirect", "pytest", "ci", "dumb", "no_color", "narrow", "short", "hidden"]
+    "mode", ["redirect", "ci", "dumb", "no_color", "narrow", "short", "hidden"]
 )
 async def test_static_modes_do_not_wait_or_move_cursor(terminal, monkeypatch, mode):
     monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
     if mode == "redirect":
         monkeypatch.setattr(terminal, "isatty", lambda: False)
-    elif mode == "pytest":
-        monkeypatch.setenv("PYTEST_CURRENT_TEST", "banner")
     elif mode == "ci":
         monkeypatch.setenv("CI", "true")
     elif mode == "dumb":
@@ -162,7 +160,7 @@ async def test_static_modes_do_not_wait_or_move_cursor(terminal, monkeypatch, mo
     output = terminal.getvalue()
     assert "Swagger：http://localhost/docs" in output
     assert "\033[" not in re.sub(r"\x1b\[[0-9;]*m", "", output)
-    if mode in ("redirect", "no_color", "dumb", "ci", "pytest"):
+    if mode in ("redirect", "no_color", "dumb", "ci"):
         assert "\033" not in output
 
 

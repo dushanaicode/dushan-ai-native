@@ -76,6 +76,8 @@ class IpSettings(ConfigModel):
     @classmethod
     def validate_url(cls, value: str) -> str:
         parsed = urlsplit(value)
+        # urlsplit 只拆分地址；读取 port 才会校验端口格式和范围。
+        parsed.port
         if (
             parsed.scheme != "https"
             or not parsed.hostname

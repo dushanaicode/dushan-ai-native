@@ -60,12 +60,15 @@ class OidcVerifier:
                     or (type(claims[name]) is float and not math.isfinite(claims[name]))
                 ):
                     raise AuthException(Codes.OIDC)
-            nonce_rule = {"essential": not refreshing}
+            nonce_rule = {"essential": not refreshing and metadata.nonce_supported}
             if nonce is not None:
                 nonce_rule["value"] = nonce
+            issuer_rule = {"essential": True}
+            if metadata.issuer_pattern is None:
+                issuer_rule["value"] = metadata.issuer
             jwt.JWTClaimsRegistry(
                 leeway=self.settings.oidc_leeway_seconds,
-                iss={"essential": True, "value": metadata.issuer},
+                iss=issuer_rule,
                 aud={"essential": True, "value": audience},
                 sub={"essential": True},
                 exp={"essential": True},
@@ -75,7 +78,11 @@ class OidcVerifier:
             if (
                 not isinstance(claims["sub"], str)
                 or not claims["sub"]
-                or claims["iss"] != metadata.issuer
+                or (
+                    re.fullmatch(metadata.issuer_pattern, claims["iss"]) is None
+                    if metadata.issuer_pattern is not None
+                    else claims["iss"] != metadata.issuer
+                )
                 or claims["exp"] <= claims["iat"]
                 or not isinstance(claims["aud"], (str, list))
             ):
@@ -154,11 +161,17 @@ class OidcVerifier:
             return
         values = await self.http.json("GET", metadata.discovery_uri)
         expected = {
-            "issuer": metadata.issuer,
             "jwks_uri": metadata.jwks_uri,
             "authorization_endpoint": metadata.authorization_endpoint,
             "token_endpoint": metadata.token_endpoint,
         }
+        if metadata.issuer_pattern is None:
+            expected["issuer"] = metadata.issuer
+        elif (
+            not isinstance(values.get("issuer"), str)
+            or re.fullmatch(metadata.issuer_pattern, values["issuer"]) is None
+        ):
+            raise AuthException(Codes.OIDC)
         if any(values.get(key) != value for key, value in expected.items()):
             raise AuthException(Codes.OIDC)
         if not set(metadata.algorithms).issubset(

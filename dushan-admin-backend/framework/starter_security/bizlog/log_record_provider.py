@@ -12,6 +12,7 @@ class LogRecordProvider(Protocol):
     单独报告，不能把已提交的业务成功伪装为回滚。事务内写入必须用现有
     Database 提交后动作或业务 outbox，不由 Security 新建事务管理器。
     提供者不能再次调用自身的审计装饰器。
+    cancel只结算仍未完成的预留，须幂等且不能覆盖已完成记录；finalize结果不确定时会尝试cancel。
     """
 
     async def reserve(self, operation: LogRecordOperation) -> LogRecordReservation: ...

@@ -65,7 +65,7 @@ class TenantContext(TenantContextProvider):
         if frame.resources is not None and not any(
             rule.resource == resource and action in rule.actions for rule in frame.resources
         ):
-            raise TenantException(TenantErrorCodes.DENIED, detail=f"{resource}:{action}")
+            raise TenantException(TenantErrorCodes.DENIED, detail="资源未授权")
 
     async def close(self):
         self._closed = True

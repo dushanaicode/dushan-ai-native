@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 from sqlalchemy import Column, Table, inspect, select
-from sqlalchemy.orm import QueryableAttribute, with_expression, with_loader_criteria
+from sqlalchemy.orm import Load, QueryableAttribute, with_expression, with_loader_criteria
 from sqlalchemy.sql import visitors
 from sqlalchemy.sql.elements import Label
 from sqlalchemy.sql.selectable import CTE, Alias, Select, Subquery
@@ -56,7 +56,11 @@ class RowStatementFilter(ABC):
             isinstance(node, Select) and node._propagate_attrs.get("compile_state_plugin") == "orm"
             for node in nodes
         )
-        if has_orm and any(isinstance(node, CTE) and node.recursive for node in nodes):
+        if (
+            self._invalid is not None
+            and has_orm
+            and any(isinstance(node, CTE) and node.recursive for node in nodes)
+        ):
             raise self._invalid()
         orm_tables, orm_aliases, core_aliases, orm_selectables = (
             self._orm_entities(statement, outer_selectables) if orm else (set(), {}, {}, set())
@@ -125,6 +129,15 @@ class RowStatementFilter(ABC):
                         )
                     )
         if orm and isinstance(statement, Select):
+            # 同一路径的 with_expression 由最后一个选项生效；后续策略必须
+            # 继续过滤已有表达式，不能从映射声明重建并丢掉此前的约束。
+            expressions = {
+                (loader.path[0], loader.path[1]): loader._extra_criteria[0]
+                for option in statement._with_options
+                if isinstance(option, Load)
+                for loader in option.context
+                if loader.strategy == (("query_expression", True),) and len(loader.path) == 2
+            }
             for projected in statement._raw_columns:
                 inspected = projected._annotations.get("parententity")
                 if inspected is None or not isinstance(projected, (Table, Alias, Subquery)):
@@ -132,15 +145,26 @@ class RowStatementFilter(ABC):
                 mapper = inspected.mapper if inspected.is_aliased_class else inspected
                 entity = inspected.entity if inspected.is_aliased_class else mapper.class_
                 for prop in mapper.column_attrs:
-                    if any(isinstance(node, Select) for node in visitors.iterate(prop.expression)):
+                    expression = expressions.get((inspected, prop), prop.expression)
+                    if any(isinstance(node, Select) for node in visitors.iterate(expression)):
                         options.append(
                             with_expression(
                                 getattr(entity, prop.key),
-                                self.expression(prop.expression, outer_tables={mapper.local_table}),
+                                self.expression(expression, outer_tables={mapper.local_table}),
                             )
                         )
 
-        def replace(node):
+        def replace(node, *, recursive_cte=False):
+            if (
+                self._invalid is None
+                and isinstance(node, CTE)
+                and node.recursive
+                and not recursive_cte
+            ):
+                # 递归项与锚点须在同一次遍历中克隆，保持自引用 CTE 的身份。
+                return visitors.replacement_traverse(
+                    node, {}, lambda child: replace(child, recursive_cte=True)
+                )
             if isinstance(node, Alias) and node._deannotate() in orm_selectables:
                 # 投影列持有原 ORM 别名。改写其内部 Table 会克隆出另一个 JOIN
                 # 目标；还需保留隐式 FROM 中不带标注的同一 selectable。
@@ -157,7 +181,7 @@ class RowStatementFilter(ABC):
                 # relationship 的 JOIN 属性持有原别名；纯 ORM 子查询由顶层
                 # loader criteria 过滤，保持引用才能避免同名别名出现两次。
                 return node
-            if isinstance(node, Select) and node is not statement:
+            if isinstance(node, Select) and node is not statement and not recursive_cte:
                 return self.select(
                     node,
                     orm=orm,

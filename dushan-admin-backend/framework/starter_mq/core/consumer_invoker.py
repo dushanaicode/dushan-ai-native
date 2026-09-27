@@ -27,7 +27,6 @@ class ConsumerInvoker:
     async def invoke(self, handler_type, envelope, context, lease_lost, lock):
         task = asyncio.create_task(self._authenticated(handler_type, envelope, context, lock))
         lost = asyncio.create_task(lease_lost.wait())
-        interruption = None
         try:
             completed, _ = await asyncio.wait(
                 {task, lost},

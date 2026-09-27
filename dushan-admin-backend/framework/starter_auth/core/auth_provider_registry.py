@@ -8,22 +8,29 @@ from framework.starter_auth.model.provider_capability import AUTH_SOURCE_PATTERN
 from framework.starter_auth.oidc.oidc_metadata import OidcMetadata
 from framework.starter_auth.provider.alipay_provider import AlipayProvider
 from framework.starter_auth.provider.aliyun_provider import AliyunProvider
+from framework.starter_auth.provider.apple_provider import AppleProvider
 from framework.starter_auth.provider.auth_provider import AuthProvider
 from framework.starter_auth.provider.baidu_provider import BaiduProvider
 from framework.starter_auth.provider.csdn_provider import CsdnProvider
 from framework.starter_auth.provider.dingtalk_provider import DingtalkProvider
 from framework.starter_auth.provider.dingtalk_v2_provider import DingtalkV2Provider
+from framework.starter_auth.provider.discord_provider import DiscordProvider
 from framework.starter_auth.provider.douyin_provider import DouyinProvider
 from framework.starter_auth.provider.eleme_provider import ElemeProvider
 from framework.starter_auth.provider.feishu_provider import FeishuProvider
 from framework.starter_auth.provider.gitee_provider import GiteeProvider
 from framework.starter_auth.provider.github_provider import GithubProvider
+from framework.starter_auth.provider.gitlab_provider import GitlabProvider
+from framework.starter_auth.provider.google_provider import GoogleProvider
 from framework.starter_auth.provider.huawei_provider import HuaweiProvider
 from framework.starter_auth.provider.huawei_v3_provider import HuaweiV3Provider
 from framework.starter_auth.provider.jd_provider import JdProvider
+from framework.starter_auth.provider.linkedin_provider import LinkedinProvider
 from framework.starter_auth.provider.meituan_provider import MeituanProvider
+from framework.starter_auth.provider.microsoft_provider import MicrosoftProvider
 from framework.starter_auth.provider.mini_program_provider import MiniProgramProvider
 from framework.starter_auth.provider.qq_provider import QqProvider
+from framework.starter_auth.provider.slack_provider import SlackProvider
 from framework.starter_auth.provider.taobao_provider import TaobaoProvider
 from framework.starter_auth.provider.toutiao_provider import ToutiaoProvider
 from framework.starter_auth.provider.wechat_enterprise_provider import WechatEnterpriseProvider
@@ -44,21 +51,28 @@ class AuthProviderRegistry:
         for provider in (
             AlipayProvider,
             AliyunProvider,
+            AppleProvider,
             BaiduProvider,
             CsdnProvider,
             DingtalkProvider,
             DingtalkV2Provider,
+            DiscordProvider,
             DouyinProvider,
             ElemeProvider,
             FeishuProvider,
             GiteeProvider,
+            GitlabProvider,
             GithubProvider,
+            GoogleProvider,
             HuaweiProvider,
             HuaweiV3Provider,
             JdProvider,
+            LinkedinProvider,
             MeituanProvider,
+            MicrosoftProvider,
             MiniProgramProvider,
             QqProvider,
+            SlackProvider,
             TaobaoProvider,
             ToutiaoProvider,
             WechatEnterpriseProvider,

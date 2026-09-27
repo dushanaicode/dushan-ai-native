@@ -4,6 +4,7 @@ import pytest
 from websockets.asyncio.client import connect
 from websockets.exceptions import ConnectionClosed
 
+from framework.starter_security.definitions.constants.security_error_codes import SecurityErrorCodes
 from starter_websocket.conftest import ORIGIN
 
 
@@ -19,7 +20,10 @@ async def test_inbound_and_outbound_permissions_are_separate(socket_case):
         await denied.recv()
         await denied.send('{"type":"echo","payload":{"text":"not-allowed"},"requestId":"denied"}')
         rejected = json.loads(await denied.recv())
-        assert rejected["type"] == "error" and rejected["payload"]["code"] == 403
+        assert (
+            rejected["type"] == "error"
+            and rejected["payload"]["code"] == SecurityErrorCodes.DENIED.code
+        )
         result = await case.http.post(
             "/api/ws-test/send",
             json={

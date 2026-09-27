@@ -4,7 +4,7 @@ from framework.common.dates.datetime_options import DateTimeOptions
 from framework.common.page.config.page_settings import PageSettings
 from framework.starter_config.config.config_settings import ConfigSettings
 from framework.starter_di.config.di_settings import DiSettings
-from framework.starter_i18n.core.i18n_options import I18nOptions
+from framework.starter_i18n.config.i18n_options import I18nOptions
 from framework.starter_logging.config.log_settings import LogSettings
 from framework.starter_module.config.module_settings import ModuleSettings
 from framework.starter_scanner.config.scanner_config import ScannerConfig

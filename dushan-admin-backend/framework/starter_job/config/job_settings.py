@@ -10,6 +10,9 @@ from framework.starter_config.definitions.enums.config_source_enum import Config
     "job", env_prefix="JOB_", sources=(ConfigSourceEnum.ENVIRONMENT, ConfigSourceEnum.YAML)
 )
 class JobSettings(ConfigModel):
+    reconnect_initial_seconds: float = Field(gt=0, allow_inf_nan=False)
+    reconnect_max_seconds: float = Field(gt=0, allow_inf_nan=False)
+    reconnect_alert_after: int = Field(ge=1)
     enabled: bool
     owner_enabled: bool
     namespace: str = Field(pattern=r"^[a-z][a-z0-9_-]{0,63}$")
@@ -32,6 +35,8 @@ class JobSettings(ConfigModel):
 
     @model_validator(mode="after")
     def validate_lease(self):
+        if self.reconnect_max_seconds < self.reconnect_initial_seconds:
+            raise ValueError("最大重连间隔不能小于初始间隔")
         if self.owner_renew_seconds + self.command_timeout_seconds >= self.owner_lease_seconds:
             raise ValueError("续租周期和命令上界必须小于 owner 租约")
         return self

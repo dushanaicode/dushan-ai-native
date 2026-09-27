@@ -3,6 +3,7 @@ from pydantic import Field, model_validator
 from framework.starter_config.config.config_model import ConfigModel
 from framework.starter_config.decorator.config_decorator import config_model
 from framework.starter_config.definitions.enums.config_source_enum import ConfigSourceEnum
+from framework.starter_tenant.definitions.constants.tenant_capabilities import TenantCapabilities
 from framework.starter_tenant.definitions.enums.tenant_deployment_profile import (
     TenantDeploymentProfile,
 )
@@ -24,23 +25,14 @@ class TenantSettings(ConfigModel):
     def validate_profile(self):
         if self.profile is not TenantDeploymentProfile.CUSTOM and self.custom_capabilities:
             raise ValueError("只有自定义部署方案可以声明能力集合")
-        allowed = {
-            "account_selection",
-            "group_managed_access",
-            "group_data_sharing",
-            "platform_control_plane",
-            "manual_provisioning",
-            "self_service_provisioning",
-            "support_session",
-        }
-        if not self.custom_capabilities <= allowed:
+        if not self.custom_capabilities <= TenantCapabilities.CUSTOM:
             raise ValueError("租户部署能力不在支持范围内")
         dependencies = {
-            "group_data_sharing": "group_managed_access",
-            "group_managed_access": "account_selection",
-            "manual_provisioning": "platform_control_plane",
-            "self_service_provisioning": "platform_control_plane",
-            "support_session": "platform_control_plane",
+            TenantCapabilities.GROUP_DATA_SHARING: TenantCapabilities.GROUP_MANAGED_ACCESS,
+            TenantCapabilities.GROUP_MANAGED_ACCESS: TenantCapabilities.ACCOUNT_SELECTION,
+            TenantCapabilities.MANUAL_PROVISIONING: TenantCapabilities.PLATFORM_CONTROL_PLANE,
+            TenantCapabilities.SELF_SERVICE_PROVISIONING: TenantCapabilities.PLATFORM_CONTROL_PLANE,
+            TenantCapabilities.SUPPORT_SESSION: TenantCapabilities.PLATFORM_CONTROL_PLANE,
         }
         if any(
             cap in self.custom_capabilities and required not in self.custom_capabilities
@@ -51,21 +43,25 @@ class TenantSettings(ConfigModel):
 
     def capabilities(self) -> frozenset[str]:
         if not self.enabled:
-            return frozenset({"direct_membership"})
+            return frozenset({TenantCapabilities.DIRECT_MEMBERSHIP})
         profiles = {
             TenantDeploymentProfile.SINGLE_ORGANIZATION: frozenset(),
             TenantDeploymentProfile.INTERNAL_GROUP: frozenset(
-                {"account_selection", "group_managed_access", "group_data_sharing"}
+                {
+                    TenantCapabilities.ACCOUNT_SELECTION,
+                    TenantCapabilities.GROUP_MANAGED_ACCESS,
+                    TenantCapabilities.GROUP_DATA_SHARING,
+                }
             ),
             TenantDeploymentProfile.EXTERNAL_HOSTED: frozenset(
                 {
-                    "account_selection",
-                    "platform_control_plane",
-                    "manual_provisioning",
-                    "self_service_provisioning",
-                    "support_session",
+                    TenantCapabilities.ACCOUNT_SELECTION,
+                    TenantCapabilities.PLATFORM_CONTROL_PLANE,
+                    TenantCapabilities.MANUAL_PROVISIONING,
+                    TenantCapabilities.SELF_SERVICE_PROVISIONING,
+                    TenantCapabilities.SUPPORT_SESSION,
                 }
             ),
             TenantDeploymentProfile.CUSTOM: self.custom_capabilities,
         }
-        return profiles[self.profile] | {"direct_membership"}
+        return profiles[self.profile] | {TenantCapabilities.DIRECT_MEMBERSHIP}

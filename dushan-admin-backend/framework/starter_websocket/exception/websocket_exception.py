@@ -13,6 +13,7 @@ class WebSocketException(BaseBusinessException):
             WebSocketErrorCodes.CLOSED.code,
             WebSocketErrorCodes.CAPACITY.code,
             WebSocketErrorCodes.TRANSPORT.code,
+            WebSocketErrorCodes.INTERNAL.code,
         }
     )
 

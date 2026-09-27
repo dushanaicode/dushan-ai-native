@@ -1,4 +1,3 @@
-import os
 import sys
 from collections.abc import Sequence
 from importlib.resources import files
@@ -102,11 +101,6 @@ class BannerApplicationRunner:
         """先刷新完整服务信息，再在可容纳整幅画面的终端播放猫咪动作。"""
         if not self._settings.enabled or not self._settings.show_startup_info:
             return
-        if "PYTEST_CURRENT_TEST" in os.environ:
-            self.print_module_status(info.enabled_modules, info.disabled_modules)
-            self.print_doc(info)
-            return
-
         await CatMascotTUI().play_and_render_completion(
             self._build_card_content(info), show_mascot=self._settings.show_mascot
         )

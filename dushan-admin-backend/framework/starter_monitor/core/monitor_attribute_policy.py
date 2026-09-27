@@ -3,10 +3,15 @@ from collections.abc import Mapping
 
 from framework.common.security.sanitizer import Sanitizer
 from framework.starter_monitor.config.monitor_settings import MonitorSettings
+from framework.starter_monitor.core.monitor_diagnostics import MonitorDiagnostics
 
 
 class MonitorAttributePolicy:
-    """采集只接受白名单标量，拒绝任意对象、原始异常文本及原始SQL。"""
+    """采集只接受白名单标量，拒绝任意对象、原始异常文本及原始SQL。
+
+    auth.source、messaging/job/websocket业务维度仍须在attribute_keys逐项开启；
+    未列名属性仅增加attributes_dropped计数，不记录键名或原始值。
+    """
 
     KEYS = frozenset(
         {
@@ -33,8 +38,9 @@ class MonitorAttributePolicy:
         }
     )
 
-    def __init__(self, settings: MonitorSettings) -> None:
+    def __init__(self, settings: MonitorSettings, diagnostics: MonitorDiagnostics) -> None:
         self.settings = settings
+        self.diagnostics = diagnostics
         self.keys = self.KEYS | frozenset(settings.attribute_keys)
 
     def text(self, value: str) -> str:
@@ -52,6 +58,7 @@ class MonitorAttributePolicy:
             if len(result) >= self.settings.max_attributes:
                 break
             if key not in self.keys:
+                self.diagnostics.increment("attributes_dropped")
                 continue
             if key.startswith("biz.") and not self.settings.capture_business_ids:
                 if key != "biz.generated_ids":

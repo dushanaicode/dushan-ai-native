@@ -124,8 +124,19 @@ class TransactionManager:
     async def _transaction(self, *, source, propagation):
         if propagation not in {"required", "requires_new", "nested"}:
             raise ValueError("未知事务传播策略")
+        if propagation == "requires_new":
+            outer = self._current.get()
+            if (
+                source is None
+                and outer is not None
+                and outer.active
+                and outer.owner is asyncio.current_task()
+            ):
+                source = outer.source
+            current = None
+        else:
+            current = self.current()
         source = self._source(source)
-        current = None if propagation == "requires_new" else self.current()
         if current is not None:
             if source is not None and source != current.source:
                 raise ValueError("当前事务不能切换数据源；独立事务请显式使用 requires_new")

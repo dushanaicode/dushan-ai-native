@@ -9,10 +9,10 @@ class ExcelStarter:
 
     @staticmethod
     def initialize(settings):
-        logger.info("【ExcelStarter 】开始装配导入导出能力")
+        logger.info("【ExcelStarter】开始装配导入导出能力")
         reader, writer = ExcelReader(settings), ExcelWriter(settings)
         logger.debug(
-            "【ExcelStarter 】导入行数={} 并发={} 文件上限={} bytes；导出行数={} 列数={} 单元格={}",
+            "【ExcelStarter】导入行数={} 并发={} 文件上限={} bytes；导出行数={} 列数={} 单元格={}",
             settings.max_import_rows,
             settings.max_concurrent_imports,
             settings.max_upload_size_bytes,
@@ -20,5 +20,5 @@ class ExcelStarter:
             settings.max_columns,
             settings.max_cells,
         )
-        logger.info("【ExcelStarter 】导入器、并发控制和导出器装配完成")
+        logger.info("【ExcelStarter】导入器、并发控制和导出器装配完成")
         return {ExcelReader: reader, ExcelWriter: writer}

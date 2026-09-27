@@ -4,7 +4,6 @@
   "tenant.disabled": "租户不可用",
   "tenant.denied": "租户访问未获授权",
   "tenant.configuration": "租户资源或提供者未就绪",
-  "tenant.mode": "租户部署模式与封存记录不一致，请通过独立部署入口切换",
   "tenant.model": "模型租户归属、唯一键或关联约束无效",
   "tenant.write": "写入违反租户归属",
   "tenant.expired": "租户执行授权已失效",

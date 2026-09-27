@@ -21,13 +21,14 @@ from framework.starter_security.public import (
 )
 from module_system.config.system_settings import SystemSettings
 from module_system.definitions.constants.workload_constants import WorkloadConstants
-from module_system.service.auth.system_workload_service import SystemWorkloadService
+from module_system.service.workload.system_workload_service import SystemWorkloadService
 
 
 @service(interface=SystemWorkloadService)
 class SystemWorkloadServiceImpl(SystemWorkloadService):
     settings: SystemSettings = Inject()
     security_settings: SecuritySettings = Inject()
+    permissions: DataPermissionService = Inject()
 
     async def authenticate(self, source, *, application_id, domain, capability, tenant_id):
         credential = self.settings.workload_credential
@@ -59,9 +60,10 @@ class SystemWorkloadServiceImpl(SystemWorkloadService):
 
     @asynccontextmanager
     async def scope(self, capability: str, tenant_id: str):
-        """仅在运行期绑定认证入口，避免服务认证 SPI 反向依赖 Security 初始化。"""
+        """SecurityService 只在运行期查找：它的构造依赖 TokenProvider → OAuth2TokenServiceImpl →
+        本服务，改为 Inject 会让 DI 启动时成环，因此要求 di.lookup_enabled 保持开启。
+        """
         security = get_bean(SecurityService)
-        permissions = get_bean(DataPermissionService)
         async with security.authorized_workload(
             WorkloadConstants.SOURCE_BY_CAPABILITY[capability],
             capability=capability,
@@ -72,6 +74,6 @@ class SystemWorkloadServiceImpl(SystemWorkloadService):
                     if resource in WorkloadConstants.PROTECTED:
                         for action in actions:
                             await stack.enter_async_context(
-                                permissions.exempt(resource, action, reason=capability)
+                                self.permissions.exempt(resource, action, reason=capability)
                             )
                 yield

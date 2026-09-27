@@ -8,6 +8,18 @@ from framework.starter_auth.provider.provider_payload import ProviderPayload as 
 
 
 class WechatEnterpriseProvider(AuthProvider):
+    """企业微信网页授权与第三方应用成员授权。
+
+    官方资料：
+    - 开发入口: https://developer.work.weixin.qq.com/
+    - 流程参考: https://wdk-docs.github.io/wework-docs/server/
+    实现端点：
+    - token: https://qyapi.weixin.qq.com/cgi-bin/gettoken
+    - web authorization: https://open.weixin.qq.com/connect/oauth2/authorize
+    - third-party authorization: https://open.work.weixin.qq.com/3rdapp/install
+    - member APIs: https://qyapi.weixin.qq.com/cgi-bin/
+    """
+
     subject_field = "userid"
     capabilities = tuple(
         ProviderCapability(source, token_kind="identity")
@@ -58,8 +70,6 @@ class WechatEnterpriseProvider(AuthProvider):
         if self.config.source == "WECHAT_ENTERPRISE_CORP_APP":
             values["login_type"] = "CorpApp"
             del values["response_type"]
-        if self.config.source != "WECHAT_ENTERPRISE_WEB":
-            del values["scope"]
         return values
 
     def authorize(self, flow, challenge):

@@ -1,4 +1,5 @@
 import asyncio
+import time
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
@@ -184,6 +185,51 @@ async def test_publish_unknown_is_quarantined_after_committed_business(mq_sql_ca
         lambda: case.store.cleanup(before=datetime.now(UTC) + timedelta(days=1), limit=10)
     )
     assert removed == 0
+
+
+async def test_outbox_preserves_signed_message_precision(mq_sql_case):
+    case = mq_sql_case
+    message = await case.prepare(1)
+    # MySQL JSON normalization can round this fraction and invalidate its HMAC.
+    issued = int(time.time()) + 0.4418597
+    envelope = case.runtime.codec.sign(
+        message.envelope.model_copy(
+            update={
+                "issued_at": issued,
+                "ready_at": issued,
+                "expires_at": issued + case.runtime.settings.max_age_seconds,
+            }
+        )
+    )
+    message = message.model_copy(update={"envelope": envelope})
+    now = datetime.now(UTC)
+    record = OutboxRecord(
+        id="signed-precision",
+        message=message,
+        state=OutboxState.PENDING,
+        attempts=0,
+        created_at=now,
+        ready_at=now,
+        claim_token=None,
+        claim_expires_at=None,
+        finished_at=None,
+        error_type=None,
+    )
+
+    async def persist_and_claim():
+        await case.store.insert(record)
+        return await case.store.claim(
+            now=datetime.now(UTC), lease_seconds=30, max_attempts=2, record_id=record.id
+        )
+
+    restored = await case.app.state.application_context.tasks.run_isolated(persist_and_claim)
+    assert restored.message == message
+    assert (
+        case.runtime.codec.decode(
+            case.runtime.codec.encode(restored.message.envelope), envelope.destination
+        )
+        == envelope
+    )
 
 
 async def test_outbox_cancel_attempt_limit_and_bounded_retention(mq_sql_case):

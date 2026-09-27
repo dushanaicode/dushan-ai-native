@@ -2,6 +2,7 @@ import asyncio
 from collections.abc import Callable
 from contextlib import contextmanager
 from time import perf_counter
+from typing import Literal
 
 from loguru import logger
 from redis.exceptions import AuthenticationError, AuthorizationError, ConnectionError
@@ -19,6 +20,7 @@ from framework.starter_protection.exception.protection_exception import Protecti
 from framework.starter_protection.subject.protection_subject import ProtectionSubject
 
 type ProtectionObserver = Callable[[ProtectionEvent], None]
+type ProtectionState = Literal["new", "ready", "closing", "closed", "close_failed"]
 
 
 class ProtectionRuntime:
@@ -29,7 +31,7 @@ class ProtectionRuntime:
         self.cache = cache
         self.key = settings.cache_key()
         self.observer: ProtectionObserver | None = None
-        self.state = "new"
+        self.state: ProtectionState = "new"
         self.active = 0
         self.leases = set()
         self.idle = asyncio.Event()

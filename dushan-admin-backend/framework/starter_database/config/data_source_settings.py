@@ -28,5 +28,5 @@ class DataSourceSettings(ConfigModel):
         except ArgumentError:
             raise ValueError("数据库 URL 格式无效") from None
         if "+" not in url.drivername:
-            raise ValueError("数据库 URL 必须显式指定异步驱动")
+            raise ValueError("数据库 URL 必须显式指定驱动")
         return value

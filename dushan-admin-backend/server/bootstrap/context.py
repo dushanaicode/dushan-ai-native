@@ -11,7 +11,7 @@ from framework.common.dates.date_utils import DateUtils
 from framework.common.page.config.page_settings import PageSettings
 from framework.starter_config.provider.bootstrap_config_provider import BootstrapConfigProvider
 from framework.starter_di.config.di_settings import DiSettings
-from framework.starter_i18n.core.i18n_options import I18nOptions
+from framework.starter_i18n.config.i18n_options import I18nOptions
 from framework.starter_logging.config.log_settings import LogSettings
 from framework.starter_logging.starter.logging_starter import LoggingStarter
 from framework.starter_module.config.module_settings import ModuleSettings

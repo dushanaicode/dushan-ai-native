@@ -1,3 +1,5 @@
+from typing import cast
+
 from pydantic import field_validator
 
 from framework.common.contracts.snowflake_id import SnowflakeIdInput
@@ -12,4 +14,4 @@ class UpdateStatusReqVO(BaseRequestVO):
     @field_validator("status", mode="before")
     @classmethod
     def validate_status(cls, value: object) -> int:
-        return StatusEnum.from_code(value).code
+        return cast(int, StatusEnum.from_code(value).code)

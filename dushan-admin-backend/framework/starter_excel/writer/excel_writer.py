@@ -15,7 +15,6 @@ from openpyxl.workbook.defined_name import DefinedName
 from openpyxl.worksheet.datavalidation import DataValidation
 from pydantic import BaseModel
 
-from framework.common.page.schemas.page_query import PageQuery
 from framework.common.utils.asyncio_utils import AsyncioUtils
 from framework.starter_di.decorators.components import framework
 from framework.starter_excel.config.excel_settings import ExcelSettings
@@ -37,9 +36,6 @@ class ExcelWriter:
 
     def __init__(self, settings: ExcelSettings) -> None:
         self.settings = settings
-
-    def enable_export_fetch_all(self, page: PageQuery) -> None:
-        page.enable_fetch_all(max_rows=self.settings.max_export_rows)
 
     @staticmethod
     def export_fields(model: type[BaseModel]) -> list[dict[str, str]]:

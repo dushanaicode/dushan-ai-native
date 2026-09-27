@@ -1,4 +1,5 @@
 import json
+import math
 from http.cookiejar import CookieJar
 
 import httpx
@@ -36,10 +37,7 @@ class AuthHttpClient:
             with self._guard.quiet():
                 async with self.client.stream(method, url, **kwargs) as response:
                     if not 200 <= response.status_code < 300:
-                        raise AuthException(
-                            Codes.REJECTED if 400 <= response.status_code < 500 else Codes.NETWORK,
-                            outcome="rejected" if 400 <= response.status_code < 500 else outcome,
-                        )
+                        raise self.status_error(response.status_code, outcome)
                     if response.headers.get("content-encoding", "identity").lower() != "identity":
                         raise AuthException(Codes.RESPONSE, outcome=outcome)
                     data = bytearray()
@@ -55,6 +53,15 @@ class AuthHttpClient:
         except httpx.RequestError as error:
             raise AuthException(Codes.NETWORK, outcome=outcome, cause=error) from error
 
+    @staticmethod
+    def status_error(status: int, outcome: str) -> AuthException:
+        """4xx 是厂商明确拒绝，5xx 是上游不可用，其余状态（含未跟随的重定向）属于响应无效。"""
+        if 400 <= status < 500:
+            return AuthException(Codes.REJECTED, outcome="rejected")
+        if status >= 500:
+            return AuthException(Codes.NETWORK, outcome=outcome)
+        return AuthException(Codes.RESPONSE, outcome=outcome)
+
     async def json(self, method: str, url: str, *, effect=False, **kwargs) -> dict:
         content = await self.request(method, url, effect=effect, **kwargs)
         return self.decode_json(content, effect=effect)
@@ -62,7 +69,12 @@ class AuthHttpClient:
     @classmethod
     def decode_json(cls, content: bytes | str, *, effect=False) -> dict:
         try:
-            result = json.loads(content, object_pairs_hook=cls.unique_object)
+            result = json.loads(
+                content,
+                object_pairs_hook=cls.unique_object,
+                parse_constant=cls.reject_constant,
+                parse_float=cls.finite_float,
+            )
             if not isinstance(result, dict):
                 raise ValueError
             return result
@@ -81,6 +93,19 @@ class AuthHttpClient:
                 raise ValueError("第三方 JSON 含重复字段")
             result[key] = value
         return result
+
+    @staticmethod
+    def reject_constant(name: str):
+        # NaN/Infinity 不是合法 JSON；放行会推迟到写入业务存储时才抛非授权异常。
+        raise ValueError("第三方 JSON 含非法常量 " + name)
+
+    @staticmethod
+    def finite_float(text: str) -> float:
+        # 1e400 这类溢出值会被解析成 inf，不触发 parse_constant，必须在此拒绝。
+        value = float(text)
+        if not math.isfinite(value):
+            raise ValueError("第三方 JSON 含超出范围的数值")
+        return value
 
     async def close(self):
         try:

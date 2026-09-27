@@ -1,5 +1,6 @@
 param(
     [string]$Python = (Join-Path $PSScriptRoot '.venv/Scripts/python.exe'),
+    [string[]]$Paths = @('server', 'framework', 'module_system', 'module_infra'),
     [switch]$IncludeSmoke
 )
 
@@ -21,16 +22,16 @@ try {
         $previous[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
         [Environment]::SetEnvironmentVariable($name, $settings[$name], 'Process')
     }
-    $arguments = @('-B', '-m', 'pytest', '-p', 'pytest_asyncio.plugin', '-c', (Join-Path $PSScriptRoot 'pytest.ini'),
-                  (Join-Path $PSScriptRoot 'server'), (Join-Path $PSScriptRoot 'framework'), (Join-Path $PSScriptRoot 'module_system'), (Join-Path $PSScriptRoot 'module_infra'),
-                  '--basetemp', (Join-Path $runRoot 'fixtures'), '-o', ('cache_dir=' + (Join-Path $runRoot 'cache')),
-                  '--junitxml', (Join-Path $runRoot 'results.xml'))
+    $testPaths = @($Paths | ForEach-Object { Join-Path $PSScriptRoot $_ })
+    $arguments = @('-B', '-m', 'pytest', '-p', 'pytest_asyncio.plugin', '-c', (Join-Path $PSScriptRoot 'pytest.ini')) +
+                 $testPaths + @('--basetemp', (Join-Path $runRoot 'fixtures'), '-o', ('cache_dir=' + (Join-Path $runRoot 'cache')),
+                 '--junitxml', (Join-Path $runRoot 'results.xml'))
     if (-not $IncludeSmoke) { $arguments += @('-m', 'not smoke') }
     $ErrorActionPreference = 'Continue'
     & $Python @arguments
     $result = $LASTEXITCODE
     $ErrorActionPreference = 'Stop'
-    Write-Output ('测试报告：' + (Join-Path $runRoot 'results.xml'))
+    Write-Output ('JUnit report: ' + (Join-Path $runRoot 'results.xml'))
 } finally {
     foreach ($name in $previous.Keys) { [Environment]::SetEnvironmentVariable($name, $previous[$name], 'Process') }
 }

@@ -6,7 +6,7 @@ from types import MappingProxyType
 from loguru import logger
 
 from framework.common.exception.exceptions.configuration_exception import ConfigurationException
-from framework.starter_i18n.core.i18n_options import I18nOptions
+from framework.starter_i18n.config.i18n_options import I18nOptions
 
 type I18nResource = dict[str, str]
 type I18nLanguageBundle = dict[str, I18nResource]
@@ -140,7 +140,10 @@ class I18nCatalog:
                     self._missing_keys.popitem(last=False)
             if self.options.log_missing:
                 logger.warning(
-                    "【I18n 】缺失翻译: scope={}, locale={}, key={}", scope, locale, message_key
+                    "【I18nStarter 】缺失翻译: scope={}, locale={}, key={}",
+                    scope,
+                    locale,
+                    message_key,
                 )
 
     def get_missing_keys(self) -> set[tuple[str | None, str, str]]:

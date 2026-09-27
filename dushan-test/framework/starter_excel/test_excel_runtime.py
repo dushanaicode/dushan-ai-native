@@ -6,10 +6,12 @@ import struct
 import subprocess
 import sys
 import threading
+import zlib
+from lzma import LZMAError
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Annotated
-from zipfile import ZipFile
+from zipfile import ZIP_DEFLATED, ZIP_LZMA, ZipFile
 
 import pytest
 from openpyxl import Workbook
@@ -17,6 +19,7 @@ from pydantic import BaseModel, field_validator
 
 from fixtures.config_factory import ConfigFactory
 from framework.starter_excel.config.excel_settings import ExcelSettings
+from framework.starter_excel.core.excel_schema import ExcelSchema
 from framework.starter_excel.definitions.constants.excel_error_codes import ExcelErrorCodes
 from framework.starter_excel.exception.excel_exception import ExcelException
 from framework.starter_excel.handler.excel_upload_validator import ExcelUploadValidator
@@ -28,6 +31,72 @@ from framework.starter_excel.writer.excel_writer import ExcelWriter
 
 class TextRow(BaseModel):
     text: Annotated[str, ExcelColumn("文本")]
+
+
+@pytest.mark.parametrize("fields", [["missing"], ["text", "text"], []])
+def test_export_field_selection_errors_are_request_validation(fields):
+    with pytest.raises(ExcelException) as caught:
+        ExcelSchema(TextRow).export_columns(fields)
+    assert caught.value.error_code is ExcelErrorCodes.VALIDATION
+
+
+def test_model_without_exportable_columns_remains_configuration_error():
+    class Sensitive(BaseModel):
+        token: Annotated[str, ExcelColumn("令牌")]
+
+    with pytest.raises(ExcelException) as caught:
+        ExcelSchema(Sensitive).export_columns()
+    assert caught.value.error_code is ExcelErrorCodes.CONFIG
+
+
+@pytest.mark.parametrize("failure", [None, "limit", "control", "structure"])
+def test_failed_rewind_preserves_primary_or_reports_read_failure(monkeypatch, failure):
+    class BrokenRewind(io.BytesIO):
+        broken = False
+
+        def seek(self, offset, whence=io.SEEK_SET):
+            if self.broken:
+                raise OSError("rewind unavailable: private-stream-detail")
+            return super().seek(offset, whence)
+
+    source = upload()
+    content = source.file.getvalue()
+    source.file.close()
+    stream = BrokenRewind(content)
+    source.file = stream
+    validator = ExcelUploadValidator(settings())
+    original = validator._archive
+    primary = None
+    if failure == "limit":
+        primary = ExcelException(ExcelErrorCodes.LIMIT, "校验上限")
+    elif failure == "control":
+        primary = BaseException("control exit")
+    elif failure == "structure":
+        primary = ValueError("invalid archive")
+
+    def archive(value):
+        original(value)
+        stream.broken = True
+        if primary is not None:
+            raise primary
+
+    monkeypatch.setattr(validator, "_archive", archive)
+    try:
+        with pytest.raises(BaseException if failure == "control" else ExcelException) as caught:
+            validator.validate(source)
+        if primary is None:
+            assert caught.value.error_code is ExcelErrorCodes.READ
+            assert isinstance(caught.value.__cause__, OSError)
+        elif failure == "structure":
+            assert caught.value.error_code is ExcelErrorCodes.VALIDATION
+            assert caught.value.__cause__ is primary
+        else:
+            assert caught.value is primary
+        if primary is not None:
+            assert caught.value.__notes__ == ["XLSX 上传流位置恢复失败：OSError"]
+        assert not stream.closed
+    finally:
+        stream.close()
 
 
 def settings(**changes):
@@ -51,6 +120,50 @@ def upload():
         return SimpleNamespace(file=output, filename="book.xlsx", content_type=None)
     finally:
         workbook.close()
+
+
+@pytest.mark.parametrize("entrypoint", ["validator", "reader"])
+@pytest.mark.parametrize(
+    ("corruption", "compression", "cause_type"),
+    [
+        ("deflate", ZIP_DEFLATED, zlib.error),
+        ("lzma", ZIP_LZMA, LZMAError),
+        ("unsupported", ZIP_DEFLATED, NotImplementedError),
+    ],
+)
+async def test_malformed_zip_compression_is_validation_error(
+    entrypoint, corruption, compression, cause_type
+):
+    source = upload()
+    try:
+        with ZipFile(source.file) as original, io.BytesIO() as output:
+            with ZipFile(output, "w", compression=compression) as archive:
+                for entry in original.infolist():
+                    archive.writestr(entry.filename, original.read(entry))
+            payload = bytearray(output.getvalue())
+    finally:
+        source.file.close()
+    offset = 30 + sum(struct.unpack_from("<HH", payload, 26))
+    if corruption == "deflate":
+        payload[offset] = 0x07  # DEFLATE 保留块类型，实际解压必须失败。
+    elif corruption == "lzma":
+        payload[offset + 4] = 0xFF  # ZIP LZMA 头之后的非法过滤器属性。
+    else:
+        central = payload.find(b"PK\x01\x02")
+        struct.pack_into("<H", payload, 8, 99)
+        struct.pack_into("<H", payload, central + 10, 99)
+    with io.BytesIO(payload) as stream:
+        source.file = stream
+        stream.seek(7)
+        with pytest.raises(ExcelException) as caught:
+            if entrypoint == "validator":
+                ExcelUploadValidator(settings()).validate(source)
+            else:
+                await ExcelReader(settings()).read(source, TextRow)
+        assert caught.value.error_code is ExcelErrorCodes.VALIDATION
+        assert isinstance(caught.value.__cause__, cause_type)
+        assert stream.tell() == 7
+        assert not stream.closed
 
 
 async def wait_event(event):

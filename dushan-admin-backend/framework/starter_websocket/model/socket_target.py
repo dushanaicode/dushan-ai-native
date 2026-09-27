@@ -1,12 +1,13 @@
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from framework.starter_websocket.definitions.constants.websocket_constants import WebSocketConstants
 from framework.starter_websocket.definitions.enums.socket_target_kind import SocketTargetKind
 
 
 class SocketTarget(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
     kind: SocketTargetKind
-    audience: str = Field(pattern=r"^[a-z][a-z0-9-]{0,63}$")
+    audience: str = Field(pattern=WebSocketConstants.AUDIENCE_PATTERN)
     tenant_id: str | None = Field(default=None, min_length=1, max_length=256)
     member_id: str | None = Field(default=None, min_length=1, max_length=256)
     client_id: str | None = Field(default=None, pattern=r"^[a-f0-9]{32}$")

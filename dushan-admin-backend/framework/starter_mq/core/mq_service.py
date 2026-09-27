@@ -89,7 +89,10 @@ class MQService:
         envelope = runtime.codec.decode(
             runtime.codec.encode(message.envelope), message.envelope.destination
         )
-        BackendCapabilities.for_mode(runtime.settings.backend, message.mode)
+        try:
+            BackendCapabilities.for_mode(runtime.settings.backend, message.mode)
+        except ValueError as error:
+            raise MQException(MQErrorCodes.DECLARATION, cause=error) from error
         try:
             async with asyncio.timeout(runtime.settings.command_timeout_seconds):
                 await runtime.publish_slots.acquire()

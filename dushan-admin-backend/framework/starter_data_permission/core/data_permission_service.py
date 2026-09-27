@@ -4,6 +4,7 @@ import json
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from time import monotonic
+from typing import get_args
 
 from framework.starter_cache.core.cache_handler import CacheHandler
 from framework.starter_data_permission.config.data_permission_settings import DataPermissionSettings
@@ -18,15 +19,18 @@ from framework.starter_data_permission.model.data_exemption import DataExemption
 from framework.starter_data_permission.model.data_grant import DataGrant
 from framework.starter_data_permission.model.data_permission_frame import DataPermissionFrame
 from framework.starter_data_permission.model.data_permission_snapshot import DataPermissionSnapshot
-from framework.starter_data_permission.spi.data_exemption_provider import DataExemptionProvider
+from framework.starter_data_permission.spi.data_exemption_provider import (
+    DataExemptionProvider,
+    DataOperation,
+)
 from framework.starter_data_permission.spi.data_permission_provider import DataPermissionProvider
 from framework.starter_di.context.application_context import ApplicationContext
 from framework.starter_di.decorators.components import framework
 from framework.starter_di.decorators.conditional import conditional
 from framework.starter_di.definitions.enums.component_scope_enum import ComponentScopeEnum
 from framework.starter_security.context.security_context import SecurityContext
-from framework.starter_security.core.security_service import SecurityService
 from framework.starter_security.definitions.enums.tenant_access_mode import TenantAccessMode
+from framework.starter_security.model.identity_binding import IdentityBinding
 from framework.starter_security.model.login_session import LoginSession
 from framework.starter_security.spi.data_access_provider import DataAccessProvider
 
@@ -47,7 +51,7 @@ class DataPermissionService(DataAccessProvider):
         provider: DataPermissionProvider,
         cache: CacheHandler,
     ):
-        self.settings = settings.model_copy(deep=True)
+        self.settings = settings
         self.security = security
         self.cache = cache
         self.resolver = DataScopeResolver(provider)
@@ -70,7 +74,7 @@ class DataPermissionService(DataAccessProvider):
 
     def _identifier(self, identity):
         parts = [
-            SecurityService.binding(identity),
+            IdentityBinding.build(identity),
             identity.dept_id,
             identity.authorization_revision,
             self.settings.rule_version,
@@ -185,8 +189,8 @@ class DataPermissionService(DataAccessProvider):
 
     async def invalidate(self, identity: LoginSession) -> None:
         """权限更新后失效旧版本；其他执行仍遵循固定快照的有效期上限。"""
-        self.current()
-        if identity.application_id != self.current().identity.application_id:
+        current = self.current()
+        if identity.application_id != current.identity.application_id:
             raise DataPermissionException(DataPermissionErrorCodes.DENIED)
         if self.settings.cache_enabled:
             await self._call(
@@ -203,7 +207,7 @@ class DataPermissionService(DataAccessProvider):
         frame = self.current()
         if (
             not resource
-            or operation not in {"select", "insert", "update", "delete"}
+            or operation not in get_args(DataOperation)
             or not isinstance(reason, str)
             or not reason.strip()
             or len(reason) > 256
@@ -243,7 +247,7 @@ class DataPermissionService(DataAccessProvider):
             return identity
         frame = self.current()
         return frame, tuple(
-            id(item) for item in self._exemptions.get() if item.active and item.frame is frame
+            item for item in self._exemptions.get() if item.active and item.frame is frame
         )
 
     async def close(self):

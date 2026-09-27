@@ -68,7 +68,7 @@ def test_real_engine_preserves_peer_and_applies_proxy_policy(engine, trusted, co
         command = build_granian_cmd(
             server, ConfigFactory.build(GranianSettings, "granian", workers=1)
         )
-    command[command.index("server.starter_server:app")] = "client_ip_probe:app"
+    command[command.index("server.asgi:app")] = "client_ip_probe:app"
     env = dict(
         os.environ,
         SERVER_ENV="test",

@@ -1,9 +1,8 @@
 SOURCE = """
-import json
 from dataclasses import asdict
 from datetime import UTC,datetime,timedelta
 from uuid import uuid4
-from sqlalchemy import MetaData,String,JSON,DateTime,Integer,select,insert,update,delete
+from sqlalchemy import MetaData,String,Text,JSON,DateTime,Integer,select,insert,update,delete
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.dialects.mysql import DATETIME
 from framework.starter_database.model.base_do import BaseDO
@@ -42,7 +41,7 @@ class Row(BaseDO):
     finished=mapped_column(timestamp,nullable=True)
     attempts=mapped_column(Integer,nullable=False)
     error_type=mapped_column(String(128),nullable=True)
-    spec=mapped_column(JSON,nullable=False)
+    spec=mapped_column(Text,nullable=False)
     receipt=mapped_column(JSON,nullable=True)
 
 @service(interface=OutboxProvider)
@@ -50,7 +49,7 @@ class Store(OutboxProvider):
     def __init__(self,database: SessionProvider): self.database=database
     @staticmethod
     def record(row):
-        return OutboxRecord(id=row.record_id,message=PreparedMessage.model_validate_json(json.dumps(row.spec)),
+        return OutboxRecord(id=row.record_id,message=PreparedMessage.model_validate_json(row.spec),
             state=OutboxState(row.state),attempts=row.attempts,created_at=row.create_time.replace(tzinfo=UTC),
             ready_at=row.ready.replace(tzinfo=UTC),claim_token=row.token,
             claim_expires_at=None if row.expires is None else row.expires.replace(tzinfo=UTC),
@@ -60,11 +59,11 @@ class Store(OutboxProvider):
             await session.scalar(select(Control.id).where(Control.id==1).with_for_update())
             current=await session.scalar(select(Row.spec).where(Row.record_id==record.id))
             if current is not None:
-                if current!=record.message.model_dump(mode="json"): raise MQException(MQErrorCodes.CONFLICT)
+                if current!=record.message.model_dump_json(): raise MQException(MQErrorCodes.CONFLICT)
                 return
             await session.execute(insert(Row).values(record_id=record.id,state=record.state.value,
                 ready=record.ready_at.replace(tzinfo=None),attempts=record.attempts,
-                create_time=record.created_at.replace(tzinfo=None),spec=record.message.model_dump(mode="json")))
+                create_time=record.created_at.replace(tzinfo=None),spec=record.message.model_dump_json()))
     async def claim(self,*,now,lease_seconds,max_attempts,record_id):
         stamp=now.replace(tzinfo=None)
         async with self.database.transaction() as session:

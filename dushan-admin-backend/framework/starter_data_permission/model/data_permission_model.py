@@ -3,6 +3,13 @@ from dataclasses import dataclass, field
 from sqlalchemy import Table, inspect
 from sqlalchemy.orm import Mapper
 
+from framework.starter_data_permission.definitions.constants.data_permission_error_codes import (
+    DataPermissionErrorCodes,
+)
+from framework.starter_data_permission.exception.data_permission_exception import (
+    DataPermissionException,
+)
+
 
 @dataclass(frozen=True, slots=True)
 class DataPermissionModel:
@@ -57,10 +64,10 @@ class DataPermissionModel:
         converted = set()
         for value in values:
             if not value.isascii() or not value.isdecimal():
-                raise ValueError("整数归属列要求十进制身份 ID")
+                raise DataPermissionException(DataPermissionErrorCodes.PROVIDER)
             identifier = int(value)
             if str(identifier) != value or not 0 < identifier <= 2**63 - 1:
-                raise ValueError("整数归属 ID 必须是规范的正 int64")
+                raise DataPermissionException(DataPermissionErrorCodes.PROVIDER)
             converted.add(identifier)
         return frozenset(converted)
 

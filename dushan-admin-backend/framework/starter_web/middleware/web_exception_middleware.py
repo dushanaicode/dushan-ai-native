@@ -10,7 +10,10 @@ from framework.starter_web.exception.reported_http_failure import ReportedHttpFa
 
 
 class WebExceptionMiddleware:
-    """暂存响应头至首个内容事件；已提交的故障只传播中止，不伪造正常结束。"""
+    """暂存响应头至首个内容事件；已提交的故障只传播中止，不伪造正常结束。
+
+    依赖外层RequestContextMiddleware为HTTP请求建立HttpObservation。
+    """
 
     def __init__(self, app: ASGIApp, handler: GlobalExceptionHandler, owner: str) -> None:
         self.app = app

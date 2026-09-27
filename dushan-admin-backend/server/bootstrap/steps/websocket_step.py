@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 from framework.common.utils.cleanup_utils import CleanupUtils
 from framework.starter_ip.config.ip_settings import IpSettings
+from framework.starter_security.spi.security_execution_provider import SecurityExecutionProvider
 from framework.starter_websocket.config.websocket_settings import WebSocketSettings
 from framework.starter_websocket.definitions.constants.websocket_error_codes import (
     WebSocketErrorCodes,
@@ -18,12 +19,12 @@ class WebSocketStep:
     async def run(ctx):
         definitions = ctx.definitions
         if WebSocketSettings not in definitions.configuration.model_classes:
-            ctx.logger.info("【WebSocketStarter 】配置模型未装配，跳过启动")
+            ctx.logger.info("【WebSocketStarter】配置模型未装配，跳过启动")
             yield
             return
         settings = definitions.configuration.get_config(WebSocketSettings)
         if not settings.enabled:
-            ctx.logger.info("【WebSocketStarter 】WebSocket 未启用")
+            ctx.logger.info("【WebSocketStarter】WebSocket 未启用")
             yield
             return
         application = definitions.application_context
@@ -40,7 +41,7 @@ class WebSocketStep:
         try:
             runtime = await starter.open(
                 components=definitions.scan_result.get_components(),
-                security=ctx.app.state.security,
+                security=application.container.get_optional(SecurityExecutionProvider),
                 cache_available=ctx.app.state.cache,
                 routes=ctx.app.state.web_routes,
                 translator=definitions.translator,

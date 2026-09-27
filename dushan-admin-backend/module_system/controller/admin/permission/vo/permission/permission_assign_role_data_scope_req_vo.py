@@ -8,8 +8,8 @@ from framework.common.contracts import (
 )
 from framework.common.schemas import BaseRequestVO
 from framework.common.validator import InEnum, NotEmpty, NotNull
-from module_system.definitions.enums.permission.permission_data_scope_enum import (
-    PermissionDataScopeEnum,
+from framework.starter_data_permission.public import (
+    DataScope,
 )
 
 
@@ -18,7 +18,7 @@ class PermissionAssignRoleDataScopeReqVO(BaseRequestVO):
 
     role_id: Annotated[SnowflakeIdInput, Field(..., title="角色编号", description="角色编号")]
     data_scope: Annotated[
-        int, Field(..., title="数据范围", description="数据范围, 枚举值见 PermissionDataScopeEnum")
+        int, Field(..., title="数据范围", description="数据范围, 枚举值见 DataScope")
     ]
     data_scope_dept_ids: Annotated[
         set[SnowflakeIdInput] | None,
@@ -47,7 +47,7 @@ class PermissionAssignRoleDataScopeReqVO(BaseRequestVO):
         InEnum.require_in_enum(
             field_name="data_scope",
             value=v,
-            enum_class=PermissionDataScopeEnum,
+            enum_class=DataScope,
             error_msg="数据范围必须是",
         )
         return v
@@ -58,7 +58,7 @@ class PermissionAssignRoleDataScopeReqVO(BaseRequestVO):
         cls, v: set[int] | None, info: ValidationInfo
     ) -> set[int] | None:
         data_scope_value_from_input = info.data.get("data_scope")
-        expected_data_scope_code = PermissionDataScopeEnum.DEPT_CUSTOM.code
+        expected_data_scope_code = DataScope.DEPT_CUSTOM.code
         actual_data_scope_matches = False
         if data_scope_value_from_input is not None:
             try:

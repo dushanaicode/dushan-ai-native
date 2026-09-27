@@ -21,5 +21,5 @@ class ModuleStarter:
             for module in modules
             for relative in module.definition.scan_roots
         )
-        logger.info("【ModuleStarter 】模块扫描范围装配完成：{} 个扫描根", len(roots))
+        logger.info("【ModuleStarter】模块扫描范围装配完成：{} 个扫描根", len(roots))
         return modules, roots

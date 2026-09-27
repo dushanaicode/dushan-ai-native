@@ -9,6 +9,17 @@ from framework.starter_auth.provider.provider_payload import ProviderPayload as 
 
 
 class QqProvider(OAuthProvider):
+    """QQ 互联 OAuth 2.0 授权。
+
+    官方开发入口：
+    - https://connect.qq.com/
+    实现端点：
+    - authorization: https://graph.qq.com/oauth2.0/authorize
+    - token: https://graph.qq.com/oauth2.0/token
+    - openid: https://graph.qq.com/oauth2.0/me
+    - userinfo: https://graph.qq.com/user/get_user_info
+    """
+
     subject_field = "openid"
     capabilities = (ProviderCapability("QQ", refresh=True, refresh_rotation=True),)
     authorization_endpoint = "https://graph.qq.com/oauth2.0/authorize"

@@ -23,11 +23,13 @@ return initial
 """
 
     # 开始一轮失效：版本自增并进入 ACTIVE，期间任何回源发布都会被拒绝。
+    # 返回 {新值, 上一轮状态}：上一轮仍是 ACTIVE 说明那次失效没有收尾，由调用方告警。
     BEGIN = f"""
 -- cache_generation_begin
 local current = redis.call('GET', KEYS[1])
 local version = {CacheConstants.INITIAL_GENERATION_VERSION}
 local epoch = ARGV[3]
+local previous_state = ''
 if current then
     local first = string.find(current, ':')
     local second = first and string.find(current, ':', first + 1)
@@ -46,12 +48,13 @@ if current then
     if state ~= ARGV[1] and state ~= ARGV[2] then
         return redis.error_reply('invalid cache generation state')
     end
+    previous_state = state
 end
 version = version + 1
 local next_value = epoch .. ':' .. tostring(version) .. ':' .. ARGV[1]
 redis.call('SET', KEYS[1], next_value)
 redis.call('PERSIST', KEYS[1])
-return next_value
+return {{next_value, previous_state}}
 """
 
     # 结束本轮失效：只有 epoch 与 version 都对得上才允许改成 FINALIZED。

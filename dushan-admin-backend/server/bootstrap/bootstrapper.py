@@ -46,7 +46,7 @@ async def bootstrap_app(
                 raise
             finally:
                 ctx.ready = False
-                ctx.logger.info("【Bootstrapper 】服务正在关闭")
+                ctx.logger.info("【Bootstrapper】服务正在关闭")
                 errors = []
                 caller_cancellation = None
                 # 长连接/消息入口先停止接收并排空；此时 DI 和发布连接仍可完成必要收尾。

@@ -1,5 +1,6 @@
 # 公共默认配置；环境文件只写差异，同一分组按字段递归合并。
 # 覆盖顺序：本文件 → 所选环境文件 → 非生产个人覆盖 → 进程环境变量。
+# 后端使用 application*.yaml，不加载 .env；本机私密配置写入已忽略的 application-local.yaml。
 
 # ==================== 应用服务配置 ====================
 server:
@@ -24,7 +25,7 @@ web:
   cors_origins: [] # 允许的浏览器 origin，例如 https://admin.example.com；空数组不开放跨域
   cors_credentials: true # 携带凭据时不允许使用通配符
   cors_methods: [GET, HEAD, POST, PUT, DELETE, PATCH, OPTIONS]
-  cors_headers: [Accept, Accept-Language, Authorization, Content-Type, Traceparent, Tracestate, Terminal]
+  cors_headers: [Accept, Accept-Language, Authorization, Content-Type, Traceparent, Tracestate, Terminal, X-Tenant-Id]
   cors_expose_headers: [Content-Disposition, ETag, Retry-After, Trace-Id, WWW-Authenticate]
   cors_max_age: 86400 # 浏览器预检缓存秒数
   gzip_enabled: true # 使用 Starlette，保留 Range、SSE 及已编码内容的原生处理规则
@@ -70,7 +71,9 @@ config:
       data_source: primary
       timeout_seconds: 600
     system:
-      user_register_enabled: false
+      owner_user_id: '10100000010001' # 唯一作者账号；仅部署配置可调整，角色分配不能转授此身份
+      owner_tenant_id: '1'
+      user_register_enabled: false # 管理后台自助注册；须与前端 VITE_APP_REGISTER_ENABLE 同时开启
       allow_modify_system_role: false
       default_client_id: default
       default_password: null
@@ -84,11 +87,23 @@ config:
       sms_callback_token: null # 厂商回调地址中的校验凭据
       message_lifetime_seconds: 300
     sms_captcha:
+      debug_enabled: false # 仅 dev 环境白名单手机号可获得虚拟登录码 8888
+      debug_mobiles: [] # 空名单不启用任何手机号；调试码仍需先获取且只能使用一次
       expire_times: 600
+      max_attempts: 5 # 只校验最新一条验证码；错误累计达到次数后必须重新获取
       send_frequency: 60
       send_maximum_quantity_per_day: 20
       begin_code: 1000
       end_code: 9999
+    qr_login:
+      enabled: true # 第一方扫码登录；同时开启前端 VITE_APP_QR_LOGIN_ENABLE
+      expire_seconds: 180 # 手机确认及电脑领取的总有效期
+    password_reset:
+      mail_template_code: admin-reset-password # 邮件模板编码；模板须关联实际 SMTP 账号
+      expire_seconds: 600
+      resend_seconds: 60
+      max_attempts: 5
+      max_daily: 20
     notification_delivery:
       delivery_claim_lease_seconds: 300
       outbox_processing_lease_seconds: 300
@@ -128,6 +143,9 @@ config:
       envelope_max_age_seconds: 10.0
       online_query_limit: 1000
     mq: # 消费者由代码声明，覆盖只允许启停、并发与预取
+      reconnect_initial_seconds: 1.0
+      reconnect_max_seconds: 10.0 # 单次请求仍受 command_timeout_seconds 限制
+      reconnect_alert_after: 5 # 达到阈值升级日志；保持有界频率恢复，直到关闭
       enabled: false
       backend: redis # redis: stream/pubsub；rabbitmq: queue；kafka: topic
       namespace: dushan-ai-native
@@ -176,6 +194,9 @@ config:
       outbox_retry_seconds: 10.0
       outbox_retention_seconds: 604800
     job: # 业务定义 SPI 为权威，调度器只保存内存副本
+      reconnect_initial_seconds: 1.0
+      reconnect_max_seconds: 10.0
+      reconnect_alert_after: 5
       enabled: false
       owner_enabled: false # 仅显式调度进程开启；必须单 worker 并取得 Redis 租约
       namespace: dushan-ai-native
@@ -196,7 +217,7 @@ config:
       max_jobs: 10000
       max_retry_seconds: 300.0
     tenant: # 部署模式；关闭只使用默认租户，不关闭数据隔离
-      enabled: true
+      enabled: true # 多租户登录；关闭时固定默认租户，仍保留数据隔离
       default_tenant_id: "1" # 显式默认标识；首次开户前不伪造对应租户记录
       profile: external_hosted # single_organization / internal_group / external_hosted / custom
       custom_capabilities: [] # 仅 custom 使用，不能关闭必需的租户隔离
@@ -309,7 +330,7 @@ config:
     captcha:
       enabled: false
       provider: block_puzzle # block_puzzle / click_word / aliyun / tencent
-      purposes: [login, register] # 业务入口指定用途；消费凭证时必须匹配
+      purposes: [login, register, password_reset] # 业务入口指定用途；消费凭证时必须匹配
       client_name: default # 复用 Cache 中已声明的客户端
       challenge_ttl_seconds: 180 # 挑战有效期，尝试不会刷新 TTL
       verification_ttl_seconds: 60 # 挑战通过后的业务凭证有效期，只能消费一次
@@ -327,7 +348,7 @@ config:
       cloud_max_connections: 10
       cloud_max_response_bytes: 32768 # 禁止压缩响应，读取时限制字节数
       aliyun:
-        access_key_id: "" # 通过部署环境提供，不写真实凭据
+        access_key_id: "" # 实际凭据填写在私有 application 配置中，不写入版本化文件
         access_key_secret: ""
         scene_id: ""
         prefix: ""
@@ -335,7 +356,7 @@ config:
         language: cn # cn / en
         endpoint: captcha.cn-shanghai.aliyuncs.com
       tencent:
-        app_id: 0
+        app_id: 0 # 实际应用信息填写在私有 application 配置中
         app_secret: ""
         secret_id: ""
         secret_key: ""
@@ -438,7 +459,7 @@ di:
   enabled: true # false 不评估 DI 条件、不创建组件；配置模型与错误码仍独立可用
   default_scope: singleton # 未在装饰器显式指定时使用；可选 singleton、transient
   hook_timeout_seconds: 30.0 # 异步生命周期协作取消期限，不能强制终止阻塞用户代码
-  lookup_enabled: true # 开放 get_bean；关闭后构造/字段/HTTP 参数注入仍可使用
+  lookup_enabled: true # 开放 get_bean；关闭后注入仍可用，但 system 模块的服务身份作用域依赖 get_bean，启用 system 时必须保持开启
   automatic_context_binding: true # HTTP/WebSocket 入口自动绑定上下文；关闭后须显式建立执行边界
   drain_timeout_seconds: 30.0 # 超时后协作取消受管任务，仍等实际执行结束再释放依赖
   metrics_enabled: true # 关闭可选解析计时和计数，不关闭必要错误与资源检查

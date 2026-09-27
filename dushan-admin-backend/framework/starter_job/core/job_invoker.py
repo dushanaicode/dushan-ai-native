@@ -3,6 +3,7 @@ import inspect
 import json
 from datetime import UTC, datetime
 
+from framework.common.exception.exceptions.base_business_exception import BaseBusinessException
 from framework.common.security.sanitizer import Sanitizer
 from framework.common.utils.asyncio_utils import AsyncioUtils
 from framework.starter_database.exception.after_commit_exception import AfterCommitException
@@ -11,12 +12,22 @@ from framework.starter_job.exception.job_result_unknown import JobResultUnknown
 from framework.starter_job.model.job_context import JobContext
 from framework.starter_job.model.job_outcome import JobOutcome
 from framework.starter_job.model.job_record import JobRecord
+from framework.starter_monitor.spi.monitor_provider import MonitorProvider
+from framework.starter_security.spi.security_execution_provider import SecurityExecutionProvider
 
 
 class JobInvoker:
     """一次尝试的业务、线程与观测终态；没有 HTTP 等待或进程内重试循环。"""
 
-    def __init__(self, application, security, registry, records, settings, monitor):
+    def __init__(
+        self,
+        application,
+        security: SecurityExecutionProvider,
+        registry,
+        records,
+        settings,
+        monitor: MonitorProvider,
+    ):
         self.application, self.security, self.registry = application, security, registry
         self.records, self.settings = records, settings
         self.monitor = monitor
@@ -103,6 +114,7 @@ class JobInvoker:
             return JobOutcome(JobState.UNKNOWN, error=error)
         except Exception as error:
             try:
+                # 异常钩子与结果记录共用观测预算，不延长业务执行期限。
                 async with asyncio.timeout(self.settings.record_timeout_seconds):
                     state = await handler.on_error(error, context)
                 if state not in {JobState.FAILED, JobState.SKIPPED}:
@@ -140,6 +152,8 @@ class JobInvoker:
             if outcome.error is not None
             else json.dumps(Sanitizer.sanitize_log_value(outcome.result), ensure_ascii=False)
         )
+        if isinstance(outcome.error, BaseBusinessException):
+            summary += f" ({outcome.error.error_code.code})"
         record = JobRecord(
             request_id=request.request_id,
             job_id=request.definition.id,

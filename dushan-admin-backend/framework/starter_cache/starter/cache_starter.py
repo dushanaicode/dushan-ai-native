@@ -35,11 +35,11 @@ class CacheStarter:
         resource_keys: Iterable[CacheKey] = (),
     ) -> None:
         """登记键声明并建立全部 Redis 连接。"""
-        logger.info("【CacheStarter 】开始初始化缓存，登记并校验缓存键")
+        logger.info("【CacheStarter】开始初始化缓存，登记并校验缓存键")
         self.cache_key_registry.register(containers, self.settings, resource_keys=resource_keys)
-        logger.info("【CacheStarter 】开始建立 Redis 连接池并探活")
+        logger.info("【CacheStarter】开始建立 Redis 连接池并探活")
         await self.cache_manager.open()
-        logger.info("【CacheStarter 】初始化完成，默认客户端={}", self.settings.default_client)
+        logger.info("【CacheStarter】初始化完成，默认客户端={}", self.settings.default_client)
 
     async def close(self) -> None:
         """释放本应用持有的全部缓存连接。"""

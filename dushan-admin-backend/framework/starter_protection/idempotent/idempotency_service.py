@@ -98,6 +98,7 @@ return 'retained'
         """known_no_effect 只能由确认没有业务副作用的调用方设置；未知结果不写 Redis。"""
         with self.runtime.operation():
             if not known_no_effect:
+                self.runtime.emit("idempotency", "fail", "retained", perf_counter())
                 return "retained"
             return await self._finish(claim, claim.rule.failure_action)
 

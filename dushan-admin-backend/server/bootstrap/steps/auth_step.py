@@ -16,12 +16,12 @@ class AuthStep:
         ctx.app.state.auth = None
         definitions = ctx.definitions
         if AuthSettings not in definitions.configuration.model_classes:
-            ctx.logger.info("【AuthStarter 】配置模型未装配，跳过启动")
+            ctx.logger.info("【AuthStarter】配置模型未装配，跳过启动")
             yield
             return
         settings = definitions.configuration.get_config(AuthSettings)
         if not settings.enabled:
-            ctx.logger.info("【AuthStarter 】第三方授权未启用")
+            ctx.logger.info("【AuthStarter】第三方授权未启用")
             yield
             return
         if definitions.application_context is None:

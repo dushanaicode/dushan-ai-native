@@ -5,17 +5,20 @@ from framework.starter_di.context.application_context import ApplicationContext
 from framework.starter_di.core.candidate_selection import CandidateSelection
 from framework.starter_di.decorators.components import starter
 from framework.starter_di.definitions.enums.binding_outcome_enum import BindingOutcomeEnum
-from framework.starter_monitor.core.monitor_service import MonitorService
+from framework.starter_monitor.spi.monitor_provider import MonitorProvider
 from framework.starter_mq.config.mq_settings import MQSettings
 from framework.starter_mq.core.consumer_registry import ConsumerRegistry
 from framework.starter_mq.core.mq_runtime import MQRuntime
 from framework.starter_mq.core.mq_service import MQService
 from framework.starter_mq.definitions.constants.mq_error_codes import MQErrorCodes
+from framework.starter_mq.definitions.enums.tenant_policy import TenantPolicy
 from framework.starter_mq.exception.mq_exception import MQException
 from framework.starter_mq.spi.consume_record_provider import ConsumeRecordProvider
 from framework.starter_mq.spi.consumer_override_provider import ConsumerOverrideProvider
 from framework.starter_mq.spi.outbox_provider import OutboxProvider
 from framework.starter_security.spi.message_security_provider import MessageSecurityProvider
+from framework.starter_security.spi.security_execution_provider import SecurityExecutionProvider
+from framework.starter_tenant.spi.tenant_execution_provider import TenantExecutionProvider
 
 
 @starter
@@ -26,7 +29,16 @@ class MQStarter:
         self.settings, self.application, self.service = settings, application, service
         self.runtime = None
 
-    async def open(self, *, components, cache, security, tenant, database, job):
+    async def open(
+        self,
+        *,
+        components,
+        cache,
+        security: SecurityExecutionProvider | None,
+        tenant: TenantExecutionProvider | None,
+        database,
+        job,
+    ):
         container = self.application.container
         selected = {
             item.component
@@ -41,7 +53,7 @@ class MQStarter:
         self.service.declarations = tuple(item.__mq_consumer__ for item in handlers)
         if not self.settings.enabled:
             registry.apply(self.settings.overrides)
-            logger.info("【MQStarter 】消息队列未启用")
+            logger.info("【MQStarter】消息队列未启用")
             return None
         if (
             cache is None
@@ -54,6 +66,15 @@ class MQStarter:
         overrides = container.get_optional(ConsumerOverrideProvider)
         changes = {} if overrides is None else await overrides.load()
         registry.apply({**changes, **self.settings.overrides})
+        for handler in registry.active():
+            definition = handler.__mq_consumer__
+            if (
+                definition.external_authenticator is not None
+                and container.get_optional(definition.external_authenticator) is None
+            ):
+                raise MQException(MQErrorCodes.DECLARATION)
+            if tenant is None and definition.tenant_policy is not TenantPolicy.GLOBAL:
+                raise MQException(MQErrorCodes.CONFIGURATION)
         self.runtime = MQRuntime(
             self.settings,
             self.application,
@@ -62,7 +83,7 @@ class MQStarter:
             security,
             tenant,
             database,
-            container.get(MonitorService),
+            container.get(MonitorProvider),
             container.get_optional(ConsumeRecordProvider),
             [item for item in components if "__mq_interceptor__" in vars(item)],
         )
@@ -73,7 +94,7 @@ class MQStarter:
             raise MQException(MQErrorCodes.CONFIGURATION)
         self.service.runtime = self.runtime
         logger.debug(
-            "【MQStarter 】拦截器 {} 个，Outbox={}",
+            "【MQStarter】拦截器 {} 个，Outbox={}",
             len(self.runtime.interceptors),
             self.runtime.outbox is not None,
         )
@@ -89,4 +110,4 @@ class MQStarter:
                 await self.runtime.close()
             finally:
                 self.service.runtime = None
-            logger.info("【MQStarter 】消息消费与传输资源已关闭")
+            logger.info("【MQStarter】消息消费与传输资源已关闭")

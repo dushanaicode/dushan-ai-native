@@ -20,9 +20,8 @@ _C_BLUE = "\033[38;2;45;155;240m"
 _C_GLASS = "\033[38;2;158;151;139m"
 _C_GOLD = "\033[38;2;255;215;0m"
 _C_BORDER = "\033[94m"
-# 透明镜片、灰色镜框与蓝眼睛；六列三行的镜框在终端约为正方形。
+# 透明镜片、灰色镜框与蓝眼睛；六列三行的镜框在终端约为正方形2。
 _B_LENS = ""
-
 _FACE_ROWS = (
     f"      {_C_FUR}/\\_______/\\{_RESET}",
     f"     {_C_FUR}/{_C_PINK}░{_C_FUR}   ░{_C_STRIP}≡{_C_FUR}░   "
@@ -207,7 +206,7 @@ class CatMascotTUI:
         return (
             sys.stdout.isatty()
             and os.environ.get("TERM") != "dumb"
-            and not any(name in os.environ for name in ("PYTEST_CURRENT_TEST", "CI", "NO_COLOR"))
+            and not any(name in os.environ for name in ("CI", "NO_COLOR"))
         )
 
     @staticmethod
@@ -288,7 +287,6 @@ class CatMascotTUI:
                 Sanitizer.sanitize_text(line) if line != "---" else ""
                 for line in card_content_lines
             ]
-            show_mascot = False
         message = "\n".join(rows)
         print(message if use_ansi else self.strip_ansi(message), file=sys.stdout, flush=True)
         if not animate:

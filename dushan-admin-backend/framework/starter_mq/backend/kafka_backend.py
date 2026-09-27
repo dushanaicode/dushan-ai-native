@@ -121,6 +121,16 @@ class KafkaBackend(MessageBackend):
         await self.producer.start()
         self.receiving = True
 
+    async def check_health(self) -> bool:
+        if not self.receiving or self.admin is None or self.producer is None:
+            return False
+        # aiokafka 未提供公开的发送循环状态；固定 SDK 的 sender_task 是其真实任务。
+        sender = self.producer._sender.sender_task
+        if self.producer._closed or sender is None or sender.done():
+            return False
+        cluster = await self.admin.describe_cluster()
+        return bool(cluster["brokers"]) and not sender.done() and not self.producer._closed
+
     async def _send(self, name, body, key=None):
         result = await self.producer.send_and_wait(name, body, key=key)
         return "partition_offset", f"{result.partition}:{result.offset}"
@@ -222,7 +232,6 @@ class KafkaBackend(MessageBackend):
 
         return Delivery(
             record.value,
-            f"{record.partition}:{record.offset}",
             record.topic == self.retry_topic(definition),
             acknowledge,
             release,

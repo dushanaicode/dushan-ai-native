@@ -4,9 +4,9 @@ from collections.abc import Iterator
 from pathlib import Path
 
 from framework.common.exception.exceptions.configuration_exception import ConfigurationException
+from framework.starter_i18n.config.i18n_locale_root import I18nLocaleRoot
+from framework.starter_i18n.config.i18n_options import I18nOptions
 from framework.starter_i18n.core.catalog import I18nBundles, I18nCatalog, I18nResource
-from framework.starter_i18n.core.i18n_locale_root import I18nLocaleRoot
-from framework.starter_i18n.core.i18n_options import I18nOptions
 
 
 class I18nLoader:

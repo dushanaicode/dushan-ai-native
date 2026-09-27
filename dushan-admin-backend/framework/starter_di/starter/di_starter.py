@@ -20,9 +20,9 @@ class DiStarter:
         )
         self.application = ApplicationContext(container)
         await self.application.startup()
-        logger.info("【DiStarter 】应用上下文装配完成")
+        logger.info("【DiStarter】应用上下文装配完成")
         return self.application
 
     async def close(self):
         await self.application.shutdown()
-        logger.info("【DiStarter 】应用容器已关闭")
+        logger.info("【DiStarter】应用容器已关闭")

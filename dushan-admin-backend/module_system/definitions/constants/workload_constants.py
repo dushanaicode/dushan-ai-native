@@ -14,7 +14,9 @@ class WorkloadConstants:
                 "infra.database.observe",
             }
         ),
-        "system.auth": frozenset({"system.auth", "system.sms.send", "system.mail.send"}),
+        "system.auth": frozenset(
+            {"system.auth", "system.auth.revoke", "system.sms.send", "system.mail.send"}
+        ),
         "module_system": frozenset(
             {
                 "system.announcement.publish",
@@ -40,6 +42,7 @@ class WorkloadConstants:
             "module_infra",
         ),
         "system.auth": "system.auth",
+        "system.auth.revoke": "system.auth",
         "system.tenant.provision": "system.tenant",
         "system.announcement.publish": "module_system",
         "system.permission.sync": "module_system",
@@ -47,6 +50,12 @@ class WorkloadConstants:
         "system.sms.send": "module_system",
     }
     RESOURCES = {
+        "system.auth.revoke": {
+            "system_users": frozenset({"select"}),
+            "system_login_log": frozenset({"select", "insert"}),
+            "system_oauth2_access_token": frozenset({"select", "update"}),
+            "system_oauth2_refresh_token": frozenset({"select", "update"}),
+        },
         "infra.database.backup": {},
         "infra.database.observe": {},
         "infra.log.access.clean": {"infra_api_access_log": frozenset({"select", "delete"})},
@@ -82,6 +91,7 @@ class WorkloadConstants:
             "system_post": frozenset({"select"}),
             "system_sms_code": frozenset({"select", "insert", "update"}),
             "system_sms_channel": frozenset({"select"}),
+            "system_sms_template": frozenset({"select"}),
             "system_sms_log": frozenset({"select", "insert", "update"}),
             "system_mail_log": frozenset({"select", "insert", "update"}),
         },

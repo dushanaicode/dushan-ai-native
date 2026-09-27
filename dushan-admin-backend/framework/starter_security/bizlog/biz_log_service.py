@@ -67,7 +67,9 @@ class BizLogService:
         if self._closed:
             raise SecurityException(SecurityErrorCodes.CLOSED)
         if self._writing.get():
-            raise RuntimeError("业务日志提供者不能递归记录自身")
+            raise SecurityException(
+                SecurityErrorCodes.CONFIGURATION, detail="业务日志提供者不能递归记录自身"
+            )
         principal = self.security.require()
         operation = LogRecordOperation(
             uuid4().hex,
@@ -192,6 +194,7 @@ class BizLogService:
             self.written += 1
         except (Exception, asyncio.CancelledError) as failure:
             self._failure(failure)
+            await self._cancel_reservation(reservation)
 
     def _render(self, template, values):
         result = Sanitizer.sanitize_text(self.expression.render_text(template, values))

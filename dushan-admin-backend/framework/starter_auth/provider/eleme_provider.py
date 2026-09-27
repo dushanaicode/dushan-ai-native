@@ -11,6 +11,18 @@ from framework.starter_auth.provider.provider_payload import ProviderPayload as 
 
 
 class ElemeProvider(OAuthProvider):
+    """饿了么开放平台 OAuth 2.0 授权。
+
+    官方资料：
+    - 开放平台: https://open.faas.ele.me/
+    - H5 接入文档: https://openapi-doc.faas.ele.me/openapi_new_h5.pdf
+    - 旧版 H5 文档: https://openapi-doc.faas.ele.me/openapi_h5.pdf
+    实现端点：
+    - authorization: https://open-api.shop.ele.me/authorize
+    - token: https://open-api.shop.ele.me/token
+    - userinfo: https://open-api.shop.ele.me/api/v1/
+    """
+
     subject_field = "userId"
     capabilities = (ProviderCapability("ELEME", refresh=True),)
     authorization_endpoint = "https://open-api.shop.ele.me/authorize"

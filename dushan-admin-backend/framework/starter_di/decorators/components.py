@@ -13,6 +13,8 @@ T = TypeVar("T", bound=type)
 
 def component(role: BaseEnum) -> Callable:
     """同一套 DI 标记规则供不同角色复用，不生成任何运行实例。"""
+    if not isinstance(role, BaseEnum):
+        raise TypeError("component 必须显式提供 BaseEnum 角色")
 
     def decorate(
         _cls: T | None = None,

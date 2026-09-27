@@ -7,7 +7,6 @@ class CacheConstants:
 
     # generation 栅栏键的固定命名空间，与业务 CacheKey 前缀不重叠。
     GENERATION_KEY_PREFIX = "cache_generation"
-    GENERATION_GLOBAL_SCOPE = "global"
     GENERATION_PREFIX_SCOPE = "prefix"
     INITIAL_GENERATION_VERSION = 0
 

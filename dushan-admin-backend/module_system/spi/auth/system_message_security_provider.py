@@ -1,35 +1,139 @@
+from __future__ import annotations
+
+import hashlib
+import hmac
+from datetime import datetime, timezone
+from uuid import uuid4
+
+from joserfc import jwt
+from joserfc.errors import JoseError
+from joserfc.jwk import OctKey
+
 from framework.starter_di.public import (
     Inject,
     service,
 )
 from framework.starter_security.public import (
     MessageSecurityProvider,
+    SecurityErrorCodes,
+    SecurityException,
+    WorkloadIdentity,
+    WorkloadMessage,
 )
-from module_system.service.auth.system_message_service import SystemMessageService
+from module_system.config.system_settings import SystemSettings
+from module_system.service.oauth2.oauth2_token_service import OAuth2TokenService
+from module_system.service.workload.system_workload_service import SystemWorkloadService
 
 
 @service(interface=MessageSecurityProvider)
 class SystemMessageSecurityProvider(MessageSecurityProvider):
-    delegate: SystemMessageService = Inject()
+    """MQ 消息证明：HS256 绑定正文摘要、受众和有效期，验证时重读会话或重新认证服务来源。"""
 
-    async def issue(self, session, payload: bytes, *, audience: str):
-        return await self.delegate.issue(session, payload, audience=audience)
+    settings: SystemSettings = Inject()
+    tokens: OAuth2TokenService = Inject()
+    workloads: SystemWorkloadService = Inject()
 
-    async def verify(
-        self, proof: bytes, payload: bytes, *, application_id: str, domain: str, audience: str
-    ):
-        return await self.delegate.verify(
-            proof, payload, application_id=application_id, domain=domain, audience=audience
+    def _key(self):
+        secret = self.settings.message_signing_key
+        if secret is None or len(secret.get_secret_value()) < 32:
+            raise SecurityException(SecurityErrorCodes.CONFIGURATION)
+        return secret.get_secret_value()
+
+    def _issue(self, identity, payload, audience, **claims):
+        now = int(datetime.now(timezone.utc).timestamp())
+        values = {
+            "iss": identity.application_id,
+            "domain": identity.domain,
+            "aud": audience,
+            "iat": now,
+            "exp": min(
+                now + self.settings.message_lifetime_seconds, int(identity.expires_at.timestamp())
+            ),
+            "jti": uuid4().hex,
+            "payload": hashlib.sha256(payload).hexdigest(),
+            **claims,
+        }
+        return jwt.encode({"alg": "HS256"}, values, OctKey.import_key(self._key().encode())).encode(
+            "ascii"
         )
 
-    async def issue_workload(self, identity, payload: bytes, *, audience: str, capability: str):
-        return await self.delegate.issue_workload(
-            identity, payload, audience=audience, capability=capability
+    def _verify(self, proof, payload, application_id, domain, audience):
+        try:
+            claims = jwt.decode(
+                proof.decode("ascii"), OctKey.import_key(self._key().encode()), algorithms=["HS256"]
+            ).claims
+            jwt.JWTClaimsRegistry(
+                iss={"essential": True, "value": application_id},
+                aud={"essential": True, "value": audience},
+                domain={"essential": True, "value": domain},
+                exp={"essential": True},
+                iat={"essential": True},
+                jti={"essential": True},
+                payload={"essential": True},
+                kind={"essential": True},
+            ).validate(claims)
+        except (JoseError, UnicodeDecodeError) as error:
+            raise SecurityException(SecurityErrorCodes.INVALID, cause=error) from error
+        if claims["domain"] != domain or not hmac.compare_digest(
+            claims["payload"], hashlib.sha256(payload).hexdigest()
+        ):
+            raise SecurityException(SecurityErrorCodes.INVALID)
+        return claims
+
+    async def issue(self, session, payload, *, audience):
+        return self._issue(
+            session,
+            payload,
+            audience,
+            kind="session",
+            digest=session.token_digest,
+            family=session.family_id,
         )
 
-    async def verify_workload(
-        self, proof: bytes, payload: bytes, *, application_id: str, domain: str, audience: str
-    ):
-        return await self.delegate.verify_workload(
-            proof, payload, application_id=application_id, domain=domain, audience=audience
+    async def verify(self, proof, payload, *, application_id, domain, audience):
+        claims = self._verify(proof, payload, application_id, domain, audience)
+        if claims["kind"] != "session":
+            raise SecurityException(SecurityErrorCodes.INVALID)
+        session = await self.tokens.resolve_session(
+            claims["digest"], application_id=application_id, domain=domain
         )
+        if session is None or session.family_id != claims["family"]:
+            raise SecurityException(SecurityErrorCodes.INVALID)
+        return session
+
+    async def issue_workload(self, identity, payload, *, audience, capability):
+        if capability not in identity.capabilities:
+            raise SecurityException(
+                SecurityErrorCodes.DENIED, detail=f"服务身份缺少该能力：{capability}"
+            )
+        return self._issue(
+            identity,
+            payload,
+            audience,
+            kind="workload",
+            source=identity.audience,
+            capability=capability,
+            tenant=identity.tenant_id,
+        )
+
+    async def verify_workload(self, proof, payload, *, application_id, domain, audience):
+        claims = self._verify(proof, payload, application_id, domain, audience)
+        if claims["kind"] != "workload":
+            raise SecurityException(SecurityErrorCodes.INVALID)
+        current = await self.workloads.authenticate(
+            claims["source"],
+            application_id=application_id,
+            domain=domain,
+            capability=claims["capability"],
+            tenant_id=claims["tenant"],
+        )
+        identity = WorkloadIdentity(
+            application_id=application_id,
+            domain=domain,
+            service_id=current.service_id,
+            tenant_id=current.tenant_id,
+            audience=audience,
+            capabilities=frozenset({claims["capability"]}),
+            expires_at=datetime.fromtimestamp(claims["exp"], timezone.utc),
+        )
+        return WorkloadMessage(identity=identity, capability=claims["capability"])

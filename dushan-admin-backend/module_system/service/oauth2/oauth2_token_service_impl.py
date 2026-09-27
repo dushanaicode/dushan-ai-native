@@ -36,9 +36,9 @@ from module_system.dal.dataobject.oauth2.oauth2_refresh_token_do import OAuth2Re
 from module_system.dal.mapper.auth.system_authentication_mapper import SystemAuthenticationMapper
 from module_system.dal.mapper.oauth2.oauth2_access_token_mapper import OAuth2AccessTokenMapper
 from module_system.dal.mapper.oauth2.oauth2_refresh_token_mapper import OAuth2RefreshTokenMapper
-from module_system.service.auth.system_workload_service import SystemWorkloadService
 from module_system.service.oauth2.oauth2_client_service import OAuth2ClientService
 from module_system.service.oauth2.oauth2_token_service import OAuth2TokenService
+from module_system.service.workload.system_workload_service import SystemWorkloadService
 
 
 @service(interface=OAuth2TokenService)

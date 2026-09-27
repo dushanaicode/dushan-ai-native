@@ -1,3 +1,5 @@
+from sqlalchemy import false, inspect, select
+
 from framework.common.utils.cleanup_utils import CleanupUtils
 from framework.starter_database.exception.database_error_translator import DatabaseErrorTranslator
 from framework.starter_database.query.authentication_condition_builder import (
@@ -26,7 +28,31 @@ class AuthenticationReader:
     async def read(self, statement):
         """校验并过滤所有主表、别名与子查询；结果已缓冲，连接在返回前关闭。"""
         statement = self.builder.select(statement, orm=False)
-        transactions = self.database._transactions
+        return await self._read_primary(self.database, statement)
+
+    @classmethod
+    async def token_tenant(cls, database, token_model, *, token_digest, application_id, domain):
+        """认证前按完整令牌定位键读取唯一租户；模型由服务端声明，不开放查询语句。"""
+        registry = AuthenticationModelRegistry((token_model,))
+        table = registry.require_mapper(inspect(token_model)).table
+        rows = await cls._read_primary(
+            database,
+            select(table.c.tenant_id)
+            .where(
+                table.c.token_digest == token_digest,
+                table.c.application_id == application_id,
+                table.c.domain == domain,
+                table.c.deleted == false(),
+            )
+            .limit(2),
+        )
+        if len(rows) > 1:
+            raise ValueError("令牌定位键不唯一")
+        return None if not rows else rows[0]["tenant_id"]
+
+    @staticmethod
+    async def _read_primary(database, statement):
+        transactions = database._transactions
         with transactions._operation_scope(), DatabaseErrorTranslator.boundary():
             entry = transactions.registry.acquire(readonly=False)
             connection = None

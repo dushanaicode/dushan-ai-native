@@ -45,11 +45,11 @@ from module_system.controller.admin.oauth2.vo.open.open_token_req_vo import OAut
 from module_system.convert.oauth2.oauth2_open_convert import OAuth2OpenConvert
 from module_system.dal.dataobject.oauth2.oauth2_access_token_do import OAuth2AccessTokenDO
 from module_system.definitions.enums.oauth2.oauth2_grant_type_enum import OAuth2GrantTypeEnum
-from module_system.service.auth.system_workload_service import SystemWorkloadService
 from module_system.service.oauth2.oauth2_approve_service import OAuth2ApproveService
 from module_system.service.oauth2.oauth2_client_service import OAuth2ClientService
 from module_system.service.oauth2.oauth2_grant_service import OAuth2GrantService
 from module_system.service.oauth2.oauth2_token_service import OAuth2TokenService
+from module_system.service.workload.system_workload_service import SystemWorkloadService
 from module_system.util.oauth2.oauth2_utils import OAuth2Utils
 
 oauth2_open_controller = APIRouter(prefix="/oauth2/open", tags=["System - OAuth2 开放接口"])

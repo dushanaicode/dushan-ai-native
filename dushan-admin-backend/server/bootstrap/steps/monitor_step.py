@@ -16,7 +16,7 @@ class MonitorStep:
     async def run(ctx: AppBootstrapContext):
         definitions = ctx.definitions
         if MonitorSettings not in definitions.configuration.model_classes:
-            ctx.logger.info("【MonitorStarter 】配置模型未装配，跳过启动")
+            ctx.logger.info("【MonitorStarter】配置模型未装配，跳过启动")
             yield
             return
         settings = definitions.configuration.get_config(MonitorSettings)
@@ -24,7 +24,7 @@ class MonitorStep:
         if application is None:
             if settings.enabled:
                 raise ValueError("启用Monitor要求应用DI已装配")
-            ctx.logger.info("【MonitorStarter 】链路追踪未启用")
+            ctx.logger.info("【MonitorStarter】链路追踪未启用")
             yield
             return
         starter = application.container.get(MonitorStarter)

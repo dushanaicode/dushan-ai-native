@@ -66,7 +66,7 @@ async def test_two_workers_cold_key_and_warm_mysql_authentication(
                         "--evidence",
                         str(folder),
                     ],
-                    cwd=ROOT,
+                    cwd=Path.cwd(),
                     env=process_env,
                     stdin=subprocess.DEVNULL,
                     stdout=output,

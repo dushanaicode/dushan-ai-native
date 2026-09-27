@@ -18,6 +18,8 @@ from framework.starter_web.routing.route_policy import RoutePolicy
 class TenantContract(TenantAccessProvider):
     """仅验证 Tenant 接点；不声称实现数据库租户隔离。"""
 
+    is_ready = True
+
     def __init__(self):
         self.current = ContextVar("test_tenant", default=None)
         self.active = 0
@@ -295,6 +297,7 @@ async def test_repeated_cancellation_waits_for_async_tenant_cleanup(security_fac
     current = ContextVar("async_tenant_context", default=None)
 
     class AsyncTenant(TenantAccessProvider):
+        is_ready = True
         active = False
 
         @asynccontextmanager

@@ -6,6 +6,19 @@ from framework.starter_auth.provider.provider_payload import ProviderPayload as 
 
 
 class WechatProvider(OAuthProvider):
+    """微信开放平台网站/开放平台登录 OAuth 2.0 授权。
+
+    官方资料：
+    - 网站应用登录: https://developers.weixin.qq.com/doc/oplatform/Website_App/WeChat_Login/Wechat_Login.html
+    - 接口域名: https://api.weixin.qq.com/
+    实现端点：
+    - qr authorization: https://open.weixin.qq.com/connect/qrconnect
+    - web authorization: https://open.weixin.qq.com/connect/oauth2/authorize
+    - token: https://api.weixin.qq.com/sns/oauth2/access_token
+    - userinfo: https://api.weixin.qq.com/sns/userinfo
+    - refresh: https://api.weixin.qq.com/sns/oauth2/refresh_token
+    """
+
     subject_field = "openid"
     capabilities = (
         ProviderCapability("WECHAT_OPEN", refresh=True),

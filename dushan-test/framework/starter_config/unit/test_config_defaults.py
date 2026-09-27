@@ -8,7 +8,7 @@ from framework.common.page.config.page_settings import PageSettings
 from framework.common.page.core.data_paginator import DataPaginator
 from framework.starter_config.provider.bootstrap_config_error import BootstrapConfigError
 from framework.starter_config.provider.bootstrap_config_provider import BootstrapConfigProvider
-from framework.starter_i18n.core.i18n_options import I18nOptions
+from framework.starter_i18n.config.i18n_options import I18nOptions
 from framework.starter_logging.config.log_settings import LogSettings
 from framework.starter_logging.core.logger_configurator import LoggerConfigurator
 from framework.starter_logging.starter.logging_starter import LoggingStarter

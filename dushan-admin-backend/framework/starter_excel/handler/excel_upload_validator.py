@@ -1,5 +1,7 @@
 import io
 import struct
+import zlib
+from lzma import LZMAError
 from pathlib import Path
 from typing import BinaryIO
 from xml.etree.ElementTree import ParseError
@@ -40,6 +42,7 @@ class ExcelUploadValidator:
         if not stream.seekable():
             raise ExcelException(ExcelErrorCodes.VALIDATION, "XLSX 上传流必须支持定位")
         original = stream.tell()
+        primary = None
         try:
             stream.seek(0, io.SEEK_END)
             size = stream.tell()
@@ -57,12 +60,26 @@ class ExcelUploadValidator:
             ValueError,
             KeyError,
             struct.error,
+            zlib.error,
+            LZMAError,
+            NotImplementedError,
         ) as exc:
-            raise ExcelException(
+            primary = ExcelException(
                 ExcelErrorCodes.VALIDATION, "XLSX 压缩结构或 XML 无效", cause=exc
-            ) from exc
+            )
+            raise primary from exc
+        except BaseException as exc:
+            primary = exc
+            raise
         finally:
-            stream.seek(original)
+            try:
+                stream.seek(original)
+            except OSError as exc:
+                if primary is None:
+                    raise ExcelException(
+                        ExcelErrorCodes.READ, "无法恢复 XLSX 上传流位置", cause=exc
+                    ) from exc
+                primary.add_note(f"XLSX 上传流位置恢复失败：{type(exc).__name__}")
 
     def _directory(self, stream: BinaryIO, size: int) -> None:
         """在 ZipFile 物化条目对象前扫描目录，包含 ZIP64 和伪造条目数校验。"""

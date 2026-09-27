@@ -22,6 +22,79 @@ from framework.starter_di.exception.di_exception import DiException
 pytestmark = pytest.mark.unit
 
 
+async def test_failed_startup_and_concurrent_shutdown_share_cleanup(configuration):
+    entered, release = asyncio.Event(), asyncio.Event()
+    destroyed = []
+
+    @service
+    class Resource:
+        async def post_construct(self):
+            raise RuntimeError("initialization failed")
+
+        async def pre_destroy(self):
+            destroyed.append(True)
+            entered.set()
+            await release.wait()
+
+    current = container([Resource], configuration)
+    startup = asyncio.create_task(current.startup())
+    shutdown = None
+    try:
+        await asyncio.wait_for(entered.wait(), 1)
+        shared = current._shutdown_task
+        assert shared is not None
+        shutdown = asyncio.create_task(current.shutdown())
+        await asyncio.sleep(0)
+        assert current._shutdown_task is shared
+        release.set()
+        with pytest.raises(DiException):
+            await startup
+        await shutdown
+        assert destroyed == [True] and current.state is ContainerStateEnum.CLOSED
+    finally:
+        release.set()
+        await asyncio.gather(
+            startup, *(() if shutdown is None else (shutdown,)), return_exceptions=True
+        )
+
+
+@pytest.mark.parametrize("descriptor", [staticmethod, classmethod])
+@pytest.mark.parametrize("hook", [post_construct_hook, pre_destroy_hook])
+async def test_descriptor_cannot_hide_explicit_lifecycle_hook(configuration, descriptor, hook):
+    def lifecycle(self):
+        pass
+
+    invalid = service(type("InvalidLifecycle", (), {"custom_hook": descriptor(hook(lifecycle))}))
+    current = container([invalid], configuration)
+    try:
+        with pytest.raises(DiException) as caught:
+            await current.startup()
+        assert caught.value.error_code is DiErrorCodes.INVALID_LIFECYCLE
+    finally:
+        await current.shutdown()
+
+
+def test_bare_component_decorator_rejects_class_as_role():
+    with pytest.raises(TypeError, match="BaseEnum"):
+        component(type("Misused", (), {}))
+
+
+async def test_resolution_from_condition_is_classified_as_invalid_definition(configuration):
+    @service
+    class Plain:
+        pass
+
+    @conditional(lambda snapshot: current.get(Plain) is not None)
+    @service
+    class InvalidCondition:
+        pass
+
+    current = container([Plain, InvalidCondition], configuration)
+    with pytest.raises(DiException) as caught:
+        await current.startup()
+    assert caught.value.error_code is DiErrorCodes.INVALID_DEFINITION
+
+
 @pytest.fixture
 def configuration(config_dir):
     current = ConfigProvider(BootstrapConfigProvider.load(config_dir(), environ={}), [])
@@ -336,6 +409,29 @@ async def test_cancelled_shutdown_wait_returns_promptly_and_destroy_completes_on
     release.set()
     await current.shutdown()
     assert finished == [True] and current.state is ContainerStateEnum.CLOSED
+
+
+async def test_closed_container_shutdown_replays_shared_cleanup_failure(configuration):
+    destroyed = []
+    original = ValueError("cleanup failure")
+
+    @service
+    class Resource:
+        def pre_destroy(self):
+            destroyed.append(True)
+            raise original
+
+    current = container([Resource], configuration)
+    await current.startup()
+    with pytest.raises(BaseExceptionGroup) as first:
+        await current.shutdown()
+    shared = current._shutdown_task
+    assert current.state is ContainerStateEnum.CLOSED
+    with pytest.raises(BaseExceptionGroup) as repeated:
+        await current.shutdown()
+    assert repeated.value is first.value
+    assert repeated.value.exceptions[0].__cause__ is original
+    assert current._shutdown_task is shared and destroyed == [True]
 
 
 async def test_startup_cancellation_rolls_back_and_hook_timeout_preserves_cause(configuration):

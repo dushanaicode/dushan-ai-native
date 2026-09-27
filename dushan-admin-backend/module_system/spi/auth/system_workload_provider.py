@@ -5,7 +5,7 @@ from framework.starter_di.public import (
 from framework.starter_security.public import (
     WorkloadProvider,
 )
-from module_system.service.auth.system_workload_service import SystemWorkloadService
+from module_system.service.workload.system_workload_service import SystemWorkloadService
 
 
 @service(interface=WorkloadProvider)

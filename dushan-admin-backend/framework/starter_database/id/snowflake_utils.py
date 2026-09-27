@@ -54,7 +54,7 @@ class SnowflakeUtils:
 
     @staticmethod
     def parse_id(snowflake_id: int) -> dict[str, object]:
-        """解析正有符号 64 位 ID，日期结果明确采用 UTC。"""
+        """解析正有符号64位ID，返回UTC aware日期；写入UTC naive列前须显式去掉tzinfo。"""
         if type(snowflake_id) is not int or not 0 < snowflake_id < 1 << 63:
             raise ValueError("雪花 ID 必须是正有符号 64 位整数")
         timestamp = (snowflake_id >> TIMESTAMP_SHIFT) + SNOWFLAKE_EPOCH_MS

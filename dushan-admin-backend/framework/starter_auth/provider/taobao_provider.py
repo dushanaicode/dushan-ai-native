@@ -6,6 +6,17 @@ from framework.starter_auth.provider.provider_payload import ProviderPayload as 
 
 
 class TaobaoProvider(OAuthProvider):
+    """淘宝开放平台 Taobao ID OAuth 2.0 授权。
+
+    官方资料：
+    - OAuth: https://developer.alibaba.com/docs/doc.htm?articleId=118&docType=1
+    - 新版授权: https://developer.alibaba.com/docs/doc.htm?articleId=102635&docType=1&treeId=154
+    - 开放平台: https://open.taobao.com/
+    实现端点：
+    - authorization: https://oauth.taobao.com/authorize
+    - token: https://oauth.taobao.com/token
+    """
+
     capabilities = (ProviderCapability("TAOBAO", refresh=True),)
     authorization_endpoint = "https://oauth.taobao.com/authorize"
     token_endpoint = "https://oauth.taobao.com/token"

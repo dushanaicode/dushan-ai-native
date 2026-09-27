@@ -23,11 +23,6 @@ class TenantErrorCodes:
         description="租户资源或提供者未就绪",
         message_key="tenant.configuration",
     )
-    MODE = ErrorCode(
-        code=1_005_006,
-        description="租户部署模式与封存记录不一致，请通过独立部署入口切换",
-        message_key="tenant.mode",
-    )
     MODEL = ErrorCode(
         code=1_005_007,
         description="模型租户归属、唯一键或关联约束无效",

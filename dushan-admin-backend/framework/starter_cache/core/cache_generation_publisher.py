@@ -1,6 +1,7 @@
 from base64 import b64decode, b64encode
 from binascii import Error as BinasciiError
 from hashlib import sha256
+from typing import Literal
 from uuid import uuid4
 
 from pydantic import ValidationError
@@ -17,6 +18,8 @@ from framework.starter_cache.model.cache_generation_publication import CacheGene
 from framework.starter_cache.model.cache_generation_state import CacheGenerationState
 from framework.starter_di.decorators.components import framework
 from framework.starter_di.decorators.inject import Inject
+
+type GenerationReadResult = tuple[Literal[True], str] | tuple[Literal[False], None]
 
 # 只有键为空，或者现有值属于同一个 generation 快照时才允许写入。
 # 这样两个不同 generation 的回源结果不会互相覆盖，补偿删除也只会删掉自己那一份。
@@ -95,7 +98,7 @@ class CacheGenerationPublisher:
         await self.compensate(client, full_key, envelope)
         return False
 
-    async def read(self, client: Redis, full_key: str) -> tuple[bool, str | None]:
+    async def read(self, client: Redis, full_key: str) -> GenerationReadResult:
         """读取并顺手清理 generation 已经作废的信封，返回 (是否命中, 载荷)。"""
         try:
             raw = await client.get(full_key)
@@ -111,7 +114,7 @@ class CacheGenerationPublisher:
             return False, None
         return True, payload
 
-    async def decode_if_current(self, client: Redis, raw: str) -> tuple[bool, str | None]:
+    async def decode_if_current(self, client: Redis, raw: str) -> GenerationReadResult:
         """解开信封；普通直接写入的值原样返回，作废的信封返回未命中。"""
         publication = self._parse(raw)
         if publication is None:
@@ -161,7 +164,11 @@ class CacheGenerationPublisher:
         *,
         primary_error: BaseException | None = None,
     ) -> None:
-        """撤销自己写入的那一份值；调用方取消时也要等到删除得到终态。"""
+        """撤销自己写入的那一份值；调用方取消时也要等到删除得到终态。
+
+        没有主异常也没有取消时，补偿失败按单一缓存异常上抛：调用方依赖错误码
+        决定降级方式，异常组会让响应丢掉这个错误码。
+        """
 
         async def delete_owned_value() -> None:
             await self._deleter.delete_if_value_matches(client, full_key, expected)
@@ -169,12 +176,16 @@ class CacheGenerationPublisher:
         cleanup_error, cancellation = await CleanupUtils.run_cancellation_safe_cleanup(
             delete_owned_value, "缓存回源发布补偿"
         )
-        CleanupUtils.raise_collected_cleanup_errors(
-            "缓存回源发布补偿失败",
-            [] if cleanup_error is None else [cleanup_error],
-            caller_cancellation=cancellation,
-            primary_error=primary_error,
-        )
+        if primary_error is not None or cancellation is not None:
+            CleanupUtils.raise_collected_cleanup_errors(
+                "缓存回源发布补偿失败",
+                [] if cleanup_error is None else [cleanup_error],
+                caller_cancellation=cancellation,
+                primary_error=primary_error,
+            )
+        # 只有补偿失败时保持单一缓存异常上抛，异常组会丢掉错误码对应的响应。
+        if cleanup_error is not None:
+            raise cleanup_error
 
     @classmethod
     async def _write(

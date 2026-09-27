@@ -7,7 +7,6 @@ from loguru import logger
 from pydantic import BaseModel, ValidationError
 from starlette.websockets import WebSocketDisconnect, WebSocketState
 
-from framework.common.exception.exceptions.base_business_exception import BaseBusinessException
 from framework.common.utils.asyncio_utils import AsyncioUtils
 from framework.starter_di.context.application_context import ApplicationContext
 from framework.starter_logging.context.log_context import LogContext
@@ -79,23 +78,29 @@ class SocketConnection:
         try:
             self.outbound.put_nowait((message, builtin))
         except asyncio.QueueFull:
-            self.runtime.slow_connections += 1
-            self.request_close(1013)
+            self.request_close(1013, slow_consumer=True)
             return False
         self.peak_outbound = max(self.peak_outbound, self.outbound.qsize())
         return True
 
     def error_message(self, error, request_id=None):
-        code = error.error_code.code if isinstance(error, BaseBusinessException) else 500
-        message = (
-            error.msg
-            if isinstance(error, (WebSocketException, SecurityException))
-            else "WebSocket 消息处理失败"
-        )
-        if isinstance(error, BaseBusinessException) and error.error_code.message_key:
-            message = self.runtime.translator.translate_any_scope(
-                error.error_code.message_key, self.language, default=message
-            )
+        if isinstance(error, SecurityException):
+            # 安全异常的 detail 仅供内部诊断，翻译失败也只回退公开描述。
+            error = WebSocketException(error.error_code)
+        elif not isinstance(error, WebSocketException):
+            error = WebSocketException(WebSocketErrorCodes.INTERNAL)
+        code, message = error.error_code.code, error.msg
+        if (
+            error.message_key
+            and error._message_translation_enabled
+            and not error._message_format_failed
+        ):
+            try:
+                message = self.runtime.translator.translate_any_scope(
+                    error.message_key, self.language, default=message, args=error.format_args
+                )
+            except Exception as translation_error:
+                self.runtime.record_error(translation_error)
         self.enqueue(
             SocketMessage(
                 type="error", payload={"code": code, "message": message}, request_id=request_id
@@ -228,6 +233,10 @@ class SocketConnection:
                     WebSocketException(WebSocketErrorCodes.PROTOCOL, cause=error),
                     message.request_id,
                 )
+            except WebSocketException as error:
+                if error.is_system_error:
+                    self.runtime.record_error(error)
+                self.error_message(error, message.request_id)
             except Exception as error:
                 self.runtime.record_error(error)
                 self.error_message(error, message.request_id)
@@ -283,28 +292,29 @@ class SocketConnection:
         except asyncio.CancelledError:
             raise
         except TimeoutError as error:
-            self.runtime.slow_connections += 1
-            self.request_close(1013, error)
+            self.request_close(1013, error, slow_consumer=True)
         except SecurityException as error:
             self.request_close(4001, error)
         except Exception as error:
             self.request_close(1011, error)
 
-    def request_close(self, code, error=None):
+    def request_close(self, code, error=None, *, slow_consumer=False):
         if self._close_task is not None:
             return self._close_task
         self.phase, self.close_code, self.error = "draining", code, error
+        if slow_consumer:
+            self.runtime.slow_connections += 1
         if error is not None:
             self.runtime.record_error(error)
         self._close_task = asyncio.create_task(
-            self._close(), context=Context(), name="ws-close:" + self.id
+            self._close(flush=not slow_consumer), context=Context(), name="ws-close:" + self.id
         )
         return self._close_task
 
     async def close(self, code=1001):
         await asyncio.shield(self.request_close(code))
 
-    async def _close(self):
+    async def _close(self, *, flush=True):
         try:
             if self.reader is not None:
                 self.reader.cancel()
@@ -313,6 +323,12 @@ class SocketConnection:
                 try:
                     async with asyncio.timeout(self.runtime.settings.shutdown_seconds):
                         await self.inbound.join()
+                        await self.outbound.join()
+                except TimeoutError:
+                    pass
+            elif flush and self.sender is not None and not self.sender.done():
+                try:
+                    async with asyncio.timeout(self.runtime.settings.send_timeout_seconds):
                         await self.outbound.join()
                 except TimeoutError:
                     pass

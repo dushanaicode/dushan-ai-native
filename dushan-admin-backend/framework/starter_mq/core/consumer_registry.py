@@ -12,7 +12,7 @@ class ConsumerRegistry:
     """启动时一次验证声明和覆盖；不从存储里的类名重建可执行对象。"""
 
     def __init__(self, settings, handlers):
-        logger.info("【MQStarter 】开始校验消费者声明")
+        logger.info("【MQStarter】开始校验消费者声明")
         self.settings = settings
         self.handlers = {}
         self.limits = {}
@@ -32,7 +32,7 @@ class ConsumerRegistry:
                 bindings.add(binding)
             self.handlers[definition.key] = handler
             logger.debug(
-                "【MQStarter 】消费者={} destination={} group={} mode={} handler={}.{}",
+                "【MQStarter】消费者={} destination={} group={} mode={} handler={}.{}",
                 definition.key,
                 definition.destination,
                 definition.group,
@@ -42,7 +42,7 @@ class ConsumerRegistry:
             )
         if len(self.handlers) > settings.max_consumers:
             raise MQException(MQErrorCodes.DECLARATION)
-        logger.info("【MQStarter 】消费者声明校验完成：{} 个", len(self.handlers))
+        logger.info("【MQStarter】消费者声明校验完成：{} 个", len(self.handlers))
 
     def _validate(self, definition):
         try:
@@ -77,6 +77,10 @@ class ConsumerRegistry:
             error.add_note("未知消费者覆盖: " + ", ".join(unknown[:16]))
             raise error
         self.ignored_overrides = tuple(unknown)
+        if unknown:
+            logger.warning(
+                "【MQStarter 】忽略未知消费者覆盖，共{}项：{}", len(unknown), unknown[:16]
+            )
         for key, handler in self.handlers.items():
             override = overrides.get(key)
             enabled = override is None or override.enabled is not False
@@ -94,14 +98,14 @@ class ConsumerRegistry:
                 raise MQException(MQErrorCodes.DECLARATION)
             self.limits[key] = (enabled, concurrency, prefetch)
             logger.debug(
-                "【MQStarter 】消费者={} enabled={} concurrency={} prefetch={}",
+                "【MQStarter】消费者={} enabled={} concurrency={} prefetch={}",
                 key,
                 enabled,
                 concurrency,
                 prefetch,
             )
         logger.info(
-            "【MQStarter 】消费者运行配置已绑定：启用 {} 个，停用 {} 个",
+            "【MQStarter】消费者运行配置已绑定：启用 {} 个，停用 {} 个",
             len(self.active()),
             len(self.handlers) - len(self.active()),
         )

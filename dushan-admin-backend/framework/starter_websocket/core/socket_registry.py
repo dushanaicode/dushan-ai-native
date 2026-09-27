@@ -3,6 +3,7 @@ import inspect
 from loguru import logger
 from pydantic import ValidationError
 
+from framework.starter_security.spi.security_execution_provider import SecurityExecutionProvider
 from framework.starter_websocket.definitions.constants.websocket_error_codes import (
     WebSocketErrorCodes,
 )
@@ -12,8 +13,8 @@ from framework.starter_websocket.exception.websocket_exception import WebSocketE
 class SocketRegistry:
     """只登记已选择的代码声明，重复与缺失策略在监听端点前拒绝。"""
 
-    def __init__(self, components, security):
-        logger.info("【WebSocketStarter 】开始登记消息处理器并校验访问策略")
+    def __init__(self, components, security: SecurityExecutionProvider):
+        logger.info("【WebSocketStarter】开始登记消息处理器并校验访问策略")
         self.audiences = {}
         self.handlers = {}
         self.events = {}
@@ -54,7 +55,7 @@ class SocketRegistry:
                 raise WebSocketException(WebSocketErrorCodes.CONFIGURATION)
 
         logger.info(
-            "【WebSocketStarter 】声明与策略校验完成：受众 {} 个，处理器 {} 个，事件 {} 个",
+            "【WebSocketStarter】声明与策略校验完成：受众 {} 个，处理器 {} 个，事件 {} 个",
             len(self.audiences),
             len(self.handlers),
             len(self.events),

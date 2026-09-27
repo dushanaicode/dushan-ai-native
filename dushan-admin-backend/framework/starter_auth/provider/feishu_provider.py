@@ -6,6 +6,17 @@ from framework.starter_auth.provider.provider_payload import ProviderPayload as 
 
 
 class FeishuProvider(OAuthProvider):
+    """飞书网页应用 OAuth 2.0 / PKCE 授权。
+
+    官方资料：
+    - 登录实战: https://open.feishu.cn/community/articles/7317091221654224898?lang=zh-CN
+    - 用户接口: https://open.feishu.cn/document/uAjLw4CM/ukTMukTMukTM/reference/contact-v3/user/get
+    实现端点：
+    - authorization: https://accounts.feishu.cn/open-apis/authen/v1/authorize
+    - token: https://accounts.feishu.cn/oauth/v3/token
+    - userinfo: https://open.feishu.cn/open-apis/authen/v1/user_info
+    """
+
     subject_field = "open_id"
     capabilities = (ProviderCapability("FEISHU", pkce=True, refresh=True, refresh_rotation=True),)
     authorization_endpoint = "https://accounts.feishu.cn/open-apis/authen/v1/authorize"

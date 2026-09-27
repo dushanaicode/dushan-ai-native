@@ -35,7 +35,7 @@ class InfraStep:
             application.container.get(ApiErrorLogServiceProviderAdapter).write
         )
         try:
-            ctx.logger.info("【InfraStep 】基础设施适配已接入")
+            ctx.logger.info("【InfraStep】基础设施适配已接入")
             yield
         finally:
             ctx.exception_handler.error_recorder = previous

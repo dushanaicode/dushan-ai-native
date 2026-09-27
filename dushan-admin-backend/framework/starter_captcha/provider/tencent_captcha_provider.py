@@ -25,7 +25,8 @@ class TencentCaptchaProvider(CaptchaProvider):
         self.http = http
 
     def create(self, purpose: str) -> tuple[dict, CaptchaRecord]:
-        return {"app_id": self.settings.app_id}, CaptchaRecord(
+        # 浏览器 SDK 的 TencentCaptcha(appId) 取字符串；JSON 数字还会在前端丢失大整数精度。
+        return {"app_id": str(self.settings.app_id)}, CaptchaRecord(
             provider="tencent", purpose=purpose, points=[]
         )
 

@@ -3,18 +3,17 @@ import re
 
 from framework.starter_di.decorators.components import framework
 from framework.starter_di.definitions.enums.component_scope_enum import ComponentScopeEnum
+from framework.starter_websocket.definitions.constants.websocket_constants import WebSocketConstants
 from framework.starter_websocket.handler.socket_handler import SocketHandler
 
 
 def socket_handler(definition):
     if len(definition.type) > 128:
         raise ValueError("WebSocket 处理器类型过长")
-    if not re.fullmatch(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*", definition.type) or definition.type in {
-        "ping",
-        "pong",
-        "error",
-        "connect",
-    }:
+    if (
+        not re.fullmatch(WebSocketConstants.TYPE_PATTERN, definition.type)
+        or definition.type in WebSocketConstants.BUILTIN_TYPES
+    ):
         raise ValueError("WebSocket 处理器类型无效或占用内置类型")
     if not definition.policy.requires_identity:
         raise ValueError("WebSocket 处理器必须显式声明受保护策略")

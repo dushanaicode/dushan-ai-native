@@ -13,7 +13,11 @@ from framework.starter_mq.model.consumer_override import ConsumerOverride
 
 @config_model("mq", env_prefix="MQ_", sources=(ConfigSourceEnum.ENVIRONMENT, ConfigSourceEnum.YAML))
 class MQSettings(ConfigModel):
+    reconnect_initial_seconds: float = Field(gt=0, allow_inf_nan=False)
+    reconnect_max_seconds: float = Field(gt=0, allow_inf_nan=False)
+    reconnect_alert_after: int = Field(ge=1)
     enabled: bool
+
     backend: MQBackend
     namespace: str = Field(pattern=r"^[a-z][a-z0-9_-]{0,63}$")
     cache_client: str = Field(pattern=r"^[a-z][a-z0-9_]{0,62}$")
@@ -63,6 +67,8 @@ class MQSettings(ConfigModel):
 
     @model_validator(mode="after")
     def validate_runtime(self):
+        if self.reconnect_max_seconds < self.reconnect_initial_seconds:
+            raise ValueError("最大重连间隔不能小于初始间隔")
         if self.renew_seconds + self.command_timeout_seconds >= self.lease_seconds:
             raise ValueError("MQ 续租和命令上界必须小于租约")
         if self.replay_retention_seconds < self.max_age_seconds + self.clock_skew_seconds:
@@ -72,8 +78,10 @@ class MQSettings(ConfigModel):
             or self.concurrency > self.max_concurrency
         ):
             raise ValueError("MQ 并发和预取超过声明上界")
-        if self.outbox_lease_seconds <= self.command_timeout_seconds:
-            raise ValueError("Outbox 租约必须覆盖一次发布上界")
+        # claim按调用前的now计租约；开启Outbox时覆盖认领、就绪、排队、发布、结算。
+        commands = 5 if self.outbox_enabled else 1
+        if self.outbox_lease_seconds <= commands * self.command_timeout_seconds:
+            raise ValueError("Outbox 租约必须覆盖认领至结算的命令预算")
         if self.enabled:
             if (
                 self.signing_secret is None

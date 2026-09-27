@@ -5,7 +5,7 @@ from contextlib import contextmanager, nullcontext
 from contextvars import ContextVar
 from threading import Condition, RLock
 from time import perf_counter
-from typing import TYPE_CHECKING, TypeVar, cast
+from typing import TYPE_CHECKING, TypeVar
 
 from injector import Injector, InstanceProvider, singleton
 from loguru import logger
@@ -116,7 +116,7 @@ class DiContainer:
                     error_code=DiErrorCodes.NOT_READY, msg="DI 已禁用或此容器已经开始过生命周期"
                 )
             self._state = ContainerStateEnum.STARTING
-        logger.info("【DiStarter 】开始构建依赖注入容器")
+        logger.info("【DiStarter】开始构建依赖注入容器")
         frame = ExecutionFrame(LifecyclePhaseEnum.INITIALIZE)
         token = self._lifecycle_context.set(frame)
         try:
@@ -127,7 +127,7 @@ class DiContainer:
             selection.select(self._components)
             self._plan = BindingPlan(selection, self.configuration, self._instances)
             self._log_selection(selection)
-            logger.info("【DiStarter 】依赖计划校验通过，开始注册绑定")
+            logger.info("【DiStarter】依赖计划校验通过，开始注册绑定")
             injector = Injector(auto_bind=False)
             self._injector = injector
             for key, instance in self._instances.items():
@@ -135,12 +135,6 @@ class DiContainer:
             for model in self.configuration.model_classes:
                 injector.binder.bind(model, to=ConfigModelProvider(self.configuration, model))
             for key, binding in self._plan.bindings.items():
-                # logger.debug(
-                #     "【DiStarter 】绑定 {} -> {}，scope={}",
-                #     key,
-                #     binding.implementation,
-                #     binding.scope.value,
-                # )
                 injector.binder.bind(
                     key,
                     to=ComponentProvider(self, binding),
@@ -149,27 +143,29 @@ class DiContainer:
             for interface, bindings in self._plan.providers.items():
                 for binding in bindings:
                     injector.binder.multibind(interface, to=ListBindingProvider(binding.key))
-            logger.info("【DiStarter 】绑定注册完成，开始初始化单例及生命周期钩子")
+            logger.info("【DiStarter】绑定注册完成，开始初始化单例及生命周期钩子")
             for component in self._plan.order:
                 binding = self._plan.by_implementation[component]
                 if binding.scope is ComponentScopeEnum.SINGLETON:
                     instance = injector.get(binding.key)
                     for name in self._plan.hooks[component][LifecyclePhaseEnum.INITIALIZE]:
-                        logger.debug("【DiStarter 】初始化钩子 {}.{}", component.__qualname__, name)
+                        logger.debug("【DiStarter】初始化钩子 {}.{}", component.__qualname__, name)
                         await self._invoke_hook(instance, name, LifecyclePhaseEnum.INITIALIZE)
                     self._ready_types.add(component)
             with self._condition:
                 self._state = ContainerStateEnum.READY
             logger.info(
-                "【DiStarter 】容器初始化完成：绑定 {} 个，已初始化单例 {} 个",
+                "【DiStarter】容器初始化完成：绑定 {} 个，已初始化单例 {} 个",
                 len(self._plan.bindings),
                 len(self._ready_types),
             )
         except BaseException as primary:
             with self._condition:
                 self._state = ContainerStateEnum.STOPPING
+                self._shutdown_task = asyncio.create_task(self._close(), name="DI shutdown")
+                self._shutdown_task.add_done_callback(self._shutdown_finished)
             error, cancellation = await CleanupUtils.run_cancellation_safe_cleanup(
-                self._close, "DI 启动失败清理"
+                lambda: self._shutdown_task, "DI 启动失败清理"
             )
             errors = [] if error is None else [error]
             if error is not None and primary.__cause__ is not None:
@@ -203,7 +199,7 @@ class DiContainer:
                     error_code=DiErrorCodes.CIRCULAR_DEPENDENCY, msg=f"解析期间出现循环依赖：{key}"
                 )
             self._validate_resolution(key)
-            return cast(T, self._injector.get(key))
+            return self._injector.get(key)
         finally:
             frame.active = False
             self._resolution_path.reset(token)
@@ -266,14 +262,14 @@ class DiContainer:
             if item.outcome is not BindingOutcomeEnum.SELECTED
         ]
         logger.info(
-            "【DiStarter 】候选选择完成：候选 {} 个，选中 {} 个，按条件或默认实现规则跳过 {} 个",
+            "【DiStarter】候选选择完成：候选 {} 个，选中 {} 个，按条件或默认实现规则跳过 {} 个",
             len(selection.diagnostics),
             len(selection.bindings),
             len(skipped),
         )
         for item in skipped:
             logger.debug(
-                "【DiStarter 】候选跳过：{} -> {}（{}：{}）",
+                "【DiStarter】候选跳过：{} -> {}（{}：{}）",
                 item.component,
                 item.key,
                 item.outcome.label,
@@ -362,8 +358,6 @@ class DiContainer:
                 raise DiException(
                     error_code=DiErrorCodes.NOT_READY, msg="请先取消并等待启动终态，再关闭容器"
                 )
-            if self._state is ContainerStateEnum.CLOSED:
-                return
             if self._shutdown_task is None:
                 self._state = ContainerStateEnum.STOPPING
                 self._shutdown_task = asyncio.create_task(self._close(), name="DI shutdown")

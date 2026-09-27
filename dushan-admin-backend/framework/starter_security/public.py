@@ -23,6 +23,9 @@ from framework.starter_security.model.workload_message import WorkloadMessage
 from framework.starter_security.spi.data_access_provider import DataAccessProvider
 from framework.starter_security.spi.message_security_provider import MessageSecurityProvider
 from framework.starter_security.spi.permission_provider import PermissionProvider
+from framework.starter_security.spi.public_request_context_provider import (
+    PublicRequestContextProvider,
+)
 from framework.starter_security.spi.tenant_access_provider import TenantAccessProvider
 from framework.starter_security.spi.token_provider import TokenProvider
 from framework.starter_security.spi.workload_provider import WorkloadProvider
@@ -41,6 +44,7 @@ __all__ = [
     "PasswordEncoder",
     "PermissionProvider",
     "PermissionSnapshot",
+    "PublicRequestContextProvider",
     "SecurityContext",
     "SecurityErrorCodes",
     "SecurityException",

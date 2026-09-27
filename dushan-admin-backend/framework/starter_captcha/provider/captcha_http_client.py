@@ -26,6 +26,17 @@ class CaptchaHttpClient:
         )
 
     async def post(self, endpoint: str, headers: dict[str, str], body: bytes) -> dict:
+        content = await self._read(endpoint, headers, body)
+        try:
+            result = json.loads(content)
+        except (ValueError, RecursionError) as error:
+            raise CaptchaException(Codes.PROVIDER_RESPONSE, cause=error) from error
+        if not isinstance(result, dict):
+            raise CaptchaException(Codes.PROVIDER_RESPONSE)
+        return result
+
+    async def _read(self, endpoint: str, headers: dict[str, str], body: bytes) -> bytes:
+        """发送请求并按上限读取原始响应；请求构造失败不冒充供应商响应无效。"""
         try:
             async with asyncio.timeout(self.settings.cloud_timeout_seconds):
                 async with self.client.stream(
@@ -43,16 +54,11 @@ class CaptchaHttpClient:
                         if len(content) + len(chunk) > self.settings.cloud_max_response_bytes:
                             raise CaptchaException(Codes.PROVIDER_RESPONSE)
                         content.extend(chunk)
-                    result = json.loads(content)
-                    if not isinstance(result, dict):
-                        raise CaptchaException(Codes.PROVIDER_RESPONSE)
-                    return result
+                    return bytes(content)
         except (TimeoutError, httpx.TimeoutException) as error:
             raise CaptchaException(Codes.PROVIDER_TIMEOUT, cause=error) from error
         except httpx.RequestError as error:
             raise CaptchaException(Codes.PROVIDER_FAILURE, cause=error) from error
-        except (ValueError, UnicodeError, RecursionError) as error:
-            raise CaptchaException(Codes.PROVIDER_RESPONSE, cause=error) from error
 
     async def close(self) -> None:
         await self.client.aclose()

@@ -6,6 +6,18 @@ from framework.starter_auth.provider.provider_payload import ProviderPayload as 
 
 
 class WeiboProvider(OAuthProvider):
+    """微博开放平台 OAuth 2.0 授权。
+
+    官方资料：
+    - 授权机制: https://open.weibo.com/wiki/%E6%8E%88%E6%9D%83%E6%9C%BA%E5%88%B6%E8%AF%B4%E6%98%8E
+    - 开放平台: https://open.weibo.com/
+    实现端点：
+    - authorization: https://api.weibo.com/oauth2/authorize
+    - token: https://api.weibo.com/oauth2/access_token
+    - userinfo: https://api.weibo.com/2/users/show.json
+    - revoke: https://api.weibo.com/oauth2/revokeoauth2
+    """
+
     subject_field = "idstr"
     capabilities = (ProviderCapability("WEIBO", revoke=True),)
     authorization_endpoint = "https://api.weibo.com/oauth2/authorize"

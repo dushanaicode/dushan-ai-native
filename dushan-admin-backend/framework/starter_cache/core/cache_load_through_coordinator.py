@@ -75,12 +75,18 @@ class CacheLoadThroughCoordinator:
     async def _run_single_flight(
         self, flight_key: str, operation: Callable[[], Awaitable[Any]]
     ) -> Any:
-        """同键只有第一个调用者真正执行，其余等待同一个任务的结果。"""
+        """同键只有第一个调用者真正执行，其余等待同一个任务的结果。
+
+        shield 只隔离搭车者自己的取消，不隔离反方向：发起者被取消时共享任务随之取消，
+        当时在等的搭车者都会收到 CancelledError。让共享任务在无人等待后继续跑完，
+        会留下没有归属的后台任务，而后台任务必须由 ApplicationContext.tasks 登记排空，
+        因此这里保留取消传播，由调用方自行重试。
+        """
         task, is_owner = await self._get_or_create_flight(flight_key, operation)
         try:
             if is_owner:
                 return await task
-            # 搭车者的取消不能连带取消正在回源的共享任务。
+            # 搭车者自己的取消不会连带取消共享任务；发起者取消仍会，见方法说明。
             return await asyncio.shield(task)
         finally:
             if is_owner:

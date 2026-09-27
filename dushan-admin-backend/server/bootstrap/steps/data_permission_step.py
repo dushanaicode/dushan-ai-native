@@ -16,7 +16,7 @@ class DataPermissionStep:
         definitions = ctx.definitions
         configuration = definitions.configuration
         if DataPermissionSettings not in configuration.model_classes:
-            ctx.logger.info("【DataPermissionStarter 】配置模型未装配，跳过启动")
+            ctx.logger.info("【DataPermissionStarter】配置模型未装配，跳过启动")
             yield
             return
         settings = configuration.get_config(DataPermissionSettings)
@@ -27,7 +27,7 @@ class DataPermissionStep:
         if not settings.enabled:
             if any("__data_permission__" in vars(component) for component in models):
                 raise ValueError("声明数据访问策略的模型要求启用 Data Permission")
-            ctx.logger.info("【DataPermissionStarter 】数据权限未启用")
+            ctx.logger.info("【DataPermissionStarter】数据权限未启用")
             yield
             return
         application = definitions.application_context

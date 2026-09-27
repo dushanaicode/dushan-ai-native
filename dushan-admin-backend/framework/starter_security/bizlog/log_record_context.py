@@ -6,6 +6,8 @@ from framework.starter_di.context.application_context import ApplicationContext
 from framework.starter_di.decorators.components import framework
 from framework.starter_di.definitions.enums.component_scope_enum import ComponentScopeEnum
 from framework.starter_security.bizlog.log_record_frame import LogRecordFrame
+from framework.starter_security.definitions.constants.security_error_codes import SecurityErrorCodes
+from framework.starter_security.exception.security_exception import SecurityException
 
 
 @framework(scope=ComponentScopeEnum.SINGLETON)
@@ -23,7 +25,9 @@ class LogRecordContext:
     def scope(self):
         binding = ApplicationContext.current_execution()
         if binding.application is not self.application:
-            raise RuntimeError("业务日志的应用归属不一致")
+            raise SecurityException(
+                SecurityErrorCodes.CONFIGURATION, detail="业务日志的应用归属不一致"
+            )
         frame = LogRecordFrame(binding)
         token = self._frame.set(frame)
         values_token = self._values.set({})
@@ -41,7 +45,9 @@ class LogRecordContext:
             or not frame.active
             or frame.binding is not ApplicationContext.current_execution()
         ):
-            raise RuntimeError("没有当前执行的业务日志作用域")
+            raise SecurityException(
+                SecurityErrorCodes.CONFIGURATION, detail="没有当前执行的业务日志作用域"
+            )
         return frame
 
     def put(self, name: str, value: object):

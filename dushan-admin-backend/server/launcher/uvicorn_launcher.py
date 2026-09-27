@@ -12,7 +12,7 @@ def build_uvicorn_cmd(server: ServerSettings, engine: UvicornSettings) -> list[s
         "-B",
         "-m",
         "uvicorn",
-        "server.starter_server:app",
+        "server.asgi:app",
         "--host",
         server.host,
         "--port",

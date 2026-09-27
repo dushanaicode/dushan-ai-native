@@ -15,9 +15,9 @@ from sqlalchemy import insert
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from framework.starter_security.core.opaque_token import OpaqueToken
-from framework.starter_security.core.security_service import SecurityService
 from framework.starter_security.definitions.constants.security_error_codes import SecurityErrorCodes
 from framework.starter_security.definitions.enums.security_realm import SecurityRealm
+from framework.starter_security.model.identity_binding import IdentityBinding
 from framework.starter_security.model.login_session import LoginSession
 from framework.starter_security.model.permission_snapshot import PermissionSnapshot
 
@@ -56,7 +56,7 @@ def test_real_http_auth_cache_database_and_shutdown(engine, config_dir, tmp_path
         scopes=frozenset(),
     )
     snapshot = PermissionSnapshot(
-        binding=SecurityService.binding(session),
+        binding=IdentityBinding.build(session),
         revision="1",
         permissions=frozenset({"read"}),
         roles=frozenset({"reader"}),
@@ -165,7 +165,7 @@ def test_real_http_auth_cache_database_and_shutdown(engine, config_dir, tmp_path
                 "--evidence",
                 str(folder),
             ],
-            cwd=ROOT,
+            cwd=Path.cwd(),
             env=env,
             stdin=subprocess.DEVNULL,
             stdout=log,

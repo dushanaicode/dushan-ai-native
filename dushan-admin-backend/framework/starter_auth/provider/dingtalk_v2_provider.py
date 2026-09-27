@@ -6,6 +6,17 @@ from framework.starter_auth.provider.provider_payload import ProviderPayload as 
 
 
 class DingtalkV2Provider(OAuthProvider):
+    """钉钉新版用户委托 OAuth 2.0 授权。
+
+    官方资料：
+    - 用户令牌流程: https://opensource.dingtalk.com/developerpedia/docs/develop/permission/token/browser/get_user_app_token_browser/
+    - 开发入口: https://open.dingtalk.com/
+    实现端点：
+    - authorization: https://login.dingtalk.com/oauth2/auth
+    - token: https://api.dingtalk.com/v1.0/oauth2/userAccessToken
+    - userinfo: https://api.dingtalk.com/v1.0/contact/users/me
+    """
+
     subject_field = "openId"
     capabilities = (ProviderCapability("DINGTALK_V2", refresh=True),)
     authorization_endpoint = "https://login.dingtalk.com/oauth2/auth"

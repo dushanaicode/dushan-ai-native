@@ -12,8 +12,11 @@ class LifecycleHooks:
     def collect(component: type, phase: LifecyclePhaseEnum) -> tuple[str, ...]:
         names = []
         for name, method in inspect.getmembers_static(component):
+            function = (
+                method.__func__ if isinstance(method, (staticmethod, classmethod)) else method
+            )
             if name != phase.value and not (
-                inspect.isfunction(method) and vars(method).get("__di_lifecycle__") is phase
+                inspect.isfunction(function) and vars(function).get("__di_lifecycle__") is phase
             ):
                 continue
             if (

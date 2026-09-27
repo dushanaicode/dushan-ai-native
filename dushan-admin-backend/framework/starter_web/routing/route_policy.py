@@ -10,9 +10,11 @@ class RoutePolicy:
     """明确公开或要求认证；可装饰原生端点/路由器，None 只代表尚未声明。"""
 
     ATTRIBUTE: ClassVar[str] = "__web_access_policy__"
+    TENANT_HEADER: ClassVar[str] = "X-Tenant-Id"
     permissions: tuple[str, ...] = ()
     tenant_required: bool = False
     requires_identity: bool = True
+    public_context: str | None = None
     roles: tuple[str, ...] = ()
     scopes: tuple[str, ...] = ()
     realm: SecurityRealm | None = None
@@ -39,13 +41,17 @@ class RoutePolicy:
                     inherited.required_capability is not None
                     and inherited.required_capability != declared.required_capability
                 )
+                or (
+                    inherited.public_context is not None
+                    and inherited.public_context != declared.public_context
+                )
             ):
                 raise ValueError("外层与内层访问声明冲突")
         return inherited if declared is None else declared
 
     @classmethod
-    def public(cls) -> "RoutePolicy":
-        return cls(requires_identity=False)
+    def public(cls, *, context: str | None = None) -> "RoutePolicy":
+        return cls(requires_identity=False, public_context=context)
 
     def __call__(self, owner):
         previous = getattr(owner, self.ATTRIBUTE, None)
@@ -55,6 +61,14 @@ class RoutePolicy:
         return owner
 
     def __post_init__(self) -> None:
+        if self.public_context is not None and (
+            self.requires_identity
+            or not isinstance(self.public_context, str)
+            or not self.public_context
+            or self.public_context != self.public_context.strip()
+            or len(self.public_context) > 128
+        ):
+            raise ValueError("公开上下文必须在公开路由声明明确的登记名称")
         if type(self.requires_identity) is not bool or type(self.tenant_required) is not bool:
             raise TypeError("公开和租户声明必须是布尔值")
         if not self.requires_identity and (

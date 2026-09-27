@@ -124,7 +124,9 @@ async def test_tencent_request_and_result(cloud_settings, http_client, code):
 
     await mocked(http_client, reply)
     provider = TencentCaptchaProvider(cloud_settings.tencent, http_client)
-    _, record = provider.create("login")
+    data, record = provider.create("login")
+    # 浏览器 SDK 取字符串应用 ID；下发数字会被前端 schema 拒绝并丢失大整数精度。
+    assert data == {"app_id": "123456"}
     assert await provider.verify(
         record, CaptchaAnswer(ticket="test-ticket", randstr="test-rand"), "2001:db8::1"
     ) is (code == 1)
@@ -197,6 +199,20 @@ async def test_http_failures_and_limits(http_client, kind, expected):
     assert len(calls) == 1
 
 
+async def test_request_construction_failure_is_not_reported_as_provider_response(http_client):
+    """凭据无法编入请求头时请求根本没发出，不能归类成"供应商响应无效"。"""
+    calls = []
+
+    async def reply(request):
+        calls.append(request)
+        return httpx.Response(200, json={})
+
+    await mocked(http_client, reply)
+    with pytest.raises(UnicodeEncodeError):
+        await http_client.post("captcha.tencentcloudapi.com", {"authorization": "凭据"}, b"")
+    assert not calls
+
+
 async def test_cancellation_is_not_converted_to_success(http_client):
     async def reply(request):
         raise asyncio.CancelledError()
@@ -240,9 +256,11 @@ async def test_selected_cloud_provider_issues_one_time_proof_and_closes(captcha_
             else {"ticket": "ticket", "randstr": "rand"}
         )
         if provider == "tencent":
+            # 服务端取不到来源 IP 属前置失败，不能伪装成用户输入错误。
             with pytest.raises(CaptchaException) as error:
                 await service.check(challenge.token, "login", answer)
-            assert error.value.error_code == Codes.INVALID_INPUT
+            assert error.value.error_code == Codes.UNAVAILABLE
+            assert error.value.is_system_error is True
         proof = await service.check(challenge.token, "login", answer, client_ip="127.0.0.1")
         await service.consume(proof.verification, "login")
         await service.close()

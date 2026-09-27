@@ -1,7 +1,10 @@
 import time
 from uuid import uuid4
 
+from pydantic import ValidationError
+
 from framework.starter_di.decorators.components import framework
+from framework.starter_websocket.definitions.constants.websocket_constants import WebSocketConstants
 from framework.starter_websocket.definitions.constants.websocket_error_codes import (
     WebSocketErrorCodes,
 )
@@ -57,14 +60,17 @@ class WebSocketService:
         sender = None if identity is None else identity.membership_id
         if message.sender_id is not None and message.sender_id != sender:
             raise WebSocketException(WebSocketErrorCodes.POLICY)
-        message = SocketMessage.model_validate_json(
-            runtime.codec.encode(
-                message.model_copy(
-                    update={"payload": value.model_dump(mode="json"), "sender_id": sender}
-                )
-            ),
-            by_name=False,
-        )
+        try:
+            message = SocketMessage.model_validate_json(
+                runtime.codec.encode(
+                    message.model_copy(
+                        update={"payload": value.model_dump(mode="json"), "sender_id": sender}
+                    )
+                ),
+                by_name=False,
+            )
+        except ValidationError as error:
+            raise WebSocketException(WebSocketErrorCodes.POLICY, cause=error) from error
         envelope = SocketDelivery(
             version=1,
             id=uuid4().hex,
@@ -92,12 +98,16 @@ class WebSocketService:
         return await runtime.call(runtime.online.query(target))
 
     async def invalidate(self, *, family_id=None, tenant_id=None):
+        """会话可失效自身；工作负载需 WebSocketConstants.INVALIDATE_CAPABILITY 授权。"""
         runtime = self.require_runtime()
         if (family_id is None) == (tenant_id is None):
             raise WebSocketException(WebSocketErrorCodes.POLICY)
         identity = runtime.security.context.current()
         workload = runtime.security.context.current_workload()
-        if workload is not None and "websocket:invalidate" in workload.capabilities:
+        if (
+            workload is not None
+            and WebSocketConstants.INVALIDATE_CAPABILITY in workload.capabilities
+        ):
             if workload.tenant_id is not None and tenant_id != workload.tenant_id:
                 raise WebSocketException(WebSocketErrorCodes.POLICY)
         elif identity is None or tenant_id is not None or family_id != identity.family_id:

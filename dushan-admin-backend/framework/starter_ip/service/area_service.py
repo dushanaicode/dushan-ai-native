@@ -63,7 +63,7 @@ class AreaService:
                 name = row["name"].strip()
                 if area_id <= 0 or area_id in areas:
                     raise ValueError("地区 ID 必须为不重复的正整数")
-                if not name or "/" in name or area_type not in (1, 2, 3, 4):
+                if not name or "/" in name or AreaTypeEnum.get_by_code(area_type) is None:
                     raise ValueError("地区名称或层级无效")
                 if (parent_id, name) in siblings:
                     raise ValueError("同一父节点下的地区名称重复")
@@ -77,7 +77,7 @@ class AreaService:
         children: dict[int, list[Area]] = {area_id: [] for area_id in areas}
         for area_id, parent_id in parents.items():
             area = areas[area_id]
-            if parent_id == 0:
+            if parent_id == Area.ID_GLOBAL:
                 if area.type != AreaTypeEnum.COUNTRY.code:
                     raise ValueError(f"地区 {area_id}: 根节点必须是国家")
                 continue

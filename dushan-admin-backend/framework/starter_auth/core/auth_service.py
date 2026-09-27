@@ -28,7 +28,7 @@ from framework.starter_cache.core.cache_handler import CacheHandler
 from framework.starter_cache.lock.distributed_lock import DistributedLock
 from framework.starter_di.decorators.components import framework
 from framework.starter_di.definitions.enums.component_scope_enum import ComponentScopeEnum
-from framework.starter_monitor.core.monitor_service import MonitorService
+from framework.starter_monitor.spi.monitor_provider import MonitorProvider
 
 
 @framework(scope=ComponentScopeEnum.SINGLETON)
@@ -47,9 +47,11 @@ class AuthService:
         registry: AuthProviderRegistry,
         cache: CacheHandler,
         locks: DistributedLock,
+        monitor: MonitorProvider,
     ):
         self.settings = settings.model_copy(deep=True)
         self.clients, self.registry = clients, registry
+        self.monitor = monitor
         self.store = AuthStateStore(cache, self.settings)
         self.credentials = AuthCredentialStore(cache, locks, self.settings)
         self._http = None
@@ -101,18 +103,20 @@ class AuthService:
                 self._idle.set()
 
     def _span(self, source, operation):
-        monitor = MonitorService.current() if self.settings.tracing_enabled else None
-        return (
-            nullcontext()
-            if monitor is None
-            else monitor.span(
-                f"auth.{operation}",
-                {"auth.source": source},
-            )
-        )
+        if not self.settings.tracing_enabled:
+            return nullcontext()
+        return self.monitor.span(f"auth.{operation}", {"auth.source": source})
+
+    def callback_parameter(self, source: str) -> str:
+        """返回该授权源回调里承载授权码的参数名，业务据此原样转交回调参数。"""
+        return self.registry.get(source).callback_code
 
     async def _provider(self, application_id, source):
-        config = await self.clients.get_client(application_id, source)
+        try:
+            config = await self.clients.get_client(application_id, source)
+        except ValidationError as error:
+            # 配置 SPI 交回的快照不满足契约属于配置问题，厂商此时还没有收到请求。
+            raise AuthException(Codes.CONFIG, cause=error) from error
         if config is None:
             raise AuthException(Codes.CONFIG)
         if (config.application_id, config.source) != (application_id, source):
@@ -295,7 +299,7 @@ class AuthService:
     def _closed(task):
         if not task.cancelled() and task.exception() is not None:
             logger.error(
-                "【AuthStarter 】第三方授权资源关闭失败：{}", type(task.exception()).__name__
+                "【AuthStarter】第三方授权资源关闭失败：{}", type(task.exception()).__name__
             )
 
     @property

@@ -13,7 +13,7 @@ class SecurityStep:
     async def run(ctx):
         definitions = ctx.definitions
         if SecuritySettings not in definitions.configuration.model_classes:
-            ctx.logger.info("【SecurityStarter 】配置模型未装配，跳过启动")
+            ctx.logger.info("【SecurityStarter】配置模型未装配，跳过启动")
             yield
             return
         settings = definitions.configuration.get_config(SecuritySettings)
@@ -21,7 +21,7 @@ class SecurityStep:
         if application is None:
             if settings.enabled:
                 raise ValueError("启用 Security 要求先启用 DI")
-            ctx.logger.info("【SecurityStarter 】本站安全未启用")
+            ctx.logger.info("【SecurityStarter】本站安全未启用")
             yield
             return
         starter = application.container.get(SecurityStarter)
@@ -30,7 +30,6 @@ class SecurityStep:
             await starter.open(
                 routes=ctx.app.state.web_routes,
                 database=ctx.app.state.database,
-                tenant=ctx.app.state.tenant,
                 expression_utils=ctx.expression_utils,
             )
             ctx.app.state.security = starter.service

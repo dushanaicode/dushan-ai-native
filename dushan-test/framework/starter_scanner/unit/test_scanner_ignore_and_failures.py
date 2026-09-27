@@ -1,10 +1,14 @@
+import importlib
 import shutil
+import sys
+from importlib.machinery import PathFinder
 from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
 
 from fixtures.config_factory import ConfigFactory
+from framework.common.exception.exceptions.configuration_exception import ConfigurationException
 from framework.starter_scanner.config.scanner_config import ScannerConfig
 from framework.starter_scanner.core.scan_root import ScanRoot
 from framework.starter_scanner.core.scanner_engine import ScannerEngine
@@ -168,3 +172,66 @@ def test_unreadable_directory_and_vanished_file_report_package_and_cause(module_
     assert isinstance(vanished.value.__cause__, FileNotFoundError)
     assert "scan_unreadable.gone" in str(vanished.value)
     assert modules(engine().scan(roots)) == ["scan_unreadable.gone", "scan_unreadable.locked.a"]
+
+
+@pytest.mark.parametrize("filename", ["bad-name.py", "123.py", "valid.name.py", "class.py"])
+def test_invalid_module_filename_reports_scanner_configuration_error(module_package, filename):
+    root = module_package("scan_invalid_filename", files={filename: COMPONENT})
+    with pytest.raises(ScannerException) as caught:
+        engine().scan((ScanRoot("invalid", "scan_invalid_filename", root),))
+    assert caught.value.error_code == ScannerErrorCodes.SCANNER_CONFIG_ERROR
+    assert str(root / filename) in str(caught.value)
+
+
+@pytest.mark.parametrize("directory", ["bad-name", "123", "valid.name", "child.py"])
+def test_invalid_package_directory_is_skipped_before_import(module_package, tmp_path, directory):
+    marker = tmp_path / "invalid-directory.marker"
+    root = module_package(
+        "scan_invalid_directory",
+        files={
+            f"{directory}/__init__.py": f"from pathlib import Path\nPath({str(marker)!r}).touch()\n",
+            f"{directory}/a.py": COMPONENT,
+            "valid.py": COMPONENT,
+        },
+    )
+    result = engine().scan((ScanRoot("invalid", "scan_invalid_directory", root),))
+    assert modules(result) == ["scan_invalid_directory.valid"]
+    assert not marker.exists()
+    assert dict(result.diagnostics.skipped_counts)["not_python_package"] == 1
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "from framework.common.exception.exceptions.configuration_exception import ConfigurationException\n"
+        "raise ConfigurationException(msg='private-import-value')\n",
+        "__path__ = []\n",
+    ],
+)
+def test_import_configuration_failures_keep_import_error_and_cause(module_package, source):
+    root = module_package("scan_import_configuration", files={"__init__.py": source})
+    with pytest.raises(ScannerException) as caught:
+        engine().scan((ScanRoot("configuration", "scan_import_configuration", root),))
+    assert caught.value.error_code == ScannerErrorCodes.SCANNER_MODULE_IMPORT_ERROR
+    assert isinstance(caught.value.__cause__, ConfigurationException)
+    assert "private-import-value" not in str(caught.value)
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="核验 Windows 原生文件名大小写行为")
+@pytest.mark.parametrize("filename", ["Upper.PY", "mixed.Py"])
+@pytest.mark.parametrize("preloaded", [False, True])
+def test_windows_importable_python_suffix_is_scanned(module_package, filename, preloaded):
+    root = module_package("scan_suffix_case", files={filename: COMPONENT})
+    name = f"scan_suffix_case.{Path(filename).stem}"
+    assert (
+        Path(PathFinder.find_spec(name, [str(root)]).origin).resolve()
+        == (root / filename).resolve()
+    )
+    if preloaded:
+        importlib.import_module(name)
+    else:
+        assert name not in sys.modules
+    result = engine().scan((ScanRoot("case", "scan_suffix_case", root),))
+    imported = importlib.import_module(name)
+    assert imported.Example in result.get_components()
+    assert result.definitions[0].source == (root / filename).resolve()

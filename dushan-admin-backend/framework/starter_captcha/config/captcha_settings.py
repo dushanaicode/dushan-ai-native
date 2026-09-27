@@ -37,7 +37,7 @@ class CaptchaSettings(ConfigModel):
 
     @model_validator(mode="after")
     def validate_selection(self) -> "CaptchaSettings":
-        """用途由服务端声明，未选中的云配置允许为空。"""
+        """用途由服务端声明；未选中的云配置只放宽凭据，结构字段仍按各自模型校验。"""
         if not self.purposes or len(set(self.purposes)) != len(self.purposes):
             raise ValueError("验证码用途不能为空或重复")
         if any(re.fullmatch(r"[a-z][a-z0-9_]{0,63}", p) is None for p in self.purposes):

@@ -4,6 +4,17 @@ from framework.starter_auth.provider.provider_payload import ProviderPayload as 
 
 
 class GiteeProvider(OAuthProvider):
+    """Gitee OAuth 2.0 授权。
+
+    官方资料：
+    - OAuth: https://gitee.com/api/v5/oauth_doc#/
+    - API: https://gitee.com/api/v5/swagger
+    实现端点：
+    - authorization: https://gitee.com/oauth/authorize
+    - token: https://gitee.com/oauth/token
+    - userinfo: https://gitee.com/api/v5/user
+    """
+
     capabilities = (ProviderCapability("GITEE"),)
     authorization_endpoint = "https://gitee.com/oauth/authorize"
     token_endpoint = "https://gitee.com/oauth/token"

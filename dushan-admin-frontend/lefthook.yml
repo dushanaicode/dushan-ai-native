@@ -69,7 +69,7 @@ pre-commit:
       stage_fixed: true
     - name: checkType
       root: dushan-admin-frontend/
-      run: pnpm check:type
+      run: pnpm --recursive --if-present run typecheck
 
 post-merge:
   commands:

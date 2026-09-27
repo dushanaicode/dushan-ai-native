@@ -5,11 +5,13 @@ from typing import Final
 HEADER_FORWARDED: Final = "forwarded"
 HEADER_X_FORWARDED_FOR: Final = "x-forwarded-for"
 HEADER_X_REAL_IP: Final = "x-real-ip"
+HEADER_X_FORWARDED_PROTO: Final = "x-forwarded-proto"
 FORWARDED_FOR_PARAM: Final = "for"
 SCHEME_HTTP: Final = "http"
 SCHEME_HTTPS: Final = "https"
 MAX_NETWORK_PORT: Final = 65535
 MAX_PORT_DIGITS: Final = 5
+MAX_FORWARDING_HEADER_CHARS: Final = 16384
 UNKNOWN_IP_MARKERS: Final[frozenset[str]] = frozenset({"", "unknown"})
 TRUSTED_FORWARDING_HEADERS: Final = frozenset(
     {HEADER_FORWARDED, HEADER_X_FORWARDED_FOR, HEADER_X_REAL_IP}
@@ -33,7 +35,10 @@ class ClientIpResolver:
         if not ClientIpResolver._is_trusted_proxy(peer_ip, trusted_proxy_cidrs):
             return peer_ip
         forwarding_headers = ClientIpResolver._collect_forwarding_headers(headers)
-        if sum(len(value) for values in forwarding_headers.values() for value in values) > 16384:
+        if (
+            sum(len(value) for values in forwarding_headers.values() for value in values)
+            > MAX_FORWARDING_HEADER_CHARS
+        ):
             return peer_ip
         if HEADER_X_FORWARDED_FOR in forwarding_headers:
             chain = ClientIpResolver._parse_x_forwarded_for(
@@ -67,7 +72,7 @@ class ClientIpResolver:
         if peer_ip is None or not ClientIpResolver._is_trusted_proxy(peer_ip, trusted_proxy_cidrs):
             return current_scheme
         forwarded_proto_values = [
-            value for key, value in headers.items() if key.lower() == "x-forwarded-proto"
+            value for key, value in headers.items() if key.lower() == HEADER_X_FORWARDED_PROTO
         ]
         if len(forwarded_proto_values) != 1:
             return current_scheme

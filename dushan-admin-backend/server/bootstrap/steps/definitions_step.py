@@ -1,6 +1,7 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+from framework.common.enums.application_environment_enum import ApplicationEnvironmentEnum
 from framework.common.enums.component_type_enum import ComponentTypeEnum
 from framework.common.exception.constants.global_error_code_constants import (
     GlobalErrorCodeConstants,
@@ -15,7 +16,7 @@ from framework.starter_database.pagination.sql_paginator import SqlPaginator
 from framework.starter_di.starter.di_starter import DiStarter
 from framework.starter_excel.config.excel_settings import ExcelSettings
 from framework.starter_excel.starter.excel_starter import ExcelStarter
-from framework.starter_i18n.core.i18n_locale_root import I18nLocaleRoot
+from framework.starter_i18n.config.i18n_locale_root import I18nLocaleRoot
 from framework.starter_i18n.starter.i18n_starter import I18nStarter
 from framework.starter_module.starter.module_starter import ModuleStarter
 from framework.starter_scanner.starter.scanner_starter import ScannerStarter
@@ -31,7 +32,7 @@ class DefinitionsStep:
     @staticmethod
     @asynccontextmanager
     async def run(ctx: AppBootstrapContext) -> AsyncIterator[None]:
-        ctx.logger.info("【DefinitionsStep 】开始装配模块定义与国际化")
+        ctx.logger.info("【DefinitionsStep】开始装配模块定义与国际化")
         modules, roots = ModuleStarter.initialize(ctx.module_settings)
         result = ScannerStarter.initialize(ctx.scanner_config, roots, modules)
         config_starter = ConfigStarter()
@@ -50,6 +51,20 @@ class DefinitionsStep:
                 )
             )
             registry = ErrorCodeRegistry(classes)
+            source_counts: dict[str, int] = {}
+            for source_name, _, _ in registry.get_all_detail().values():
+                source_counts[source_name] = source_counts.get(source_name, 0) + 1
+            ctx.logger.info(
+                "【ErrorCodeRegistry 】错误码注册完成：来源类 {} 个，错误码 {} 个，编号唯一性校验通过",
+                len(source_counts),
+                len(registry.get_all()),
+            )
+            ctx.logger.debug(
+                "【ErrorCodeRegistry 】来源明细：{}",
+                ", ".join(
+                    f"{source_name}={count}" for source_name, count in sorted(source_counts.items())
+                ),
+            )
             message_keys = tuple(value.message_key for value in registry.get_all().values())
             message_keys += tuple(f"validation.{key}" for key in ValidationErrorMapper.messages)
             message_keys += tuple(
@@ -77,6 +92,7 @@ class DefinitionsStep:
             )
             if ctx.di_settings.enabled:
                 instances = {
+                    ApplicationEnvironmentEnum: ctx.bootstrap_config.environment,
                     ConfigSettings: ctx.bootstrap_config.get_config(
                         ConfigSettings, prefix="CONFIG_"
                     ),

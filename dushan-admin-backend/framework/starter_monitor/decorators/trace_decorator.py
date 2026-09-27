@@ -18,6 +18,7 @@ class TraceDecorator:
         if getattr(function, "__monitor_traced__", False):
             raise ValueError("同一函数只能声明一个追踪装饰器")
         signature = inspect.signature(function)
+        self.validate_signature(signature)
         if inspect.iscoroutinefunction(function):
 
             @wraps(function)
@@ -53,6 +54,9 @@ class TraceDecorator:
             finally:
                 if span.is_recording():
                     monitor._observe(self.finish, monitor, span, state)
+
+    def validate_signature(self, signature):
+        pass
 
     def prepare(self, monitor, span, signature, args, kwargs):
         return None

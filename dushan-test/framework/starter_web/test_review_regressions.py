@@ -4,11 +4,13 @@ import pytest
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import Response
 from fastapi.testclient import TestClient
+from pydantic import BaseModel, ValidationError, field_validator
 from starlette.background import BackgroundTask
 from starlette.responses import PlainTextResponse, StreamingResponse
 
 from framework.starter_web.context.request_context import RequestContext
 from framework.starter_web.exception.reported_http_failure import ReportedHttpFailure
+from framework.starter_web.exception.validation_error_mapper import ValidationErrorMapper
 from framework.starter_web.files.local_files import LocalFiles
 from framework.starter_web.response.file_result import FileResult
 from framework.starter_web.response.result import Result
@@ -16,6 +18,23 @@ from framework.starter_web.routing.route_policy import RoutePolicy
 from framework.starter_web.routing.router_registration import RouterRegistration
 from server.bootstrap.bootstrapper import BootstrapError
 from server.starter_server import create_app
+
+
+def test_custom_value_error_has_no_pydantic_english_prefix():
+    class Input(BaseModel):
+        value: str
+
+        @field_validator("value")
+        @classmethod
+        def reject(cls, value):
+            raise ValueError("自定义中文校验")
+
+    with pytest.raises(ValidationError) as caught:
+        Input(value="input")
+    errors = caught.value.errors(include_input=False, include_url=False)
+    assert errors[0]["msg"] == "Value error, 自定义中文校验"
+    result = ValidationErrorMapper.map(errors, lambda key, default, args: default)
+    assert result.fields[0].message == "自定义中文校验"
 
 
 def public_app(config_dir, **kwargs):

@@ -16,7 +16,10 @@ type ParameterSelector = tuple[str, ...] | Callable[[inspect.BoundArguments], ob
 
 
 class ProtectionInvocation:
-    """只绑定 FastAPI 已校验实参，不读 body/stream，不从身份头推断用户或租户。"""
+    """只绑定 FastAPI 已校验实参，不读 body/stream，不从身份头推断用户或租户。
+
+    默认匿名主体依赖有效RequestContext；缺失时RuntimeError表示宿主装配故障。
+    """
 
     def __init__(
         self,

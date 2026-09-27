@@ -7,8 +7,12 @@ from uuid import uuid4
 
 from loguru import logger
 from redis.asyncio.cluster import RedisCluster
+from starlette.websockets import WebSocketDisconnect
 
 from framework.common.utils.asyncio_utils import AsyncioUtils
+from framework.starter_di.context.application_state_enum import ApplicationStateEnum
+from framework.starter_monitor.spi.monitor_provider import MonitorProvider
+from framework.starter_security.spi.security_execution_provider import SecurityExecutionProvider
 from framework.starter_websocket.core.online_registry import OnlineRegistry
 from framework.starter_websocket.core.redis_socket_transport import RedisSocketTransport
 from framework.starter_websocket.core.socket_authenticator import SocketAuthenticator
@@ -30,10 +34,10 @@ class WebSocketRuntime:
         settings,
         application,
         registry,
-        security,
+        security: SecurityExecutionProvider,
         cache,
         tickets,
-        monitor,
+        monitor: MonitorProvider,
         translator,
         trusted_proxies,
         logging_owner,
@@ -69,9 +73,7 @@ class WebSocketRuntime:
             client = cache.get_client(settings.cache_key())
             if isinstance(client, RedisCluster):
                 raise WebSocketException(WebSocketErrorCodes.CONFIGURATION)
-            application_key = hashlib.sha256(security.settings.application_id.encode()).hexdigest()[
-                :16
-            ]
+            application_key = hashlib.sha256(security.application_id.encode()).hexdigest()[:16]
             prefix = cache.build_full_key(
                 settings.cache_key(), settings.namespace + ":" + application_key
             )
@@ -82,6 +84,22 @@ class WebSocketRuntime:
     def accepting(self):
         return self.phase == "ready" and (self.online is None or self.online.valid)
 
+    @property
+    def is_ready(self) -> bool:
+        """心跳、在线租约与跨进程广播均可用时，启用的 WebSocket 才就绪。"""
+        if (
+            not self.accepting
+            or self.application.state is not ApplicationStateEnum.READY
+            or self._heartbeat is None
+            or self._heartbeat.done()
+            or self._quiesce_task is not None
+            or self._close_task is not None
+        ):
+            return False
+        return self.transport is None or (
+            self.transport.is_ready and self._lease is not None and not self._lease.done()
+        )
+
     async def call(self, awaitable):
         async with asyncio.timeout(self.settings.command_timeout_seconds):
             return await awaitable
@@ -89,7 +107,7 @@ class WebSocketRuntime:
     async def open(self):
         self.phase = "starting"
         logger.info(
-            "【WebSocketStarter 】开始初始化 WebSocket 运行时：{}", self.settings.transport.value
+            "【WebSocketStarter】开始初始化 WebSocket 运行时：{}", self.settings.transport.value
         )
         if self.online is not None:
             await self.call(self.online.open())
@@ -97,14 +115,14 @@ class WebSocketRuntime:
             self._lease = asyncio.create_task(
                 self._renew(), context=Context(), name="websocket-instance"
             )
-            logger.info("【WebSocketStarter 】Redis 在线注册、广播传输与实例续租已启动")
+            logger.info("【WebSocketStarter】Redis 在线注册、广播传输与实例续租已启动")
         else:
-            logger.info("【WebSocketStarter 】已选择进程内消息传输")
+            logger.info("【WebSocketStarter】已选择进程内消息传输")
         self._heartbeat = asyncio.create_task(
             self._heartbeats(), context=Context(), name="websocket-heartbeats"
         )
         self.phase = "ready"
-        logger.info("【WebSocketStarter 】运行时初始化完成，连接心跳任务已登记")
+        logger.info("【WebSocketStarter】运行时初始化完成，连接心跳任务已登记")
 
     async def authorize(self, websocket, endpoint):
         task = asyncio.current_task()
@@ -124,14 +142,20 @@ class WebSocketRuntime:
                     WebSocketErrorCodes.CAPACITY: 1013,
                     WebSocketErrorCodes.CLOSED: 1001,
                 }.get(error.error_code, 4001)
-            await websocket.close(code)
+            await self._reject(websocket, code)
             return
         finally:
             self.handshakes.discard(task)
         if not self.accepting:
-            await websocket.close(1001)
+            await self._reject(websocket, 1001)
             return
         await endpoint(websocket, handshake)
+
+    async def _reject(self, websocket, code):
+        try:
+            await self.call(websocket.close(code))
+        except (OSError, WebSocketDisconnect, RuntimeError, TimeoutError) as error:
+            self.record_error(error)
 
     @staticmethod
     def _member_key(connection):
@@ -154,7 +178,7 @@ class WebSocketRuntime:
             or self.member_counts[member] >= self.settings.max_connections_per_member
             or self.tenant_counts[tenant] >= self.settings.max_connections_per_tenant
         ):
-            await websocket.close(4003)
+            await self._reject(websocket, 4003)
             return
         self.connections[connection.id] = connection
         self.member_counts[member] += 1
@@ -194,14 +218,17 @@ class WebSocketRuntime:
         try:
             if self.online is not None:
                 await self.call(self.online.remove(connection.information))
+        except Exception as error:
+            # 失败移除由续租补清理，不阻断本地收尾和断连通知。
+            self.record_error(error)
         finally:
             await self.notify("disconnected", connection.information, connection.close_code)
 
     async def notify(self, method, *args):
         for listener in self.listeners:
-            if listener.audience != args[0].audience:
-                continue
             try:
+                if listener.audience != args[0].audience:
+                    continue
                 await self.call(
                     self.application.tasks.run_isolated(lambda: getattr(listener, method)(*args))
                 )

@@ -5,6 +5,7 @@ from loguru import logger
 from pydantic import ValidationError
 
 from framework.common.utils.asyncio_utils import AsyncioUtils
+from framework.starter_cache.exception.redis_recovery import RedisRecovery
 from framework.starter_mq.core.consumer_invoker import ConsumerInvoker
 from framework.starter_mq.definitions.constants.mq_error_codes import MQErrorCodes
 from framework.starter_mq.definitions.enums.message_mode import MessageMode
@@ -149,9 +150,9 @@ class ConsumerRunner:
         except Exception as error:
             observation_errors.append(error)
             logger.error("MQ 结算停止 key={} error_type={}", definition.key, type(error).__name__)
-            # 终态留在 Redis；重启后只补结算，绝不由异常触发业务重执。
+            # 暂时故障恢复后按 executing/settle/done 记录续接，不重新调用已执行业务。
             await runtime.call(delivery.release())
-            result = "halt"
+            result = "busy" if RedisRecovery.retryable(error) else "halt"
         finally:
             heartbeat.cancel()
             await asyncio.gather(heartbeat, return_exceptions=True)

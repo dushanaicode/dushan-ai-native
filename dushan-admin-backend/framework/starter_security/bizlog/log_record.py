@@ -8,7 +8,7 @@ from framework.starter_security.config.security_settings import SecuritySettings
 
 
 def log_record(spec: LogRecordSpec):
-    """每次调用按当前应用解析；不在闭包缓存服务或拦截器。"""
+    """每次调用按当前应用解析；启用业务日志时要求用户会话，不适用于workload身份。"""
 
     def decorate(function):
         if not inspect.iscoroutinefunction(function):

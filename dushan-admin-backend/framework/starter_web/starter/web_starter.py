@@ -37,7 +37,7 @@ class WebStarter:
         )
         self._created = {id(route) for route in self.app.routes if id(route) not in before}
         self.routes.seal()
-        logger.debug("【WebStarter 】可信代理配置已装配，Controller 候选 {} 个", len(controllers))
+        logger.debug("【WebStarter】可信代理配置已装配，Controller 候选 {} 个", len(controllers))
 
     def close(self):
         self.routes.unseal()
@@ -46,4 +46,4 @@ class WebStarter:
             route for route in self.app.routes if id(route) not in self._created
         ]
         self.app.openapi_schema = None
-        logger.info("【WebStarter 】应用路由已撤销")
+        logger.info("【WebStarter】应用路由已撤销")

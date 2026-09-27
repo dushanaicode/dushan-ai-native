@@ -32,13 +32,14 @@ class MonitorService:
 
     受管代码可Inject本服务；非受管入口使用get_bean或显式bind。
     span只接受明确属性，extract/inject处理标准传播。启用时open接管传入Exporter的生命周期，
-    close由宿主在业务排空后调用；直接关闭时会结束尚存的观测Span，不取消业务任务。
+    close由宿主在业务排空后调用；直接关闭时结束尚存的Span并计数丢弃，不再导出，
+    不取消业务任务；关闭预算只排空已接纳的Span。
     """
 
     def __init__(self, settings: MonitorSettings):
         self.settings = settings
         self.diagnostics = MonitorDiagnostics()
-        self.policy = MonitorAttributePolicy(settings)
+        self.policy = MonitorAttributePolicy(settings, self.diagnostics)
         self.propagation = TracePropagation(settings, self.diagnostics)
         self.database = None
         self._provider = None
@@ -71,9 +72,9 @@ class MonitorService:
         self.diagnostics.logger = diagnostic_logger
         if not self.settings.enabled:
             self._state = "disabled"
-            logger.info("【MonitorStarter 】链路追踪未启用")
+            logger.info("【MonitorStarter】链路追踪未启用")
             return
-        logger.info("【MonitorStarter 】开始初始化链路追踪资源")
+        logger.info("【MonitorStarter】开始初始化链路追踪资源")
         self._state = "starting"
         try:
             from opentelemetry.sdk.resources import Resource
@@ -104,7 +105,7 @@ class MonitorService:
                 shutdown_on_exit=False,
             )
             SdkLogGuard.acquire()
-            logger.info("【MonitorStarter 】TracerProvider 与采样策略已装配")
+            logger.info("【MonitorStarter】TracerProvider 与采样策略已装配")
             self._guard_owned = True
             with SdkLogGuard.quiet():
                 self._exporter = exporter if exporter is not None else self._create_exporter()
@@ -116,18 +117,18 @@ class MonitorService:
                 self._provider.add_span_processor(self._processor)
             self._tracer = self._provider.get_tracer("dushan.monitor", settings.service_version)
             logger.info(
-                "【MonitorStarter 】导出器已装配：{}",
+                "【MonitorStarter】导出器已装配：{}",
                 type(self._exporter).__qualname__ if self._exporter is not None else "未启用",
             )
             logger.debug(
-                "【MonitorStarter 】服务={} version={} sampler={} sample_ratio={}",
+                "【MonitorStarter】服务={} version={} sampler={} sample_ratio={}",
                 settings.service_name,
                 settings.service_version,
                 settings.sampler,
                 settings.sample_ratio,
             )
             self._state = "ready"
-            logger.info("【MonitorStarter 】初始化完成：{}", settings.service_name)
+            logger.info("【MonitorStarter】初始化完成：{}", settings.service_name)
         except BaseException as error:
             self._state = "failed"
             if isinstance(error, Exception):
@@ -374,6 +375,8 @@ class MonitorService:
             self.database = None
             self._state = "closed" if not errors else "close_failed"
         if errors:
+            if not isinstance(errors[0], Exception):
+                raise errors[0]
             raise MonitorException(MonitorErrorCodes.SHUTDOWN_FAILED, cause=errors[0]) from errors[
                 0
             ]

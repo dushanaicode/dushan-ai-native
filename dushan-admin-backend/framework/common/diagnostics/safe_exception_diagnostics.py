@@ -1,3 +1,6 @@
+from collections.abc import Callable
+
+
 class SafeExceptionDiagnostics:
     """按异常提供的安全投影隔离敏感原因、堆栈局部变量及异常组。
 
@@ -27,7 +30,7 @@ class SafeExceptionDiagnostics:
         if id(error) in visited:
             return Exception("重复异常引用")
         visited.add(id(error))
-        project = getattr(error, "__safe_diagnostic__", None)
+        project: Callable[[], BaseException] | None = getattr(error, "__safe_diagnostic__", None)
         if callable(project):
             safe = project()
             # 清理错误组属于独立失败，不是敏感驱动原始 cause，保留其安全结构。

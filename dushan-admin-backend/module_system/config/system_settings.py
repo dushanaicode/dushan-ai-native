@@ -11,6 +11,8 @@ from framework.starter_config.public import (
     "system", env_prefix="SYSTEM_", sources=(ConfigSourceEnum.ENVIRONMENT, ConfigSourceEnum.YAML)
 )
 class SystemSettings(ConfigModel):
+    owner_user_id: str = Field(pattern=r"^[1-9]\d{0,18}$")
+    owner_tenant_id: str = Field(pattern=r"^[1-9]\d{0,18}$")
     user_register_enabled: bool
     allow_modify_system_role: bool
     default_client_id: str = Field(min_length=1)

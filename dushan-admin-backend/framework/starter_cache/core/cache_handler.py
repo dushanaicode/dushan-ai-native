@@ -4,6 +4,7 @@ from typing import Any
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
 
+from framework.common.utils.cleanup_utils import CleanupUtils
 from framework.starter_cache.config.cache_settings import CacheSettings
 from framework.starter_cache.core.cache_generation_coordinator import CacheGenerationCoordinator
 from framework.starter_cache.core.cache_generation_publisher import CacheGenerationPublisher
@@ -250,9 +251,31 @@ class CacheHandler:
 
         栅栏保证期间正在回源的请求即使写入成功也会立刻撤销自己的结果，
         因此删除返回后，同前缀不会再出现基于旧数据的缓存值。
+
+        begin 之后必须让 finalize 拿到终态：删除失败或调用方取消时跳过 finalize，
+        栅栏键会永久停在 ACTIVE，该前缀之后的回源发布全部被静默拒绝、读侧信封被判作废，
+        直到下一次失效成功才自愈。因此 finalize 走取消安全清理，失败时保留主异常。
+        该清理协议面向Task取消，不支持用裸coroutine.close()代替异步任务的取消和等待。
         """
         generation_key = self._coordinator.build_generation_key(cache_key)
         generation = await self._coordinator.begin(client, generation_key)
-        deleted = await operation()
-        await self._coordinator.finalize(client, generation)
+        deleted = 0
+        primary_error: BaseException | None = None
+        try:
+            deleted = await operation()
+        except BaseException as error:
+            primary_error = error
+        finalize_error, cancellation = await CleanupUtils.run_cancellation_safe_cleanup(
+            lambda: self._coordinator.finalize(client, generation), "缓存失效 generation 收尾"
+        )
+        if primary_error is not None or cancellation is not None:
+            CleanupUtils.raise_collected_cleanup_errors(
+                "缓存失效 generation 收尾失败",
+                [] if finalize_error is None else [finalize_error],
+                caller_cancellation=cancellation,
+                primary_error=primary_error,
+            )
+        # 只有收尾失败时保持单一缓存异常上抛，异常组会丢掉错误码对应的响应。
+        if finalize_error is not None:
+            raise finalize_error
         return deleted

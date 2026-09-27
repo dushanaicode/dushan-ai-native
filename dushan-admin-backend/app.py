@@ -23,7 +23,8 @@ def run_server(argv=None) -> int:
     args = parse_server_arguments(argv)
     try:
         config_dir = args.config_dir if args.config_dir is not None else BACKEND_ROOT
-        provider = BootstrapConfigProvider.load(config_dir, app_env=args.env)
+        process_env = dict(os.environ)
+        provider = BootstrapConfigProvider.load(config_dir, app_env=args.env, environ=process_env)
         configuration = provider.get_config(ApplicationSettings)
         settings = configuration.server
         engine = args.server if args.server is not None else settings.engine
@@ -39,7 +40,7 @@ def run_server(argv=None) -> int:
     # 移除引擎自己读取的环境变量，保证子进程使用刚校验过的启动参数。
     child_env = {
         key: value
-        for key, value in os.environ.items()
+        for key, value in process_env.items()
         if not key.startswith(("UVICORN_", "GRANIAN_"))
     }
     child_env.update(

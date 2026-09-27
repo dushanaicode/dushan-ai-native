@@ -1,7 +1,5 @@
 from opentelemetry import trace
 
-from framework.common.diagnostics.safe_exception_diagnostics import SafeExceptionDiagnostics
-from framework.common.exception.exceptions.base_business_exception import BaseBusinessException
 from framework.starter_monitor.core.monitor_service import MonitorService
 from framework.starter_monitor.util.trace_context_utils import TraceContextUtils
 
@@ -27,12 +25,7 @@ class TraceUtils:
         monitor = MonitorService.current()
         if span is not None:
             try:
-                safe = SafeExceptionDiagnostics.snapshot(error)
-                attributes = {"exception.type": type(safe).__name__[:128]}
-                if isinstance(safe, BaseBusinessException):
-                    attributes["error.code"] = safe.error_code.code
-                span.set_status(trace.StatusCode.ERROR)
-                span.add_event("exception", attributes)
+                TraceContextUtils.record_error(span, error)
             except BaseException:
                 if monitor is not None:
                     monitor.diagnostics.increment("exception_projection_failures", warn=True)

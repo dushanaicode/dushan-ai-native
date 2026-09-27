@@ -1,0 +1,5 @@
+# Preserve the exact bytes verified by the IP resource manifests.
+/dushan-admin-backend/framework/starter_ip/resources/area.csv -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+/dushan-admin-backend/framework/starter_ip/resources/AREA-LICENSE.txt -text
+/dushan-admin-backend/framework/starter_ip/resources/ip2region/v3.17.0/manifest.json -text
+/dushan-admin-backend/framework/starter_ip/resources/ip2region/v3.17.0/LICENSE.md -text

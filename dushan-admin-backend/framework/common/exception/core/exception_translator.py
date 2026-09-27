@@ -17,5 +17,5 @@ class ExceptionTranslator(Protocol):
         default: str | None = None,
         args: Sequence[object] | None = None,
     ) -> str:
-        """返回匹配语言和参数的消息，缺少翻译时使用默认提示。"""
+        """返回公开消息；实现选择error策略时可抛ConfigurationException，调用方须保护原响应。"""
         ...

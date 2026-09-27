@@ -1,5 +1,6 @@
 from uuid import uuid4
 
+from loguru import logger
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
 
@@ -81,7 +82,15 @@ class CacheGenerationCoordinator:
         return self._parse(generation_key, payload)
 
     async def begin(self, client: Redis, generation_key: str) -> CacheGenerationState:
-        """开始一轮失效：版本自增并进入 ACTIVE，期间拒绝任何回源发布。"""
+        """开始一轮失效：版本自增并进入 ACTIVE，期间拒绝任何回源发布。
+
+        上一轮状态仍是 ACTIVE，说明那次失效没有收尾——进程在 begin 与 finalize 之间退出，
+        或 BEGIN 已在服务端生效但响应没回到调用方。这种栅栏会一直挡住该前缀的回源发布：
+        读侧每次都判信封作废、删键、加锁、回源，比没有缓存更慢，而且完全不影响正确性，
+        因此不会有任何其他症状暴露出来。这里记一条告警，让这种降级可被发现。
+        BEGIN已生效但响应解析失败也属于此窗口；拿不到可靠版本时保留ACTIVE，
+        不按键名盲目复位，以免结束另一轮并发失效。下一次成功失效可恢复发布。
+        """
         try:
             payload = await client.eval(
                 CacheGenerationScripts.BEGIN,
@@ -95,13 +104,24 @@ class CacheGenerationCoordinator:
             raise CacheException(
                 CacheErrorCodes.OPERATION_FAILED, msg="开始缓存失效 generation 失败", cause=error
             ) from error
-        generation = self._parse(generation_key, payload)
+        if type(payload) is not list or len(payload) != 2:
+            raise CacheException(
+                CacheErrorCodes.OPERATION_FAILED, msg="缓存失效 generation 返回值无效"
+            )
+        generation = self._parse(generation_key, payload[0])
         if (
             generation.version <= CacheConstants.INITIAL_GENERATION_VERSION
             or generation.state is not CacheGenerationStateEnum.ACTIVE
         ):
             raise CacheException(
                 CacheErrorCodes.OPERATION_FAILED, msg="缓存失效 generation 返回值无效"
+            )
+        if payload[1] == CacheGenerationStateEnum.ACTIVE.code:
+            logger.warning(
+                "【CacheStarter】缓存失效栅栏上一轮未收尾，该前缀在此期间未写入缓存："
+                "key={} version={}",
+                generation_key,
+                generation.version,
             )
         return generation
 

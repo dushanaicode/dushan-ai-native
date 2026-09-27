@@ -8,7 +8,6 @@ class MonitorException(BaseBusinessException):
     _system_error_codes = frozenset(
         {
             MonitorErrorCodes.INIT_FAILED.code,
-            MonitorErrorCodes.INVALID_CONFIG.code,
             MonitorErrorCodes.SHUTDOWN_FAILED.code,
         }
     )

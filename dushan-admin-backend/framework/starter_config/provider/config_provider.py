@@ -8,7 +8,7 @@ from types import UnionType
 from typing import TypeVar, Union, get_args, get_origin
 
 from loguru import logger
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, PydanticUndefinedAnnotation, ValidationError
 
 from framework.common.security.sanitizer import Sanitizer
 from framework.starter_config.config.config_settings import ConfigSettings
@@ -43,7 +43,7 @@ class ConfigProvider:
         *,
         external_values: Mapping[str, object] | None = None,
     ) -> None:
-        logger.info("【ConfigStarter 】开始注册并绑定应用配置模型")
+        logger.info("【ConfigStarter】开始注册并绑定应用配置模型")
         self._bootstrap = bootstrap
         self._options = bootstrap.get_config(ConfigSettings, prefix="CONFIG_")
         self._lock = RLock()
@@ -80,9 +80,7 @@ class ConfigProvider:
             names.add(metadata.name)
             prefixes[metadata.env_prefix] = metadata.name
             self._metadata[model] = metadata
-        logger.info(
-            "【ConfigStarter 】模型声明校验完成：{} 个，开始合并配置源", len(self._metadata)
-        )
+        logger.info("【ConfigStarter】模型声明校验完成：{} 个，开始合并配置源", len(self._metadata))
         yaml_values, yaml_sources = bootstrap.get_yaml_snapshot()
         self._layers = {source: ({}, {}) for source in ConfigSourceEnum}
         self._layers[ConfigSourceEnum.YAML] = (self._flatten(yaml_values), yaml_sources)
@@ -99,7 +97,7 @@ class ConfigProvider:
         }
         self._configs, self._origins = self._build(self._layers)
         logger.info(
-            "【ConfigStarter 】配置绑定完成：{} 个模型，版本 {}", len(self._configs), self._revision
+            "【ConfigStarter】配置绑定完成：{} 个模型，版本 {}", len(self._configs), self._revision
         )
 
     @property
@@ -159,6 +157,7 @@ class ConfigProvider:
 
     def remove_listener(self, listener: ConfigListener) -> bool:
         with self._lock:
+            self._require_open()
             if listener not in self._listeners:
                 return False
             self._listeners.remove(listener)
@@ -220,7 +219,7 @@ class ConfigProvider:
             with self._lock:
                 self._require_reload(source)
                 if expected_revision is not None and expected_revision != self._revision:
-                    raise BootstrapConfigError("外部配置加载期间版本已变化，拒绝迟到快照")
+                    raise BootstrapConfigError("配置提交期间版本已变化，拒绝迟到快照")
                 if self._layers[source] == layer:
                     return ConfigUpdateResult(ConfigChange(self._revision, ()), ())
                 layers = dict(self._layers)
@@ -286,17 +285,16 @@ class ConfigProvider:
                     if not present:
                         continue
                     value = self._parse_collection(raw_value, info.annotation, field)
-                    is_model = any(
-                        isinstance(item, type) and issubclass(item, BaseModel)
-                        for item in (info.annotation, *get_args(info.annotation))
-                    )
+                    is_model = self._is_model(info.annotation)
                     if (
                         field in values
                         and is_model
                         and isinstance(values[field], dict)
                         and isinstance(value, dict)
                     ):
-                        values[field] = ConfigValues.merge(values[field], value)
+                        values[field] = self._merge_model_values(
+                            values[field], value, info.annotation, origins, field
+                        )
                     else:
                         values[field] = deepcopy(value)
                         origins = {
@@ -387,13 +385,59 @@ class ConfigProvider:
         return missing
 
     @staticmethod
-    def _parse_collection(value: object, annotation: object, field: str) -> object:
+    def _is_model(annotation: object) -> bool:
+        alternatives = get_args(annotation) if get_origin(annotation) in {Union, UnionType} else ()
+        return any(
+            isinstance(item, type) and issubclass(item, BaseModel)
+            for item in (annotation, *alternatives)
+        )
+
+    @classmethod
+    def _merge_model_values(
+        cls, base: dict, override: dict, annotation: object, origins: dict[str, str], path: str
+    ) -> dict:
+        """按确定的嵌套模型字段合并，普通字典整体替换并清除旧子项来源。"""
+        if not isinstance(annotation, type) or not issubclass(annotation, BaseModel):
+            return ConfigValues.merge(base, override)
+        result = deepcopy(base)
+        for name, value in override.items():
+            field_path = f"{path}.{name}"
+            info = annotation.model_fields.get(name)
+            is_model = info is not None and cls._is_model(info.annotation)
+            if is_model and isinstance(result.get(name), dict) and isinstance(value, dict):
+                result[name] = cls._merge_model_values(
+                    result[name], value, info.annotation, origins, field_path
+                )
+            else:
+                result[name] = deepcopy(value)
+                for key in tuple(origins):
+                    if key == field_path or key.startswith(field_path + "."):
+                        del origins[key]
+        return result
+
+    @classmethod
+    def _parse_collection(cls, value: object, annotation: object, field: str) -> object:
+        if (
+            isinstance(annotation, type)
+            and issubclass(annotation, BaseModel)
+            and isinstance(value, dict)
+        ):
+            return {
+                name: cls._parse_collection(
+                    item, annotation.model_fields[name].annotation, f"{field}.{name}"
+                )
+                if name in annotation.model_fields
+                else item
+                for name, item in value.items()
+            }
         alternatives = get_args(annotation) if get_origin(annotation) in {Union, UnionType} else ()
         if value == "null" and type(None) in alternatives and str not in alternatives:
             return None
         containers = {list, tuple, set, frozenset, dict}
         collection = get_origin(annotation) in containers or any(
-            get_origin(item) in containers for item in alternatives
+            get_origin(item) in containers
+            or (isinstance(item, type) and issubclass(item, BaseModel))
+            for item in alternatives
         )
         if isinstance(value, str) and collection and str not in alternatives:
             try:
@@ -407,7 +451,12 @@ class ConfigProvider:
         if model in seen:
             return
         seen.add(model)
-        model.model_rebuild()
+        try:
+            model.model_rebuild()
+        except PydanticUndefinedAnnotation:
+            raise BootstrapConfigError(
+                f"配置模型包含未解析的类型注解：{model.__qualname__}"
+            ) from None
         if (
             model.model_config.get("extra") != "forbid"
             or model.model_config.get("frozen") is not True

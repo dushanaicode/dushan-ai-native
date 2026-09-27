@@ -18,6 +18,34 @@ from framework.starter_di.exception.di_exception import DiException
 pytestmark = pytest.mark.unit
 
 
+async def test_default_is_not_reported_as_replaced_when_conditional_candidates_conflict(
+    configuration,
+):
+    class Port:
+        pass
+
+    @service(interface=Port)
+    class Default(Port):
+        pass
+
+    @conditional(lambda snapshot: True)
+    @service(interface=Port)
+    class First(Port):
+        pass
+
+    @conditional(lambda snapshot: True)
+    @service(interface=Port)
+    class Second(Port):
+        pass
+
+    current = container([Default, First, Second], configuration)
+    with pytest.raises(DiException):
+        await current.startup()
+    items = by_component(current)
+    assert items["Default"].outcome is BindingOutcomeEnum.CONFLICT
+    assert "未选择" in items["Default"].reason
+
+
 @pytest.fixture
 def configuration(config_dir):
     current = ConfigProvider(BootstrapConfigProvider.load(config_dir(), environ={}), [])

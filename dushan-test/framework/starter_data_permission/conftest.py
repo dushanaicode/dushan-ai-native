@@ -70,6 +70,8 @@ class Permissions:
 class TenantBoundary:
     """只验证 Security 的正式准入调用，不能计作生产 Tenant 实现。"""
 
+    is_ready = True
+
     def __init__(self):
         self.active = 0
 

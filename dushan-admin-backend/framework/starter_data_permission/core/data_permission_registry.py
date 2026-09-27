@@ -1,9 +1,9 @@
 from types import MappingProxyType
 
 from loguru import logger
-from sqlalchemy import Delete, Insert, Table, Update
+from sqlalchemy import Column, Delete, Insert, Table, Update
 from sqlalchemy.sql import visitors
-from sqlalchemy.sql.elements import ColumnClause
+from sqlalchemy.sql.elements import ColumnClause, TextClause
 from sqlalchemy.sql.selectable import Select, TableClause
 
 from framework.starter_data_permission.definitions.constants.data_permission_error_codes import (
@@ -21,7 +21,7 @@ class DataPermissionRegistry:
     """只持有当前应用扫描的模型；不查询进程全局 Mapper 注册表。"""
 
     def __init__(self, models):
-        logger.info("【DataPermissionStarter 】开始登记数据权限模型")
+        logger.info("【DataPermissionStarter】开始登记数据权限模型")
         entries = {}
         for model in models:
             config = (
@@ -37,11 +37,11 @@ class DataPermissionRegistry:
             if not isinstance(config, DataPermissionModel):
                 raise DataPermissionException(DataPermissionErrorCodes.UNREGISTERED)
             if config.table.key in entries:
-                raise ValueError("数据权限表重复登记")
+                raise DataPermissionException(DataPermissionErrorCodes.CONFIGURATION)
             entries[config.table.key] = config
         self.entries = MappingProxyType(entries)
         logger.info(
-            "【DataPermissionStarter 】模型登记完成：记录范围受控 {} 个，公开范围 {} 个",
+            "【DataPermissionStarter】模型登记完成：记录范围受控 {} 个，公开范围 {} 个",
             sum(not item.public for item in entries.values()),
             sum(item.public for item in entries.values()),
         )
@@ -76,7 +76,16 @@ class DataPermissionRegistry:
             seen.add(id(node))
             pending.extend(node.get_children())
             self._validate_entity(node)
+            # ORM 属性表达式由 before_flush 直接送检，不经过 ManagedSession.execute。
+            if isinstance(node, TextClause):
+                raise DataPermissionException(DataPermissionErrorCodes.CONFIGURATION)
             if isinstance(node, (Insert, Update, Delete)) and node is not statement:
+                raise DataPermissionException(DataPermissionErrorCodes.CONFIGURATION)
+            if isinstance(node, Select) and (
+                node._prefixes or node._suffixes or node._hints or node._statement_hints
+            ):
+                raise DataPermissionException(DataPermissionErrorCodes.CONFIGURATION)
+            if isinstance(node, (Insert, Update, Delete)) and (node._prefixes or node._hints):
                 raise DataPermissionException(DataPermissionErrorCodes.CONFIGURATION)
             if isinstance(node, TableClause) and not isinstance(node, Table):
                 raise DataPermissionException(DataPermissionErrorCodes.UNREGISTERED)
@@ -89,14 +98,13 @@ class DataPermissionRegistry:
             if isinstance(node, Table):
                 self.require(node)
                 tables.add(node._deannotate())
-            elif isinstance(node, Select):
+            if isinstance(node, Column) and isinstance(node.table, Table):
+                self.require(node.table)
+                tables.add(node.table._deannotate())
+            if isinstance(node, Select):
                 # select(Model) 的 column_property 在普通 Table 遍历中不可见。
                 pending.extend(node.selected_columns)
                 # joinedload 的隐式目标在 ORM 编译后的 FROM 中，必须一并核验。
                 for source in node.get_final_froms():
-                    for item in visitors.iterate(source):
-                        self._validate_entity(item)
-                        if isinstance(item, Table):
-                            self.require(item)
-                            tables.add(item._deannotate())
+                    pending.extend(visitors.iterate(source))
         return tables

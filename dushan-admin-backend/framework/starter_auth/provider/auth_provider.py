@@ -9,11 +9,18 @@ from framework.starter_auth.exception.auth_exception import AuthException
 from framework.starter_auth.model.auth_flow import AuthFlow
 from framework.starter_auth.model.auth_tokens import AuthTokens
 from framework.starter_auth.model.external_identity import ExternalIdentity
+from framework.starter_auth.oidc.oidc_metadata import OidcMetadata
 from framework.starter_auth.provider.provider_payload import ProviderPayload as Payload
 
 
 class AuthProvider(ABC):
-    """授权源扩展契约。实例只持有本次配置；连接和共享状态由所属应用提供。"""
+    """授权源扩展契约。实例只持有本次配置；连接和共享状态由所属应用提供。
+
+    协议参考：
+    - OAuth 2.0: https://www.rfc-editor.org/rfc/rfc6749
+    - PKCE: https://www.rfc-editor.org/rfc/rfc7636
+    - OAuth 2.0 安全最佳实践: https://www.rfc-editor.org/rfc/rfc9700
+    """
 
     capabilities = ()
     authorization_endpoint = ""
@@ -43,6 +50,10 @@ class AuthProvider(ABC):
     def __init__(self, config: AuthClientConfig, http, credentials, oidc):
         self.config, self.http, self.credentials, self.oidc = config, http, credentials, oidc
         self.capability = next(c for c in self.capabilities if c.source == config.source)
+
+    def oidc_metadata_for_config(self) -> OidcMetadata:
+        """返回当前客户端配置对应的 OIDC 元数据。"""
+        return self.oidc_metadata
 
     @classmethod
     def validate_client(cls, config: AuthClientConfig, settings: AuthSettings):
@@ -87,12 +98,15 @@ class AuthProvider(ABC):
                 AuthUrlPolicy.require(endpoint, allow_loopback_http=settings.allow_loopback_http)
 
     def authorization_parameters(self):
-        return {
+        parameters = {
             "response_type": "code",
             self.client_parameter: self.config.client_id,
             "redirect_uri": self.config.redirect_uri,
-            "scope": self.scope_separator.join(self.config.scopes),
         }
+        if self.config.scopes:
+            # scope 在 OAuth 2.0 中可选；渠道不要求 scope 时省略参数，不发送空值。
+            parameters["scope"] = self.scope_separator.join(self.config.scopes)
+        return parameters
 
     def authorize(self, flow: AuthFlow, challenge: str):
         if self.capability.mode != "browser":

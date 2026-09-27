@@ -14,6 +14,7 @@ class OutboxProvider(Protocol):
     返回持久随机 token/期限。达到上限转 DEAD；过期 SENDING 转 UNKNOWN，不盲目重发。
     finish 必须 CAS token、SENDING 和未过期租约；同一成功回执重试应幂等。
     到期与租约时间必须保留微秒精度，不能因数据库默认舍入而改变立即发布或认领边界。
+    已签名消息应以原始 JSON 文本或字节保存；不能经数据库 JSON 数值规范化改写浮点时间戳。
     取消只允许 PENDING→CANCELLED；清理只删除保留期外 PUBLISHED/DEAD/CANCELLED，
     UNKNOWN 必须经业务人工核定后才能转终态。查询/写入必须执行声明的租户或全局规则。
     """

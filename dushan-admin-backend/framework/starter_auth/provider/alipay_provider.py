@@ -2,6 +2,7 @@ import base64
 import json
 import re
 from datetime import datetime
+from functools import cached_property
 from zoneinfo import ZoneInfo
 
 from cryptography.exceptions import InvalidSignature
@@ -16,7 +17,16 @@ from framework.starter_auth.provider.provider_payload import ProviderPayload as 
 
 
 class AlipayProvider(AuthProvider):
-    """RSA2 签名及公钥/证书序列号模式，共用应用 HTTP 资源，验证原始响应签名。"""
+    """RSA2 签名及公钥/证书序列号模式，共用应用 HTTP 资源，验证原始响应签名。
+
+    官方资料：
+    - 网页/移动应用：https://open.alipay.com/module/webApp
+    - 文档中心：https://open.alipay.com/docCenter/docCenter.htm?from=openhomemenu
+    - 支持中心：https://open.alipay.com/support/supportCenter.htm
+    实现端点：
+    - authorization: https://openauth.alipay.com/oauth2/publicAppAuthorize.htm
+    - token: https://openapi.alipay.com/gateway.do
+    """
 
     capabilities = (
         ProviderCapability("ALIPAY", refresh=True),
@@ -60,6 +70,11 @@ class AlipayProvider(AuthProvider):
     def subject_field(self) -> str:
         return self.config.options["subject_type"]
 
+    @cached_property
+    def signing_keys(self):
+        """实例只服务一次授权操作；RSA 私钥解析约 20ms，换令牌与取用户信息共用同一份解析结果。"""
+        return self._keys(self.config)
+
     @staticmethod
     def _keys(config):
         try:
@@ -80,7 +95,7 @@ class AlipayProvider(AuthProvider):
             raise AuthException(Codes.CONFIG, cause=error) from error
 
     async def _call(self, method, params, *, effect):
-        private, public = self._keys(self.config)
+        private, public = self.signing_keys
         values = {
             "app_id": self.config.client_id,
             "method": method,

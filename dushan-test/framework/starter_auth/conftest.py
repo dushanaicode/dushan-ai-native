@@ -10,6 +10,7 @@ from framework.starter_auth.core.auth_service import AuthService
 from framework.starter_auth.starter.auth_starter import AuthStarter
 from framework.starter_cache.core.cache_handler import CacheHandler
 from framework.starter_cache.lock.distributed_lock import DistributedLock
+from framework.starter_monitor.spi.monitor_provider import MonitorProvider
 from server.starter_server import create_app
 
 from .support import client_config, settings
@@ -40,6 +41,7 @@ async def harness(config_dir):
         with app.state.application_context.execution():
             cache = app.state.application_context.get_bean(CacheHandler)
             locks = app.state.application_context.get_bean(DistributedLock)
+            monitor = app.state.application_context.get_bean(MonitorProvider)
 
             async def build(configs=None, transport=None, components=(), **overrides):
                 namespace = "test-" + uuid4().hex
@@ -48,7 +50,12 @@ async def harness(config_dir):
                 )
                 namespaces.append(namespace)
                 service = AuthService(
-                    config, ConfiguredAuthClients(config), AuthProviderRegistry(), cache, locks
+                    config,
+                    ConfiguredAuthClients(config),
+                    AuthProviderRegistry(),
+                    cache,
+                    locks,
+                    monitor,
                 )
                 starter = AuthStarter(service)
                 starters.append(starter)

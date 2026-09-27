@@ -20,7 +20,7 @@ class CaptchaStarter:
         service = self.service
         settings = service.settings
         with service.startup(provider):
-            logger.info("【CaptchaStarter 】开始初始化验证码资源")
+            logger.info("【CaptchaStarter】开始初始化验证码资源")
             try:
                 for ttl in (
                     settings.challenge_ttl_seconds,
@@ -31,19 +31,19 @@ class CaptchaStarter:
                 service.store.cache.get_client(service.store.key)
             except CacheException as error:
                 raise CaptchaException(Codes.CACHE_UNAVAILABLE, cause=error) from error
-            logger.info("【CaptchaStarter 】挑战与验证凭证缓存校验完成")
+            logger.info("【CaptchaStarter】挑战与验证凭证缓存校验完成")
         logger.info(
-            "【CaptchaStarter 】提供器与生成线程池已装配：{}", type(service._provider).__qualname__
+            "【CaptchaStarter】提供器与生成线程池已装配：{}", type(service._provider).__qualname__
         )
         logger.debug(
-            "【CaptchaStarter 】用途={} 并发={} 挑战TTL={}s 凭证TTL={}s",
+            "【CaptchaStarter】用途={} 并发={} 挑战TTL={}s 凭证TTL={}s",
             settings.purposes,
             settings.generation_concurrency,
             settings.challenge_ttl_seconds,
             settings.verification_ttl_seconds,
         )
-        logger.info("【CaptchaStarter 】初始化完成")
+        logger.info("【CaptchaStarter】初始化完成")
 
     async def close(self):
         await self.service.close()
-        logger.info("【CaptchaStarter 】验证码资源已关闭")
+        logger.info("【CaptchaStarter】验证码资源已关闭")

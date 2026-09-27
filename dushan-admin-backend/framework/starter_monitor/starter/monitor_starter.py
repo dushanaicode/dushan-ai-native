@@ -23,7 +23,7 @@ class MonitorStarter:
                 self._bindings.enter_context(
                     database.observe_queries(MonitorQueryObserver(self.service))
                 )
-                logger.info("【MonitorStarter 】数据库查询观测已接入")
+                logger.info("【MonitorStarter】数据库查询观测已接入")
 
     async def close(self):
         try:
@@ -31,4 +31,4 @@ class MonitorStarter:
         finally:
             await self.service.close()
         if self.service.settings.enabled:
-            logger.info("【MonitorStarter 】追踪资源已关闭")
+            logger.info("【MonitorStarter】追踪资源已关闭")

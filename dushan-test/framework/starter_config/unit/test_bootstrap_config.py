@@ -103,7 +103,7 @@ def test_production_ignores_local_override(config_dir):
 @pytest.mark.parametrize("key", ["SERVER_DEBUG", "SERVER_RELOAD", "SERVER_DOCS_ENABLED"])
 def test_production_rejects_unsafe_overrides(config_dir, key):
     root = config_dir(prod={"server": {"docs_enabled": False}})
-    with pytest.raises(BootstrapConfigError, match="生产环境必须关闭"):
+    with pytest.raises(BootstrapConfigError, match="value_error"):
         settings(root, app_env="prod", environ={key: "true"})
 
 
@@ -172,7 +172,7 @@ def test_missing_base_file_has_clear_error(tmp_path):
 
 
 def test_docs_cannot_replace_health_route(config_dir):
-    with pytest.raises(BootstrapConfigError, match="不能占用 /health"):
+    with pytest.raises(BootstrapConfigError, match="value_error"):
         settings(config_dir({"server": {"docs_url": "/health"}}), environ={})
 
 

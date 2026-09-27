@@ -18,8 +18,8 @@ from framework.starter_web.public import (
 )
 from module_system.config.system_settings import SystemSettings
 from module_system.framework.sms.enums.sms_channel_enum import SmsChannelEnum
-from module_system.service.auth.system_workload_service import SystemWorkloadService
 from module_system.service.sms.sms_send_service import SmsSendService
+from module_system.service.workload.system_workload_service import SystemWorkloadService
 
 sms_callback_controller = APIRouter(prefix="/sms/callback", tags=["System - 短信回调管理"])
 

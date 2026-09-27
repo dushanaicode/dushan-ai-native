@@ -25,6 +25,7 @@ class LoggerConfigurator:
     logger.bind(logging_owner=owner_id) 的日志只进入对应实例；未绑定的进程日志
     交给最早启动且仍活动的实例，避免多应用重复输出。不要复用活动实例的 owner_id。
     全局 patcher 补齐上下文并脱敏，每个受管输出在写入前再次清理。
+    非受管sink的{exception}也会被清空；使用{extra[exception_trace]}读取脱敏堆栈。
     """
 
     CONTEXT_EMPTY = "-"

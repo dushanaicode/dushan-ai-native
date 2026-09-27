@@ -141,8 +141,13 @@ async def test_core_returning_keeps_requested_columns_and_tracks_identity(write_
 async def test_core_update_cannot_forge_creation_or_parameter_audit(write_case):
     database, Item, mapper = write_case
     item = await mapper.insert(Item(name="original"))
-    with pytest.raises(ValueError):
-        await mapper.write(update(Item).where(Item.id == item.id).values(creator="forged"))
+    for field, value in (
+        ("creator", "forged"),
+        ("updater", "forged"),
+        ("update_time", datetime.now()),
+    ):
+        with pytest.raises(ValueError):
+            await mapper.write(update(Item).where(Item.id == item.id).values({field: value}))
     with pytest.raises(ValueError):
         await mapper.write(
             update(Item).where(Item.id == item.id).values(value="bad"), {"updater": "forged"}

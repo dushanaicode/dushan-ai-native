@@ -17,6 +17,7 @@ from framework.starter_security.definitions.enums.security_realm import Security
 from framework.starter_security.definitions.enums.tenant_access_mode import TenantAccessMode
 from framework.starter_security.integration.security_access import SecurityAccess
 from framework.starter_security.model.login_session import LoginSession
+from framework.starter_security.spi.data_access_provider import DataAccessProvider
 from framework.starter_security.spi.token_provider import TokenProvider
 from framework.starter_web.routing.route_policy import RoutePolicy
 from framework.starter_web.routing.router_registration import RouterRegistration
@@ -32,6 +33,7 @@ from framework.starter_data_permission.definitions.enums.data_scope import DataS
 from framework.starter_data_permission.model.data_scope_rule import DataScopeRule
 from framework.starter_data_permission.spi.data_permission_provider import DataPermissionProvider
 from framework.starter_di.decorators.components import service
+from framework.starter_di.decorators.conditional import conditional
 from framework.starter_security.model.permission_snapshot import PermissionSnapshot
 from framework.starter_security.spi.token_provider import TokenProvider
 from framework.starter_security.spi.permission_provider import PermissionProvider
@@ -63,7 +65,9 @@ class DataRules(DataPermissionProvider):
     async def revision(self, identity): return identity.authorization_revision
 
 @service(interface=TenantAccessProvider)
+@conditional(lambda config: True)
 class Tenant(TenantAccessProvider):
+    is_ready = True
     def supports(self, capability): return False
     @asynccontextmanager
     async def enter(self, identity, policy):
@@ -146,7 +150,9 @@ async def test_scanner_di_http_and_resource_close(config_dir, module_package, tm
             application = app.state.application_context
             with application.execution():
                 service = application.container.get(DataPermissionService)
-                assert app.state.security._data_access is service
+                provider = application.container.get(DataAccessProvider)
+                assert app.state.security._data_access is provider
+                assert provider.service is service
                 tokens = application.container.get(TokenProvider)
                 token = OpaqueToken.generate()
                 identity = LoginSession(

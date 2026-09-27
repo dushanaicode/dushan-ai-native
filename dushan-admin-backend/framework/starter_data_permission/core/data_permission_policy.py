@@ -57,11 +57,7 @@ class DataPermissionPolicy(RowAccessRule):
             or row[config.tenant_column] != frame.identity.tenant_id
         ):
             raise DataPermissionException(DataPermissionErrorCodes.WRITE)
-        if (
-            config.public
-            or self.service.is_exempt(config.resource, operation)
-            or frame.grant.tenant_all
-        ):
+        if self.service.is_exempt(config.resource, operation) or frame.grant.tenant_all:
             return
         if not (
             config.membership_column is not None

@@ -34,7 +34,7 @@ class ConditionBuilder(RowStatementFilter):
         tenant = self._column(config, config.tenant_column, orm, entity) == bindparam(
             "_dushan_dp_tenant", frame.identity.tenant_id, unique=True
         )
-        if config.public or self.service.is_exempt(config.resource, operation):
+        if self.service.is_exempt(config.resource, operation):
             return tenant
         grant = frame.grant
         if grant.tenant_all:

@@ -4,6 +4,16 @@ from framework.starter_auth.provider.provider_payload import ProviderPayload as 
 
 
 class MiniProgramProvider(AuthProvider):
+    """微信小程序与 QQ 小程序 code2session 适配器。
+
+    官方资料：
+    - 微信接口: https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/user-login/code2Session.html
+    - QQ 互联: https://connect.qq.com/
+    实现端点：
+    - wechat: https://api.weixin.qq.com/sns/jscode2session
+    - qq: https://api.q.qq.com/sns/jscode2session
+    """
+
     subject_field = "openid"
     capabilities = tuple(
         ProviderCapability(source, mode="native", token_kind="session_key")

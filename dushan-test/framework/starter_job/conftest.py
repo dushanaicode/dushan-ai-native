@@ -302,6 +302,8 @@ def job_target(request):
 
 @pytest.fixture
 async def job_case(job_target, config_dir, module_package, tmp_path, request):
+    if "DUSHAN_DP_REDIS_PORT" not in os.environ:
+        pytest.skip("任务owner用例需要本轮独立 Redis")
     options = getattr(request, "param", {})
     suffix = uuid4().hex[:12]
     package = "job_case_" + suffix

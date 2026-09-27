@@ -15,7 +15,7 @@ def build_granian_cmd(server: ServerSettings, engine: GranianSettings) -> list[s
         "--interface",
         "asgi",
         "--no-access-log",
-        "server.starter_server:app",
+        "server.asgi:app",
         "--host",
         server.host,
         "--port",

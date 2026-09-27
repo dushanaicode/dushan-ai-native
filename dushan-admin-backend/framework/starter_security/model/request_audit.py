@@ -23,7 +23,10 @@ class RequestAudit:
             in {"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "TRACE"}
             else "OTHER"
         )
-        path = request.scope["state"].get("web_route_template", request.scope["route"].path)
+        route = request.scope.get("route")
+        path = request.scope["state"].get(
+            "web_route_template", route.path if route is not None else "<unmatched>"
+        )
         agent = request.headers.get("user-agent")
         return cls(
             method,

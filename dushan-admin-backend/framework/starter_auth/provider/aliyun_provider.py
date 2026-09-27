@@ -7,6 +7,17 @@ from framework.starter_auth.provider.provider_payload import ProviderPayload as 
 
 
 class AliyunProvider(OAuthProvider):
+    """阿里云 RAM OAuth 2.0 / OIDC 授权。
+
+    官方文档：
+    - https://help.aliyun.com/en/ram/access-alibaba-cloud-apis-from-a-web-application
+    实现端点：
+    - authorization: https://signin.aliyun.com/oauth2/v1/auth
+    - token: https://oauth.aliyun.com/v1/token
+    - userinfo: https://oauth.aliyun.com/v1/userinfo
+    - jwks: https://oauth.aliyun.com/v1/keys
+    """
+
     subject_field = "sub"
     capabilities = (ProviderCapability("ALIYUN", oidc=True, refresh=True),)
     authorization_endpoint = "https://signin.aliyun.com/oauth2/v1/auth"

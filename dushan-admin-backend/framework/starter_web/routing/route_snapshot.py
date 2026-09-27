@@ -25,11 +25,13 @@ class RouteSnapshot:
         host_routes: tuple[BaseRoute, ...],
         stream_policy,
         policy_validator=None,
+        public_context_parameters=None,
     ) -> None:
         self.access_provider = access_provider
         self.host_routes = host_routes
         self.stream_policy = stream_policy
         self.policy_validator = policy_validator
+        self.public_context_parameters = public_context_parameters
 
     def build(self, routes, inherited: RoutePolicy | None):
         result = []
@@ -71,6 +73,12 @@ class RouteSnapshot:
             raise ValueError("部署能力声明缺少策略校验提供者")
         if self.policy_validator is not None:
             self.policy_validator(policy)
+        if policy.public_context is not None and (
+            not isinstance(self.access_provider, RouteGuard)
+            or self.public_context_parameters is None
+            or not isinstance(original, APIRoute)
+        ):
+            raise ValueError("公开上下文需要 HTTP 路由及已配置的入口提供者")
         if not isinstance(original, APIRoute):
             if isinstance(original, AuthenticatedWebSocketRoute) and not policy.requires_identity:
                 raise ValueError("独立认证 WebSocket 不能改写为公开路由")
@@ -104,6 +112,12 @@ class RouteSnapshot:
             "mode": "protected" if policy.requires_identity else "public",
             "tenant_required": policy.tenant_required,
         }
+        if policy.public_context is not None:
+            declaration["public_context"] = policy.public_context
+            extra["parameters"] = [
+                *extra.get("parameters", []),
+                *deepcopy(self.public_context_parameters(policy.public_context)),
+            ]
         if policy.roles:
             declaration["roles"] = list(policy.roles)
         if policy.scopes:
@@ -145,7 +159,7 @@ class RouteSnapshot:
             options["openapi_extra"]["x-stream-integrity"] = declared
         guard = (
             partial(self.access_provider.guard, policy=policy)
-            if policy.requires_identity and isinstance(self.access_provider, RouteGuard)
+            if isinstance(self.access_provider, RouteGuard)
             else None
         )
         return route_class(**options, stream_policy=self.stream_policy, access_guard=guard)

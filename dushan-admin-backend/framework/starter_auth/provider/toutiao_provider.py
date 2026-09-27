@@ -4,6 +4,17 @@ from framework.starter_auth.provider.provider_payload import ProviderPayload as 
 
 
 class ToutiaoProvider(OAuthProvider):
+    """头条帐号 OAuth 2.0 授权。
+
+    官方资料：
+    - OAuth 2.0: https://open.douyin.com/platform/resource/docs/develop/permission/toutiao-or-xigua/OAuth2.0/
+    - 授权码: https://open.douyin.com/platform/resource/docs/openapi/account-permission/toutiao-get-permission-code
+    实现端点：
+    - authorization: https://open.snssdk.com/auth/authorize
+    - token: https://open.snssdk.com/auth/token
+    - userinfo: https://open.snssdk.com/data/user_profile
+    """
+
     subject_field = "uid"
     capabilities = (ProviderCapability("TOUTIAO"),)
     authorization_endpoint = "https://open.snssdk.com/auth/authorize"

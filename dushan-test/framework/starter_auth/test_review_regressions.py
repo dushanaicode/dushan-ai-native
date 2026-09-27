@@ -3,14 +3,17 @@ import pytest
 from pydantic import SecretStr
 from starlette.datastructures import QueryParams
 
+from framework.starter_auth.config.auth_client_config import AuthClientConfig
 from framework.starter_auth.core.auth_provider_registry import AuthProviderRegistry
+from framework.starter_auth.core.auth_service import AuthService
 from framework.starter_auth.definitions.constants.auth_error_codes import AuthErrorCodes as Codes
 from framework.starter_auth.exception.auth_exception import AuthException
 from framework.starter_auth.model.auth_callback import AuthCallback
 from framework.starter_auth.model.provider_capability import ProviderCapability
 from framework.starter_auth.provider.oauth_provider import OAuthProvider
+from framework.starter_auth.spi.auth_client_provider import AuthClientProvider
 
-from .support import ACCESS, BINDING, REFRESH, RecordingTransport, client_config
+from .support import ACCESS, BINDING, REFRESH, RecordingTransport, client_config, settings
 
 
 def held_tokens(service, config, **values):
@@ -99,6 +102,36 @@ def test_wrong_callback_container_is_input_error(value):
     with pytest.raises(AuthException) as failure:
         AuthCallback.parse(value, code_parameter="code", client_id="client-a")
     assert failure.value.error_code == Codes.INPUT
+
+
+def offline_service(clients):
+    """只验证取配置阶段的行为，缓存与锁在该阶段不会被使用。"""
+    config = settings(clients=(), tracing_enabled=False)
+    return AuthService(config, clients, AuthProviderRegistry(), None, None, None)
+
+
+async def test_invalid_client_snapshot_is_configuration_error():
+    class BrokenClients(AuthClientProvider):
+        async def get_client(self, application_id, source):
+            AuthClientConfig(application_id=application_id)
+
+    service = offline_service(BrokenClients())
+    async with service.startup():
+        pass
+    with pytest.raises(AuthException) as failure:
+        await service.begin("app-a", "GITHUB", binding=BINDING)
+    assert failure.value.error_code == Codes.CONFIG and failure.value.outcome == "not_sent"
+
+
+@pytest.mark.parametrize(
+    "source,parameter", [("GITHUB", "code"), ("ALIPAY", "auth_code"), ("DINGTALK_V2", "authCode")]
+)
+def test_callback_parameter_follows_channel(source, parameter):
+    class EmptyClients(AuthClientProvider):
+        async def get_client(self, application_id, source):
+            return None
+
+    assert offline_service(EmptyClients()).callback_parameter(source) == parameter
 
 
 @pytest.mark.parametrize(

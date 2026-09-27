@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 from framework.common.utils.cleanup_utils import CleanupUtils
+from framework.starter_monitor.spi.monitor_provider import MonitorProvider
 from framework.starter_protection.config.protection_settings import ProtectionSettings
 from framework.starter_protection.starter.protection_starter import ProtectionStarter
 from server.bootstrap.context import AppBootstrapContext
@@ -14,7 +15,7 @@ class ProtectionStep:
     async def run(ctx: AppBootstrapContext):
         definitions = ctx.definitions
         if ProtectionSettings not in definitions.configuration.model_classes:
-            ctx.logger.info("【ProtectionStarter 】配置模型未装配，跳过启动")
+            ctx.logger.info("【ProtectionStarter】配置模型未装配，跳过启动")
             yield
             return
         settings = definitions.configuration.get_config(ProtectionSettings)
@@ -22,11 +23,11 @@ class ProtectionStep:
         if application is None:
             if settings.enabled:
                 raise ValueError("启用保护要求先启用 DI")
-            ctx.logger.info("【ProtectionStarter 】保护能力未启用")
+            ctx.logger.info("【ProtectionStarter】保护能力未启用")
             yield
             return
         starter = application.container.get(ProtectionStarter)
-        monitor = getattr(ctx.app.state, "monitor", None)
+        monitor = application.container.get_optional(MonitorProvider)
         primary = None
         try:
             await starter.open(monitor=monitor)

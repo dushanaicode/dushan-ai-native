@@ -3,7 +3,7 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 
 from sqlalchemy import Delete, Insert, Update, event, false
-from sqlalchemy.orm import LoaderCriteriaOption, with_loader_criteria
+from sqlalchemy.orm import LoaderCriteriaOption
 from sqlalchemy.sql import visitors
 from sqlalchemy.sql.elements import BindParameter
 
@@ -11,6 +11,7 @@ from framework.starter_database.config.database_settings import DatabaseSettings
 from framework.starter_database.context.database_context import DatabaseContext
 from framework.starter_database.id.snowflake_utils import SnowflakeUtils
 from framework.starter_database.model.base_do import BaseDO
+from framework.starter_database.query.soft_delete_filter import SoftDeleteFilter
 from framework.starter_database.repository.atomic_upsert import AtomicUpsert
 from framework.starter_database.session.write_result import WriteResult
 
@@ -244,16 +245,12 @@ class ModelPolicy:
             return self.insert(state)
         if self.settings.soft_delete_enabled and not include_deleted:
             if state.is_select and not state.is_column_load:
-                state.statement = statement.options(
-                    with_loader_criteria(
-                        BaseDO, lambda model: model.deleted == false(), include_aliases=True
-                    )
-                )
+                state.statement = SoftDeleteFilter(statement).select(statement)
         if isinstance(statement, Update) and "update_time" in statement.table.c:
             supplied = {getattr(key, "key", key) for key in (statement._values or {})}
             supplied.update(state.parameters or {})
-            if supplied & {"id", "creator", "create_time", "tenant_id"}:
-                raise ValueError("Core UPDATE 不能修改主键或创建审计字段")
+            if supplied & {"id", "creator", "create_time", "tenant_id", "updater", "update_time"}:
+                raise ValueError("Core UPDATE 不能修改主键、租户或审计字段")
             if state.parameters and set(state.parameters) & {"updater", "update_time", "deleted"}:
                 raise ValueError("系统维护字段不能通过 execute 参数覆盖")
             state.statement = state.statement.values(**self.audit_values(state.session))

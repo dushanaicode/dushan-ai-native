@@ -6,6 +6,16 @@ from framework.starter_auth.provider.provider_payload import ProviderPayload as 
 
 
 class HuaweiProvider(OAuthProvider):
+    """华为帐号 OAuth 2.0 授权（v2）。
+
+    官方资料：
+    - Account Kit: https://developer.huawei.com/consumer/en/hms/huawei-accountkit/
+    实现端点：
+    - authorization: https://oauth-login.cloud.huawei.com/oauth2/v2/authorize
+    - token: https://oauth-login.cloud.huawei.com/oauth2/v2/token
+    - userinfo: https://api.vmall.com/rest.php
+    """
+
     subject_field = "userID"
     capabilities = (ProviderCapability("HUAWEI", refresh=True),)
     authorization_endpoint = "https://oauth-login.cloud.huawei.com/oauth2/v2/authorize"

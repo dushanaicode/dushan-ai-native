@@ -32,5 +32,5 @@ class BaseDO(Base):
 
     @staticmethod
     def get_create_time_from_id(identifier: int) -> datetime:
-        """仅用于已确定由 Snowflake 策略生成的 ID，非法值明确报错。"""
+        """返回Snowflake ID对应的UTC aware时间，与本实体存储的UTC naive字段区分。"""
         return SnowflakeUtils.parse_id(identifier)["datetime"]

@@ -57,6 +57,13 @@ end
 return n
 """
     _DELETE_IDLE = """
+if redis.call('EXISTS',KEYS[1])==0 then return 0 end
+local groups=redis.call('XINFO','GROUPS',KEYS[1])
+local found=false
+for _,group in ipairs(groups) do
+  for i=1,#group,2 do if group[i]=='name' and group[i+1]==ARGV[1] then found=true end end
+end
+if not found then return 0 end
 local c=redis.call('XINFO','CONSUMERS',KEYS[1],ARGV[1])
 for _,item in ipairs(c) do
   local name=nil; local pending=0; local idle=0
@@ -76,7 +83,7 @@ return 1
         self.client, self.prefix, self.settings = client, prefix, settings
         self.receiving = False
         self.subscriptions = []
-        self.bindings = []
+        self.bindings = {}
         self.ready = {}
 
     def stream(self, destination):
@@ -108,6 +115,20 @@ return 1
                         if not str(error).startswith("BUSYGROUP "):
                             raise
         self.receiving = True
+
+    async def check_health(self) -> bool:
+        return self.receiving and bool(await self.client.ping())
+
+    async def recover_consumer(self, definition):
+        """已有连接池自动重连；清库后只恢复本消费者声明的流和消费组。"""
+        await self.client.ping()
+        if definition.mode is MessageMode.STREAM:
+            for key in (self.stream(definition.destination), self.retry_stream(definition)):
+                try:
+                    await self.client.xgroup_create(key, definition.group, id="0-0", mkstream=True)
+                except ResponseError as error:
+                    if not str(error).startswith("BUSYGROUP "):
+                        raise
 
     async def publish(self, destination, mode, body):
         if mode is MessageMode.PUBSUB:
@@ -171,9 +192,7 @@ return 1
             while self.receiving:
                 item = await subscription.get_message(timeout=self.settings.poll_seconds)
                 if item is not None:
-                    yield Delivery(
-                        item["data"].encode(), "pubsub", False, self._no_ack, self._no_ack
-                    )
+                    yield Delivery(item["data"].encode(), False, self._no_ack, self._no_ack)
         finally:
             await subscription.aclose()
             self.subscriptions.remove(subscription)
@@ -186,10 +205,11 @@ return 1
     async def _stream(self, definition, prefetch):
         owner = uuid4().hex
         keys = (self.stream(definition.destination), self.retry_stream(definition))
-        self.bindings.append((keys, definition.group, owner))
+        self.bindings[definition.key] = (keys, definition.group, owner)
         self.ready[definition.key].set()
         cursors = {key: "0-0" for key in keys}
         reclaim_at = 0.0
+        cleanup_at = 0.0
         while self.receiving:
             await self.client.eval(
                 self._PROMOTE,
@@ -215,6 +235,17 @@ return 1
                     cursors[key] = claimed[0]
                     for entry, fields in claimed[1]:
                         yield self._delivery(definition, owner, key, keys[1], entry, fields)
+            if now >= cleanup_at:
+                cleanup_at = now + self.settings.lease_seconds
+                for key in keys:
+                    await self.client.eval(
+                        self._DELETE_IDLE,
+                        1,
+                        key,
+                        definition.group,
+                        "",
+                        int(self.settings.lease_seconds * 2000),
+                    )
             batches = await self.client.xreadgroup(
                 definition.group,
                 owner,
@@ -244,7 +275,7 @@ return 1
             # 保留 PEL；冷却后由 XAUTOCLAIM 接管，不热循环重投。
             await self.client.xclaim(key, definition.group, owner, 0, [entry], idle=0, justid=True)
 
-        return Delivery(fields["body"].encode(), entry, key == retry_key, acknowledge, release)
+        return Delivery(fields["body"].encode(), key == retry_key, acknowledge, release)
 
     async def stop_receiving(self):
         self.receiving = False
@@ -254,7 +285,7 @@ return 1
         for subscription in tuple(self.subscriptions):
             await subscription.aclose()
         self.subscriptions.clear()
-        for keys, group, owner in self.bindings:
+        for keys, group, owner in self.bindings.values():
             for key in keys:
                 await self.client.eval(
                     self._DELETE_IDLE, 1, key, group, owner, int(self.settings.lease_seconds * 2000)

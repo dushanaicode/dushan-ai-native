@@ -9,13 +9,13 @@ from framework.common.contracts import (
 from framework.common.enums import StatusEnum
 from framework.common.schemas import BaseVO
 from framework.common.validator import NotBlank
+from framework.starter_data_permission.public import (
+    DataScope,
+)
 from framework.starter_excel.public import (
     EnumConverter,
     ExcelColumn,
     IdsConverter,
-)
-from module_system.definitions.enums.permission.permission_data_scope_enum import (
-    PermissionDataScopeEnum,
 )
 
 
@@ -36,7 +36,7 @@ class RoleRespVO(BaseVO):
     data_scope: Annotated[
         int,
         Field(..., description="数据范围"),
-        ExcelColumn(title="数据范围", converter=EnumConverter(PermissionDataScopeEnum)),
+        ExcelColumn(title="数据范围", converter=EnumConverter(DataScope)),
     ]
     data_scope_dept_ids: Annotated[
         list[SnowflakeIdStr] | None,

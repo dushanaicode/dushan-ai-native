@@ -13,10 +13,10 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from framework.starter_security.bizlog.biz_log_service import BizLogService
 from framework.starter_security.core.opaque_token import OpaqueToken
-from framework.starter_security.core.security_service import SecurityService
 from framework.starter_security.definitions.enums.security_realm import SecurityRealm
 from framework.starter_security.definitions.enums.tenant_access_mode import TenantAccessMode
 from framework.starter_security.integration.security_access import SecurityAccess
+from framework.starter_security.model.identity_binding import IdentityBinding
 from framework.starter_security.model.login_session import LoginSession
 from framework.starter_security.model.permission_snapshot import PermissionSnapshot
 from framework.starter_web.routing.route_policy import RoutePolicy
@@ -88,7 +88,7 @@ class SecurityCase:
 
     async def _permissions(self, db, session, granted, roles):
         snapshot = PermissionSnapshot(
-            binding=SecurityService.binding(session),
+            binding=IdentityBinding.build(session),
             revision=session.authorization_revision,
             permissions=frozenset(granted),
             roles=frozenset(roles),
@@ -207,7 +207,10 @@ def security_factory(config_dir, tmp_path, security_module, module_package):
             router.add_api_route("/protected", (policy or RoutePolicy(("read",)))(who))
             router.add_api_route("/public", RoutePolicy.public()(lambda: {"public": True}))
         optional = "security_optional_" + identifier
-        source = "from framework.starter_di.decorators.components import service\n"
+        source = (
+            "from framework.starter_di.decorators.components import service\n"
+            "from framework.starter_di.decorators.conditional import conditional\n"
+        )
         for name, interface, package, methods, instance in (
             (
                 "tenant",
@@ -228,7 +231,12 @@ def security_factory(config_dir, tmp_path, security_module, module_package):
             if instance is None:
                 continue
             source += f"from framework.starter_security.spi.{package} import {interface}\n"
-            source += f"@service(interface={interface})\nclass Bound{interface}({interface}):\n    def __init__(self):\n        self.delegate = {name}\n"
+            source += f"@service(interface={interface})\n"
+            if name == "tenant":
+                source += "@conditional(lambda config: True)\n"
+            source += f"class Bound{interface}({interface}):\n    def __init__(self):\n        self.delegate = {name}\n"
+            if name == "tenant":
+                source += "    @property\n    def is_ready(self):\n        return self.delegate.is_ready\n"
             for method in methods:
                 keyword = "" if name == "tenant" else "async "
                 awaiting = "" if name == "tenant" else "await "

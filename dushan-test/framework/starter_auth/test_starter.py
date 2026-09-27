@@ -9,6 +9,7 @@ from framework.starter_auth.definitions.constants.auth_error_codes import AuthEr
 from framework.starter_auth.exception.auth_exception import AuthException
 from framework.starter_auth.starter.auth_starter import AuthStarter
 from framework.starter_cache.lock.distributed_lock import DistributedLock
+from framework.starter_monitor.spi.monitor_provider import MonitorProvider
 
 from .support import SECRET, client_config, settings
 from .test_application import application_values
@@ -31,8 +32,8 @@ async def test_starter_logs_registration_configuration_and_real_shutdown(config_
     finally:
         logger.remove(sink)
     messages = "\n".join(message for _, message in records)
-    assert "【AuthStarter 】初始化完成，第三方授权服务已就绪" in messages
-    assert "【AuthStarter 】第三方授权服务已关闭" in messages
+    assert "【AuthStarter】初始化完成，第三方授权服务已就绪" in messages
+    assert "【AuthStarter】第三方授权服务已关闭" in messages
     assert "静态客户端校验完成：启用 1 个，停用 0 个" in messages
     assert any(
         level == "DEBUG" and "授权源=GITHUB" in message and "GithubProvider" in message
@@ -42,7 +43,7 @@ async def test_starter_logs_registration_configuration_and_real_shutdown(config_
         level == "DEBUG" and "缓存前缀=auth:state client=auth_store" in message
         for level, message in records
     )
-    assert "【starter_auth 】" not in messages
+    assert "【starter_auth】" not in messages
     assert SECRET not in messages
 
 
@@ -61,6 +62,7 @@ async def test_starter_failure_never_opens_authorization_or_reports_success(harn
         AuthProviderRegistry(),
         cache,
         app.state.application_context.get_bean(DistributedLock),
+        app.state.application_context.get_bean(MonitorProvider),
     )
     starter = AuthStarter(service)
     messages = []
@@ -75,7 +77,7 @@ async def test_starter_failure_never_opens_authorization_or_reports_success(harn
         with pytest.raises(AuthException) as unavailable:
             await service.begin("app-a", "GITHUB", binding="not-ready")
         assert unavailable.value.error_code == Codes.UNAVAILABLE
-        assert not any("【AuthStarter 】初始化完成" in message for message in messages)
+        assert not any("【AuthStarter】初始化完成" in message for message in messages)
     finally:
         await starter.close()
         logger.remove(sink)

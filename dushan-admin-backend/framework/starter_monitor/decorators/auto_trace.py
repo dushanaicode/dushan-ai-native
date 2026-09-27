@@ -9,6 +9,9 @@ class AutoTrace(TraceDecorator):
         BusinessAttributes.validate(biz_id_param)
         self.biz_id_param = biz_id_param
 
+    def validate_signature(self, signature):
+        BusinessAttributes.validate_parameter(self.biz_id_param, signature)
+
     def prepare(self, monitor, span, signature, args, kwargs):
         if monitor.settings.capture_business_ids and self.biz_id_param:
             value = BusinessAttributes.read(

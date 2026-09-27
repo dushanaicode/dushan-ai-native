@@ -1,3 +1,4 @@
+import asyncio
 import time
 
 from framework.starter_websocket.definitions.constants.websocket_error_codes import (
@@ -17,6 +18,7 @@ class OnlineRegistry:
         self.instance_key = prefix + ":instance:" + runtime.instance
         self.connections_key = prefix + ":connections:" + runtime.instance
         self.instances_key = prefix + ":instances"
+        self._removal_revision = self._cleaned_removal_revision = 0
 
     async def open(self):
         started = time.monotonic()
@@ -41,8 +43,15 @@ class OnlineRegistry:
             raise WebSocketException(WebSocketErrorCodes.TRANSPORT)
         settings = self.runtime.settings
         started = time.monotonic()
+        revision = self._removal_revision
+        removed = []
+        if revision != self._cleaned_removal_revision:
+            # 先读 Redis 再比对本地表；新连接在写 Redis 前已登记，连接 ID 不复用。
+            clients = await self.client.hkeys(self.connections_key)
+            removed = [client for client in clients if client not in self.runtime.connections]
         result = await self.client.eval(
             "if redis.call('GET',KEYS[1])~=ARGV[1] then return 0 end "
+            "for i=5,#ARGV do redis.call('HDEL',KEYS[2],ARGV[i]) end "
             "redis.call('PEXPIRE',KEYS[1],ARGV[2]); redis.call('PEXPIRE',KEYS[2],ARGV[2]); "
             "redis.call('ZADD',KEYS[3],ARGV[3],ARGV[1]); "
             "redis.call('ZREMRANGEBYSCORE',KEYS[3],'-inf',ARGV[4]); return 1",
@@ -54,11 +63,13 @@ class OnlineRegistry:
             int(settings.instance_lease_seconds * 1000),
             time.time() + settings.instance_lease_seconds,
             time.time(),
+            *removed,
         )
         if result != 1:
             self.deadline = 0.0
             raise WebSocketException(WebSocketErrorCodes.TRANSPORT)
         self.deadline = started + settings.instance_lease_seconds
+        self._cleaned_removal_revision = revision
 
     async def add(self, connection):
         result = await self.client.eval(
@@ -76,15 +87,19 @@ class OnlineRegistry:
             raise WebSocketException(WebSocketErrorCodes.TRANSPORT)
 
     async def remove(self, connection):
-        await self.client.eval(
-            "if redis.call('GET',KEYS[1])~=ARGV[1] then return 0 end "
-            "return redis.call('HDEL',KEYS[2],ARGV[2])",
-            2,
-            self.instance_key,
-            self.connections_key,
-            self.runtime.instance,
-            connection.client_id,
-        )
+        try:
+            await self.client.eval(
+                "if redis.call('GET',KEYS[1])~=ARGV[1] then return 0 end "
+                "return redis.call('HDEL',KEYS[2],ARGV[2])",
+                2,
+                self.instance_key,
+                self.connections_key,
+                self.runtime.instance,
+                connection.client_id,
+            )
+        except (Exception, asyncio.CancelledError):
+            self._removal_revision += 1
+            raise
 
     async def query(self, target):
         now = time.time()

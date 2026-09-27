@@ -109,8 +109,12 @@ class CandidateSelection:
             else:
                 self._record(
                     binding,
-                    BindingOutcomeEnum.DEFAULT_REPLACED,
-                    "被条件候选替代：" + ", ".join(self._names(active)),
+                    BindingOutcomeEnum.CONFLICT
+                    if len(active) > 1
+                    else BindingOutcomeEnum.DEFAULT_REPLACED,
+                    "条件候选冲突，未选择默认实现"
+                    if len(active) > 1
+                    else "被条件候选替代：" + ", ".join(self._names(active)),
                 )
 
     def _matches(self, component: type, conditions: tuple) -> bool:

@@ -10,6 +10,10 @@ class BizTrace(TraceDecorator):
         BusinessAttributes.validate(type_expr)
         self.operation_name, self.id_expr, self.type_expr = operation_name, id_expr, type_expr
 
+    def validate_signature(self, signature):
+        for expression in (self.id_expr, self.type_expr):
+            BusinessAttributes.validate_parameter(expression, signature)
+
     def prepare(self, monitor, span, signature, args, kwargs):
         if monitor.settings.capture_business_ids and (self.id_expr or self.type_expr):
             arguments = BusinessAttributes.arguments(signature, args, kwargs)

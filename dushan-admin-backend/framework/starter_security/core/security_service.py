@@ -24,6 +24,7 @@ from framework.starter_security.definitions.constants.security_error_codes impor
 from framework.starter_security.definitions.enums.security_realm import SecurityRealm
 from framework.starter_security.definitions.enums.tenant_access_mode import TenantAccessMode
 from framework.starter_security.exception.security_exception import SecurityException
+from framework.starter_security.model.identity_binding import IdentityBinding
 from framework.starter_security.model.login_session import LoginSession
 from framework.starter_security.model.permission_snapshot import PermissionSnapshot
 from framework.starter_security.model.request_audit import RequestAudit
@@ -82,19 +83,19 @@ class SecurityService:
         if self._phase != "new" or not self.settings.enabled:
             raise SecurityException(SecurityErrorCodes.CLOSED)
         self._phase = "starting"
-        logger.info("【SecurityStarter 】开始初始化本站认证与授权")
+        logger.info("【SecurityStarter】开始初始化本站认证与授权")
         self._tenant, self._messages = tenant, messages
         self._workloads = workloads
         self._data_access = data_access
         logger.info(
-            "【SecurityStarter 】身份与授权提供器已绑定：租户={}，消息={}，工作负载={}，数据权限={}",
+            "【SecurityStarter】身份与授权提供器已绑定：租户={}，消息={}，工作负载={}，数据权限={}",
             tenant is not None,
             messages is not None,
             workloads is not None,
             data_access is not None,
         )
         logger.debug(
-            "【SecurityStarter 】TokenProvider={} PermissionProvider={} domains={} default_domain={}",
+            "【SecurityStarter】TokenProvider={} PermissionProvider={} domains={} default_domain={}",
             type(self.tokens).__qualname__,
             type(self.permissions).__qualname__,
             self.settings.domains,
@@ -104,11 +105,11 @@ class SecurityService:
             await self._call(
                 lambda: self.cache.eval_atomic(self.settings.cache_key(), ("probe",), "return 1")
             )
-            logger.info("【SecurityStarter 】权限缓存原子脚本验证通过")
+            logger.info("【SecurityStarter】权限缓存原子脚本验证通过")
         else:
-            logger.info("【SecurityStarter 】权限缓存未启用")
+            logger.info("【SecurityStarter】权限缓存未启用")
         self._phase = "ready"
-        logger.info("【SecurityStarter 】初始化完成：认证域={}", ",".join(self.settings.domains))
+        logger.info("【SecurityStarter】初始化完成：认证域={}", ",".join(self.settings.domains))
 
     @asynccontextmanager
     async def _operation(self):
@@ -182,35 +183,14 @@ class SecurityService:
         if session.credential_revision != session.current_credential_revision:
             raise SecurityException(SecurityErrorCodes.CREDENTIALS)
 
-    @staticmethod
-    def binding(session: LoginSession) -> str:
-        values = [
-            session.application_id,
-            session.domain,
-            session.account_id,
-            session.session_id,
-            session.family_id,
-            session.realm.value,
-            session.tenant_id,
-            session.membership_id,
-            session.authority_tenant_id,
-            session.authority_membership_id,
-            session.platform_operator_id,
-            session.support_session_id,
-            None if session.access_mode is None else session.access_mode.value,
-            session.group_id,
-            session.management_relation_id,
-            session.approved_resource,
-            session.approved_action,
-        ]
-        return hashlib.sha256(json.dumps(values, separators=(",", ":")).encode()).hexdigest()
-
     def _permission_identifier(self, session: LoginSession) -> str:
         revision = hashlib.sha256(session.authorization_revision.encode()).hexdigest()
-        return f"{session.application_id}:{session.domain}:{self.binding(session)}:{revision}"
+        return (
+            f"{session.application_id}:{session.domain}:{IdentityBinding.build(session)}:{revision}"
+        )
 
     async def _snapshot(self, session: LoginSession) -> PermissionSnapshot:
-        binding = self.binding(session)
+        binding = IdentityBinding.build(session)
 
         async def load():
             snapshot = await self.permissions.snapshot(session, binding=binding)
@@ -270,7 +250,7 @@ class SecurityService:
             policy.realm in {SecurityRealm.TENANT, SecurityRealm.SUPPORT}
             or policy.tenant_required
             or policy.required_capability is not None
-        ) and self._tenant is None:
+        ) and (self._tenant is None or not self._tenant.is_ready):
             raise SecurityException(SecurityErrorCodes.CONFIGURATION)
         if policy.required_capability is not None and not self._tenant.supports(
             policy.required_capability
@@ -357,9 +337,15 @@ class SecurityService:
         if self._data_access is None:
             yield
         else:
-            # 数据范围在可信身份安装后加载；同一 Context 内的 finally 负责快照复位。
-            async with self._data_access.enter(identity):
+            manager = self._data_access.enter(identity)
+            await manager.__aenter__()
+            primary = None
+            try:
                 yield
+            except BaseException as error:
+                primary = error
+            finally:
+                await self._exit_provider_scope(manager, primary, "数据权限")
 
     @asynccontextmanager
     async def _tenant_scope(self, manager):
@@ -373,28 +359,29 @@ class SecurityService:
         except BaseException as error:
             primary = error
         finally:
-            # ContextVar token 必须在创建它的 Context 内复位；普通任务复制会破坏它。
-            exit_task = asyncio.Task(
-                manager.__aexit__(
-                    type(primary) if primary is not None else None,
-                    primary,
-                    primary.__traceback__ if primary is not None else None,
-                ),
-                context=asyncio.current_task().get_context(),
-                name="security-tenant-exit",
-                loop=asyncio.get_running_loop(),
-                eager_start=False,
-            )
-            error, cancellation = await CleanupUtils.run_cancellation_safe_cleanup(
-                lambda: exit_task,
-                "Security 租户作用域清理",
-            )
-            CleanupUtils.raise_collected_cleanup_errors(
-                "租户作用域退出失败",
-                [] if error is None else [error],
-                primary_error=primary,
-                caller_cancellation=cancellation,
-            )
+            await self._exit_provider_scope(manager, primary, "租户")
+
+    async def _exit_provider_scope(self, manager, primary, label):
+        # ContextVar token 必须在创建它的 Context 内复位；普通任务复制会破坏它。
+        exit_task = asyncio.Task(
+            manager.__aexit__(
+                type(primary) if primary is not None else None,
+                primary,
+                primary.__traceback__ if primary is not None else None,
+            ),
+            context=asyncio.current_task().get_context(),
+            name="security-scope-exit",
+        )
+        error, cancellation = await CleanupUtils.run_cancellation_safe_cleanup(
+            lambda: exit_task,
+            f"Security {label}作用域清理",
+        )
+        CleanupUtils.raise_collected_cleanup_errors(
+            f"{label}作用域退出失败",
+            [] if error is None else [error],
+            primary_error=primary,
+            caller_cancellation=cancellation,
+        )
 
     @asynccontextmanager
     async def authorized(
@@ -454,7 +441,7 @@ class SecurityService:
     def session_version(cls, session: LoginSession):
         """长连接冻结的身份与授权版本，不含可用作客户端凭证的明文值。"""
         return (
-            cls.binding(session),
+            IdentityBinding.build(session),
             session.authorization_revision,
             session.credential_revision,
             session.current_credential_revision,
@@ -514,9 +501,9 @@ class SecurityService:
         if latest is None:
             raise SecurityException(SecurityErrorCodes.INVALID)
         self._validate(latest, current.domain)
-        if latest.token_digest != current.token_digest or self.binding(latest) != self.binding(
-            current
-        ):
+        if latest.token_digest != current.token_digest or IdentityBinding.build(
+            latest
+        ) != IdentityBinding.build(current):
             raise SecurityException(SecurityErrorCodes.INVALID)
         return latest
 
@@ -789,7 +776,7 @@ class SecurityService:
 
     async def _close(self):
         await self._idle.wait()
-        self._tenant = self._messages = self._workloads = None
+        self._tenant = self._messages = self._workloads = self._data_access = None
         self._phase = "closed"
 
     def resources(self) -> dict:

@@ -106,6 +106,20 @@ class RabbitBackend(MessageBackend):
             )
         self.receiving = True
 
+    async def check_health(self) -> bool:
+        """AMQP 心跳维护连接状态，同时检查发布与消费通道。"""
+        return (
+            self.receiving
+            and self.connection is not None
+            and not self.connection.is_closed
+            and self.connection.connected.is_set()
+            and self.publisher is not None
+            and all(
+                channel.is_initialized and not channel.is_closed
+                for channel in (self.publisher, *self.channels)
+            )
+        )
+
     async def _send(self, name, body):
         try:
             receipt = await self.publisher.default_exchange.publish(
@@ -176,7 +190,6 @@ class RabbitBackend(MessageBackend):
                         break
                     yield Delivery(
                         incoming.body,
-                        str(incoming.delivery_tag),
                         bool(incoming.headers.get("x-death")),
                         incoming.ack,
                         lambda message=incoming: message.nack(requeue=True),

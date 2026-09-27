@@ -44,11 +44,9 @@ def test_project_name_and_runtime_details_are_printed_once_at_completion(config_
     with TestClient(app) as client:
         # 启动摘要在接收请求前结束；之后正常产生的访问日志不属于摘要。
         output = capsys.readouterr().out
-        assert output.count("应用初始化完成：dushan-ai-native") == 1
+        assert output.count("[DUSHAN-AI-NATIVE] - 服务启动就绪") == 1
         assert all(output.count(label) == 1 for label in ("引擎：", "环境：", "监听地址："))
-        assert output.splitlines()[-3].startswith("引擎：")
-        assert output.splitlines()[-2].startswith("环境：")
-        assert output.splitlines()[-1].startswith("监听地址：")
+        assert output.index("服务启动就绪") < output.index("引擎：") < output.index("监听地址：")
         assert client.get("/openapi.json").json()["info"]["title"] == name
 
 
@@ -76,6 +74,6 @@ def test_production_banner_reports_documentation_disabled(config_dir, capsys):
     with TestClient(app):
         pass
     summary = capsys.readouterr().out
-    assert "应用初始化完成" in summary
+    assert "服务启动就绪" in summary
     assert "接口文档：已关闭" in summary
     assert "Swagger" not in summary and "ReDoc" not in summary

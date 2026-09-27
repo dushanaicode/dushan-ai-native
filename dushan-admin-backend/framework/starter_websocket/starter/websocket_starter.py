@@ -5,7 +5,8 @@ from framework.starter_di.context.application_context import ApplicationContext
 from framework.starter_di.core.candidate_selection import CandidateSelection
 from framework.starter_di.decorators.components import starter
 from framework.starter_di.definitions.enums.binding_outcome_enum import BindingOutcomeEnum
-from framework.starter_monitor.core.monitor_service import MonitorService
+from framework.starter_monitor.spi.monitor_provider import MonitorProvider
+from framework.starter_security.spi.security_execution_provider import SecurityExecutionProvider
 from framework.starter_web.routing.route_policy import RoutePolicy
 from framework.starter_websocket.config.websocket_settings import WebSocketSettings
 from framework.starter_websocket.core.socket_protocol_log_filter import SocketProtocolLogFilter
@@ -40,7 +41,7 @@ class WebSocketStarter:
         self,
         *,
         components,
-        security,
+        security: SecurityExecutionProvider | None,
         cache_available,
         routes,
         translator,
@@ -85,7 +86,7 @@ class WebSocketStarter:
             security,
             cache,
             tickets,
-            container.get(MonitorService),
+            container.get(MonitorProvider),
             translator,
             proxies,
             logging_owner,
@@ -104,7 +105,7 @@ class WebSocketStarter:
             name="websocket",
         )
         logger.info(
-            "【WebSocketStarter 】端点登记完成：path={} transport={}，处理器 {} 个",
+            "【WebSocketStarter】端点登记完成：path={} transport={}，处理器 {} 个",
             self.settings.path,
             self.settings.transport.value,
             len(registry.handlers),
@@ -125,4 +126,4 @@ class WebSocketStarter:
                 if self._guard_owned:
                     SocketProtocolLogFilter.release()
                     self._guard_owned = False
-        logger.info("【WebSocketStarter 】WebSocket 资源已关闭")
+        logger.info("【WebSocketStarter】WebSocket 资源已关闭")

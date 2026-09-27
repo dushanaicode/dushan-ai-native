@@ -30,12 +30,12 @@ class TenantStarter:
         ):
             raise TenantException(TenantErrorCodes.CONFIGURATION)
         logger.info(
-            "【TenantStarter 】提供器装配：租户目录={}，租户开通={}",
+            "【TenantStarter】提供器装配：租户目录={}，租户开通={}",
             self.service.directory is not None,
             self.service.provisioning is not None,
         )
         if database is None:
-            logger.info("【TenantStarter 】模型装配完成，未启用数据库，租户会话策略未挂载")
+            logger.info("【TenantStarter】模型装配完成，未启用数据库，租户会话策略未挂载")
             return
         self.service.ready = self.service.directory is not None
         self._policy_scope = database.use_session_policy(
@@ -43,7 +43,7 @@ class TenantStarter:
         )
         self._policy_scope.__enter__()
         logger.info(
-            "【TenantStarter 】装配完成：会话隔离策略已挂载，模型 {} 个，目录服务就绪={}",
+            "【TenantStarter】装配完成：会话隔离策略已挂载，模型 {} 个，目录服务就绪={}",
             len(registry.entries),
             self.service.ready,
         )
@@ -55,4 +55,4 @@ class TenantStarter:
                 self._policy_scope = None
         finally:
             await self.service.close()
-        logger.info("【TenantStarter 】租户资源已关闭")
+        logger.info("【TenantStarter】租户资源已关闭")

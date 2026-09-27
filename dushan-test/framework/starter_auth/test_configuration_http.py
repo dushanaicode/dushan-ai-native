@@ -8,6 +8,7 @@ from framework.common.diagnostics.safe_exception_diagnostics import SafeExceptio
 from framework.starter_auth.core.auth_http_client import AuthHttpClient
 from framework.starter_auth.core.auth_provider_registry import AuthProviderRegistry
 from framework.starter_auth.core.auth_url_policy import AuthUrlPolicy
+from framework.starter_auth.definitions.constants.auth_error_codes import AuthErrorCodes as Codes
 from framework.starter_auth.exception.auth_exception import AuthException
 from framework.starter_auth.model.provider_capability import ProviderCapability
 from framework.starter_auth.provider.oauth_provider import OAuthProvider
@@ -21,23 +22,30 @@ def test_complete_registry_and_isolated_extension():
         "ALIPAY",
         "ALIPAY_CERT",
         "ALIYUN",
+        "APPLE",
         "BAIDU",
         "CSDN",
         "DINGTALK",
         "DINGTALK_ACCOUNT",
         "DINGTALK_V2",
+        "DISCORD",
         "DOUYIN",
         "ELEME",
         "FEISHU",
         "GITEE",
         "GITHUB",
+        "GITLAB",
+        "GOOGLE",
         "HUAWEI",
         "HUAWEI_V3",
         "JD",
+        "LINKEDIN",
         "MEITUAN",
         "MI",
+        "MICROSOFT",
         "QQ",
         "QQ_MINI_PROGRAM",
+        "SLACK",
         "TAOBAO",
         "TOUTIAO",
         "WECHAT_ENTERPRISE",
@@ -172,6 +180,41 @@ async def test_transport_redirect_size_encoding_and_duplicate_json(response):
         assert len(transport.requests) == 1
     finally:
         await http.close()
+
+
+@pytest.mark.parametrize(
+    "status, code, outcome",
+    [
+        (302, Codes.RESPONSE, "unknown"),
+        (404, Codes.REJECTED, "rejected"),
+        (503, Codes.NETWORK, "unknown"),
+    ],
+)
+async def test_status_classes_keep_distinct_error_codes(status, code, outcome):
+    transport = RecordingTransport(
+        [httpx.Response(status, headers={"Location": "https://evil.example/"})]
+    )
+    http = AuthHttpClient(settings(), transport=transport)
+    try:
+        with pytest.raises(AuthException) as failure:
+            await http.json("POST", "https://issuer.example/token", effect=True)
+        assert failure.value.error_code == code and failure.value.outcome == outcome
+    finally:
+        await http.close()
+
+
+@pytest.mark.parametrize(
+    "content",
+    [b'{"a": NaN}', b'{"a": Infinity}', b'{"a": -Infinity}', b'{"a": 1e400}', b'{"a": -1e400}'],
+)
+def test_non_finite_numbers_fail_as_invalid_response(content):
+    with pytest.raises(AuthException) as failure:
+        AuthHttpClient.decode_json(content, effect=True)
+    assert failure.value.error_code == Codes.RESPONSE and failure.value.outcome == "unknown"
+
+
+def test_ordinary_numbers_still_decode():
+    assert AuthHttpClient.decode_json(b'{"a": 1.5, "b": 600}') == {"a": 1.5, "b": 600}
 
 
 async def test_http_cookie_and_logging_isolation(caplog):

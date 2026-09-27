@@ -13,8 +13,14 @@ class TenantAccessProvider(Protocol):
     在完整执行内安装自己的隔离上下文，并在异常或取消后恢复。
     exit 在同一 Context/DI 执行的受保护任务中完成；不能跨 yield 持有任务专属
     数据库会话或事务，查询与事务继续使用 Database 自己的执行接点。
+    提供者自行限制退出清理的I/O时长；Security不在上下文尚未恢复时放弃清理。
     Security 不替它生成数据库过滤条件或给平台身份授予租户权限。
     """
+
+    @property
+    def is_ready(self) -> bool:
+        """提供者已完成必要装配；注册了适配器不等于租户准入可用。"""
+        ...
 
     def supports(self, capability: str) -> bool:
         """从已装配的部署配置判断能力上限；同步、无 I/O，供路由发布前校验。"""

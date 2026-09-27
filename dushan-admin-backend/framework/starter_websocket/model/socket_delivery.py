@@ -7,7 +7,10 @@ from framework.starter_websocket.model.socket_target import SocketTarget
 
 
 class SocketDelivery(BaseModel):
-    """跨进程传输信封，HMAC 覆盖来源、版本、目标、消息与有效期。"""
+    """跨进程传输信封，HMAC 覆盖全部字段，id 仅标识本次发布。
+
+    只验证真实性与有效期，不保证有效期内去重；需要持久投递语义时使用 MQ。
+    """
 
     model_config = ConfigDict(frozen=True, extra="forbid", hide_input_in_errors=True)
     version: Literal[1]

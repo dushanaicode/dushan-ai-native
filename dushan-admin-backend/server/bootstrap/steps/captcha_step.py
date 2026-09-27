@@ -14,12 +14,12 @@ class CaptchaStep:
     async def run(ctx: AppBootstrapContext):
         definitions = ctx.definitions
         if CaptchaSettings not in definitions.configuration.model_classes:
-            ctx.logger.info("【CaptchaStarter 】配置模型未装配，跳过启动")
+            ctx.logger.info("【CaptchaStarter】配置模型未装配，跳过启动")
             yield
             return
         settings = definitions.configuration.get_config(CaptchaSettings)
         if not settings.enabled:
-            ctx.logger.info("【CaptchaStarter 】验证码未启用")
+            ctx.logger.info("【CaptchaStarter】验证码未启用")
             yield
             return
         if definitions.application_context is None:

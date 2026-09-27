@@ -36,7 +36,8 @@ class LockManager:
         """竞争超时返回 None；关闭配置的直接获取明确失败，hold 可显式跳过保护。"""
         with self.runtime.operation():
             if not self.runtime.enabled("lock"):
-                raise ProtectionException(Codes.CLOSED, msg="分布式锁已配置关闭")
+                self.runtime.emit("lock", "acquire", "disabled", perf_counter())
+                raise ProtectionException(Codes.INVALID, msg="分布式锁已配置关闭")
             return await self._acquire(
                 operation, subject, parameters, self.runtime.settings.lock if rule is None else rule
             )

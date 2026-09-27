@@ -15,7 +15,9 @@ class ProtectionException(BaseBusinessException):
         }
     )
 
-    retryable = True
+    @property
+    def retryable(self) -> bool:
+        return self.error_code.code != ProtectionErrorCodes.INVALID.code
 
     def __safe_diagnostic__(self) -> "ProtectionException":
         return ProtectionException(self.error_code, retry_after=self.retry_after)

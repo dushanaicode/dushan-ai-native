@@ -64,7 +64,12 @@ class KeyBuilder:
         args: tuple,
         kwargs: dict,
     ) -> str:
-        """渲染本次调用的缓存标识；没有模板时按函数名和全部参数生成。"""
+        """渲染本次调用的缓存标识；没有模板时按函数名和全部参数生成。
+
+        占位符一次性替换：参数值里出现的 {{name}} 不会被当成占位符再替换一遍。
+        标识本身是直接拼接，模板里的分隔符对参数值不转义，因此多占位符模板
+        必须保证各段取值不会互相串位（"a:{{x}}:b:{{y}}" 中 x 含 ":b:" 会与另一组取值撞键）。
+        """
         arguments = cls.bind_arguments(signature, args, kwargs)
         if template is None:
             parts = [func.__name__]
@@ -72,12 +77,9 @@ class KeyBuilder:
                 f"{name}={cls.serialize_value(value)}" for name, value in arguments.items()
             )
             return ":".join(parts)
-        result = template
-        for placeholder in cls.PLACEHOLDER_PATTERN.findall(template):
-            result = result.replace(
-                f"{{{{{placeholder}}}}}", cls.serialize_value(arguments[placeholder])
-            )
-        return result
+        return cls.PLACEHOLDER_PATTERN.sub(
+            lambda match: cls.serialize_value(arguments[match.group(1)]), template
+        )
 
     @classmethod
     def bind_arguments(

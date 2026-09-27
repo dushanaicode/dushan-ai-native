@@ -1,13 +1,13 @@
 from time import time_ns
 
-from framework.starter_monitor.core.monitor_service import MonitorService
+from framework.starter_monitor.spi.monitor_provider import MonitorProvider
 from framework.starter_protection.core.protection_event import ProtectionEvent
 
 
 class MonitorProtectionObserver:
     """显式可选适配；核心仅认识事件回调，不导入 Monitor 或创建另一套追踪器。"""
 
-    def __init__(self, monitor: MonitorService) -> None:
+    def __init__(self, monitor: MonitorProvider) -> None:
         self.monitor = monitor
 
     def __call__(self, event: ProtectionEvent) -> None:

@@ -5,7 +5,13 @@ from framework.starter_auth.provider.provider_payload import ProviderPayload as 
 
 
 class OAuthProvider(AuthProvider):
-    """共享 OAuth 授权码/刷新表单，特殊渠道只覆写真正不同的协议步骤。"""
+    """共享 OAuth 授权码/刷新表单，特殊渠道只覆写真正不同的协议步骤。
+
+    协议参考：
+    - OAuth 2.0 授权框架: https://www.rfc-editor.org/rfc/rfc6749
+    - 授权码 + PKCE: https://www.rfc-editor.org/rfc/rfc7636
+    - OAuth 安全最佳实践: https://www.rfc-editor.org/rfc/rfc9700
+    """
 
     subject_field = "id"
 
@@ -57,9 +63,10 @@ class OAuthProvider(AuthProvider):
         if tokens.id_token is None:
             raise AuthException(Codes.OIDC, outcome="unknown")
         try:
+            metadata = self.oidc_metadata_for_config()
             claims = await self.oidc.verify(
                 tokens.id_token.get_secret_value(),
-                self.oidc_metadata,
+                metadata,
                 self.config.client_id,
                 nonce,
                 access_token=self.access(tokens),

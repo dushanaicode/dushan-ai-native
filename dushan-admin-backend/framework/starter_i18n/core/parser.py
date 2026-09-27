@@ -1,6 +1,6 @@
 import re
 
-from framework.starter_i18n.core.i18n_options import I18nOptions
+from framework.starter_i18n.config.i18n_options import I18nOptions
 
 
 class AcceptLanguageParser:

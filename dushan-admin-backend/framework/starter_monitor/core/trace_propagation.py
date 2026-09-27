@@ -18,7 +18,7 @@ class TracePropagation:
         self.settings, self.diagnostics = settings, diagnostics
         self._trace = TraceContextTextMapPropagator()
         self._baggage = W3CBaggagePropagator()
-        self._policy = MonitorAttributePolicy(settings)
+        self._policy = MonitorAttributePolicy(settings, diagnostics)
 
     def extract(self, headers) -> Context:
         pairs = headers.items() if isinstance(headers, Mapping) else headers
@@ -79,6 +79,13 @@ class TracePropagation:
             > self.settings.max_propagation_bytes
         ):
             result.pop("baggage", None)
+            traceparent = result.get("traceparent")
+            if (
+                traceparent is not None
+                and len("traceparent") + len(traceparent.encode())
+                > self.settings.max_propagation_bytes
+            ):
+                del result["traceparent"]
             self.diagnostics.increment("propagation_dropped")
         return result
 

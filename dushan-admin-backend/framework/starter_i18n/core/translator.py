@@ -14,6 +14,8 @@ class I18nTranslator:
     translate 指定 scope，translate_any_scope 使用全局唯一的 message_key。
     args 只作用于命中的翻译模板；default 是已完成且可公开的文本。
     一次调用持有同一个不可变 Catalog，热更新不会把两版资源混入同一次查询。
+    missing_policy或format_error_policy为error时会抛ConfigurationException；
+    错误响应调用方须隔离翻译故障，保留原业务错误和安全默认文案。
     """
 
     def __init__(

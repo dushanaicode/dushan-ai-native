@@ -13,6 +13,7 @@ from framework.starter_security.model.login_session import LoginSession
 from framework.starter_security.spi.tenant_access_provider import TenantAccessProvider
 from framework.starter_tenant.config.tenant_settings import TenantSettings
 from framework.starter_tenant.context.tenant_context import TenantContext
+from framework.starter_tenant.definitions.constants.tenant_capabilities import TenantCapabilities
 from framework.starter_tenant.definitions.constants.tenant_error_codes import TenantErrorCodes
 from framework.starter_tenant.exception.tenant_exception import TenantException
 from framework.starter_tenant.model.tenant_access_grant import TenantAccessGrant
@@ -36,6 +37,10 @@ class TenantService(TenantAccessProvider):
         self.directory = None
         self.provisioning = None
         self.ready = False
+
+    @property
+    def is_ready(self) -> bool:
+        return self.ready
 
     def supports(self, capability: str) -> bool:
         return (
@@ -76,31 +81,31 @@ class TenantService(TenantAccessProvider):
         return target
 
     @asynccontextmanager
-    async def enter(self, identity, policy):
+    async def enter(self, session, policy):
         self._require_ready()
-        if self.security.current() is not identity:
+        if self.security.current() is not session:
             raise TenantException(TenantErrorCodes.DENIED, detail="租户上下文与身份不一致")
-        target = self._target(identity)
+        target = self._target(session)
         info = await self._tenant(target)
         if info is None:
             raise TenantException(TenantErrorCodes.UNKNOWN)
         if not info.enabled:
             raise TenantException(TenantErrorCodes.DISABLED)
-        if identity.access_mode is TenantAccessMode.GROUP_MANAGED and not self.supports(
-            "group_managed_access"
+        if session.access_mode is TenantAccessMode.GROUP_MANAGED and not self.supports(
+            TenantCapabilities.GROUP_MANAGED_ACCESS
         ):
             raise TenantException(TenantErrorCodes.DENIED, detail="部署不支持组托管访问")
         if policy.required_capability is not None and not self.supports(policy.required_capability):
             raise TenantException(
                 TenantErrorCodes.DENIED, detail=f"部署不支持所需能力：{policy.required_capability}"
             )
-        grant = await self._call(lambda: self.directory.authorize_session(identity, policy))
+        grant = await self._call(lambda: self.directory.authorize_session(session, policy))
         seconds = min(
             self.settings.execution_seconds,
-            (identity.expires_at - datetime.now(UTC)).total_seconds(),
+            (session.expires_at - datetime.now(UTC)).total_seconds(),
         )
         resources = None
-        if identity.realm is SecurityRealm.SUPPORT:
+        if session.realm is SecurityRealm.SUPPORT:
             if (
                 not isinstance(grant, TenantAccessGrant)
                 or grant.tenant_id != target
@@ -114,7 +119,7 @@ class TenantService(TenantAccessProvider):
             raise TenantException(TenantErrorCodes.CONFIGURATION)
         if seconds <= 0:
             raise TenantException(TenantErrorCodes.EXPIRED)
-        with self.context._bind(target, identity, seconds=seconds, resources=resources):
+        with self.context._bind(target, session, seconds=seconds, resources=resources):
             yield
 
     @asynccontextmanager
@@ -181,13 +186,13 @@ class TenantService(TenantAccessProvider):
     async def provision_authenticated(self, request):
         self._require_ready()
         identity = self.security.current()
-        if (
-            not isinstance(identity, LoginSession)
-            or identity.realm is not SecurityRealm.ACCOUNT
-            or self.provisioning is None
-        ):
+        if not isinstance(identity, LoginSession) or identity.realm is not SecurityRealm.ACCOUNT:
             raise TenantException(TenantErrorCodes.DENIED, detail="仅平台账户可开通租户")
-        if self.settings.enabled and not self.supports("self_service_provisioning"):
+        if self.provisioning is None:
+            raise TenantException(TenantErrorCodes.CONFIGURATION, detail="部署未提供租户开通能力")
+        if self.settings.enabled and not self.supports(
+            TenantCapabilities.SELF_SERVICE_PROVISIONING
+        ):
             raise TenantException(TenantErrorCodes.DENIED, detail="部署不支持自助开通租户")
         async with self.database.transaction():
             fixed = None if self.settings.enabled else self.settings.default_tenant_id

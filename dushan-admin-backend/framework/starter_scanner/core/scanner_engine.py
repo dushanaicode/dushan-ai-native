@@ -38,7 +38,7 @@ class ScannerEngine:
             ScanRecorder(self.config.diagnostic_limit) if self.config.diagnostics_enabled else None
         )
         if not self.config.enabled or self.config.component_types == ():
-            logger.info("【ScannerStarter 】自动扫描未启用或未选择组件类型，跳过源码扫描")
+            logger.info("【ScannerStarter】自动扫描未启用或未选择组件类型，跳过源码扫描")
             if recorder is not None:
                 recorder.skip(
                     "automatic_disabled" if not self.config.enabled else "empty_type_filter", ""
@@ -46,7 +46,7 @@ class ScannerEngine:
             return ScanResult(
                 (), (), perf_counter() - started, None if recorder is None else recorder.snapshot()
             )
-        logger.info("【ScannerStarter 】开始扫描：{} 个扫描根", len(roots))
+        logger.info("【ScannerStarter】开始扫描：{} 个扫描根", len(roots))
         files: dict[str, tuple[str, Path]] = {}
         for root in roots:
             reason = self._filter.reason(root.package, traverse=True)
@@ -63,7 +63,7 @@ class ScannerEngine:
             self._collect_files(root.module, root.package, path, path, files, recorder)
         if recorder is not None:
             recorder.phases["enumeration"] = perf_counter() - started
-        logger.info("【ScannerStarter 】文件枚举完成：{} 个，开始校验导入来源", len(files))
+        logger.info("【ScannerStarter】文件枚举完成：{} 个，开始校验导入来源", len(files))
         validation_started = perf_counter()
         physical: dict[Path, str] = {}
         for name, (_, path) in sorted(files.items()):
@@ -80,7 +80,7 @@ class ScannerEngine:
                 )
         if recorder is not None:
             recorder.phases["validation"] = perf_counter() - validation_started
-        logger.info("【ScannerStarter 】来源校验通过，开始导入源码并收集组件定义")
+        logger.info("【ScannerStarter】来源校验通过，开始导入源码并收集组件定义")
         definitions: list[ComponentDefinition] = []
         for name, (owner, path) in sorted(files.items()):
             import_started = perf_counter() if recorder is not None else 0.0
@@ -96,14 +96,14 @@ class ScannerEngine:
                 recorder.imported(name, perf_counter() - import_started)
             collection_started = perf_counter() if recorder is not None else 0.0
             found = self._collector.collect(module, owner, path)
-            # logger.debug("【ScannerStarter 】已扫描 {}，发现 {} 个定义", name, len(found))
+            # logger.debug("【ScannerStarter】已扫描 {}，发现 {} 个定义", name, len(found))
             definitions.extend(found)
             if recorder is not None:
                 recorder.phases["collection"] += perf_counter() - collection_started
                 if not found:
                     recorder.skip("no_matching_definitions", name)
         logger.info(
-            "【ScannerStarter 】扫描完成：文件 {} 个，定义 {} 个，耗时 {:.1f}ms",
+            "【ScannerStarter】扫描完成：文件 {} 个，定义 {} 个，耗时 {:.1f}ms",
             len(files),
             len(definitions),
             (perf_counter() - started) * 1000,
@@ -154,9 +154,9 @@ class ScannerEngine:
         if self._filter.accepts(package):
             self._add_file(files, package, owner, directory / "__init__.py")
         for path in self._entries(package, directory):
-            if path.name == "__init__.py":
+            if path.name.casefold() == "__init__.py":
                 continue
-            name = f"{package}.{path.stem if path.suffix == '.py' else path.name}"
+            name = f"{package}.{path.stem if path.suffix.casefold() == '.py' else path.name}"
             if path.name.startswith("."):
                 if recorder is not None:
                     recorder.skip("hidden_path", str(path))
@@ -181,11 +181,20 @@ class ScannerEngine:
                     msg=f"扫描文件越出允许目录: {path}",
                 )
             if path.is_dir():
-                if (path / "__init__.py").is_file() and PackageLocator.is_valid_name(name):
+                if (
+                    path.name.isidentifier()
+                    and (path / "__init__.py").is_file()
+                    and PackageLocator.is_valid_name(name)
+                ):
                     self._collect_files(owner, name, path, allowed, files, recorder)
                 elif recorder is not None:
                     recorder.skip("not_python_package", name)
-            elif path.suffix == ".py" and self._filter.accepts(name):
+            elif path.suffix.casefold() == ".py" and self._filter.accepts(name):
+                if not path.stem.isidentifier() or not PackageLocator.is_valid_name(name):
+                    raise ScannerException(
+                        error_code=ScannerErrorCodes.SCANNER_CONFIG_ERROR,
+                        msg=f"扫描文件不是合法 Python 模块名: {path}",
+                    )
                 self._add_file(files, name, owner, path)
             elif recorder is not None:
                 recorder.skip("not_selected_python_file", name)

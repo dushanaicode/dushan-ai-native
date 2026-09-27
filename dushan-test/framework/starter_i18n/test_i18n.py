@@ -12,9 +12,9 @@ from framework.common.exception.constants.global_error_code_constants import (
 )
 from framework.common.exception.core.error_code import ErrorCode
 from framework.common.exception.exceptions.configuration_exception import ConfigurationException
+from framework.starter_i18n.config.i18n_locale_root import I18nLocaleRoot
+from framework.starter_i18n.config.i18n_options import I18nOptions
 from framework.starter_i18n.core.catalog import I18nCatalog
-from framework.starter_i18n.core.i18n_locale_root import I18nLocaleRoot
-from framework.starter_i18n.core.i18n_options import I18nOptions
 from framework.starter_i18n.core.loader import I18nLoader
 from framework.starter_i18n.core.parser import AcceptLanguageParser
 from framework.starter_i18n.core.reloader import I18nReloader

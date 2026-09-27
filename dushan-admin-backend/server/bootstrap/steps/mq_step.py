@@ -5,6 +5,8 @@ from framework.starter_mq.config.mq_settings import MQSettings
 from framework.starter_mq.definitions.constants.mq_error_codes import MQErrorCodes
 from framework.starter_mq.exception.mq_exception import MQException
 from framework.starter_mq.starter.mq_starter import MQStarter
+from framework.starter_security.spi.security_execution_provider import SecurityExecutionProvider
+from framework.starter_tenant.spi.tenant_execution_provider import TenantExecutionProvider
 
 
 class MQStep:
@@ -13,7 +15,7 @@ class MQStep:
     async def run(ctx):
         definitions = ctx.definitions
         if MQSettings not in definitions.configuration.model_classes:
-            ctx.logger.info("【MQStarter 】配置模型未装配，跳过启动")
+            ctx.logger.info("【MQStarter】配置模型未装配，跳过启动")
             yield
             return
         settings = definitions.configuration.get_config(MQSettings)
@@ -21,7 +23,7 @@ class MQStep:
         if application is None:
             if settings.enabled:
                 raise MQException(MQErrorCodes.CONFIGURATION)
-            ctx.logger.info("【MQStarter 】消息队列未启用")
+            ctx.logger.info("【MQStarter】消息队列未启用")
             yield
             return
         starter = application.container.get(MQStarter)
@@ -31,8 +33,8 @@ class MQStep:
             runtime = await starter.open(
                 components=definitions.scan_result.get_components(),
                 cache=ctx.app.state.cache,
-                security=ctx.app.state.security,
-                tenant=ctx.app.state.tenant,
+                security=application.container.get_optional(SecurityExecutionProvider),
+                tenant=application.container.get_optional(TenantExecutionProvider),
                 database=ctx.app.state.database,
                 job=ctx.app.state.job,
             )

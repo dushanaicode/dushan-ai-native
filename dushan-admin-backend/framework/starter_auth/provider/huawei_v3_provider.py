@@ -7,6 +7,18 @@ from framework.starter_auth.provider.provider_payload import ProviderPayload as 
 
 
 class HuaweiV3Provider(OAuthProvider):
+    """华为帐号 OAuth 2.0 / OIDC 授权（v3）。
+
+    官方资料：
+    - 服务端换令牌: https://developer.huawei.com/consumer/en/doc/hmscore-guides/web-get-access-token-0000001050048946
+    - Account Kit: https://developer.huawei.com/consumer/en/hms/huawei-accountkit/
+    实现端点：
+    - authorization: https://oauth-login.cloud.huawei.com/oauth2/v3/authorize
+    - token: https://oauth-login.cloud.huawei.com/oauth2/v3/token
+    - userinfo: https://account.cloud.huawei.com/rest.php
+    - jwks: https://oauth-login.cloud.huawei.com/oauth2/v3/certs
+    """
+
     subject_field = "sub"
     capabilities = (ProviderCapability("HUAWEI_V3", pkce=True, oidc=True, refresh=True),)
     authorization_endpoint = "https://oauth-login.cloud.huawei.com/oauth2/v3/authorize"

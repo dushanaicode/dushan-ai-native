@@ -1,6 +1,9 @@
 import asyncio
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 
+from redis.asyncio import Redis
+
+from framework.common.utils.cleanup_utils import CleanupUtils
 from framework.starter_cache.core.cache_manager import CacheManager
 from framework.starter_cache.definitions.constants.cache_constants import CacheConstants
 from framework.starter_cache.definitions.constants.cache_error_codes import CacheErrorCodes
@@ -104,6 +107,14 @@ class DistributedLock:
                         msg=f"分布式锁 {lock_name} 释放终态为 {outcome.code}",
                     )
             except BaseException as release_error:
+                if isinstance(release_error, asyncio.CancelledError):
+                    # 释放已达终态；取消优先传播，业务和释放失败仍保留在异常链中。
+                    CleanupUtils.raise_collected_cleanup_errors(
+                        "分布式锁释放期间取消",
+                        [] if release_error.__cause__ is None else [release_error.__cause__],
+                        caller_cancellation=release_error,
+                        primary_error=primary_error,
+                    )
                 # 临界区本身已经失败时，释放失败作为附注保留，不覆盖真正的业务原因。
                 if primary_error is None or release_error is primary_error:
                     raise
@@ -111,18 +122,15 @@ class DistributedLock:
                     f"分布式锁释放失败：{type(release_error).__name__}: {release_error}"
                 )
 
-    def _resolve_client(self, client_name: str | None):
-        """锁默认落在配置声明的默认客户端，调用方也可以指定。"""
-        try:
-            if client_name is None:
-                return self._cache_manager.get_default_client()
-            return self._cache_manager.get_client(client_name)
-        except Exception as error:
-            raise CacheException(
-                CacheErrorCodes.CLIENT_NOT_FOUND,
-                msg=f"无法获取分布式锁使用的缓存客户端：{client_name}",
-                cause=error,
-            ) from error
+    def _resolve_client(self, client_name: str | None) -> Redis:
+        """锁默认落在配置声明的默认客户端，调用方也可以指定。
+
+        CacheManager 已经区分"缓存未就绪"（NOT_INITIALIZED）和"客户端未声明"
+        （CLIENT_NOT_FOUND），这里不再包一层，否则前者会被改写成后者。
+        """
+        if client_name is None:
+            return self._cache_manager.get_default_client()
+        return self._cache_manager.get_client(client_name)
 
     @staticmethod
     def validate_timing(

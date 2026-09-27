@@ -9,7 +9,7 @@ from framework.starter_web.response.result import Result
 
 
 class EndpointInvocation:
-    """只投影端点已返回的 Result 编码，不解析 JSON、不访问请求或响应流。"""
+    """只投影端点已返回的Result编码；由宿主RequestContextMiddleware提供请求观测上下文。"""
 
     @staticmethod
     def wrap(endpoint):

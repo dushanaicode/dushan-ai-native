@@ -1,5 +1,6 @@
 import asyncio
 from collections.abc import Awaitable, Callable
+from typing import cast
 
 from framework.common.utils.asyncio_utils import AsyncioUtils
 
@@ -48,7 +49,7 @@ class CleanupUtils:
         )
         related = [error for error in errors if error is not terminal]
         if primary_error is not None and primary_error is not terminal:
-            related.insert(0, primary_error)
+            related.insert(0, cast(BaseException, primary_error))
         if terminal is not None:
             if related:
                 raise terminal from BaseExceptionGroup(operation, related)

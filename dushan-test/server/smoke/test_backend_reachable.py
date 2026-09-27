@@ -110,8 +110,8 @@ def test_real_server_health(engine, config_dir, tmp_path):
     assert text.index(worship) < text.index(engine_message)
     before_engine = text[: text.index(engine_message)]
     assert all(label not in before_engine for label in ("引擎：", "环境：", "监听地址："))
-    assert "应用初始化完成：dushan-ai-native" in text
-    assert text.index("服务已就绪") < text.index("应用初始化完成：dushan-ai-native")
-    for segment in text.split("应用初始化完成：")[1:]:
+    assert "[DUSHAN-AI-NATIVE] - 服务启动就绪" in text
+    assert text.index("服务已就绪") < text.index("[DUSHAN-AI-NATIVE] - 服务启动就绪")
+    for segment in text.split("[DUSHAN-AI-NATIVE] - 服务启动就绪")[1:]:
         summary = segment.split("监听地址：", 1)[0]
         assert summary.count("引擎：") == 1 and summary.count("环境：") == 1

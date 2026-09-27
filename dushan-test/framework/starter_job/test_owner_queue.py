@@ -68,7 +68,7 @@ async def test_request_capacity_is_enforced_without_owner(job_case):
     assert not case.probe.runs
 
 
-async def test_lease_loss_stops_new_execution(job_case):
+async def test_lease_loss_pauses_then_recovers_pending_execution(job_case):
     case = job_case
     with case.app.state.application_context.execution():
         await case.service.save(case.definition())
@@ -89,3 +89,55 @@ async def test_lease_loss_stops_new_execution(job_case):
             == "pending"
         )
     assert not case.probe.runs
+    await wait_state(case, request, "succeeded")
+    assert case.runtime.owner and case.runtime.phase == "running"
+    assert case.probe.runs == [(request, 1)]
+
+
+async def test_reacquiring_owner_does_not_change_inflight_request_identity(job_case):
+    case = job_case
+    with case.app.state.application_context.execution():
+        await case.service.save(case.definition(parameters={"mode": "wait"}))
+        first = await case.service.trigger("job")
+    await asyncio.wait_for(case.probe.entered.wait(), 3)
+    previous_lease = case.runtime.lease
+    with case.app.state.application_context.execution():
+        client = case.runtime.cache.get_client(case.runtime.settings.owner_key())
+        await client.delete(previous_lease.key)
+    async with asyncio.timeout(4):
+        while case.runtime.lease is previous_lease or case.runtime.phase != "running":
+            await asyncio.sleep(0.01)
+    assert case.runtime.lease.owner_token != previous_lease.owner_token
+    with case.app.state.application_context.execution():
+        second = await case.service.trigger("job")
+    case.probe.release.set()
+    await wait_state(case, first, "succeeded")
+    await wait_state(case, second, "succeeded")
+    async with case.engine.connect() as connection:
+        claimed_owner = await connection.scalar(
+            select(case.module.RequestRow.owner).where(case.module.RequestRow.request_key == first)
+        )
+    assert claimed_owner == previous_lease.owner_token
+    assert case.runtime.owner and case.runtime.failure is None
+    assert case.probe.runs == [(first, 1), (second, 1)]
+    assert case.probe.peak == 1
+
+
+async def test_standby_automatically_takes_over_released_owner(job_case):
+    case = job_case
+    other = create_app(base_dir=case.config_path, environ={})
+    async with other.router.lifespan_context(other):
+        assert case.runtime.owner and not other.state.job.owner
+        with case.app.state.application_context.execution():
+            await case.service.save(case.definition())
+        await case.runtime.close()
+        async with asyncio.timeout(4):
+            while other.state.job.phase != "running":
+                await asyncio.sleep(0.01)
+        with other.state.application_context.execution():
+            service = other.state.application_context.container.get(JobService)
+            probe = other.state.application_context.container.get(case.module.Probe)
+            request = await service.trigger("job")
+        await wait_state(case, request, "succeeded")
+        assert other.state.job.owner and not case.runtime.owner
+        assert probe.runs == [(request, 1)] and not case.probe.runs

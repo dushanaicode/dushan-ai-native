@@ -270,6 +270,11 @@ def tenant_target(request):
 @pytest.fixture
 async def tenant_case(tenant_target, config_dir, module_package, tmp_path, request):
     options = getattr(request, "param", {})
+    cache_values = {"enabled": options.get("cache", False)}
+    if cache_values["enabled"]:
+        if "DUSHAN_DP_REDIS_PORT" not in os.environ:
+            pytest.skip("需要本轮独立 Redis")
+        cache_values["port"] = int(os.environ["DUSHAN_DP_REDIS_PORT"])
     permissions = options.get("permissions", False)
     suffix = uuid4().hex[:12]
     package = "tenant_case_" + suffix
@@ -391,10 +396,7 @@ async def tenant_case(tenant_target, config_dir, module_package, tmp_path, reque
                     "security": {"enabled": True},
                     "tenant": {"enabled": options.get("enabled", True)},
                     "data_permission": {"enabled": permissions},
-                    "cache": {
-                        "enabled": options.get("cache", False),
-                        "port": int(os.environ["DUSHAN_DP_REDIS_PORT"]),
-                    },
+                    "cache": cache_values,
                 }
             },
         }

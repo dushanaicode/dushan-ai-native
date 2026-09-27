@@ -71,7 +71,7 @@ class ValidationErrorMapper:
                 message = message.format(*arguments)
             # 自定义校验器的msg是其公开提示契约；仍经过统一脱敏。
             if kind == "value_error":
-                message = error["msg"]
+                message = error["msg"].removeprefix("Value error, ")
             else:
                 message = translate(f"validation.{key}", message, arguments)
             fields.append(

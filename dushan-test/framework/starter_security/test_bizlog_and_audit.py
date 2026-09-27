@@ -62,7 +62,10 @@ async def test_http_bizlog_and_existing_orm_core_audit(security_factory):
         assert audit_service(case).written == 1
 
 
-async def test_log_failure_cannot_reverse_committed_business_result(security_factory, monkeypatch):
+@pytest.mark.parametrize("failure_kind", ["finalize", "render"])
+async def test_log_failure_cannot_reverse_committed_business_result(
+    security_factory, monkeypatch, failure_kind
+):
     async with security_factory(audit=True) as case:
         token, _ = await case.issue()
         service = audit_service(case)
@@ -70,7 +73,10 @@ async def test_log_failure_cannot_reverse_committed_business_result(security_fac
         async def failed(*args):
             raise RuntimeError("private-writer-diagnostic")
 
-        monkeypatch.setattr(service.provider, "finalize", failed)
+        if failure_kind == "finalize":
+            monkeypatch.setattr(service.provider, "finalize", failed)
+        else:
+            monkeypatch.setattr(service, "_render", lambda *args: "")
 
         @log_record(LogRecordSpec("item", "create", "创建成功", "{{ biz_no }}"))
         async def operation():
@@ -86,6 +92,8 @@ async def test_log_failure_cannot_reverse_committed_business_result(security_fac
         with case.application.execution():
             async with case.database.read_session() as db:
                 assert (await db.execute(select(AuditItem.value))).scalar_one() == "committed"
+                row = (await db.execute(select(audits))).one()
+                assert row.done and row.outcome == "cancelled"
 
 
 async def test_business_failure_cannot_be_recorded_as_success(security_factory):
@@ -103,6 +111,32 @@ async def test_business_failure_cannot_be_recorded_as_success(security_factory):
         assert caught.value is failure
         assert service.provider.events[0].result == "failure"
         assert "sensitive" not in service.provider.events[0].action
+
+
+async def test_finalize_commit_followed_by_error_is_not_overwritten_by_cancel(
+    security_factory, monkeypatch
+):
+    async with security_factory(audit=True) as case:
+        token, _ = await case.issue()
+        service = audit_service(case)
+        original = service.provider.finalize
+
+        async def uncertain(reservation, entry):
+            await original(reservation, entry)
+            raise RuntimeError("acknowledgement lost after commit")
+
+        monkeypatch.setattr(service.provider, "finalize", uncertain)
+
+        @log_record(LogRecordSpec("item", "create", "成功", "42"))
+        async def operation():
+            return "success"
+
+        assert await case.service.run(token, RoutePolicy(), operation) == "success"
+        with case.application.execution():
+            async with case.database.read_session() as db:
+                row = (await db.execute(select(audits))).one()
+                assert row.done and row.outcome == "success"
+        assert service.failed == 1
 
 
 async def test_cancelled_business_is_finalized_and_renewal_stops(security_factory):
@@ -187,8 +221,9 @@ async def test_log_context_nested_and_concurrent_values_are_isolated(security_fa
                 with context.scope():
                     assert context.values() == {}
                 assert context.values()["name"] == "parent"
-            with pytest.raises(RuntimeError):
+            with pytest.raises(SecurityException) as caught:
                 context.values()
+            assert caught.value.error_code is SecurityErrorCodes.CONFIGURATION
 
 
 async def test_diff_metadata_collections_masking_and_bounds(security_factory):

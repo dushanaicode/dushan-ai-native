@@ -4,7 +4,7 @@ from framework.common.enums.base_enum import BaseEnum
 class LogLevelEnum(BaseEnum):
     """统一日志输出阈值与异常日志级别，例如 LogLevelEnum.WARNING。
 
-    value/code 是传给 Loguru 的级别名；NONE 仅用于关闭对应输出，不作为业务异常级别。
+    value/code 是传给 loguru 的级别名；NONE 仅用于关闭对应输出，不作为业务异常级别。
     """
 
     NONE = ("NONE", "关闭")

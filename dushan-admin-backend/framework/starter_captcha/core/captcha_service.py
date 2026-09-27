@@ -26,7 +26,7 @@ from framework.starter_captcha.provider.local_captcha_provider import LocalCaptc
 from framework.starter_captcha.provider.tencent_captcha_provider import TencentCaptchaProvider
 from framework.starter_di.decorators.components import framework
 from framework.starter_di.definitions.enums.component_scope_enum import ComponentScopeEnum
-from framework.starter_monitor.core.monitor_service import MonitorService
+from framework.starter_monitor.spi.monitor_provider import MonitorProvider
 
 
 @framework(scope=ComponentScopeEnum.SINGLETON)
@@ -39,8 +39,11 @@ class CaptchaService:
     受管消费者用 Inject，非受管消费者在 ApplicationContext.execution/tasks 中 get_bean。
     """
 
-    def __init__(self, settings: CaptchaSettings, cache: CacheHandler) -> None:
+    def __init__(
+        self, settings: CaptchaSettings, cache: CacheHandler, monitor: MonitorProvider
+    ) -> None:
         self.settings = settings
+        self.monitor = monitor
         self.store = CaptchaStore(cache, settings)
         self._provider: CaptchaProvider | None = None
         self._http: CaptchaHttpClient | None = None
@@ -114,17 +117,16 @@ class CaptchaService:
     def _span(self, operation: str):
         if not self.settings.tracing_enabled:
             return nullcontext()
-        monitor = MonitorService.current()
-        if monitor is None:
-            return nullcontext()
-        return monitor.span(f"captcha.{operation}", {"captcha.provider": self.settings.provider})
+        return self.monitor.span(
+            f"captcha.{operation}", {"captcha.provider": self.settings.provider}
+        )
 
     def _generation_finished(self, future: asyncio.Future) -> None:
         self._jobs.remove(future)
         self._generating -= 1
         error = future.exception()
         if error is not None:
-            logger.warning("验证码图片生成失败：{}", type(error).__name__)
+            logger.opt(exception=error).warning("验证码图片生成失败")
 
     async def create(self, purpose: str) -> CaptchaChallenge:
         with self._operation(purpose) as provider, self._span("create"):
@@ -173,13 +175,21 @@ class CaptchaService:
                 1 if self.settings.provider == "block_puzzle" else 3
             ):
                 raise ValueError("验证码点数无效")
-            if self.settings.provider == "tencent":
-                if not isinstance(client_ip, str):
-                    raise ValueError("腾讯验证码需要服务端取得的客户端 IP")
-                ipaddress.ip_address(client_ip)
-            return answer
         except (ValidationError, ValueError) as error:
             raise CaptchaException(Codes.INVALID_INPUT, cause=error) from error
+        if self.settings.provider == "tencent":
+            self._require_client_ip(client_ip)
+        return answer
+
+    @staticmethod
+    def _require_client_ip(client_ip: str | None) -> None:
+        """腾讯校验要求服务端解析出的来源 IP：解析不出属服务端前置失败，不是用户输入错误。"""
+        if client_ip is None:
+            raise CaptchaException(Codes.UNAVAILABLE)
+        try:
+            ipaddress.ip_address(client_ip)
+        except ValueError as error:
+            raise CaptchaException(Codes.UNAVAILABLE, cause=error) from error
 
     async def check(
         self, token: str, purpose: str, answer: object, *, client_ip: str | None = None

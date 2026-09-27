@@ -10,24 +10,35 @@ from framework.common.security.sanitizer import Sanitizer
 class BusinessAttributes:
     """按明确参数路径读取标识，或使用标量字面量；不序列化整个参数或任意对象。"""
 
+    PATH_PATTERN = r"[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*){0,7}"
+
     @staticmethod
     def validate(expression: str) -> None:
         if not expression:
             return
         if len(expression) > 256:
             raise ValueError("业务标识表达式过长")
-        if re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*){0,7}", expression):
+        if re.fullmatch(BusinessAttributes.PATH_PATTERN, expression):
             return
         value = ast.literal_eval(expression)
         if type(value) not in (str, int, float, bool, type(None)):
             raise ValueError("业务标识只接受参数点路径或标量字面量")
 
     @staticmethod
+    def validate_parameter(expression: str, signature) -> None:
+        if expression in {"", "True", "False", "None"}:
+            return
+        if re.fullmatch(BusinessAttributes.PATH_PATTERN, expression):
+            name = expression.split(".", 1)[0]
+            if name not in signature.parameters:
+                raise ValueError(f"业务标识表达式引用未声明的参数：{name}")
+
+    @staticmethod
     def read(expression: str, arguments):
         if not expression:
             return None
         if expression in {"True", "False", "None"} or not re.fullmatch(
-            r"[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*){0,7}", expression
+            BusinessAttributes.PATH_PATTERN, expression
         ):
             return ast.literal_eval(expression)
         path = expression.split(".")

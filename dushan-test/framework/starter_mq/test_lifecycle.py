@@ -145,8 +145,9 @@ async def test_cancellation_resistant_handler_keeps_slot_until_exit(mq_case):
     assert case.runtime.cancelling == 0
 
 
-async def test_cache_connection_interrupt_is_diagnosed(mq_case):
+async def test_cache_connection_interrupt_recovers_without_restarting_actor(mq_case):
     case = mq_case
+    actor = case.runtime.actors["controlled"]
     # 在服务端确认当前阻塞 XREADGROUP 后，只断开这一条本轮读连接。
     async with asyncio.timeout(3):
         while True:
@@ -157,6 +158,48 @@ async def test_cache_connection_interrupt_is_diagnosed(mq_case):
                 await case.runtime.replay.client.client_kill_filter(_id=readers[0]["id"])
                 break
             await asyncio.sleep(0)
-    await asyncio.wait_for(case.runtime.actors["controlled"], timeout=3)
-    assert "controlled" in case.runtime.paused
+    async with asyncio.timeout(5):
+        while not case.runtime.reconnect_attempts.get("controlled"):
+            await asyncio.sleep(0.01)
+    assert "controlled" not in case.runtime.paused
     assert case.runtime.resources()["background_error_types"]
+    await case.publish(71)
+    await case.until(lambda: case.probe.finished == [71])
+    assert case.runtime.actors["controlled"] is actor and not actor.done()
+    assert len(case.probe.runs) == 1
+    assert case.runtime.resources()["recovering_consumers"] == ()
+
+
+@pytest.mark.parametrize("remove", ["stream", "group"])
+async def test_missing_stream_or_group_is_recreated_and_consumption_resumes(mq_case, remove):
+    case = mq_case
+    backend, definition = case.runtime.backend, case.module.definition
+    for key in (backend.stream(definition.destination), backend.retry_stream(definition)):
+        if remove == "stream":
+            await backend.client.delete(key)
+        else:
+            await backend.client.xgroup_destroy(key, definition.group)
+    async with asyncio.timeout(6):
+        while (
+            not case.runtime.reconnect_attempts.get("controlled")
+            or case.runtime.resources()["recovering_consumers"]
+        ):
+            await asyncio.sleep(0.01)
+    await case.publish(72)
+    await case.until(lambda: case.probe.finished == [72])
+    assert len(case.probe.runs) == 1 and not case.runtime.paused
+
+
+@pytest.mark.parametrize("remove", ["stream", "group"])
+async def test_close_accepts_missing_stream_or_group(mq_case, remove):
+    backend = mq_case.runtime.backend
+    definition = mq_case.module.definition
+    for key in (backend.stream(definition.destination), backend.retry_stream(definition)):
+        if remove == "stream":
+            await backend.client.delete(key)
+        else:
+            await backend.client.xgroup_destroy(key, definition.group)
+    await mq_case.runtime.close()
+    await mq_case.runtime.close()
+    assert mq_case.runtime.resources()["state"] == "closed"
+    assert mq_case.runtime.resources()["inflight"] == 0

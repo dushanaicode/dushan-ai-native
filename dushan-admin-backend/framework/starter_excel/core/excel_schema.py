@@ -11,7 +11,10 @@ from framework.starter_excel.model.excel_column import ExcelColumn
 
 
 class ExcelSchema:
-    """单一列元数据入口，统一导入映射、导出选择与敏感字段策略。"""
+    """单一列元数据入口，统一导入映射、导出选择与敏感字段策略。
+
+    字段名命中敏感词子串或等于pwd时禁止导出，没有单字段覆盖开关。
+    """
 
     _SENSITIVE = (
         "password",
@@ -61,8 +64,10 @@ class ExcelSchema:
             and not any(part in name.lower() for part in self._SENSITIVE)
         }
         if fields is not None:
-            if len(fields) != len(set(fields)) or set(fields) - allowed.keys():
-                raise ExcelException(ExcelErrorCodes.CONFIG, "导出字段包含重复、未知或禁止的字段")
+            if not fields or len(fields) != len(set(fields)) or set(fields) - allowed.keys():
+                raise ExcelException(
+                    ExcelErrorCodes.VALIDATION, "导出字段为空或包含重复、未知或禁止的字段"
+                )
             allowed = {name: column for name, column in allowed.items() if name in fields}
         if not allowed:
             raise ExcelException(ExcelErrorCodes.CONFIG, "没有可导出的字段")

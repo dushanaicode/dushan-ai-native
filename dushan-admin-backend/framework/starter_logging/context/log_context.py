@@ -58,7 +58,13 @@ class LogContext:
         )
 
     @classmethod
-    def bind_principal(cls, account_id, tenant_id, membership_id, realm) -> contextvars.Token:
+    def bind_principal(
+        cls,
+        account_id: str | int | None,
+        tenant_id: str | int | None,
+        membership_id: str | int | None,
+        realm: str | None,
+    ) -> contextvars.Token:
         """保存可恢复的安全投影，保留当前请求和追踪信息。"""
         return _log_context_var.set(
             replace(

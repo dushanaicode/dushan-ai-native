@@ -1,10 +1,49 @@
 import pytest
-from sqlalchemy import delete, exists, func, insert, select, update
+from sqlalchemy import delete, exists, func, insert, select, text, update
 from sqlalchemy.orm import aliased
 
+from framework.starter_database.definitions.constants.database_error_codes import DatabaseErrorCodes
 from framework.starter_database.exception.database_exception import DatabaseException
 from framework.starter_database.repository.atomic_upsert import AtomicUpsert
+from framework.starter_tenant.definitions.constants.tenant_error_codes import TenantErrorCodes
 from framework.starter_tenant.exception.tenant_exception import TenantException
+
+
+async def test_embedded_raw_sql_is_rejected_before_execution(tenant_case):
+    case = tenant_case
+    async with case.enter():
+        async with case.database.read_session() as session:
+            with pytest.raises(DatabaseException) as caught:
+                await session.execute(select(case.module.Record).where(text("1=1")))
+            assert caught.value.error_code is DatabaseErrorCodes.OPERATION_FORBIDDEN
+
+
+@pytest.mark.parametrize("operation", ["insert", "update"])
+async def test_orm_flush_raw_sql_cannot_read_another_tenant(tenant_case, operation):
+    case = tenant_case
+    Record = case.module.Record
+    hidden = text(f"(SELECT value FROM {Record.__table__.name} WHERE tenant_id = '2')")
+    async with case.enter():
+        with pytest.raises(TenantException) as caught:
+            async with case.database.transaction() as session:
+                if operation == "insert":
+                    session.add(
+                        Record(
+                            id=10,
+                            name="raw-flush",
+                            membership_id="m1",
+                            dept_id="d1",
+                            value=hidden,
+                        )
+                    )
+                else:
+                    record = await session.scalar(select(Record).where(Record.id == 1))
+                    record.value = hidden
+                await session.flush()
+        assert caught.value.error_code is TenantErrorCodes.MODEL
+        async with case.database.read_session() as session:
+            assert await session.scalar(select(Record.value).where(Record.id == 1)) == 1
+            assert await session.get(Record, 10) is None
 
 
 async def test_core_orm_alias_join_and_subquery_paths(tenant_case):

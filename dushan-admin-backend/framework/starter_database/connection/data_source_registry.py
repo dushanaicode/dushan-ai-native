@@ -110,12 +110,12 @@ class DataSourceRegistry:
         if self._loop is not None or not self.settings.enabled:
             raise DatabaseException(error_code=DatabaseErrorCodes.NOT_READY)
         self._loop = asyncio.get_running_loop()
-        logger.info("【DatabaseStarter 】开始创建连接池，验证连接与事务模式")
+        logger.info("【DatabaseStarter】开始创建连接池，验证连接与事务模式")
         self.entries = await self._stage(self.settings.sources)
         self.revision = 1
         self._accepting = True
         logger.info(
-            "【DatabaseStarter 】连接池装配完成：{} 个数据源，通过连接探活 {} 个",
+            "【DatabaseStarter】连接池装配完成：{} 个数据源，通过连接探活 {} 个",
             len(self.entries),
             sum(self._connectivity.values()),
         )
@@ -175,7 +175,7 @@ class DataSourceRegistry:
                 created.add(entry)
                 url = entry.engine.url
                 logger.debug(
-                    "【DatabaseStarter 】数据源={} role={} driver={} host={} port={} database={}",
+                    "【DatabaseStarter】数据源={} role={} driver={} host={} port={} database={}",
                     source.name,
                     source.role,
                     url.drivername,
@@ -196,9 +196,7 @@ class DataSourceRegistry:
                         await ConnectionFactory.probe(entry.engine)
                         await ConnectionFactory.validate_transaction_mode(entry.engine)
                     self._connectivity[entry] = True
-                    logger.debug(
-                        "【DatabaseStarter 】数据源 {} 连接与事务模式验证通过", source.name
-                    )
+                    logger.debug("【DatabaseStarter】数据源 {} 连接与事务模式验证通过", source.name)
                 except (DatabaseException, SQLAlchemyError, OSError, TimeoutError) as error:
                     if source.role != "replica":
                         if isinstance(error, DatabaseException):

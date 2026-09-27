@@ -32,7 +32,7 @@ class HttpRouteCoverage:
             if not isinstance(route, APIRoute):
                 continue
             path = context.path if context else route.path
-            if path.startswith(("/admin-api/system/", "/admin-api/infra/", "/weapp-api/infra/")):
+            if path.startswith(("/admin-api/system/", "/admin-api/infra/")):
                 for method in route.methods:
                     cls.routes.setdefault((method, path), set())
                     cls.patterns[(method, path)] = compile_path(path)[0]

@@ -13,6 +13,7 @@ from framework.starter_captcha.core.captcha_provider import CaptchaProvider
 from framework.starter_captcha.definitions.constants.captcha_error_codes import (
     CaptchaErrorCodes as Codes,
 )
+from framework.starter_captcha.definitions.constants.captcha_image import CaptchaImage
 from framework.starter_captcha.exception.captcha_exception import CaptchaException
 from framework.starter_captcha.model.captcha_answer import CaptchaAnswer
 from framework.starter_captcha.model.captcha_point import CaptchaPoint
@@ -27,21 +28,27 @@ class LocalCaptchaProvider(CaptchaProvider):
     原图按 JPEG 返回，滑块条需要透明通道按 PNG 返回。
     """
 
-    WIDTH = 320
-    HEIGHT = 160
+    WIDTH = CaptchaImage.WIDTH
+    HEIGHT = CaptchaImage.HEIGHT
     GAP = 48
-    PIECE_HEIGHT = 160
+    PIECE_HEIGHT = CaptchaImage.HEIGHT
+    WORDS = 5
 
     def __init__(self, settings: CaptchaSettings) -> None:
+        """字体、字符集与背景来自随包 manifest；不满足点选所需字数时在此直接失败。"""
         self.settings = settings
         resource = files("framework.starter_captcha").joinpath("resources")
         try:
             manifest = json.loads(resource.joinpath("provenance.json").read_text(encoding="utf-8"))
             self.characters = manifest["characters"]
-            allowed = set(self.characters) | {chr(c) for c in range(32, 127)}
+            # 点选每次取 WORDS 个互不相同的字，字数不足必须在启动失败而不是每请求报资源错误。
+            if len(set(self.characters)) < self.WORDS:
+                raise ValueError("打包字符集不足以生成点选验证码")
+            low, high = manifest["ascii"]
+            allowed = set(self.characters) | {chr(code) for code in range(low, high + 1)}
             if not set(settings.watermark) <= allowed:
                 raise ValueError("水印含打包字体不支持的字符")
-            self.font_bytes = resource.joinpath("DushanCaptcha.ttf").read_bytes()
+            self.font_bytes = resource.joinpath(manifest["font"]).read_bytes()
             ImageFont.truetype(BytesIO(self.font_bytes), 28)
             self.backgrounds = self._load_backgrounds(resource)
         except (OSError, ValueError, KeyError) as error:
@@ -276,8 +283,8 @@ class LocalCaptchaProvider(CaptchaProvider):
     ) -> list[CaptchaPoint]:
         """在背景上写 5 个字，提示其中 3 个的点击顺序。"""
         font = ImageFont.truetype(BytesIO(self.font_bytes), 28)
-        words = random.sample(self.characters, 5)
-        cells = random.sample([(x, y) for x in (53, 160, 267) for y in (42, 112)], 5)
+        words = random.sample(self.characters, self.WORDS)
+        cells = random.sample([(x, y) for x in (53, 160, 267) for y in (42, 112)], self.WORDS)
         pixels = image.load()
         positions = []
         for word, (cx, cy) in zip(words, cells, strict=True):
@@ -300,7 +307,7 @@ class LocalCaptchaProvider(CaptchaProvider):
             )
             image.paste(rotated, (cx - 32, cy - 32), rotated)
             positions.append(CaptchaPoint(x=cx, y=cy))
-        selected = random.sample(range(5), 3)
+        selected = random.sample(range(self.WORDS), 3)
         data["words"] = [words[index] for index in selected]
         return [positions[index] for index in selected]
 

@@ -144,6 +144,6 @@ class SqlLogRecordProvider(LogRecordProvider):
         async with self.database.transaction(propagation="requires_new") as db:
             await db.execute(
                 update(audits)
-                .where(audits.c.event_id == reservation.event_id)
+                .where(audits.c.event_id == reservation.event_id, audits.c.done.is_(False))
                 .values(done=True, outcome="cancelled")
             )

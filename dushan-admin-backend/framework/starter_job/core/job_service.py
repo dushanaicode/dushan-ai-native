@@ -43,6 +43,3 @@ class JobService:
         await runtime.requests.notify_changed()
         if runtime.owner:
             await runtime.reconcile()
-
-    def preview(self, definition, after, count):
-        return self._runtime().registry.validate(definition).preview(after, count)

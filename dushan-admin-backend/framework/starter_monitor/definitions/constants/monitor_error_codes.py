@@ -9,11 +9,6 @@ class MonitorErrorCodes:
         description="追踪资源初始化失败",
         message_key="monitor.init_failed",
     )
-    INVALID_CONFIG = ErrorCode(
-        code=1_015_003,
-        description="追踪配置无效",
-        message_key="monitor.invalid_config",
-    )
     SHUTDOWN_FAILED = ErrorCode(
         code=1_015_021,
         description="追踪资源关闭失败",

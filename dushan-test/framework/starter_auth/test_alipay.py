@@ -181,6 +181,34 @@ async def test_identity_type_is_application_setting_not_signing_mode(
         await http.close()
 
 
+async def test_signing_keys_parsed_once_per_provider_instance(signing_keys, monkeypatch):
+    from framework.starter_auth.provider.alipay_provider import AlipayProvider
+
+    cfg = config("ALIPAY", signing_keys)
+    replies = [
+        response(signing_keys, method, data)
+        for method, data in [
+            ("alipay.system.oauth.token", {"access_token": ACCESS, "expires_in": "600"}),
+            ("alipay.user.info.share", {"code": "10000", "user_id": "123"}),
+        ]
+    ]
+    provider, _, http = await provider_case("ALIPAY", replies, cfg)
+    parsed = []
+    original = AlipayProvider._keys
+
+    def counted(value):
+        parsed.append(value)
+        return original(value)
+
+    monkeypatch.setattr(AlipayProvider, "_keys", staticmethod(counted))
+    try:
+        tokens = await provider.exchange("code", FLOW)
+        identity = await provider.userinfo(tokens)
+        assert identity.subject == "123" and len(parsed) == 1
+    finally:
+        await http.close()
+
+
 def test_alipay_identity_type_is_required(signing_keys):
     from framework.starter_auth.provider.alipay_provider import AlipayProvider
 

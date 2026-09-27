@@ -53,8 +53,6 @@ class CacheSerializer:
         """把 Redis 返回的字节或字符串还原为 Python 值。"""
         try:
             payload = raw.decode("utf-8") if isinstance(raw, bytes) else raw
-            if not isinstance(payload, str):
-                raise TypeError("缓存反序列化只接受 str 或 bytes")
             return json.loads(payload, parse_constant=self._reject_non_finite)
         except (TypeError, ValueError, UnicodeError) as error:
             raise CacheException(

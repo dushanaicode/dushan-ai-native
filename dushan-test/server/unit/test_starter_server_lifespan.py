@@ -77,10 +77,10 @@ def test_every_framework_component_reports_startup_state_at_info(config_dir):
                 "WebSocketStarter",
             ):
                 assert any(
-                    f"【{label} 】" in message and "未启用" in message for message in messages
+                    f"【{label}】" in message and "未启用" in message for message in messages
                 )
-            assert any("【AuthStarter 】第三方授权未启用" in message for message in messages)
-            assert not any("【MQStarter 】启动完成" in message for message in messages)
+            assert any("【AuthStarter】第三方授权未启用" in message for message in messages)
+            assert not any("【MQStarter】启动完成" in message for message in messages)
     finally:
         logger.remove(handler)
 

@@ -11,6 +11,17 @@ from framework.starter_auth.provider.provider_payload import ProviderPayload as 
 
 
 class DingtalkProvider(AuthProvider):
+    """钉钉旧版扫码/网页 OAuth 授权。
+
+    官方资料：
+    - 教程: https://open.dingtalk.com/tutorial/
+    - 开发文档: https://open.dingtalk.com/doc-mobile
+    实现端点：
+    - qr authorization: https://oapi.dingtalk.com/connect/qrconnect
+    - web authorization: https://oapi.dingtalk.com/connect/oauth2/sns_authorize
+    - userinfo: https://oapi.dingtalk.com/sns/getuserinfo_bycode
+    """
+
     subject_field = "openid"
     capabilities = tuple(
         ProviderCapability(source, token_kind="identity")

@@ -50,11 +50,11 @@ from module_system.definitions.constants.workload_constants import WorkloadConst
 from module_system.definitions.enums.permission.role_code_enum import (
     RoleCodeEnum,
 )
-from module_system.service.auth.system_workload_service import SystemWorkloadService
 from module_system.service.permission.authorization_revision_service import (
     AuthorizationRevisionService,
 )
 from module_system.service.tenant.tenant_service import TenantService
+from module_system.service.workload.system_workload_service import SystemWorkloadService
 
 
 @service(interface=TenantService)

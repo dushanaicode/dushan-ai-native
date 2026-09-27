@@ -6,6 +6,19 @@ from framework.starter_auth.provider.provider_payload import ProviderPayload as 
 
 
 class XiaomiProvider(OAuthProvider):
+    """小米帐号 OAuth 2.0 授权。
+
+    官方资料：
+    - OAuth: https://dev.mi.com/docs/passport/oauth2/
+    - 授权码: https://dev.mi.com/docs/passport/authorization-code/
+    - 用户指南: https://dev.mi.com/docs/passport/user-guide/
+    实现端点：
+    - authorization: https://account.xiaomi.com/oauth2/authorize
+    - token: https://account.xiaomi.com/oauth2/token
+    - userinfo: https://open.account.xiaomi.com/user/profile
+    - phone/email: https://open.account.xiaomi.com/user/phoneAndEmail
+    """
+
     subject_field = "openId"
     capabilities = (ProviderCapability("MI", refresh=True),)
     authorization_endpoint = "https://account.xiaomi.com/oauth2/authorize"
