@@ -16,4 +16,4 @@ class ConfigItemDTO(BaseDTO):
     input_type: Annotated[str, Field(default="input", description="输入类型")]
     input_props: Annotated[str | None, Field(default=None, description="输入组件属性（JSON）")]
     content: Annotated[str | None, Field(default=None, description="配置值")]
-    sort: Annotated[SnowflakeIdStr, Field(default=0, description="排序")]
+    sort: Annotated[int, Field(default=0, description="排序")]

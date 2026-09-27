@@ -1,8 +1,8 @@
 <script lang="ts" setup>
-import { Page } from '@vben/common-ui';
+import { Loading, Page } from '@vben/common-ui';
 import { IconifyIcon } from '@vben/icons';
 
-import { ElAlert, ElButton, ElSkeleton } from 'element-plus';
+import { ElAlert, ElButton } from 'element-plus';
 
 import DiskCard from './components/disk-card.vue';
 import InfoCard from './components/info-card.vue';
@@ -55,18 +55,22 @@ const {
         type="error"
       />
 
-      <ElSkeleton v-if="loading && !isDataLoaded" :rows="8" animated />
+      <Loading
+        :spinning="loading"
+        :aria-busy="loading"
+        class="min-h-80 space-y-4"
+      >
+        <template v-if="isDataLoaded">
+          <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <MetricCard :card="cpuCard" />
+            <MetricCard :card="memoryCard" />
+            <InfoCard :card="serverInfoCard" />
+            <InfoCard :card="pythonInfoCard" />
+          </div>
 
-      <template v-else>
-        <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
-          <MetricCard :card="cpuCard" />
-          <MetricCard :card="memoryCard" />
-          <InfoCard :card="serverInfoCard" />
-          <InfoCard :card="pythonInfoCard" />
-        </div>
-
-        <DiskCard :rows="diskRows" />
-      </template>
+          <DiskCard :rows="diskRows" />
+        </template>
+      </Loading>
     </div>
   </Page>
 </template>

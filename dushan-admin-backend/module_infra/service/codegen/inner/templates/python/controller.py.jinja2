@@ -102,5 +102,11 @@ class {{ class_name }}Controller:
     @RoutePolicy(permissions=("{{ module_name }}:{{ business_name }}:query",),tenant_required=True,realm=SecurityRealm.TENANT)
     async def get_{{ sub.table.business_name }}(id:SnowflakeIdInput=Query(...),service:{{ class_name }}Service=Depends(DiDependency({{ class_name }}Service)))->Result[list[dict]]:
         rows=await service.get_{{ sub.table.business_name }}_list_by_{{ business_name }}_id(id)
-        return Result.success([{column.key:str(getattr(row,column.key)) if column.key=='id' or column.key.endswith('_id') else getattr(row,column.key) for column in row.__table__.columns if column.key not in {'tenant_id','deleted'}} for row in rows])
+        return Result.success([{
+{% for column in sub.columns %}
+{% if column.field_name not in ['tenant_id', 'deleted', 'creator', 'updater'] %}
+            {{ (column.field_name | camel_case) | pyrepr }}: {% if column.field_name == 'id' or column.field_name.endswith('_id') %}str(row.{{ column.field_name }}){% if column.nullable %} if row.{{ column.field_name }} is not None else None{% endif %}{% else %}row.{{ column.field_name }}{% endif %},
+{% endif %}
+{% endfor %}
+        } for row in rows])
 {% endfor %}

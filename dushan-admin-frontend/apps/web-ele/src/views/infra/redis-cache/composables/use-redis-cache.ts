@@ -1,7 +1,9 @@
 import type { InfraRedisCacheApi } from '#/api/infra/redis-cache';
+import type { PageParam, PageResult } from '#/api/types';
 
 import { computed, onMounted, ref } from 'vue';
 
+import { takeErrorMessage } from '#/api/error-feedback';
 import {
   clearAllCaches,
   clearCacheByKey,
@@ -25,6 +27,21 @@ import {
   REDIS_CACHE_PAGE_SIZE,
   toCacheKeyRows,
 } from '../data';
+
+async function loadCachePages<T>(
+  fetchPage: (params: PageParam) => Promise<PageResult<T>>,
+) {
+  const items: T[] = [];
+  let page = 1;
+  let total: number;
+  do {
+    const result = await fetchPage({ page, pageSize: REDIS_CACHE_PAGE_SIZE });
+    items.push(...result.items);
+    total = result.total;
+    page += 1;
+  } while (items.length < total);
+  return items;
+}
 
 export function useRedisCache() {
   const dbList = ref<InfraRedisCacheApi.CacheDbInfoRespVO[]>([]);
@@ -79,8 +96,8 @@ export function useRedisCache() {
     normalizeRedisValue(cacheValue.value?.cacheValue),
   );
 
-  function setError(message: string) {
-    errorMessage.value = message;
+  function setError(error: unknown, message: string) {
+    errorMessage.value = takeErrorMessage(error, message);
   }
 
   async function loadDbList() {
@@ -98,8 +115,8 @@ export function useRedisCache() {
       ) {
         selectedDb.value = list[0]?.name ?? '';
       }
-    } catch {
-      setError('获取 Redis DB 列表失败');
+    } catch (error) {
+      setError(error, '获取 Redis DB 列表失败');
     } finally {
       loadingDb.value = false;
     }
@@ -121,8 +138,8 @@ export function useRedisCache() {
       const keys = await scanDbKeys(selectedDb.value, pattern);
       rawKeys.value = keys;
       treeData.value = buildRedisKeyTree(keys, selectedDb.value);
-    } catch {
-      setError('扫描 Redis key 失败');
+    } catch (error) {
+      setError(error, '扫描 Redis key 失败');
     } finally {
       loadingKeys.value = false;
     }
@@ -138,8 +155,8 @@ export function useRedisCache() {
     errorMessage.value = '';
     try {
       keyDetail.value = await getKeyDetail(dbName, key);
-    } catch {
-      setError('获取 Redis key 详情失败');
+    } catch (error) {
+      setError(error, '获取 Redis key 详情失败');
     } finally {
       loadingDetail.value = false;
     }
@@ -181,11 +198,7 @@ export function useRedisCache() {
     loadingCacheGroups.value = true;
     errorMessage.value = '';
     try {
-      const pageResult = await getCacheNames({
-        page: 1,
-        pageSize: REDIS_CACHE_PAGE_SIZE,
-      });
-      cacheGroups.value = pageResult.items ?? [];
+      cacheGroups.value = await loadCachePages(getCacheNames);
 
       if (
         !cacheGroups.value.some(
@@ -194,8 +207,8 @@ export function useRedisCache() {
       ) {
         selectedCacheName.value = cacheGroups.value[0]?.cacheName ?? '';
       }
-    } catch {
-      setError('获取缓存分组失败');
+    } catch (error) {
+      setError(error, '获取缓存分组失败');
     } finally {
       loadingCacheGroups.value = false;
     }
@@ -214,14 +227,15 @@ export function useRedisCache() {
     cacheValue.value = null;
     selectedCacheKey.value = '';
     try {
-      const pageResult = await getCacheKeys({
-        keyPrefix: selectedCacheName.value,
-        page: 1,
-        pageSize: REDIS_CACHE_PAGE_SIZE,
-      });
-      cacheKeyRows.value = toCacheKeyRows(pageResult.items ?? []);
-    } catch {
-      setError('获取缓存 key 列表失败');
+      const keys = await loadCachePages((params) =>
+        getCacheKeys({
+          ...params,
+          keyPrefix: selectedCacheName.value,
+        }),
+      );
+      cacheKeyRows.value = toCacheKeyRows(keys);
+    } catch (error) {
+      setError(error, '获取缓存 key 列表失败');
     } finally {
       loadingCacheKeys.value = false;
     }
@@ -247,8 +261,8 @@ export function useRedisCache() {
         selectedCacheName.value,
         selectedCacheKey.value,
       );
-    } catch {
-      setError('获取缓存值失败');
+    } catch (error) {
+      setError(error, '获取缓存值失败');
     } finally {
       loadingCacheValue.value = false;
     }

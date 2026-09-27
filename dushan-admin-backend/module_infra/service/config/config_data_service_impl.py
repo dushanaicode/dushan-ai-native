@@ -105,7 +105,9 @@ class ConfigDataServiceImpl(ConfigDataService):
         self, req_vo: ConfigDataPageReqVO
     ) -> PageResult[ConfigDataRespVO]:
         """分页获取配置列表，并关联配置类型名称"""
-        module_type_ids = await self._get_module_type_ids(req_vo.module) if req_vo.module else None
+        module_type_ids = (
+            await self._get_module_type_ids(req_vo.module.code) if req_vo.module else None
+        )
         page_result: PageResult[InfraConfigDataDO] = await self.config_data_mapper.select_page(
             req_vo, module_type_ids
         )
@@ -116,12 +118,12 @@ class ConfigDataServiceImpl(ConfigDataService):
 
     @override
     async def get_config_list_with_type_name(
-        self, req_vo: ConfigDataPageReqVO = None
+        self, req_vo: ConfigDataPageReqVO | None = None
     ) -> list[ConfigDataRespVO]:
         """获取配置列表，并关联配置类型名称"""
         if req_vo:
             module_type_ids = (
-                await self._get_module_type_ids(req_vo.module) if req_vo.module else None
+                await self._get_module_type_ids(req_vo.module.code) if req_vo.module else None
             )
             page_result = await self.config_data_mapper.select_page(req_vo, module_type_ids)
             config_list = page_result.items

@@ -14,25 +14,30 @@ class WebsocketSendToUserReqVO(BaseRequestVO):
 
     user_type: Annotated[int, Field(..., description="用户类型")]
     user_id: Annotated[SnowflakeIdInput, Field(..., description="用户编号")]
-    message: Annotated[
-        WebsocketMessageVO, Field(..., description="消息内容，可以是JSON对象或JSON字符串")
-    ]
+    message: Annotated[WebsocketMessageVO, Field(..., description="结构化消息对象")]
     model_config = {
         "json_schema_extra": {
             "examples": [
                 {
                     "userType": 1,
-                    "userId": 1024,
+                    "userId": "1024",
                     "message": {"type": "text", "payload": {"content": "Hello, world!"}},
                 },
                 {
                     "userType": 1,
-                    "userId": 1024,
-                    "message": '{"type":"broadcast","payload":{"event":"new_announcement","title":"系统通知","content":"系统将于 2 小时后进行维护"}}',
+                    "userId": "1024",
+                    "message": {
+                        "type": "broadcast",
+                        "payload": {
+                            "event": "new_announcement",
+                            "title": "系统通知",
+                            "content": "系统将于 2 小时后进行维护",
+                        },
+                    },
                 },
                 {
                     "userType": 1,
-                    "userId": 1024,
+                    "userId": "1024",
                     "message": {
                         "type": "image",
                         "payload": {
@@ -44,7 +49,7 @@ class WebsocketSendToUserReqVO(BaseRequestVO):
                 },
                 {
                     "userType": 1,
-                    "userId": 1024,
+                    "userId": "1024",
                     "message": {
                         "type": "file",
                         "payload": {

@@ -27,8 +27,8 @@ class ConfigDataSaveReqVO(BaseRequestVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
-                    "typeId": 1,
+                    "id": "1024",
+                    "typeId": "1",
                     "name": "数据库名",
                     "key": "dushan.db.username",
                     "value": "1024",

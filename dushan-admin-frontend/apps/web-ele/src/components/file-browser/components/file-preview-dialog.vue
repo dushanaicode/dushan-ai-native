@@ -3,6 +3,7 @@ import type { FileObject, PreviewType } from '../typing';
 
 import { computed, ref, watch } from 'vue';
 
+import { Loading } from '@vben/common-ui';
 import { IconifyIcon } from '@vben/icons';
 
 import { ElDialog } from 'element-plus';
@@ -86,8 +87,13 @@ watch(
       </div>
 
       <div v-else-if="previewType === 'text'" class="preview-text">
-        <div v-if="textLoading" class="preview-text__loading">加载中...</div>
-        <pre v-else>{{ textContent }}</pre>
+        <Loading
+          :spinning="textLoading"
+          :aria-busy="textLoading"
+          class="min-h-40"
+        >
+          <pre v-if="!textLoading">{{ textContent }}</pre>
+        </Loading>
       </div>
 
       <div v-else class="preview-unsupported">

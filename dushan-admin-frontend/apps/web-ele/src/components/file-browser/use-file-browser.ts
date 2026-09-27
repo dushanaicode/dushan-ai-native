@@ -2,12 +2,14 @@ import type {
   BreadcrumbItem,
   FileConfigSimple,
   FileObject,
-  ListObjectsResp,
   ViewMode,
 } from './typing';
 
-import { computed, ref } from 'vue';
+import { computed, onScopeDispose, ref } from 'vue';
 
+import { $t } from '@vben/locales';
+
+import { takeErrorMessage } from '#/api/error-feedback';
 import {
   createDirectory,
   deleteByKey,
@@ -24,15 +26,27 @@ export function useFileBrowser() {
   const currentPrefix = ref('');
   const objects = ref<FileObject[]>([]);
   const loading = ref(false);
+  const loadFailed = ref(false);
+  const errorMessage = ref('');
+  const uploading = ref(0);
   const viewMode = ref<ViewMode>('list');
+  const sortBy = ref<'modified' | 'name' | 'size'>('name');
   const selectedKeys = ref<string[]>([]);
   const configList = ref<FileConfigSimple[]>([]);
   const selectedConfigId = ref<'' | string>('');
   const searchKeyword = ref('');
+  let request: AbortController | undefined;
+  let active = true;
+  onScopeDispose(() => {
+    active = false;
+    request?.abort();
+  });
 
   const breadcrumbs = computed<BreadcrumbItem[]>(() => {
     const parts = currentPrefix.value.split('/').filter(Boolean);
-    const crumbs: BreadcrumbItem[] = [{ name: '根目录', prefix: '' }];
+    const crumbs: BreadcrumbItem[] = [
+      { name: $t('utils.fileBrowser.root'), prefix: '' },
+    ];
     let accumulated = '';
 
     for (const part of parts) {
@@ -45,39 +59,121 @@ export function useFileBrowser() {
 
   const hasConfig = computed(() => configId.value !== null);
   const selectedCount = computed(() => selectedKeys.value.length);
+  const selectedConfig = computed(() =>
+    configList.value.find((item) => item.id === configId.value),
+  );
+  const sortedObjects = computed(() =>
+    objects.value.toSorted((left, right) => {
+      const directories =
+        Number(Boolean(right.isDirectory)) - Number(Boolean(left.isDirectory));
+      if (directories) return directories;
+      if (sortBy.value === 'size') return (right.size ?? 0) - (left.size ?? 0);
+      if (sortBy.value === 'modified') {
+        return (
+          (right.lastModified ? Date.parse(right.lastModified) : 0) -
+          (left.lastModified ? Date.parse(left.lastModified) : 0)
+        );
+      }
+      return left.name.localeCompare(right.name, undefined, { numeric: true });
+    }),
+  );
+
+  function startQuery() {
+    request?.abort();
+    request = new AbortController();
+    loading.value = true;
+    loadFailed.value = false;
+    errorMessage.value = '';
+    return request;
+  }
+
+  function report(error: unknown) {
+    loadFailed.value = true;
+    errorMessage.value = takeErrorMessage(
+      error,
+      $t('utils.fileBrowser.loadFailed'),
+    );
+  }
 
   async function loadConfigList() {
-    configList.value = await getSimpleFileConfigList();
-
-    const master = configList.value.find((item) => item.master);
-    const defaultConfig = master || configList.value[0];
-    if (defaultConfig?.id) {
-      selectedConfigId.value = defaultConfig.id;
-      await selectConfig(defaultConfig.id);
+    const controller = startQuery();
+    try {
+      const configs = await getSimpleFileConfigList({
+        signal: controller.signal,
+        errorMessageMode: 'form',
+      });
+      if (controller.signal.aborted) return;
+      configList.value = configs;
+      const selected =
+        configs.find((item) => item.id === selectedConfigId.value) ??
+        configs.find((item) => item.master) ??
+        configs[0];
+      if (selected) await selectConfig(selected.id);
+      else {
+        configId.value = null;
+        selectedConfigId.value = '';
+        objects.value = [];
+      }
+    } catch (error) {
+      if (!controller.signal.aborted) report(error);
+    } finally {
+      if (request === controller) loading.value = false;
     }
   }
 
-  async function loadObjects(prefix = '') {
+  async function loadObjects(prefix = '', keyword = '') {
     if (!configId.value) {
       return;
     }
 
-    loading.value = true;
+    const controller = startQuery();
+    const id = configId.value;
+    currentPrefix.value = prefix;
+    searchKeyword.value = keyword;
+    selectedKeys.value = [];
+    objects.value = [];
+    const options = {
+      signal: controller.signal,
+      errorMessageMode: 'form' as const,
+    };
     try {
-      const response: ListObjectsResp = await listObjects({
-        configId: configId.value,
-        prefix,
-      });
-      objects.value = response.objects || [];
-      currentPrefix.value = prefix;
-      selectedKeys.value = [];
+      let entries: FileObject[];
+      if (keyword) {
+        const result = await searchFiles(
+          {
+            configId: id,
+            keyword,
+            page: 1,
+            pageSize: 100,
+            prefix,
+            searchMode: 'fuzzy',
+          },
+          options,
+        );
+        entries = result.items.map((item) => ({
+          isDirectory: false,
+          key: item.path,
+          lastModified: item.createTime,
+          name: item.name,
+          size: item.size,
+          type: item.type,
+          url: item.url,
+        }));
+      } else {
+        const result = await listObjects({ configId: id, prefix }, options);
+        entries = result.objects;
+      }
+      if (!controller.signal.aborted) objects.value = entries;
+    } catch (error) {
+      if (!controller.signal.aborted) report(error);
     } finally {
-      loading.value = false;
+      if (request === controller) loading.value = false;
     }
   }
 
   async function selectConfig(id: string) {
     configId.value = id;
+    selectedConfigId.value = id;
     currentPrefix.value = '';
     await loadObjects('');
   }
@@ -106,6 +202,10 @@ export function useFileBrowser() {
   }
 
   async function refresh() {
+    if (!hasConfig.value) {
+      await loadConfigList();
+      return;
+    }
     if (searchKeyword.value.trim()) {
       await handleSearch(searchKeyword.value);
       return;
@@ -127,10 +227,18 @@ export function useFileBrowser() {
 
   async function handleUploadFile(file: File) {
     if (!configId.value) {
-      return;
+      throw new Error($t('utils.fileBrowser.selectStorage'));
     }
-    await uploadFile(file, currentPrefix.value || undefined, configId.value);
-    await refresh();
+    const id = configId.value;
+    const directory = currentPrefix.value;
+    uploading.value++;
+    try {
+      await uploadFile(file, directory || undefined, id);
+      if (active && configId.value === id && currentPrefix.value === directory)
+        await refresh();
+    } finally {
+      uploading.value--;
+    }
   }
 
   async function handleDeleteItem(key: string) {
@@ -195,41 +303,7 @@ export function useFileBrowser() {
   }
 
   async function handleSearch(keyword: string) {
-    if (!configId.value) {
-      return;
-    }
-
-    const normalizedKeyword = keyword.trim();
-    if (!normalizedKeyword) {
-      searchKeyword.value = '';
-      await loadObjects(currentPrefix.value);
-      return;
-    }
-
-    searchKeyword.value = normalizedKeyword;
-    loading.value = true;
-    try {
-      const response = await searchFiles({
-        configId: configId.value,
-        keyword: normalizedKeyword,
-        page: 1,
-        pageSize: 100,
-        prefix: currentPrefix.value,
-        searchMode: 'fuzzy',
-      });
-      objects.value = response.items.map((item) => ({
-        isDirectory: false,
-        key: item.path,
-        lastModified: item.createTime,
-        name: item.name,
-        size: item.size,
-        type: item.type,
-        url: item.url,
-      }));
-      selectedKeys.value = [];
-    } finally {
-      loading.value = false;
-    }
+    await loadObjects(currentPrefix.value, keyword.trim());
   }
 
   async function clearSearch() {
@@ -243,6 +317,7 @@ export function useFileBrowser() {
     configId,
     configList,
     currentPrefix,
+    errorMessage,
     goUp,
     handleConfigChange,
     handleCreateDirectory,
@@ -254,6 +329,7 @@ export function useFileBrowser() {
     handleUploadFile,
     hasConfig,
     loadConfigList,
+    loadFailed,
     loadObjects,
     loading,
     navigateTo,
@@ -261,12 +337,16 @@ export function useFileBrowser() {
     openItem,
     refresh,
     searchKeyword,
+    selectedConfig,
     selectConfig,
     selectedConfigId,
     selectedCount,
     selectedKeys,
+    sortBy,
+    sortedObjects,
     toggleSelect,
     toggleSelectAll,
+    uploading,
     viewMode,
   };
 }

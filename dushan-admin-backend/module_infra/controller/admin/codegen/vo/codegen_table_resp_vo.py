@@ -4,6 +4,7 @@ from typing import Annotated
 from pydantic import Field
 
 from framework.common.contracts import (
+    SnowflakeCursorStr,
     SnowflakeIdStr,
 )
 from framework.common.schemas import BaseVO
@@ -22,7 +23,7 @@ class CodegenTableRespVO(BaseVO):
     template_type: Annotated[int, Field(default=1, description="模板类型")]
     front_type: Annotated[int, Field(default=0, description="前端类型")]
     scene: Annotated[int, Field(default=1, description="场景")]
-    parent_menu_id: Annotated[SnowflakeIdStr | None, Field(None, description="父菜单编号")]
+    parent_menu_id: Annotated[SnowflakeCursorStr | None, Field(None, description="父菜单编号")]
     module_name: Annotated[str, Field(default="", description="模块名")]
     business_name: Annotated[str, Field(default="", description="业务名")]
     class_comment: Annotated[str, Field(default="", description="类描述")]
@@ -44,8 +45,8 @@ class CodegenTableRespVO(BaseVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1,
-                    "dataSourceConfigId": 0,
+                    "id": "1",
+                    "dataSourceConfigId": "1",
                     "tableName": "system_user",
                     "tableComment": "用户表",
                     "className": "User",
@@ -54,7 +55,7 @@ class CodegenTableRespVO(BaseVO):
                     "templateType": 1,
                     "frontType": 0,
                     "scene": 1,
-                    "parentMenuId": 1024,
+                    "parentMenuId": "1024",
                     "moduleName": "system",
                     "businessName": "user",
                     "classComment": "用户",

@@ -25,7 +25,7 @@ class ApiErrorLogPageReqVO(PageQuery):
         "json_schema_extra": {
             "examples": [
                 {
-                    "userId": 1024,
+                    "userId": "1024",
                     "userType": 1,
                     "applicationName": "dashboard",
                     "requestUrl": "/xx/yy",

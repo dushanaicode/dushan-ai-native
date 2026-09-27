@@ -2,6 +2,7 @@
 import type { FileObject } from '../typing';
 
 import { IconifyIcon } from '@vben/icons';
+import { $t } from '@vben/locales';
 
 import { ElDropdown, ElDropdownItem, ElDropdownMenu } from 'element-plus';
 
@@ -75,6 +76,7 @@ function onImageError(event: Event) {
       <input
         class="file-grid__checkbox"
         type="checkbox"
+        :aria-label="$t('utils.fileBrowser.selectFile', { name: item.name })"
         :checked="selectedKeys.includes(item.key)"
         @change.stop="emit('toggleSelect', item.key)"
         @click.stop
@@ -85,25 +87,35 @@ function onImageError(event: Event) {
           trigger="click"
           @command="(command) => handleCommand(String(command), item)"
         >
-          <span class="more-trigger" title="更多操作">
+          <button
+            type="button"
+            class="more-trigger"
+            :aria-label="$t('utils.fileBrowser.more')"
+          >
             <IconifyIcon icon="lucide:more-horizontal" class="size-4" />
-          </span>
+          </button>
           <template #dropdown>
             <ElDropdownMenu>
               <ElDropdownItem command="open">
-                {{ item.isDirectory ? '打开' : '预览' }}
+                {{
+                  item.isDirectory
+                    ? $t('utils.fileBrowser.open')
+                    : $t('utils.fileBrowser.preview')
+                }}
               </ElDropdownItem>
               <ElDropdownItem v-if="!item.isDirectory" command="copy">
-                复制链接
+                {{ $t('utils.fileBrowser.copy') }}
               </ElDropdownItem>
               <ElDropdownItem v-if="!item.isDirectory" command="download">
-                下载
+                {{ $t('utils.fileBrowser.download') }}
               </ElDropdownItem>
               <ElDropdownItem v-if="canUpdate" command="rename">
-                重命名
+                {{ $t('utils.fileBrowser.rename') }}
               </ElDropdownItem>
               <ElDropdownItem v-if="canDelete" command="delete" divided>
-                <span class="file-browser__danger">删除</span>
+                <span class="file-browser__danger">{{
+                  $t('common.delete')
+                }}</span>
               </ElDropdownItem>
             </ElDropdownMenu>
           </template>

@@ -23,17 +23,17 @@ class DataSourceConfigSaveReqVO(BaseRequestVO):
         int, Field(..., description="数据源类型，参见 DataSourceTypeEnum 枚举类")
     ]
     is_default: Annotated[bool, Field(False, description="是否默认数据源")]
-    pool_size: Annotated[int, Field(10, description="连接池大小")]
-    max_overflow: Annotated[int, Field(20, description="最大溢出连接数")]
-    pool_recycle: Annotated[int, Field(3600, description="连接最大复用时间（秒）")]
-    pool_timeout: Annotated[int, Field(30, description="获取连接最大等待时间（秒）")]
+    pool_size: Annotated[int, Field(10, ge=1, description="连接池大小")]
+    max_overflow: Annotated[int, Field(20, ge=0, description="最大溢出连接数")]
+    pool_recycle: Annotated[int, Field(3600, ge=-1, description="连接最大复用时间（秒）")]
+    pool_timeout: Annotated[int, Field(30, gt=0, description="获取连接最大等待时间（秒）")]
     echo: Annotated[bool, Field(False, description="是否开启SQL日志")]
     remark: Annotated[str | None, Field(None, description="备注")]
     model_config = {
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1,
+                    "id": "1",
                     "name": "主数据库",
                     "url": "mysql+aiomysql://root:123456@127.0.0.1:3306/test",
                     "status": 0,

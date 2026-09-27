@@ -4,6 +4,7 @@ import type { FileObject } from '../typing';
 import { computed } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
+import { $t } from '@vben/locales';
 
 import {
   ElButton,
@@ -59,7 +60,7 @@ function handleCommand(command: string, item: FileObject) {
 }
 
 function formatSize(size?: null | number) {
-  if (!size) {
+  if (size === undefined || size === null) {
     return '-';
   }
 
@@ -92,17 +93,28 @@ function formatDate(value?: null | string) {
       <div class="file-list__cell file-list__cell--checkbox">
         <input
           type="checkbox"
+          :aria-label="$t('utils.fileBrowser.selectAll')"
           :checked="allSelected"
           :indeterminate="selectedKeys.length > 0 && !allSelected"
           @change="emit('toggleSelectAll')"
         />
       </div>
       <div class="file-list__cell file-list__cell--icon"></div>
-      <div class="file-list__cell file-list__cell--name">名称</div>
-      <div class="file-list__cell file-list__cell--size">大小</div>
-      <div class="file-list__cell file-list__cell--time">修改时间</div>
-      <div class="file-list__cell file-list__cell--type">类型</div>
-      <div class="file-list__cell file-list__cell--actions">操作</div>
+      <div class="file-list__cell file-list__cell--name">
+        {{ $t('utils.fileBrowser.name') }}
+      </div>
+      <div class="file-list__cell file-list__cell--size">
+        {{ $t('utils.fileBrowser.size') }}
+      </div>
+      <div class="file-list__cell file-list__cell--time">
+        {{ $t('utils.fileBrowser.modified') }}
+      </div>
+      <div class="file-list__cell file-list__cell--type">
+        {{ $t('utils.fileBrowser.type') }}
+      </div>
+      <div class="file-list__cell file-list__cell--actions">
+        {{ $t('utils.fileBrowser.actions') }}
+      </div>
     </div>
 
     <div
@@ -115,6 +127,7 @@ function formatDate(value?: null | string) {
       <div class="file-list__cell file-list__cell--checkbox">
         <input
           type="checkbox"
+          :aria-label="$t('utils.fileBrowser.selectFile', { name: item.name })"
           :checked="selectedKeys.includes(item.key)"
           @change.stop="emit('toggleSelect', item.key)"
         />
@@ -139,22 +152,28 @@ function formatDate(value?: null | string) {
         {{ formatDate(item.lastModified) }}
       </div>
       <div class="file-list__cell file-list__cell--type">
-        {{ item.isDirectory ? '文件夹' : item.type || '-' }}
+        {{
+          item.isDirectory ? $t('utils.fileBrowser.folder') : item.type || '-'
+        }}
       </div>
       <div class="file-list__cell file-list__cell--actions">
         <template v-if="!item.isDirectory">
-          <ElTooltip content="复制链接" placement="top">
+          <ElTooltip :content="$t('utils.fileBrowser.copy')" placement="top">
             <ElButton link type="primary" @click.stop="emit('copyUrl', item)">
               <IconifyIcon icon="lucide:copy" class="size-4" />
             </ElButton>
           </ElTooltip>
-          <ElTooltip content="预览" placement="top">
+          <ElTooltip :content="$t('utils.fileBrowser.preview')" placement="top">
             <ElButton link type="primary" @click.stop="emit('openUrl', item)">
               <IconifyIcon icon="lucide:external-link" class="size-4" />
             </ElButton>
           </ElTooltip>
         </template>
-        <ElTooltip v-else content="打开文件夹" placement="top">
+        <ElTooltip
+          v-else
+          :content="$t('utils.fileBrowser.openFolder')"
+          placement="top"
+        >
           <ElButton link type="primary" @click.stop="emit('open', item)">
             <IconifyIcon icon="lucide:folder-open" class="size-4" />
           </ElButton>
@@ -165,19 +184,25 @@ function formatDate(value?: null | string) {
             trigger="click"
             @command="(command) => handleCommand(String(command), item)"
           >
-            <span class="more-trigger" title="更多操作">
+            <button
+              type="button"
+              class="more-trigger"
+              :aria-label="$t('utils.fileBrowser.more')"
+            >
               <IconifyIcon icon="lucide:more-horizontal" class="size-4" />
-            </span>
+            </button>
             <template #dropdown>
               <ElDropdownMenu>
                 <ElDropdownItem v-if="!item.isDirectory" command="download">
-                  下载
+                  {{ $t('utils.fileBrowser.download') }}
                 </ElDropdownItem>
                 <ElDropdownItem v-if="props.canUpdate" command="rename">
-                  重命名
+                  {{ $t('utils.fileBrowser.rename') }}
                 </ElDropdownItem>
                 <ElDropdownItem v-if="props.canDelete" command="delete" divided>
-                  <span class="file-browser__danger">删除</span>
+                  <span class="file-browser__danger">{{
+                    $t('common.delete')
+                  }}</span>
                 </ElDropdownItem>
               </ElDropdownMenu>
             </template>

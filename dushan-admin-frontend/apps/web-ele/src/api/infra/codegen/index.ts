@@ -138,7 +138,8 @@ export async function getCodegenTablePage(
 /** 获得代码生成详情 */
 export async function getCodegenDetail(tableId: string) {
   return requestClient.get<InfraCodegenApi.CodegenDetailRespVO>(
-    `/infra/codegen/detail?id=${encodeURIComponent(tableId)}`,
+    '/infra/codegen/detail',
+    { params: { tableId } },
   );
 }
 

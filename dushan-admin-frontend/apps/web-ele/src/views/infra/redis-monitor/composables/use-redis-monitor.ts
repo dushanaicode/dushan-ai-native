@@ -2,6 +2,7 @@ import type { InfraRedisMonitorApi } from '#/api/infra/redis-monitor';
 
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 
+import { takeErrorMessage } from '#/api/error-feedback';
 import { getCacheMonitorInfo } from '#/api/infra/redis-monitor';
 
 import {
@@ -51,8 +52,8 @@ export function useRedisMonitor() {
       rawData.value = await getCacheMonitorInfo();
       lastUpdatedAt.value = new Date();
       errorMessage.value = '';
-    } catch {
-      errorMessage.value = 'Redis 监控数据加载失败';
+    } catch (error) {
+      errorMessage.value = takeErrorMessage(error, 'Redis 监控数据加载失败');
     } finally {
       loading.value = false;
       refreshing.value = false;

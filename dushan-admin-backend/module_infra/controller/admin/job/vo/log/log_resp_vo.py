@@ -58,8 +58,8 @@ class JobLogRespVO(BaseVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
-                    "jobId": 1024,
+                    "id": "1024",
+                    "jobId": "1024",
                     "handlerName": "sysUserSessionTimeoutJob",
                     "handlerParam": "dushan",
                     "executeIndex": 1,

@@ -23,6 +23,8 @@ from framework.starter_web.public import (
     Result,
     RoutePolicy,
 )
+from module_infra.controller.admin.mq.vo.mq.mq_consumer_resp_vo import MqConsumerRespVO
+from module_infra.controller.admin.mq.vo.mq.mq_export_req_vo import MqExportReqVO
 from module_infra.controller.admin.mq.vo.mq.mq_page_req_vo import MqPageReqVO
 from module_infra.controller.admin.mq.vo.mq.mq_resp_vo import MqRespVO
 from module_infra.controller.admin.mq.vo.mq.mq_save_req_vo import MqSaveReqVO
@@ -34,6 +36,19 @@ mq_controller = APIRouter(prefix="/mq", tags=["Infra - MQ 消息定义管理"])
 
 
 class MqController:
+    @staticmethod
+    @mq_controller.get("/consumers", summary="查询已部署的消费者声明")
+    @RoutePolicy(
+        permissions=("infra:mq:query", "infra:mq:create", "infra:mq:update"),
+        permission_mode="any",
+        tenant_required=True,
+        realm=SecurityRealm.TENANT,
+    )
+    async def get_registered_consumers(
+        service: MqDefinitionService = Depends(DiDependency(MqDefinitionService)),
+    ) -> Result[list[MqConsumerRespVO]]:
+        return Result.success(await service.get_registered_consumers())
+
     @staticmethod
     @mq_controller.post("/create", summary="创建消息定义")
     @RoutePolicy(
@@ -122,16 +137,14 @@ class MqController:
         realm=SecurityRealm.TENANT,
     )
     async def export_mq_definition_list(
-        request: Request,
+        page_req_vo: MqExportReqVO = Query(),
         mq_definition_service: MqDefinitionService = Depends(DiDependency(MqDefinitionService)),
-        fields: list[str] = Query(None, description="导出的字段列表"),
         excel_writer: ExcelWriter = Depends(DiDependency(ExcelWriter)),
         page_settings: PageSettings = Depends(DiDependency(PageSettings)),
         files: FileResult = Depends(DiDependency(FileResult)),
         dictionaries: DictDataProvider = Depends(DiDependency(DictDataProvider)),
     ) -> StreamingResponse:
         excel_providers = ExcelProviders(dictionaries=dictionaries)
-        page_req_vo = RequestUtils.validate_with_auto_list_params(request, MqPageReqVO)
         page_req_vo.enable_fetch_all(
             max_rows=min(excel_writer.settings.max_export_rows, page_settings.fetch_all_max_rows)
         )
@@ -141,6 +154,6 @@ class MqController:
         excel_list: list[MqRespVO] = ConversionUtils.list_to_vo_list(page_result.items, MqRespVO)
         filename = "消息定义数据"
         file_data = await excel_writer.write(
-            "数据", MqRespVO, excel_list, providers=excel_providers, fields=fields
+            "数据", MqRespVO, excel_list, providers=excel_providers, fields=page_req_vo.fields
         )
         return files.excel_stream(file_data, file_name=f"{filename}.xlsx")

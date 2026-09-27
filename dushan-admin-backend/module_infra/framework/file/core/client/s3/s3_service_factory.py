@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import boto3
+from botocore.client import BaseClient
 
 from module_infra.framework.file.core.client.s3.aliyun.aliyun_oss_helper import AliyunOssHelper
 from module_infra.framework.file.core.client.s3.hwclouds.hwclouds_obs_helper import HuaweiObsHelper
@@ -65,7 +65,7 @@ class S3ServiceFactory:
             return StandardS3Helper
 
     @classmethod
-    def create_client(cls, config: S3FileClientConfig) -> boto3.client:
+    def create_client(cls, config: S3FileClientConfig) -> BaseClient:
         """根据服务类型创建对应的S3客户端"""
         helper = cls.get_helper(config)
         return helper.create_client(config)
@@ -79,7 +79,7 @@ class S3ServiceFactory:
     @classmethod
     async def upload_file(
         cls,
-        client: boto3.client,
+        client: BaseClient,
         config: S3FileClientConfig,
         key: str,
         content: bytes,

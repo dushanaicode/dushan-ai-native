@@ -35,11 +35,11 @@ export function useGridFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(DICT_TYPE.USER_TYPE, 'number'),
         placeholder: '请选择用户类型',
-      },
+      }),
       fieldName: 'userType',
       label: '用户类型',
     },
@@ -72,14 +72,14 @@ export function useGridFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(
           DICT_TYPE.INFRA_API_ERROR_LOG_PROCESS_STATUS,
           'number',
         ),
         placeholder: '请选择处理状态',
-      },
+      }),
       defaultValue: InfraApiErrorLogProcessStatusEnum.INIT,
       fieldName: 'processStatus',
       label: '处理状态',

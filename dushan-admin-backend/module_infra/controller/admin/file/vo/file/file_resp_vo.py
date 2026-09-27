@@ -14,7 +14,7 @@ class FileRespVO(BaseVO):
 
     id: Annotated[SnowflakeIdStr, Field(..., description="文件编号")]
     config_id: Annotated[SnowflakeIdStr, Field(..., description="配置编号")]
-    path: Annotated[str, Field(..., description="文件路径")]
+    path: Annotated[str, Field(..., validation_alias="storage_path", description="完整存储路径")]
     name: Annotated[str, Field(..., description="原文件名")]
     url: Annotated[str, Field(..., description="文件 URL")]
     type: Annotated[str | None, Field(None, description="文件MIME类型")]
@@ -24,8 +24,8 @@ class FileRespVO(BaseVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
-                    "configId": 11,
+                    "id": "1024",
+                    "configId": "11",
                     "path": "dushan.jpg",
                     "name": "dushan.jpg",
                     "url": "https://www.dushan.info/dushan.jpg",

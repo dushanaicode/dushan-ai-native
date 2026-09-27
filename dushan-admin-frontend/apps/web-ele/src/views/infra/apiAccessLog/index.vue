@@ -63,7 +63,7 @@ async function handleExport() {
   exportTableRef.value?.setData({
     columns: fields,
     exportApi: exportApiAccessLog,
-    fileName: 'API访问日志.xls',
+    fileName: 'API访问日志.xlsx',
     searchParams: normalizeSearchParams(formValues),
   });
   exportTableRef.value?.open();

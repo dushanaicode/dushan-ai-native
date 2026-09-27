@@ -1,4 +1,6 @@
+import re
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import PurePosixPath
 
 import aioftp
@@ -51,7 +53,16 @@ class FtpFileClient(AbstractFileClient):
     async def list_objects(self, prefix="", delimiter="/"):
         files, directories = [], []
         async with self._client() as client:
-            async for path, info in client.list(self._path(prefix) if prefix else self.base):
+            directory = self._path(prefix) if prefix else self.base
+            mlsd = True
+            try:
+                entries = await client.list(directory, raw_command="MLSD")
+            except aioftp.StatusCodeError as error:
+                if not error.received_codes[-1].matches("50x"):
+                    raise
+                entries = await client.list(directory, raw_command="LIST")
+                mlsd = False
+            for path, info in entries:
                 relative = path.relative_to(self.base).as_posix()
                 if info["type"] == "dir":
                     directories.append({"prefix": relative + "/", "name": path.name})
@@ -61,10 +72,24 @@ class FtpFileClient(AbstractFileClient):
                             "key": relative,
                             "name": path.name,
                             "size": int(info["size"]),
-                            "lastModified": info.get("modify"),
+                            # LIST 没有可确认的时区，保留文件列表但不猜测绝对时间。
+                            "lastModified": self._modify_time(info.get("modify")) if mlsd else None,
                         }
                     )
         return {"files": files, "directories": directories, "isTruncated": False, "nextMarker": ""}
+
+    @staticmethod
+    def _modify_time(value: str | None) -> str | None:
+        """MLSD modify 使用 UTC；超出 datetime 微秒精度的小数截断。"""
+        if value is None:
+            return None
+        match = re.fullmatch(r"([0-9]{14})(?:\.([0-9]+))?", value)
+        if match is None:
+            raise ValueError("FTP MLSD modify 时间格式无效")
+        instant = datetime.strptime(match[1], "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc)
+        if match[2] is not None:
+            instant = instant.replace(microsecond=int(match[2][:6].ljust(6, "0")))
+        return instant.isoformat()
 
     async def rename(self, old_key, new_key):
         async with self._client() as client:

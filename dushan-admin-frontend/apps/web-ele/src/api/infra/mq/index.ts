@@ -4,6 +4,11 @@ import { requestClient } from '#/api/request';
 
 /** MQ 消息定义端点（`/infra/mq`）。ID 均为雪花字符串。 */
 export namespace InfraMqApi {
+  export interface ConsumerDeclaration {
+    key: string;
+    topic: string;
+    retryCount: number;
+  }
   /** MQ 消息定义信息 RespVO */
   export interface MqRespVO {
     concurrency?: number;
@@ -36,6 +41,12 @@ export namespace InfraMqApi {
     status?: number;
     topic?: string;
   }
+}
+
+export async function getRegisteredConsumers() {
+  return requestClient.get<InfraMqApi.ConsumerDeclaration[]>(
+    '/infra/mq/consumers',
+  );
 }
 
 /** 创建消息定义 */

@@ -18,22 +18,24 @@ INSERT IGNORE INTO `system_menu` (`id`, `name`, `permission`, `sort`, `parent_id
 (10000000100116, '分类导出', 'infra:config:type:export', 102010105, 10000000100101, '', '', '', '', 1, 1, 1, 1, 'system', NOW(), 'system', NOW(), 0, 'action', 0, NULL);
 
 INSERT IGNORE INTO `system_menu` (`id`, `name`, `permission`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`, `kind`, `data_permission`, `url`) VALUES
-(10000000100122, '数据查询', 'infra:config-data:query', 102010201, 10000000100101, '', '', '', '', 1, 1, 1, 1, 'system', NOW(), 'system', NOW(), 0, 'action', 0, NULL),
-(10000000100123, '数据新增', 'infra:config-data:create', 102010202, 10000000100101, '', '', '', '', 1, 1, 1, 1, 'system', NOW(), 'system', NOW(), 0, 'action', 0, NULL),
-(10000000100124, '数据修改', 'infra:config-data:update', 102010203, 10000000100101, '', '', '', '', 1, 1, 1, 1, 'system', NOW(), 'system', NOW(), 0, 'action', 0, NULL),
-(10000000100125, '数据删除', 'infra:config-data:delete', 102010204, 10000000100101, '', '', '', '', 1, 1, 1, 1, 'system', NOW(), 'system', NOW(), 0, 'action', 0, NULL),
-(10000000100126, '数据导出', 'infra:config-data:export', 102010205, 10000000100101, '', '', '', '', 1, 1, 1, 1, 'system', NOW(), 'system', NOW(), 0, 'action', 0, NULL);
+(10000000100122, '数据查询', 'infra:config:query', 102010201, 10000000100101, '', '', '', '', 1, 1, 1, 1, 'system', NOW(), 'system', NOW(), 0, 'action', 0, NULL),
+(10000000100123, '数据新增', 'infra:config:create', 102010202, 10000000100101, '', '', '', '', 1, 1, 1, 1, 'system', NOW(), 'system', NOW(), 0, 'action', 0, NULL),
+(10000000100124, '数据修改', 'infra:config:update', 102010203, 10000000100101, '', '', '', '', 1, 1, 1, 1, 'system', NOW(), 'system', NOW(), 0, 'action', 0, NULL),
+(10000000100125, '数据删除', 'infra:config:delete', 102010204, 10000000100101, '', '', '', '', 1, 1, 1, 1, 'system', NOW(), 'system', NOW(), 0, 'action', 0, NULL),
+(10000000100126, '数据导出', 'infra:config:export', 102010205, 10000000100101, '', '', '', '', 1, 1, 1, 1, 'system', NOW(), 'system', NOW(), 0, 'action', 0, NULL);
 
 INSERT IGNORE INTO `system_menu` (`id`, `name`, `permission`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`, `kind`, `data_permission`, `url`) VALUES
 (10000000100201, '文件管理', '', 102020000, 10000000100001, 'file', 'ep:folder', '', '', 1, 1, 1, 1, 'system', NOW(), 'system', NOW(), 0, 'group', 0, NULL);
 
 INSERT IGNORE INTO `system_menu` (`id`, `name`, `permission`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`, `kind`, `data_permission`, `url`) VALUES
-(10000000100211, '文件列表', '', 102020100, 10000000100201, 'list', 'ep:document', 'infra/file/index', 'InfraFile', 1, 1, 1, 1, 'system', NOW(), 'system', NOW(), 0, 'page', 0, NULL);
+(10000000100211, '文件空间', '', 102020100, 10000000100201, 'list', 'ep:document', 'infra/file/index', 'InfraFile', 1, 1, 1, 1, 'system', NOW(), 'system', NOW(), 0, 'page', 0, NULL);
 
 INSERT IGNORE INTO `system_menu` (`id`, `name`, `permission`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`, `kind`, `data_permission`, `url`) VALUES
 (10000000100212, '文件查询', 'infra:file:query', 102020101, 10000000100211, '', '', '', '', 1, 1, 1, 1, 'system', NOW(), 'system', NOW(), 0, 'action', 0, NULL),
 (10000000100213, '文件上传', 'infra:file:upload', 102020102, 10000000100211, '', '', '', '', 1, 1, 1, 1, 'system', NOW(), 'system', NOW(), 0, 'action', 0, NULL),
-(10000000100214, '文件删除', 'infra:file:delete', 102020103, 10000000100211, '', '', '', '', 1, 1, 1, 1, 'system', NOW(), 'system', NOW(), 0, 'action', 0, NULL);
+(10000000100214, '文件删除', 'infra:file:delete', 102020103, 10000000100211, '', '', '', '', 1, 1, 1, 1, 'system', NOW(), 'system', NOW(), 0, 'action', 0, NULL),
+(10000000100215, '目录新建', 'infra:file:create', 102020104, 10000000100211, '', '', '', '', 1, 1, 1, 1, 'system', NOW(), 'system', NOW(), 0, 'action', 0, NULL),
+(10000000100216, '文件重命名', 'infra:file:update', 102020105, 10000000100211, '', '', '', '', 1, 1, 1, 1, 'system', NOW(), 'system', NOW(), 0, 'action', 0, NULL);
 
 INSERT IGNORE INTO `system_menu` (`id`, `name`, `permission`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`, `kind`, `data_permission`, `url`) VALUES
 (10000000100221, '存储配置', '', 102020200, 10000000100201, 'config', 'ep:setting', 'infra/fileConfig/index', 'InfraFileConfig', 1, 1, 1, 1, 'system', NOW(), 'system', NOW(), 0, 'page', 0, NULL);
@@ -127,7 +129,8 @@ INSERT IGNORE INTO `system_menu` (`id`, `name`, `permission`, `sort`, `parent_id
 (10000000100801, 'WebSocket', '', 102080000, 10000000100001, 'webSocket', 'ep:connection', 'infra/webSocket/index', 'InfraWebSocket', 1, 1, 1, 1, 'system', NOW(), 'system', NOW(), 0, 'page', 0, NULL);
 
 INSERT IGNORE INTO `system_menu` (`id`, `name`, `permission`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`, `kind`, `data_permission`, `url`) VALUES
-(10000000100802, 'WS 查询', 'infra:websocket:query', 102080001, 10000000100801, '', '', '', '', 1, 1, 1, 1, 'system', NOW(), 'system', NOW(), 0, 'action', 0, NULL);
+(10000000100802, 'WS 查询', 'infra:websocket:query', 102080001, 10000000100801, '', '', '', '', 1, 1, 1, 1, 'system', NOW(), 'system', NOW(), 0, 'action', 0, NULL),
+(10000000100803, 'WS 发送', 'infra:websocket:send', 102080002, 10000000100801, '', '', '', '', 1, 1, 1, 1, 'system', NOW(), 'system', NOW(), 0, 'action', 0, NULL);
 
 INSERT IGNORE INTO `system_menu` (`id`, `name`, `permission`, `sort`, `parent_id`, `path`, `icon`, `component`, `component_name`, `status`, `visible`, `keep_alive`, `always_show`, `creator`, `create_time`, `updater`, `update_time`, `deleted`, `kind`, `data_permission`, `url`) VALUES
 (10000000100901, '代码生成', '', 102090000, 10000000100001, 'codegen', 'ep:cpu', 'infra/codegen/index', 'InfraCodegen', 1, 1, 1, 1, 'system', NOW(), 'system', NOW(), 0, 'page', 0, NULL);

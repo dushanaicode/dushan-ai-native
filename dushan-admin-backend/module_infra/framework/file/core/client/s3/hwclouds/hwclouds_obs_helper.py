@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 
 import boto3
+from botocore.client import BaseClient
 from botocore.exceptions import ClientError
 
 from module_infra.framework.file.core.client.s3.s3_file_client_config import S3FileClientConfig
@@ -39,7 +40,7 @@ class HuaweiObsHelper:
         return f"https://{endpoint}"
 
     @staticmethod
-    def create_client(config: S3FileClientConfig) -> boto3.client:
+    def create_client(config: S3FileClientConfig) -> BaseClient:
         """创建华为云OBS客户端"""
         endpoint = HuaweiObsHelper.build_endpoint(config.endpoint)
         region = config.region
@@ -68,7 +69,7 @@ class HuaweiObsHelper:
 
     @staticmethod
     async def upload_file(
-        client: boto3.client,
+        client: BaseClient,
         bucket: str,
         key: str,
         content: bytes,

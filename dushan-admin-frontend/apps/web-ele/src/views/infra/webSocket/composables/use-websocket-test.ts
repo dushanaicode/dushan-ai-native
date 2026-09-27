@@ -2,23 +2,41 @@ import type { InfraWebSocketApi } from '#/api/infra/websocket';
 import type { SystemUserApi } from '#/api/system/user';
 import type { SocketMessage } from '#/services/websocket/protocol';
 
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import {
+  computed,
+  onActivated,
+  onBeforeUnmount,
+  onDeactivated,
+  onMounted,
+  ref,
+} from 'vue';
 
 import { useAccess } from '@vben/access';
 import { formatDate } from '@vben/utils';
 
 import { ElMessage } from 'element-plus';
 
+import { notifyError } from '#/api/error-feedback';
 import {
   broadcastWebSocketMessage,
   getWebSocketStatus,
   sendWebSocketMessageToUser,
 } from '#/api/infra/websocket';
 import { getSimpleUserList } from '#/api/system/user';
-import { useRealtime } from '#/services/realtime';
+import { readRealtimeConfig } from '#/services/realtime';
+import { getWebSocketTicket } from '#/services/realtime-ports';
 import { getSession } from '#/services/session/runtime';
+import {
+  buildSocketUrl,
+  classifySocketClose,
+  defaultSocketPolicy,
+  SocketConnection,
+} from '#/services/websocket/connection';
+import { socketProtocol } from '#/services/websocket/protocol';
+import { createRandomId } from '#/utils/random-id';
 
 export const WEBSOCKET_QUERY_PERMISSION = 'infra:websocket:query';
+export const WEBSOCKET_SEND_PERMISSION = 'infra:websocket:send';
 
 /** SocketConnection 连接状态（小写） */
 export type WebSocketConnectionStatus =
@@ -51,7 +69,7 @@ interface MessagePreset {
 const DIRECT_MESSAGE_PRESETS: MessagePreset[] = [
   {
     createMessage: () => ({
-      payload: { client_timestamp: new Date().toISOString() },
+      requestId: createRandomId(),
       type: 'ping',
     }),
     label: '心跳检测',
@@ -60,18 +78,18 @@ const DIRECT_MESSAGE_PRESETS: MessagePreset[] = [
   {
     createMessage: () => ({
       payload: {},
-      type: 'get_user_info',
+      type: 'get-user-info',
     }),
     label: '获取用户信息',
-    value: 'get_user_info',
+    value: 'get-user-info',
   },
   {
     createMessage: () => ({
       payload: {},
-      type: 'get_app_config',
+      type: 'get-app-config',
     }),
     label: '获取应用配置',
-    value: 'get_app_config',
+    value: 'get-app-config',
   },
 ];
 
@@ -125,12 +143,30 @@ async function copyText(text: string) {
 
 export function useWebSocketTest() {
   const { hasAccessByCodes } = useAccess();
-  const realtime = useRealtime();
-  const socket = realtime?.socket;
+  const config = readRealtimeConfig(
+    {
+      enabled: import.meta.env.VITE_WEBSOCKET_ENABLED,
+      path: import.meta.env.VITE_WEBSOCKET_PATH,
+    },
+    window.location.origin,
+  );
+  const socket = config.enabled
+    ? new SocketConnection({
+        baseUrl: config.url,
+        buildUrl: (base, ticket) => buildSocketUrl(base, ticket, 'infra'),
+        getTicket: getWebSocketTicket,
+        classifyClose: classifySocketClose,
+        protocol: socketProtocol,
+        session: getSession(),
+        policy: defaultSocketPolicy,
+        onError: handleConnectionError,
+      })
+    : undefined;
 
   const canQuery = computed(() =>
     hasAccessByCodes([WEBSOCKET_QUERY_PERMISSION]),
   );
+  const canSend = computed(() => hasAccessByCodes([WEBSOCKET_SEND_PERMISSION]));
   const directMessage = ref(
     stringifyMessage(DIRECT_MESSAGE_PRESETS[0]?.createMessage() ?? {}),
   );
@@ -152,11 +188,31 @@ export function useWebSocketTest() {
   const isConnected = computed(() => wsStatus.value === 'open');
   const websocketEnabled = computed(() => Boolean(socket));
   const connectionUrl = computed(() =>
-    socket
-      ? `${window.location.origin}${import.meta.env.VITE_WEBSOCKET_PATH}（票据握手）`
-      : '',
+    config.enabled ? `${config.url.href}?audience=infra（票据握手）` : '',
   );
   const maskedConnectionUrl = connectionUrl;
+
+  function handleConnectionError(error: unknown) {
+    addLog('error', `WebSocket 连接失败: ${String(error)}`);
+  }
+
+  function ensureCanSend() {
+    if (canSend.value) return true;
+    ElMessage.warning('当前账号没有 WebSocket 发送权限');
+    return false;
+  }
+
+  function showReceipt(receipt: InfraWebSocketApi.SocketReceipt) {
+    if (receipt.accepted === 0) {
+      ElMessage.warning(
+        receipt.transport === 'local'
+          ? '没有匹配的在线连接，消息未投递'
+          : '没有服务接收此次投递',
+      );
+      return;
+    }
+    ElMessage.success('消息已提交，实际接收请查看接收日志');
+  }
 
   function addLog(type: LogType, message: string) {
     const log: WebSocketTestLog = {
@@ -217,7 +273,7 @@ export function useWebSocketTest() {
       );
     } catch (error) {
       addLog('error', `服务状态刷新失败: ${String(error)}`);
-      ElMessage.error('服务状态刷新失败');
+      notifyError(error, '服务状态刷新失败');
     } finally {
       statusLoading.value = false;
     }
@@ -248,7 +304,7 @@ export function useWebSocketTest() {
       return;
     }
 
-    void socket.connect();
+    void socket.connect().catch(handleConnectionError);
     addLog('system', `开始连接 ${maskedConnectionUrl.value}`);
   }
 
@@ -275,32 +331,35 @@ export function useWebSocketTest() {
       socket.send(message);
       addLog('sent', `直连发送: ${stringifyMessage(message)}`);
     } catch (error) {
-      ElMessage.error(String(error));
+      notifyError(error);
       addLog('error', `直连消息发送失败: ${String(error)}`);
     }
   }
 
   async function sendBroadcast() {
-    if (!ensureCanQuery('广播')) {
+    if (!ensureCanSend()) {
       return;
     }
 
     sending.value = true;
     try {
       const message = parseJsonMessage(broadcastMessage.value);
-      await broadcastWebSocketMessage({ message });
-      addLog('sent', `HTTP 广播发送: ${stringifyMessage(message)}`);
-      ElMessage.success('广播消息已发送');
+      const receipt = await broadcastWebSocketMessage({ message });
+      addLog(
+        'sent',
+        `HTTP 广播提交（${receipt.transport} 接受 ${receipt.accepted}）: ${stringifyMessage(message)}`,
+      );
+      showReceipt(receipt);
     } catch (error) {
       addLog('error', `广播消息发送失败: ${String(error)}`);
-      ElMessage.error('广播消息发送失败');
+      notifyError(error, '广播消息发送失败');
     } finally {
       sending.value = false;
     }
   }
 
   async function sendToUser() {
-    if (!ensureCanQuery('发送')) {
+    if (!ensureCanSend()) {
       return;
     }
     if (!selectedUserId.value) {
@@ -311,19 +370,19 @@ export function useWebSocketTest() {
     sending.value = true;
     try {
       const message = parseJsonMessage(targetUserMessage.value);
-      await sendWebSocketMessageToUser({
+      const receipt = await sendWebSocketMessageToUser({
         message,
         userId: selectedUserId.value,
         userType: targetUserType.value,
       });
       addLog(
         'sent',
-        `HTTP 定向发送给用户 ${selectedUserId.value}: ${stringifyMessage(message)}`,
+        `HTTP 定向提交给用户 ${selectedUserId.value}（${receipt.transport} 接受 ${receipt.accepted}）: ${stringifyMessage(message)}`,
       );
-      ElMessage.success('用户消息已发送');
+      showReceipt(receipt);
     } catch (error) {
       addLog('error', `用户消息发送失败: ${String(error)}`);
-      ElMessage.error('用户消息发送失败');
+      notifyError(error, '用户消息发送失败');
     } finally {
       sending.value = false;
     }
@@ -372,15 +431,9 @@ export function useWebSocketTest() {
   }
 
   function handleMessage(message: SocketMessage) {
+    if (message.type === 'connect') void refreshStatus();
     if (message.type === 'pong') {
-      const payload = (message.payload ?? {}) as Record<string, unknown>;
-      addLog(
-        'received',
-        `收到心跳响应: ${stringifyMessage({
-          clientTimestamp: payload.client_timestamp,
-          serverTimestamp: payload.server_timestamp,
-        })}`,
-      );
+      addLog('received', `收到心跳响应: ${stringifyMessage(message)}`);
       return;
     }
 
@@ -388,27 +441,35 @@ export function useWebSocketTest() {
   }
 
   let unsubscribe: (() => void) | undefined;
-  onMounted(async () => {
+  function activateConnection() {
+    if (socket && !isConnected.value && getSession().capture().token !== null) {
+      void socket.connect().catch(handleConnectionError);
+    }
+  }
+
+  onMounted(() => {
     if (socket) {
       unsubscribe = socket.on('*', handleMessage);
     }
 
-    await Promise.all([loadUsers(), refreshStatus()]);
-
-    if (socket && !isConnected.value && getSession().capture().token !== null) {
-      void socket.connect();
-      addLog('system', 'WebSocket 测试页面已触发连接');
-    }
+    void loadUsers();
+    activateConnection();
+    if (!socket) void refreshStatus();
   });
+
+  onActivated(activateConnection);
+  onDeactivated(() => socket?.disconnect());
 
   onBeforeUnmount(() => {
     unsubscribe?.();
+    socket?.dispose();
   });
 
   return {
     applyPreset,
     broadcastMessage,
     canQuery,
+    canSend,
     clearReceivedLogs,
     clearSentLogs,
     connectWebSocket,

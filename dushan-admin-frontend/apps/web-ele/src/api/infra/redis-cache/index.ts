@@ -4,6 +4,14 @@ import { requestClient } from '#/api/request';
 
 /** 缓存管理端点（`/infra/cache/monitor`）。 */
 export namespace InfraRedisCacheApi {
+  export interface CleanupPreset {
+    code: 'authentication' | 'business' | 'jobs' | 'mq';
+    title: string;
+    description: string;
+    highRisk: boolean;
+    available: boolean;
+    patterns: string[];
+  }
   /** 缓存信息 RespVO */
   export interface CacheInfoRespVO {
     cacheKey?: string;
@@ -28,6 +36,25 @@ export namespace InfraRedisCacheApi {
     ttl: number;
     value?: string;
   }
+}
+
+export async function getCleanupPresets(dbName: string) {
+  return requestClient.get<InfraRedisCacheApi.CleanupPreset[]>(
+    '/infra/cache/monitor/cleanup-presets',
+    { params: { dbName } },
+  );
+}
+
+export async function cleanupPreset(
+  preset: InfraRedisCacheApi.CleanupPreset['code'],
+  dbName: string,
+  confirmation?: 'CLEAR',
+) {
+  return requestClient.post<number>('/infra/cache/monitor/cleanup-preset', {
+    preset,
+    dbName,
+    confirmation,
+  });
 }
 
 /** 获得所有缓存名称 */

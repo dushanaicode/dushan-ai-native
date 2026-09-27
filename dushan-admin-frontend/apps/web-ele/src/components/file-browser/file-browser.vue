@@ -2,13 +2,17 @@
 import type { FileBrowserEmits, FileBrowserProps, FileObject } from './typing';
 
 import { computed, onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 
 import { useAccess } from '@vben/access';
+import { Loading } from '@vben/common-ui';
 import { IconifyIcon } from '@vben/icons';
+import { $t } from '@vben/locales';
 import { openWindow } from '@vben/utils';
 
 import { useClipboard } from '@vueuse/core';
 import {
+  ElAlert,
   ElButton,
   ElButtonGroup,
   ElDialog,
@@ -21,6 +25,8 @@ import {
   ElTooltip,
   ElUpload,
 } from 'element-plus';
+
+import { notifyError } from '#/api/error-feedback';
 
 import FileGridView from './components/file-grid-view.vue';
 import FileListView from './components/file-list-view.vue';
@@ -35,11 +41,13 @@ withDefaults(defineProps<FileBrowserProps>(), {
 });
 
 const emit = defineEmits<FileBrowserEmits>();
+const router = useRouter();
 
 const {
   breadcrumbs,
   clearSearch,
   configList,
+  errorMessage,
   goUp,
   handleConfigChange,
   handleCreateDirectory,
@@ -51,6 +59,7 @@ const {
   handleUploadFile,
   hasConfig,
   loadConfigList,
+  loadFailed,
   loading,
   navigateTo,
   objects,
@@ -58,10 +67,14 @@ const {
   refresh,
   searchKeyword,
   selectedConfigId,
+  selectedConfig,
   selectedCount,
   selectedKeys,
+  sortBy,
+  sortedObjects,
   toggleSelect,
   toggleSelectAll,
+  uploading,
   viewMode,
 } = useFileBrowser();
 
@@ -70,6 +83,26 @@ const canCreate = computed(() => hasAccessByCodes(['infra:file:create']));
 const canDelete = computed(() => hasAccessByCodes(['infra:file:delete']));
 const canUpdate = computed(() => hasAccessByCodes(['infra:file:update']));
 const canUpload = computed(() => hasAccessByCodes(['infra:file:upload']));
+const canManageStorage = computed(() =>
+  hasAccessByCodes(['infra:file:config:query']),
+);
+const mutationLoading = ref(false);
+
+async function mutate(operation: () => Promise<void>) {
+  if (mutationLoading.value) return;
+  mutationLoading.value = true;
+  try {
+    await operation();
+  } catch (error) {
+    notifyError(error);
+  } finally {
+    mutationLoading.value = false;
+  }
+}
+
+function validName(name: string) {
+  return name !== '.' && name !== '..' && !/[\\/:]/.test(name);
+}
 
 onMounted(() => {
   void loadConfigList();
@@ -80,30 +113,40 @@ const newFolderName = ref('');
 
 async function confirmCreateFolder() {
   if (!canCreate.value) {
-    ElMessage.warning('暂无新建文件夹权限');
+    ElMessage.warning($t('utils.fileBrowser.noPermission'));
     return;
   }
 
   const folderName = newFolderName.value.trim();
   if (!folderName) {
-    ElMessage.warning('请输入文件夹名称');
+    ElMessage.warning($t('utils.fileBrowser.folderName'));
     return;
   }
 
-  await handleCreateDirectory(folderName);
-  ElMessage.success('文件夹创建成功');
-  showCreateFolder.value = false;
-  newFolderName.value = '';
+  if (!validName(folderName)) {
+    ElMessage.warning($t('utils.fileBrowser.invalidName'));
+    return;
+  }
+  await mutate(async () => {
+    await handleCreateDirectory(folderName);
+    ElMessage.success($t('utils.fileBrowser.createSuccess'));
+    showCreateFolder.value = false;
+    newFolderName.value = '';
+  });
 }
 
 async function handleBeforeUpload(file: File) {
   if (!canUpload.value) {
-    ElMessage.warning('暂无文件上传权限');
+    ElMessage.warning($t('utils.fileBrowser.noPermission'));
     return false;
   }
 
-  await handleUploadFile(file);
-  ElMessage.success('文件上传成功');
+  try {
+    await handleUploadFile(file);
+    ElMessage.success($t('utils.fileBrowser.uploadSuccess'));
+  } catch (error) {
+    notifyError(error);
+  }
   return false;
 }
 
@@ -134,15 +177,15 @@ const { copy } = useClipboard({ legacy: true });
 
 async function handleCopyUrl(item: FileObject) {
   if (!item.url) {
-    ElMessage.error('文件 URL 为空');
+    ElMessage.error($t('utils.fileBrowser.missingUrl'));
     return;
   }
 
   try {
     await copy(item.url);
-    ElMessage.success('复制成功');
+    ElMessage.success($t('utils.fileBrowser.copySuccess'));
   } catch {
-    ElMessage.error('复制失败');
+    ElMessage.error($t('utils.fileBrowser.copyFailed'));
   }
 }
 
@@ -166,42 +209,58 @@ function openRenameDialog(item: FileObject) {
 
 async function confirmRename() {
   if (!canUpdate.value) {
-    ElMessage.warning('暂无重命名权限');
+    ElMessage.warning($t('utils.fileBrowser.noPermission'));
     return;
   }
 
   const target = renameTarget.value;
   const newName = renameNewName.value.trim();
   if (!target || !newName) {
-    ElMessage.warning('请输入新名称');
+    ElMessage.warning($t('utils.fileBrowser.newName'));
+    return;
+  }
+  if (newName === target.name) {
+    showRename.value = false;
     return;
   }
 
-  await handleRenameItem(target.key, newName);
-  ElMessage.success('重命名成功');
-  showRename.value = false;
-  renameTarget.value = null;
-  renameNewName.value = '';
+  if (!validName(newName)) {
+    ElMessage.warning($t('utils.fileBrowser.invalidName'));
+    return;
+  }
+  await mutate(async () => {
+    await handleRenameItem(target.key, newName);
+    ElMessage.success($t('utils.fileBrowser.renameSuccess'));
+    showRename.value = false;
+    renameTarget.value = null;
+    renameNewName.value = '';
+  });
 }
 
 async function handleDelete(item: FileObject) {
   if (!canDelete.value) {
-    ElMessage.warning('暂无删除权限');
+    ElMessage.warning($t('utils.fileBrowser.noPermission'));
     return;
   }
 
-  await ElMessageBox.confirm(`确定要删除「${item.name}」吗？`, '删除确认', {
-    cancelButtonText: '取消',
-    confirmButtonText: '确定',
-    type: 'warning',
+  await mutate(async () => {
+    await ElMessageBox.confirm(
+      $t('utils.fileBrowser.deleteConfirm', { name: item.name }),
+      $t('utils.fileBrowser.confirmDelete'),
+      {
+        cancelButtonText: $t('utils.fileBrowser.cancel'),
+        confirmButtonText: $t('utils.fileBrowser.confirm'),
+        type: 'warning',
+      },
+    );
+    await handleDeleteItem(item.key);
+    ElMessage.success($t('utils.fileBrowser.deleteSuccess'));
   });
-  await handleDeleteItem(item.key);
-  ElMessage.success('删除成功');
 }
 
 async function handleBatchDelete() {
   if (!canDelete.value) {
-    ElMessage.warning('暂无删除权限');
+    ElMessage.warning($t('utils.fileBrowser.noPermission'));
     return;
   }
 
@@ -209,17 +268,19 @@ async function handleBatchDelete() {
     return;
   }
 
-  await ElMessageBox.confirm(
-    `确定要删除选中的 ${selectedCount.value} 个文件吗？`,
-    '批量删除确认',
-    {
-      cancelButtonText: '取消',
-      confirmButtonText: '确定',
-      type: 'warning',
-    },
-  );
-  await handleDeleteBatch();
-  ElMessage.success('批量删除成功');
+  await mutate(async () => {
+    await ElMessageBox.confirm(
+      $t('utils.fileBrowser.batchConfirm', { count: selectedCount.value }),
+      $t('utils.fileBrowser.confirmDelete'),
+      {
+        cancelButtonText: $t('utils.fileBrowser.cancel'),
+        confirmButtonText: $t('utils.fileBrowser.confirm'),
+        type: 'warning',
+      },
+    );
+    await handleDeleteBatch();
+    ElMessage.success($t('utils.fileBrowser.deleteSuccess'));
+  });
 }
 
 function handleBreadcrumbClick(prefix: string, index: number) {
@@ -235,20 +296,42 @@ async function handleSearchFiles() {
 
 <template>
   <div class="file-browser" :style="{ height }">
+    <div class="file-browser__heading">
+      <div>
+        <h2>
+          <IconifyIcon icon="lucide:folder-open" class="size-5" />{{
+            $t('utils.fileBrowser.title')
+          }}
+        </h2>
+        <p>{{ $t('utils.fileBrowser.subtitle') }}</p>
+      </div>
+      <ElButton
+        v-if="canManageStorage"
+        link
+        type="primary"
+        @click="router.push('/infra/file/config')"
+      >
+        <IconifyIcon icon="lucide:settings-2" class="mr-1 size-4" />
+        {{ $t('utils.fileBrowser.manageStorage') }}
+      </ElButton>
+    </div>
     <div class="file-browser__toolbar">
       <div class="file-browser__toolbar-left">
-        <span class="file-browser__label">存储桶</span>
+        <span class="file-browser__label">{{
+          $t('utils.fileBrowser.storage')
+        }}</span>
         <ElSelect
           v-model="selectedConfigId"
-          placeholder="请选择存储桶"
-          size="small"
+          :placeholder="$t('utils.fileBrowser.selectStorage')"
+          :aria-label="$t('utils.fileBrowser.storage')"
+          :disabled="uploading > 0"
           class="file-browser__config-select"
           @change="handleConfigChange"
         >
           <ElOption
             v-for="config in configList"
             :key="config.id"
-            :label="`${config.name}${config.master ? ' (默认)' : ''}`"
+            :label="`${config.name}${config.master ? ` (${$t('utils.fileBrowser.default')})` : ''}`"
             :value="config.id"
           >
             <div class="file-browser__config-option">
@@ -264,14 +347,17 @@ async function handleSearchFiles() {
           v-model="searchKeyword"
           clearable
           :disabled="!hasConfig"
-          placeholder="搜索当前目录"
-          size="small"
+          :placeholder="$t('utils.fileBrowser.search')"
           class="file-browser__search"
           @clear="clearSearch"
           @keyup.enter="handleSearchFiles"
         >
           <template #append>
-            <ElButton :disabled="!hasConfig" @click="handleSearchFiles">
+            <ElButton
+              :aria-label="$t('utils.fileBrowser.search')"
+              :disabled="!hasConfig"
+              @click="handleSearchFiles"
+            >
               <IconifyIcon icon="lucide:search" class="size-4" />
             </ElButton>
           </template>
@@ -286,45 +372,54 @@ async function handleSearchFiles() {
           multiple
           :show-file-list="false"
         >
-          <ElButton :disabled="!hasConfig" size="small" type="primary">
+          <ElButton
+            :disabled="!hasConfig"
+            :loading="uploading > 0"
+            type="primary"
+          >
             <IconifyIcon icon="lucide:upload" class="mr-1 size-4" />
-            上传文件
+            {{ $t('utils.fileBrowser.upload') }}
           </ElButton>
         </ElUpload>
 
         <ElButton
           v-if="canCreate"
-          :disabled="!hasConfig"
-          size="small"
+          :disabled="!hasConfig || mutationLoading"
           @click="showCreateFolder = true"
         >
           <IconifyIcon icon="lucide:folder-plus" class="mr-1 size-4" />
-          新建文件夹
+          {{ $t('utils.fileBrowser.newFolder') }}
         </ElButton>
 
         <ElButton
           v-if="canDelete && selectedCount > 0"
-          size="small"
+          :loading="mutationLoading"
           type="danger"
           @click="handleBatchDelete"
         >
           <IconifyIcon icon="lucide:trash-2" class="mr-1 size-4" />
-          删除选中 ({{ selectedCount }})
+          {{ $t('utils.fileBrowser.deleteSelected') }} ({{ selectedCount }})
         </ElButton>
 
         <ElButtonGroup>
-          <ElTooltip content="列表视图" placement="bottom">
+          <ElTooltip
+            :content="$t('utils.fileBrowser.listView')"
+            placement="bottom"
+          >
             <ElButton
-              size="small"
+              :aria-label="$t('utils.fileBrowser.listView')"
               :type="viewMode === 'list' ? 'primary' : 'default'"
               @click="viewMode = 'list'"
             >
               <IconifyIcon icon="lucide:list" class="size-4" />
             </ElButton>
           </ElTooltip>
-          <ElTooltip content="网格视图" placement="bottom">
+          <ElTooltip
+            :content="$t('utils.fileBrowser.gridView')"
+            placement="bottom"
+          >
             <ElButton
-              size="small"
+              :aria-label="$t('utils.fileBrowser.gridView')"
               :type="viewMode === 'grid' ? 'primary' : 'default'"
               @click="viewMode = 'grid'"
             >
@@ -333,8 +428,15 @@ async function handleSearchFiles() {
           </ElTooltip>
         </ElButtonGroup>
 
-        <ElTooltip content="刷新" placement="bottom">
-          <ElButton :loading="loading" size="small" @click="refresh">
+        <ElTooltip
+          :content="$t('utils.fileBrowser.refresh')"
+          placement="bottom"
+        >
+          <ElButton
+            :aria-label="$t('utils.fileBrowser.refresh')"
+            :loading="loading"
+            @click="refresh"
+          >
             <IconifyIcon
               v-if="!loading"
               icon="lucide:refresh-cw"
@@ -346,8 +448,9 @@ async function handleSearchFiles() {
     </div>
 
     <div v-if="hasConfig" class="file-browser__breadcrumb">
-      <ElTooltip content="返回上一级" placement="bottom">
+      <ElTooltip :content="$t('utils.fileBrowser.parent')" placement="bottom">
         <ElButton
+          :aria-label="$t('utils.fileBrowser.parent')"
           circle
           :disabled="breadcrumbs.length <= 1 || loading"
           text
@@ -376,19 +479,63 @@ async function handleSearchFiles() {
           </span>
         </span>
       </div>
+      <ElSelect
+        v-model="sortBy"
+        class="file-browser__sort"
+        :aria-label="$t('utils.fileBrowser.sortName')"
+      >
+        <ElOption value="name" :label="$t('utils.fileBrowser.sortName')" />
+        <ElOption
+          value="modified"
+          :label="$t('utils.fileBrowser.sortModified')"
+        />
+        <ElOption value="size" :label="$t('utils.fileBrowser.sortSize')" />
+      </ElSelect>
     </div>
 
-    <div v-if="!hasConfig" class="file-browser__empty">
-      <ElEmpty description="请先选择一个存储配置" />
+    <Loading
+      v-if="loading"
+      :spinning="loading"
+      class="min-h-0 flex-1"
+      aria-busy="true"
+    />
+
+    <div v-else-if="loadFailed" class="file-browser__empty">
+      <ElAlert
+        v-if="errorMessage"
+        :title="errorMessage"
+        type="error"
+        :closable="false"
+      />
+      <ElButton @click="refresh">{{ $t('utils.fileBrowser.retry') }}</ElButton>
     </div>
 
-    <div v-else-if="loading" class="file-browser__loading">
-      <div class="file-browser__spinner"></div>
-      <span>加载中...</span>
+    <div v-else-if="!hasConfig" class="file-browser__empty">
+      <ElEmpty
+        :description="$t('utils.fileBrowser.noStorage')"
+        :image-size="96"
+      />
+      <ElButton
+        v-if="canManageStorage"
+        type="primary"
+        @click="router.push('/infra/file/config')"
+      >
+        {{ $t('utils.fileBrowser.manageStorage') }}
+      </ElButton>
     </div>
 
     <div v-else-if="objects.length === 0" class="file-browser__empty">
-      <ElEmpty description="当前目录为空" />
+      <ElEmpty
+        :description="
+          $t(
+            searchKeyword
+              ? 'utils.fileBrowser.noResults'
+              : 'utils.fileBrowser.empty',
+          )
+        "
+        :image-size="96"
+      />
+      <span v-if="!searchKeyword">{{ $t('utils.fileBrowser.emptyHint') }}</span>
     </div>
 
     <template v-else>
@@ -396,7 +543,7 @@ async function handleSearchFiles() {
         v-if="viewMode === 'list'"
         :can-delete="canDelete"
         :can-update="canUpdate"
-        :objects="objects"
+        :objects="sortedObjects"
         :selected-keys="selectedKeys"
         @copy-url="handleCopyUrl"
         @delete="handleDelete"
@@ -411,7 +558,7 @@ async function handleSearchFiles() {
         v-else
         :can-delete="canDelete"
         :can-update="canUpdate"
-        :objects="objects"
+        :objects="sortedObjects"
         :selected-keys="selectedKeys"
         @copy-url="handleCopyUrl"
         @delete="handleDelete"
@@ -423,32 +570,72 @@ async function handleSearchFiles() {
       />
     </template>
 
+    <div class="file-browser__status" aria-live="polite">
+      <span v-if="selectedConfig">{{
+        `${selectedConfig.name} · ${getStorageLabel(selectedConfig.storage)}`
+      }}</span>
+      <span v-if="!loading && !loadFailed && hasConfig">{{
+        $t('utils.fileBrowser.items', { count: objects.length })
+      }}</span>
+      <span v-if="selectedCount">{{
+        $t('utils.fileBrowser.selected', { count: selectedCount })
+      }}</span>
+      <span v-if="uploading" class="file-browser__upload-status">{{
+        $t('utils.fileBrowser.uploading', { count: uploading })
+      }}</span>
+    </div>
+
     <ElDialog
       v-model="showCreateFolder"
       append-to-body
-      title="新建文件夹"
-      width="400px"
+      :title="$t('utils.fileBrowser.newFolder')"
+      width="min(420px, 94vw)"
+      align-center
     >
       <ElInput
         v-model="newFolderName"
-        placeholder="请输入文件夹名称"
+        :placeholder="$t('utils.fileBrowser.folderName')"
+        maxlength="255"
         @keyup.enter="confirmCreateFolder"
       />
       <template #footer>
-        <ElButton @click="showCreateFolder = false">取消</ElButton>
-        <ElButton type="primary" @click="confirmCreateFolder">确定</ElButton>
+        <ElButton @click="showCreateFolder = false">
+          {{ $t('utils.fileBrowser.cancel') }}
+        </ElButton>
+        <ElButton
+          type="primary"
+          :loading="mutationLoading"
+          @click="confirmCreateFolder"
+        >
+          {{ $t('utils.fileBrowser.confirm') }}
+        </ElButton>
       </template>
     </ElDialog>
 
-    <ElDialog v-model="showRename" append-to-body title="重命名" width="400px">
+    <ElDialog
+      v-model="showRename"
+      append-to-body
+      :title="$t('utils.fileBrowser.rename')"
+      width="min(420px, 94vw)"
+      align-center
+    >
       <ElInput
         v-model="renameNewName"
-        placeholder="请输入新名称"
+        :placeholder="$t('utils.fileBrowser.newName')"
+        maxlength="255"
         @keyup.enter="confirmRename"
       />
       <template #footer>
-        <ElButton @click="showRename = false">取消</ElButton>
-        <ElButton type="primary" @click="confirmRename">确定</ElButton>
+        <ElButton @click="showRename = false">
+          {{ $t('utils.fileBrowser.cancel') }}
+        </ElButton>
+        <ElButton
+          type="primary"
+          :loading="mutationLoading"
+          @click="confirmRename"
+        >
+          {{ $t('utils.fileBrowser.confirm') }}
+        </ElButton>
       </template>
     </ElDialog>
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import override
 
-from framework.common.exception import ServiceException
+from framework.common.exception import IllegalArgumentException, ServiceException
 from framework.common.page import PageResult
 from framework.starter_di.public import (
     Inject,
@@ -11,6 +11,7 @@ from framework.starter_di.public import (
 from framework.starter_mq.public import (
     MQService,
 )
+from module_infra.controller.admin.mq.vo.mq.mq_consumer_resp_vo import MqConsumerRespVO
 from module_infra.controller.admin.mq.vo.mq.mq_page_req_vo import MqPageReqVO
 from module_infra.controller.admin.mq.vo.mq.mq_save_req_vo import MqSaveReqVO
 from module_infra.dal.dataobject.mq.mq_do import MqDO
@@ -23,6 +24,14 @@ from module_infra.service.mq.mq_definition_service import MqDefinitionService
 class MqDefinitionServiceImpl(MqDefinitionService):
     mq: MQService = Inject()
     mq_mapper: MqDefinitionMapper = Inject()
+
+    async def get_registered_consumers(self) -> list[MqConsumerRespVO]:
+        return [
+            MqConsumerRespVO(
+                key=definition.key, topic=definition.destination, retry_count=definition.retry.count
+            )
+            for definition in sorted(self.mq.declarations, key=lambda item: item.key)
+        ]
 
     @override
     async def create_mq_definition(self, create_req_vo: MqSaveReqVO) -> int:
@@ -58,7 +67,7 @@ class MqDefinitionServiceImpl(MqDefinitionService):
     async def get_mq_definition_list(
         self, topic: str | None = None, consumer: str | None = None
     ) -> list[MqDO]:
-        return await self.mq_mapper.select_list(topic=topic, consumer=consumer)
+        return await self.mq_mapper.select_filtered_list(topic=topic, consumer=consumer)
 
     async def _validate_definition_exists(self, id: int) -> MqDO:
         definition = await self.get_mq_definition(id)
@@ -77,7 +86,7 @@ class MqDefinitionServiceImpl(MqDefinitionService):
     def _validate_declaration(self, request):
         declarations = {definition.key: definition for definition in self.mq.declarations}
         if request.consumer not in declarations:
-            raise ValueError("消费者必须是应用已注册的稳定 key")
+            raise IllegalArgumentException(msg="消费者未注册，请先部署消费者，再从已注册列表选择")
         definition = declarations[request.consumer]
         if request.topic != definition.destination or request.retry_count != definition.retry.count:
-            raise ValueError("主题和重试语义来自消费者声明；管理端只覆盖启停、并发和预取")
+            raise IllegalArgumentException(msg="主题和重试次数必须与所选消费者声明一致")

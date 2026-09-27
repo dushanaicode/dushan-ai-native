@@ -66,14 +66,14 @@ export function useGridFormSchema(defaultConsumer?: string): VbenFormSchema[] {
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(
           DICT_TYPE.INFRA_MQ_LOG_STATUS,
           'number',
         ),
         placeholder: '请选择消费状态',
-      },
+      }),
       fieldName: 'status',
       label: '消费状态',
     },

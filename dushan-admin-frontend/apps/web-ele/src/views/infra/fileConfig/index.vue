@@ -100,20 +100,26 @@ async function handleTest(row: InfraFileConfigApi.FileConfigRespVO) {
     text: '测试上传中...',
   });
 
+  let url: string;
   try {
-    const url = await testFileConfig(row.id);
-    await confirm({
-      cancelText: '取消',
-      confirmText: '访问',
-      content: '测试上传成功，是否访问该文件？',
-      title: '测试成功',
-    });
-    if (url) {
-      openWindow(url);
-    }
+    url = await testFileConfig(row.id);
   } finally {
     loading.close();
   }
+  const accepted = await confirm({
+    cancelText: '取消',
+    confirmText: '访问',
+    content: '测试上传成功，是否访问该文件？',
+    title: '测试成功',
+  }).then(
+    () => true,
+    (error: unknown) => {
+      if (error instanceof Error && error.message === 'dialog cancelled')
+        return false;
+      throw error;
+    },
+  );
+  if (accepted) openWindow(url);
 }
 
 async function handleDelete(row: InfraFileConfigApi.FileConfigRespVO) {

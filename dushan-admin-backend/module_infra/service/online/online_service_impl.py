@@ -11,9 +11,9 @@ from module_system.api.oauth2.oauth2_session_api import OAuth2SessionApi
 class OnlineServiceImpl(OnlineService):
     sessions: OAuth2SessionApi = Inject()
 
-    async def get_online_list(self, request):
+    async def get_online_list(self, query_object):
         rows = await self.sessions.list_sessions()
-        ip = "127.0.0.1" if request.ipaddr == "内网IP" else request.ipaddr
+        ip = "127.0.0.1" if query_object.ipaddr == "内网IP" else query_object.ipaddr
         return [
             OnlineInfoRespVO(
                 token_id=row.family_id,
@@ -27,7 +27,9 @@ class OnlineServiceImpl(OnlineService):
             )
             for row in rows
             if (not ip or row.ipaddr == ip)
-            and (not request.user_name or request.user_name in {row.username, row.nickname})
+            and (
+                not query_object.user_name or query_object.user_name in {row.username, row.nickname}
+            )
         ]
 
     async def force_logout(self, token_id):

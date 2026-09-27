@@ -17,6 +17,6 @@ class DataSourceConfigSimpleRespVO(BaseVO):
     db_type: Annotated[str, Field(..., description="数据库类型")]
     model_config = {
         "json_schema_extra": {
-            "examples": [{"id": 1, "name": "主数据库", "sourceType": 1, "dbType": "mysql"}]
+            "examples": [{"id": "1", "name": "主数据库", "sourceType": 1, "dbType": "mysql"}]
         }
     }

@@ -26,6 +26,7 @@ const {
   applyPreset,
   broadcastMessage,
   canQuery,
+  canSend,
   connectWebSocket,
   copyConnectionUrl,
   directMessage,
@@ -96,16 +97,16 @@ const statusType = computed(() => {
           </ElTag>
         </ElDescriptionsItem>
         <ElDescriptionsItem label="服务路径">
-          {{ statusInfo?.path || '/infra/ws' }}
+          {{ statusInfo?.path || '-' }}
         </ElDescriptionsItem>
         <ElDescriptionsItem label="发送器">
-          {{ statusInfo?.senderType || '-' }}
+          {{ statusInfo?.sender_type || '-' }}
         </ElDescriptionsItem>
         <ElDescriptionsItem label="登录校验">
-          {{ statusInfo?.loginRequired ? '开启' : '关闭' }}
+          {{ statusInfo?.login_required ? '开启' : '关闭' }}
         </ElDescriptionsItem>
         <ElDescriptionsItem label="连接数">
-          {{ statusInfo?.activeConnections ?? 0 }}
+          {{ statusInfo?.active_connections ?? 0 }}
         </ElDescriptionsItem>
         <ElDescriptionsItem v-if="wsLastError" label="最近错误">
           <ElTag type="danger">{{ wsLastError }}</ElTag>
@@ -178,13 +179,13 @@ const statusType = computed(() => {
         <div class="text-sm font-medium">HTTP 广播</div>
         <ElInput v-model="broadcastMessage" :rows="6" type="textarea" />
         <ElButton
-          :disabled="!canQuery"
+          :disabled="!canSend"
           :loading="sending"
           class="w-full"
           type="warning"
           @click="sendBroadcast"
         >
-          广播到全部连接
+          广播到当前租户的调试连接
         </ElButton>
       </div>
 
@@ -210,7 +211,7 @@ const statusType = computed(() => {
         </div>
         <ElInput v-model="targetUserMessage" :rows="6" type="textarea" />
         <ElButton
-          :disabled="!canQuery"
+          :disabled="!canSend"
           :loading="sending"
           class="w-full"
           type="success"

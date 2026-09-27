@@ -120,13 +120,14 @@ class JobRequestStore:
             return JobRequest.model_validate_json(json.dumps(row.request))
 
     async def finish(self, request_id, owner, state):
+        # 接管只将旧请求标为 unknown，不重放；原 owner 返回后仍可提交确定的终态。
         async with self.database.transaction() as session:
             result = await session.execute(
                 update(JobRequestDO)
                 .where(
                     JobRequestDO.request_id == request_id,
                     JobRequestDO.owner == owner,
-                    JobRequestDO.state == "claimed",
+                    JobRequestDO.state.in_(("claimed", "unknown")),
                 )
                 .values(state=state.code)
             )

@@ -74,11 +74,11 @@ class FileApiImpl(FileApi):
         return await self.file_service.create_file_record(req_vo)
 
     @override
-    async def delete_file_by_storage_path(self, storage_path: str) -> bool:
-        """通过存储路径删除文件（若存在）"""
+    async def delete_file_by_storage_path(self, config_id: int, storage_path: str) -> bool:
+        """删除指定配置与路径的已登记文件，无元数据时返回 False。"""
         if not storage_path:
             return False
-        return await self.file_service.delete_file_by_storage_path(storage_path)
+        return await self.file_service.delete_file_by_storage_path(config_id, storage_path)
 
     @override
     async def create_file_with_id(

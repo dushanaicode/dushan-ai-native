@@ -1,3 +1,4 @@
+import type { NativeRequestConfig } from '#/api/response';
 import type { PageParam, PageResult } from '#/api/types';
 
 import { requestClient } from '#/api/request';
@@ -95,9 +96,10 @@ export async function getFileConfigPage(
 }
 
 /** 获取文件配置精简列表 */
-export async function getSimpleFileConfigList() {
+export async function getSimpleFileConfigList(options?: NativeRequestConfig) {
   return requestClient.get<InfraFileConfigApi.FileConfigSimpleRespVO[]>(
     '/infra/file/config/simple-list',
+    options,
   );
 }
 

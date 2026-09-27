@@ -24,6 +24,7 @@ from module_infra.controller.admin.file.vo.file.file_page_req_vo import FilePage
 from module_infra.controller.admin.file.vo.file.file_presigned_url_resp_vo import (
     FilePresignedUrlRespVO,
 )
+from module_infra.controller.admin.file.vo.file.file_resp_vo import FileRespVO
 from module_infra.controller.admin.file.vo.file.file_search_req_vo import FileSearchReqVO
 from module_infra.dal.dataobject.file.file_do import FileDO
 from module_infra.dal.mapper.file.file_mapper import FileMapper
@@ -105,11 +106,11 @@ class FileServiceImpl(FileService):
         return len(rows)
 
     @override
-    async def delete_file_by_storage_path(self, storage_path: str) -> bool:
-        """通过存储路径删除文件"""
+    async def delete_file_by_storage_path(self, config_id: int, storage_path: str) -> bool:
+        """删除指定配置与路径的已登记文件，无元数据时返回 False。"""
         if not storage_path:
             return False
-        file_obj = await self.file_mapper.select_by_storage_path(storage_path)
+        file_obj = await self.file_mapper.select_by_storage_path(config_id, storage_path)
         if not file_obj:
             return False
         file_client = await self._get_file_client(file_obj.config_id)
@@ -227,22 +228,19 @@ class FileServiceImpl(FileService):
         for d in raw.get("directories", []):
             objects.append(FileObjectVO(key=d["prefix"], name=d["name"], is_directory=True))
         db_files = await self.file_mapper.select_by_config_and_prefix(config_id, prefix)
-        db_file_map: dict[str, FileDO] = {}
-        for db_f in db_files:
-            db_file_map[db_f.storage_path] = db_f
-            db_file_map[db_f.path] = db_f
+        db_file_map = {db_file.storage_path: db_file for db_file in db_files}
         for f in raw.get("files", []):
             file_key = f["key"]
             file_name = f["name"]
-            db_file = db_file_map.get(file_key) or db_file_map.get(file_name)
+            db_file = db_file_map.get(file_key)
             file_type = (
                 db_file.type if db_file else FileTypeUtils.get_mime_type_from_name(file_name)
             )
-            file_url = db_file.url if db_file else self._build_file_url(file_client, file_key)
+            file_url = await file_client.presign_get_url(file_key)
             objects.append(
                 FileObjectVO(
                     key=file_key,
-                    name=file_name,
+                    name=db_file.name if db_file else file_name,
                     size=f.get("size"),
                     last_modified=f.get("lastModified"),
                     type=file_type,
@@ -270,9 +268,9 @@ class FileServiceImpl(FileService):
         )
 
     @override
-    async def search_files(self, req_vo: FileSearchReqVO) -> PageResult[FileDO]:
+    async def search_files(self, req_vo: FileSearchReqVO) -> PageResult[FileRespVO]:
         """搜索文件（模糊/前缀），委托给 FileMapper"""
-        return await self.file_mapper.search_files(
+        page = await self.file_mapper.search_files(
             config_id=req_vo.config_id,
             keyword=req_vo.keyword,
             search_mode=req_vo.search_mode,
@@ -280,6 +278,11 @@ class FileServiceImpl(FileService):
             page_no=req_vo.page,
             page_size=req_vo.page_size,
         )
+        result = page.convert(FileRespVO)
+        file_client = await self._get_file_client(req_vo.config_id)
+        for item in result.items:
+            item.url = await file_client.presign_get_url(item.path)
+        return result
 
     @override
     async def delete_by_key(self, config_id: int, key: str) -> None:
@@ -288,9 +291,9 @@ class FileServiceImpl(FileService):
         if key.endswith("/"):
             await self._delete_directory_recursive(file_client, config_id, key)
         else:
+            db_file = await self.file_mapper.select_by_storage_path(config_id, key)
             await file_client.delete(key)
-            db_file = await self.file_mapper.select_by_storage_path(key)
-            if db_file and db_file.config_id == config_id:
+            if db_file is not None:
                 await self.file_mapper.delete_by_id(db_file.id)
 
     @override
@@ -316,9 +319,9 @@ class FileServiceImpl(FileService):
             new_key = f"{parent}{new_name}"
         if old_key == new_key:
             return
-        await file_client.rename(old_key, new_key)
         if is_dir:
             db_files = await self.file_mapper.select_by_config_and_prefix(config_id, old_key)
+            await file_client.rename(old_key, new_key)
             for db_file in db_files:
                 new_storage_path = new_key + db_file.storage_path[len(old_key) :]
                 if db_file.url:
@@ -327,8 +330,9 @@ class FileServiceImpl(FileService):
                 db_file.path = os.path.basename(new_storage_path.rstrip("/"))
                 await self.file_mapper.update_by_id(db_file)
         else:
-            db_file = await self.file_mapper.select_by_storage_path(old_key)
-            if db_file and db_file.config_id == config_id:
+            db_file = await self.file_mapper.select_by_storage_path(config_id, old_key)
+            await file_client.rename(old_key, new_key)
+            if db_file is not None:
                 if db_file.url:
                     db_file.url = db_file.url.replace(old_key, new_key)
                 db_file.storage_path = new_key

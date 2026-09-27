@@ -50,47 +50,53 @@ class FileConfigServiceImpl(FileConfigService):
         )
 
     @transactional
-    async def create_file_config(self, request):
+    async def create_file_config(self, create_req_vo):
         row = FileConfigDO(
-            **request.model_dump(exclude={"id", "config"}, by_alias=False),
-            config=self._config(request.storage, request.config),
+            **create_req_vo.model_dump(exclude={"id", "config"}, by_alias=False),
+            config=self._config(create_req_vo.storage, create_req_vo.config),
             master=False,
         )
         await self.mapper.insert(row)
         return row.id
 
     @transactional
-    async def update_file_config(self, request):
-        old = await self._require(request.id)
-        values = request.model_dump(exclude={"config"}, by_alias=False)
-        if request.storage != old.storage and await self.files.select_count_by_config_id(old.id):
+    async def update_file_config(self, update_req_vo):
+        old = await self._require(update_req_vo.id)
+        values = update_req_vo.model_dump(exclude={"config"}, by_alias=False)
+        if update_req_vo.storage != old.storage and await self.files.select_count_by_config_id(
+            old.id
+        ):
             raise ServiceException(ErrorCodeConstants.FILE_CONFIG_HAS_FILE)
         values["config"] = self._config(
-            request.storage, request.config, old.config if request.storage == old.storage else None
+            update_req_vo.storage,
+            update_req_vo.config,
+            old.config if update_req_vo.storage == old.storage else None,
         )
         await self.mapper.update_by_id(FileConfigDO(**values))
         self.database.after_commit(lambda: self._invalidate(old.id), name="file-config-update")
 
     @transactional
-    async def update_file_config_master(self, identifier):
-        row = await self._require(identifier)
+    async def update_file_config_master(self, file_config_id):
+        row = await self._require(file_config_id)
         if row.status != StatusEnum.ENABLE.code:
             raise ServiceException(ErrorCodeConstants.FILE_CONFIG_DATA_NOT_EXISTS)
         async with self.database.transaction() as session:
             await session.execute(select(FileConfigDO.id).with_for_update())
             await self.mapper.update_by_condition({"master": False}, FileConfigDO.master.is_(True))
-            await self.mapper.update_by_id(FileConfigDO(id=identifier, master=True))
+            await self.mapper.update_by_id(FileConfigDO(id=file_config_id, master=True))
         self.database.after_commit(lambda: self.cache.delete_config(0), name="file-master-update")
 
     @transactional
-    async def delete_file_config(self, identifier):
-        row = await self._require(identifier)
+    async def delete_file_config(self, file_config_id):
+        row = await self._require(file_config_id)
         if row.master:
             raise ServiceException(ErrorCodeConstants.FILE_CONFIG_DELETE_FAIL_MASTER)
-        if await self.files.select_count_by_config_id(identifier):
+        if await self.files.select_count_by_config_id(file_config_id):
             raise ServiceException(ErrorCodeConstants.FILE_CONFIG_HAS_FILE)
-        await self.mapper.delete_by_id(identifier)
-        self.database.after_commit(lambda: self._invalidate(identifier), name="file-config-delete")
+        await self.mapper.delete_by_id(file_config_id)
+        self.database.after_commit(
+            lambda: self._invalidate(file_config_id), name="file-config-delete"
+        )
 
     @transactional
     async def delete_file_config_batch(self, ids):
@@ -98,17 +104,17 @@ class FileConfigServiceImpl(FileConfigService):
             await self.delete_file_config(identifier)
         return len(ids)
 
-    async def get_file_config(self, identifier):
-        return await self.mapper.select_by_id(identifier)
+    async def get_file_config(self, file_config_id):
+        return await self.mapper.select_by_id(file_config_id)
 
-    async def get_file_config_page(self, request):
-        return await self.mapper.select_page(request)
+    async def get_file_config_page(self, page_req_vo):
+        return await self.mapper.select_page(page_req_vo)
 
     async def get_file_config_list(self):
-        return await self.mapper.select_list()
+        return await self.mapper.select_enabled_list()
 
-    async def test_file_config(self, id):
-        client = await self.get_file_client(id)
+    async def test_file_config(self, file_config_id):
+        client = await self.get_file_client(file_config_id)
         if client is None:
             raise ServiceException(ErrorCodeConstants.FILE_CONFIG_DATA_NOT_EXISTS)
         path = "connection-test/" + uuid4().hex + ".txt"

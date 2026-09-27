@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Query, Request
 from starlette.responses import StreamingResponse
 
+from framework.common.exception import NotFoundException
 from framework.common.page import PageResult, PageSettings
 from framework.common.schemas.request import IdReqVO
 from framework.common.utils import ConversionUtils
@@ -38,6 +39,8 @@ class JobLogController:
         job_log_service: JobLogService = Depends(DiDependency(JobLogService)),
     ) -> Result[JobLogRespVO]:
         job_log = await job_log_service.get_job_log(req_vo.id)
+        if job_log is None:
+            raise NotFoundException(msg="定时任务日志不存在")
         job_log_resp = JobLogRespVO.model_validate(job_log)
         return Result.success(data=job_log_resp)
 

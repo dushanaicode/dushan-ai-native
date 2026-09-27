@@ -268,12 +268,14 @@ class CodegenEngine:
         for prefix in ("vue_ele/", "vue_antd/", "vue/"):
             if output.startswith(prefix):
                 sub = output.replace(prefix, "", 1)
+                directory = business_name.replace("_", "-")
                 if sub.startswith("api/"):
-                    return f"frontend/api/{module_name}/{business_name}/{sub.replace('api/', '')}"
+                    return f"frontend/api/{module_name}/{directory}/{sub.replace('api/', '')}"
                 elif sub.startswith("views/"):
-                    return (
-                        f"frontend/views/{module_name}/{business_name}/{sub.replace('views/', '')}"
-                    )
+                    view = sub.removeprefix("views/")
+                    if view == "form.vue":
+                        view = "modules/form.vue"
+                    return f"frontend/views/{module_name}/{directory}/{view}"
                 else:
                     return f"frontend/{sub}"
         if output.startswith("sql/"):

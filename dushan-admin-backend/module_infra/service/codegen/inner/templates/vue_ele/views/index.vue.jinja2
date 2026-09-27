@@ -30,6 +30,8 @@ import { useGridFormSchema, useGridColumns } from './data';
 {% endif %}
 import Form from './modules/form.vue';
 
+const entityLabel = {{ class_comment | tojson }};
+
 const [FormModal, formModalApi] = useVbenModal({
   connectedComponent: Form,
   destroyOnClose: true,
@@ -62,7 +64,7 @@ async function handleExport() {
   exportTableRef.value?.setData({
     exportApi: export{{ class_name }},
     columns: fields,
-    fileName: '{{ class_comment }}.xls',
+    fileName: `${entityLabel}.xlsx`,
     searchParams: formValues,
   });
   exportTableRef.value?.open();
@@ -91,7 +93,7 @@ async function handleDelete(row: {{ module_name | pascal_case }}{{ class_name }}
     fullscreen: true,
   });
   try {
-    await delete{{ class_name }}(row.id as number);
+    await delete{{ class_name }}(row.id);
     ElMessage.success($t('ui.actionMessage.deleteSuccess'));
     handleRefresh();
   } finally {
@@ -116,7 +118,7 @@ async function handleBatchDelete() {
 }
 
 // 选中的 ID 列表
-const checkedIds = ref<number[]>([]);
+const checkedIds = ref<string[]>([]);
 
 /** 处理复选框变化 */
 function handleRowCheckboxChange({
@@ -124,7 +126,7 @@ function handleRowCheckboxChange({
 }: {
   records: {{ module_name | pascal_case }}{{ class_name }}Api.{{ class_name }}[];
 }) {
-  checkedIds.value = records.map((item) => item.id as number);
+  checkedIds.value = records.map((item) => item.id);
 }
 
 {% if is_tree %}
@@ -134,7 +136,6 @@ const expandLoading = ref(false);
 async function toggleExpand() {
   expandLoading.value = true;
   try {
-    await new Promise((resolve) => setTimeout(resolve, 500));
     await gridApi.grid.setAllTreeExpand(!isExpanded.value);
     isExpanded.value = !isExpanded.value;
   } finally {
@@ -145,14 +146,15 @@ async function toggleExpand() {
 
 {% if is_sub %}
 // ==================== 主子表：选中行 + 子表数据 ====================
-const selectedRowId = ref<number | null>(null);
+const selectedRowId = ref<string | null>(null);
 {% for sub in sub_tables %}
-const sub{{ sub.table.class_name }}List = ref<any[]>([]);
+const sub{{ sub.table.class_name }}Label = {{ (sub.table.class_comment or sub.table.table_comment) | tojson }};
+const sub{{ sub.table.class_name }}List = ref<{{ module_name | pascal_case }}{{ class_name }}Api.{{ sub.table.class_name }}[]>([]);
 {% endfor %}
 
 /** 主表行点击事件 */
 function handleRowClick({ row }: { row: {{ module_name | pascal_case }}{{ class_name }}Api.{{ class_name }} }) {
-  selectedRowId.value = row.id as number;
+  selectedRowId.value = row.id;
 }
 
 /** 监听选中行变化，加载子表数据 */
@@ -176,25 +178,18 @@ const [Grid, gridApi] = useVbenVxeGrid({
   },
   {% endif %}
   gridOptions: {
-    {% if is_tree %}
     columns: useGridColumns(),
-    {% else %}
-    columns: useGridColumns((params) => {
-      const { code, row } = params;
-      if (code === 'edit') {
-        handleEdit(row);
-      } else if (code === 'delete') {
-        handleDelete(row);
-      }
-    }),
-    {% endif %}
     height: 'auto',
     keepSource: true,
     {% if not is_tree %}
     proxyConfig: {
       ajax: {
-        query: async (params) => {
-          return await get{{ class_name }}Page(params);
+        query: async ({ page }, formValues) => {
+          return await get{{ class_name }}Page({
+            ...formValues,
+            page: page.currentPage,
+            pageSize: page.pageSize,
+          });
         },
       },
     },
@@ -204,8 +199,9 @@ const [Grid, gridApi] = useVbenVxeGrid({
     },
     proxyConfig: {
       ajax: {
-        query: async (_params) => {
-          return await get{{ class_name }}List();
+        query: async () => {
+          const items = await get{{ class_name }}List();
+          return { items, total: items.length };
         },
       },
     },
@@ -228,7 +224,7 @@ const [Grid, gridApi] = useVbenVxeGrid({
       reserve: true,
     },
     {% endif %}
-  } as VxeTableGridOptions,
+  } as VxeTableGridOptions<{{ module_name | pascal_case }}{{ class_name }}Api.{{ class_name }}>,
   gridEvents: {
     checkboxAll: handleRowCheckboxChange,
     checkboxChange: handleRowCheckboxChange,
@@ -241,7 +237,7 @@ const [Grid, gridApi] = useVbenVxeGrid({
 {% if is_sub %}
 {% for sub in sub_tables %}
 /** {{ sub.table.class_comment or sub.table.table_comment }} 子表 Grid */
-const [Sub{{ sub.table.class_name }}Grid] = useVbenVxeGrid({
+const [Sub{{ sub.table.class_name }}Grid, sub{{ sub.table.class_name }}GridApi] = useVbenVxeGrid({
   gridOptions: {
     columns: useSub{{ sub.table.class_name }}GridColumns(),
     height: 300,
@@ -250,7 +246,10 @@ const [Sub{{ sub.table.class_name }}Grid] = useVbenVxeGrid({
       keyField: 'id',
       isHover: true,
     },
-  } as VxeTableGridOptions,
+  } as VxeTableGridOptions<{{ module_name | pascal_case }}{{ class_name }}Api.{{ sub.table.class_name }}>,
+});
+watch(sub{{ sub.table.class_name }}List, (data) => {
+  sub{{ sub.table.class_name }}GridApi.setGridOptions({ data });
 });
 {% endfor %}
 {% endif %}
@@ -267,7 +266,7 @@ const [Sub{{ sub.table.class_name }}Grid] = useVbenVxeGrid({
         <TableAction
           :actions="[
             {
-              label: $t('ui.actionTitle.create', ['{{ class_comment }}']),
+              label: $t('ui.actionTitle.create', [entityLabel]),
               type: 'primary',
               icon: ACTION_ICON.ADD,
               auth: ['{{ module_name }}:{{ business_name }}:create'],
@@ -307,7 +306,6 @@ const [Sub{{ sub.table.class_name }}Grid] = useVbenVxeGrid({
           ]"
         />
       </template>
-      {% if is_tree %}
       <template #actions="{ row }">
         <TableAction
           :actions="[
@@ -332,14 +330,13 @@ const [Sub{{ sub.table.class_name }}Grid] = useVbenVxeGrid({
           ]"
         />
       </template>
-      {% endif %}
     </Grid>
 
     {% if is_sub %}
     <!-- 子表区域 -->
     <ElTabs v-if="selectedRowId" class="mt-4">
       {% for sub in sub_tables %}
-      <ElTabPane label="{{ sub.table.class_comment or sub.table.table_comment }}" name="{{ sub.table.business_name }}">
+      <ElTabPane :label="sub{{ sub.table.class_name }}Label" name="{{ sub.table.business_name }}">
         <Sub{{ sub.table.class_name }}Grid />
       </ElTabPane>
       {% endfor %}

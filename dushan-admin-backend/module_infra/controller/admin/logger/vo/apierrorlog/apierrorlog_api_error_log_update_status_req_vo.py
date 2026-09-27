@@ -13,4 +13,4 @@ class ApiErrorLogUpdateStatusReqVO(BaseRequestVO):
 
     id: Annotated[SnowflakeIdInput, Field(..., description="日志编号")]
     process_status: Annotated[int, Field(..., description="处理状态")]
-    model_config = {"json_schema_extra": {"examples": [{"id": 1024, "processStatus": 1}]}}
+    model_config = {"json_schema_extra": {"examples": [{"id": "1024", "processStatus": 1}]}}

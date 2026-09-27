@@ -21,12 +21,6 @@ class JobLogMapper(BaseMapper[JobLogDO]):
     def __init__(self):
         super().__init__(JobLogDO)
 
-    async def select_list(self) -> list[JobLogDO]:
-        """查询所有任务日志"""
-        stmt = select(JobLogDO)
-        result = await self.read(stmt)
-        return list(result.scalars().all())
-
     async def select_page(self, req_vo: JobLogPageReqVO) -> PageResult[JobLogDO]:
         """分页查询任务日志"""
         stmt = select(JobLogDO)

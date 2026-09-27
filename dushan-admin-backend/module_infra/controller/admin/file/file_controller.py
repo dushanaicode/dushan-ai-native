@@ -238,9 +238,8 @@ class FileController:
         req_vo: FileSearchReqVO = Query(),
         file_service: FileService = Depends(DiDependency(FileService)),
     ) -> Result[PageResult[FileRespVO]]:
-        page_result: PageResult[FileDO] = await file_service.search_files(req_vo)
-        resp_vo: PageResult[FileRespVO] = page_result.convert(FileRespVO)
-        return Result.success(data=resp_vo)
+        page_result = await file_service.search_files(req_vo)
+        return Result.success(data=page_result)
 
     @staticmethod
     @file_controller.delete(
@@ -271,8 +270,7 @@ class FileController:
         req_vo: FileDeleteByKeysReqVO = Query(),
         file_service: FileService = Depends(DiDependency(FileService)),
     ) -> Result[int]:
-        key_list = [k.strip() for k in req_vo.keys.split(",") if k.strip()]
-        count = await file_service.delete_by_keys(config_id=req_vo.config_id, keys=key_list)
+        count = await file_service.delete_by_keys(config_id=req_vo.config_id, keys=req_vo.keys)
         return Result.success(data=count)
 
     @staticmethod

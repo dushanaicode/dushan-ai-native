@@ -92,9 +92,9 @@ class ApiErrorLogRespVO(BaseVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
+                    "id": "1024",
                     "trace_id": "66600cb6-7852-11eb-9439-0242ac130002",
-                    "userId": 1024,
+                    "userId": "1024",
                     "userType": 1,
                     "applicationName": "dashboard",
                     "requestMethod": "GET",
@@ -113,7 +113,7 @@ class ApiErrorLogRespVO(BaseVO):
                     "exceptionLineNumber": 123,
                     "processStatus": 0,
                     "processTime": "2020-05-20T05:20:00Z",
-                    "processUserId": 233,
+                    "processUserId": "233",
                     "createTime": "2020-05-20T05:20:00Z",
                 }
             ]

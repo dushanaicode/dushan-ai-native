@@ -140,7 +140,9 @@ async def admin_client(infra_app):
     ) as client:
         response = (
             await client.post(
-                "/admin-api/system/auth/login", json={"username": "admin", "password": "admin123"}
+                "/admin-api/system/auth/login",
+                json={"username": "admin", "password": "admin123"},
+                headers={"X-Tenant-Id": "1"},
             )
         ).json()
         assert response["code"] == 0, response

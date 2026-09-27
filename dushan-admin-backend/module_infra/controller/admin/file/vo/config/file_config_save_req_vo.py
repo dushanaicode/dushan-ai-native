@@ -23,7 +23,7 @@ class FileConfigSaveReqVO(BaseRequestVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1,
+                    "id": "1",
                     "name": "S3 - 阿里云",
                     "storage": 1,
                     "config": {"key": "value"},

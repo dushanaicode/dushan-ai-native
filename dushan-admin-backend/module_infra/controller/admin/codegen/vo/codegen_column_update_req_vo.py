@@ -33,8 +33,8 @@ class CodegenColumnUpdateReqVO(BaseRequestVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1,
-                    "tableId": 1,
+                    "id": "1",
+                    "tableId": "1",
                     "columnName": "id",
                     "columnComment": "编号",
                     "dataType": "bigint",

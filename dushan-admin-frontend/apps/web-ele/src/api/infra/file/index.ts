@@ -1,3 +1,4 @@
+import type { NativeRequestConfig } from '#/api/response';
 import type { PageParam, PageResult } from '#/api/types';
 
 import { requestClient } from '#/api/request';
@@ -89,15 +90,11 @@ export async function uploadFile(
   directory?: string,
   configId?: string,
 ) {
-  const formData = new FormData();
-  formData.append('file', file);
-  if (directory !== undefined) {
-    formData.append('directory', directory);
-  }
-  if (configId !== undefined) {
-    formData.append('configId', configId);
-  }
-  return requestClient.post<string>('/infra/file/upload', formData);
+  return requestClient.upload<string>('/infra/file/upload', {
+    configId,
+    directory,
+    file,
+  });
 }
 
 /** 获取文件预签名地址 */
@@ -122,14 +119,13 @@ export async function getFilePage(params: InfraFileApi.FilePageReqVO) {
 }
 
 /** 列举目录内容 */
-export async function listObjects(params: {
-  configId: string;
-  delimiter?: string;
-  prefix?: string;
-}) {
+export async function listObjects(
+  params: { configId: string; delimiter?: string; prefix?: string },
+  options?: NativeRequestConfig,
+) {
   return requestClient.get<InfraFileApi.FileListObjectsRespVO>(
     '/infra/file/list-objects',
-    { params },
+    { ...options, params },
   );
 }
 
@@ -141,10 +137,13 @@ export async function createDirectory(
 }
 
 /** 搜索文件 */
-export async function searchFiles(params: InfraFileApi.FileSearchReqVO) {
+export async function searchFiles(
+  params: InfraFileApi.FileSearchReqVO,
+  options?: NativeRequestConfig,
+) {
   return requestClient.get<PageResult<InfraFileApi.FileRespVO>>(
     '/infra/file/search',
-    { params, paramsSerializer: 'repeat' },
+    { ...options, params, paramsSerializer: 'repeat' },
   );
 }
 
@@ -173,7 +172,8 @@ export async function deleteByKey(configId: string, key: string) {
 /** 批量通过存储 key 删除文件 */
 export async function deleteByKeys(configId: string, keys: string[]) {
   return requestClient.delete('/infra/file/delete-by-keys', {
-    params: { configId, keys: keys.join(',') },
+    params: { configId, keys },
+    paramsSerializer: 'repeat',
   });
 }
 

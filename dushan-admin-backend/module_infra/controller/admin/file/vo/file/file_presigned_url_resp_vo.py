@@ -19,7 +19,7 @@ class FilePresignedUrlRespVO(BaseVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "configId": 11,
+                    "configId": "11",
                     "uploadUrl": "https://s3.cn-south-1.qiniucs.com/dushan/xxx.png?X-Amz-Algorithm=AWS4-HMAC",
                     "url": "https://test.dushan.cn/xxx.png",
                     "path": "xxx.png",

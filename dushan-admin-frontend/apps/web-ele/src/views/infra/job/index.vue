@@ -90,7 +90,7 @@ function handleDetail(row: InfraJobApi.JobRespVO) {
 
 function handleViewLog(row?: InfraJobApi.JobRespVO) {
   router.push({
-    name: 'InfraJobLog',
+    name: `${String(router.currentRoute.value.name)}-log`,
     query: row?.id ? { jobId: row.id } : {},
   });
 }
@@ -102,7 +102,7 @@ async function handleExport() {
   exportTableRef.value?.setData({
     columns: fields,
     exportApi: exportJob,
-    fileName: '定时任务.xls',
+    fileName: '定时任务.xlsx',
     searchParams: normalizeSearchParams(formValues),
   });
   exportTableRef.value?.open();
@@ -177,30 +177,29 @@ async function handleSync() {
 async function handleStatusChange(
   newStatus: number,
   row: InfraJobApi.JobRespVO,
-): Promise<boolean | undefined> {
-  return new Promise((resolve) => {
-    const statusLabel = dictionary.getDictLabel(
-      DICT_TYPE.INFRA_JOB_STATUS,
-      newStatus,
-    );
-    confirm({
-      content: `确认将「${row.name}」的任务状态切换为「${statusLabel}」？`,
-    })
-      .then(async () => {
-        const loading = ElLoading.service({
-          fullscreen: true,
-          text: $t('ui.actionMessage.updating', [row.name]),
-        });
-        try {
-          await updateJobStatus(row.id, newStatus);
-          ElMessage.success($t('ui.actionMessage.operationSuccess'));
-          resolve(true);
-        } finally {
-          loading.close();
-        }
-      })
-      .catch(() => resolve(false));
+): Promise<boolean> {
+  const statusLabel = dictionary.getDictLabel(
+    DICT_TYPE.INFRA_JOB_STATUS,
+    newStatus,
+  );
+  const confirmed = await confirm({
+    content: `确认将「${row.name}」的任务状态切换为「${statusLabel}」？`,
+  }).then(
+    () => true,
+    () => false,
+  );
+  if (!confirmed) return false;
+  const loading = ElLoading.service({
+    fullscreen: true,
+    text: $t('ui.actionMessage.updating', [row.name]),
   });
+  try {
+    await updateJobStatus(row.id, newStatus);
+    ElMessage.success($t('ui.actionMessage.operationSuccess'));
+    return true;
+  } finally {
+    loading.close();
+  }
 }
 
 function handleRowCheckboxChange({

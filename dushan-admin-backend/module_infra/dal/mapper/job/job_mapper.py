@@ -19,12 +19,6 @@ class JobMapper(BaseMapper[JobDO]):
     def __init__(self):
         super().__init__(JobDO)
 
-    async def select_list(self) -> list[JobDO]:
-        """查询所有未逻辑删除的任务"""
-        stmt = select(JobDO)
-        result = await self.read(stmt)
-        return list(result.scalars().all())
-
     async def select_by_handler_name(self, handler_name: str) -> JobDO | None:
         """根据任务处理器名称查询任务记录"""
         stmt = select(JobDO).where(JobDO.handler_name == handler_name)

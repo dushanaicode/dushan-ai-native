@@ -86,7 +86,7 @@ async function handleExport() {
   exportTableRef.value?.setData({
     columns: fields,
     exportApi: exportConfigType,
-    fileName: '配置类型.xls',
+    fileName: '配置类型.xlsx',
     searchParams: normalizeSearchParams(formValues),
   });
   exportTableRef.value?.open();
@@ -99,35 +99,33 @@ function handleExportSuccess() {
 async function handleStatusChange(
   newStatus: number,
   row: InfraConfigTypeApi.ConfigTypeRespVO,
-): Promise<boolean | undefined> {
-  return new Promise((resolve, reject) => {
-    const statusLabel = dictionary.getDictLabel(
-      DICT_TYPE.COMMON_STATUS,
-      newStatus,
-    );
-    confirm({
-      content: `确认将【${row.name}】的状态切换为【${statusLabel}】？`,
-    })
-      .then(async () => {
-        const loading = ElLoading.service({
-          fullscreen: true,
-          text: $t('ui.actionMessage.updating', [row.name]),
-        });
-
-        try {
-          if (!row.id) {
-            resolve(false);
-            return;
-          }
-          await updateConfigTypeStatus(row.id, newStatus);
-          ElMessage.success($t('ui.actionMessage.operationSuccess'));
-          resolve(true);
-        } finally {
-          loading.close();
-        }
-      })
-      .catch(() => reject(new Error('取消')));
+): Promise<boolean> {
+  const statusLabel = dictionary.getDictLabel(
+    DICT_TYPE.COMMON_STATUS,
+    newStatus,
+  );
+  const confirmed = await confirm({
+    content: `确认将【${row.name}】的状态切换为【${statusLabel}】？`,
+  }).then(
+    () => true,
+    () => false,
+  );
+  if (!confirmed) return false;
+  const loading = ElLoading.service({
+    fullscreen: true,
+    text: $t('ui.actionMessage.updating', [row.name]),
   });
+
+  try {
+    if (!row.id) {
+      return false;
+    }
+    await updateConfigTypeStatus(row.id, newStatus);
+    ElMessage.success($t('ui.actionMessage.operationSuccess'));
+    return true;
+  } finally {
+    loading.close();
+  }
 }
 
 async function findTypesWithConfigData(

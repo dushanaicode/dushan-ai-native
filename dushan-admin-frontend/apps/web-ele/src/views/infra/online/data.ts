@@ -12,10 +12,10 @@ export function useGridFormSchema(): VbenFormSchema[] {
       component: 'Input',
       componentProps: {
         clearable: true,
-        placeholder: '请输入登录地址',
+        placeholder: '请输入 IP 地址',
       },
       fieldName: 'ipaddr',
-      label: '登录地址',
+      label: 'IP 地址',
     },
     {
       component: 'Input',
@@ -59,7 +59,7 @@ export function useGridColumns(): VxeTableGridOptions<InfraOnlineApi.OnlineInfoR
       field: 'ipaddr',
       minWidth: 140,
       showOverflow: 'tooltip',
-      title: '主机',
+      title: 'IP 地址',
     },
     {
       field: 'loginLocation',

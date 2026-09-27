@@ -89,7 +89,7 @@ async function handleExport() {
   exportTableRef.value?.setData({
     columns: fields,
     exportApi: exportDataSourceConfig,
-    fileName: '数据源配置.xls',
+    fileName: '数据源配置.xlsx',
     searchParams: normalizeSearchParams(formValues),
   });
   exportTableRef.value?.open();
@@ -134,7 +134,7 @@ async function handleTestConnection(
     if (result.success) {
       ElMessage.success(result.message || '数据源连接测试成功');
     } else {
-      ElMessage.error(result.message || '数据源连接测试失败');
+      ElMessage.error(result.message);
     }
   } finally {
     loading.close();
@@ -144,35 +144,34 @@ async function handleTestConnection(
 async function handleStatusChange(
   newStatus: number,
   row: InfraDataSourceConfigApi.DataSourceConfigRespVO,
-): Promise<boolean | undefined> {
+): Promise<boolean> {
   if (row.isDefault && newStatus === SwitchStatus.DISABLED) {
     ElMessage.warning('默认数据源不能禁用');
     return false;
   }
 
-  return new Promise((resolve) => {
-    const statusLabel = dictionary.getDictLabel(
-      DICT_TYPE.COMMON_STATUS,
-      newStatus,
-    );
-    confirm({
-      content: `确认将「${row.name}」的状态切换为「${statusLabel}」？`,
-    })
-      .then(async () => {
-        const loading = ElLoading.service({
-          fullscreen: true,
-          text: $t('ui.actionMessage.updating', [row.name]),
-        });
-        try {
-          await updateDataSourceConfigStatus(row.id, newStatus);
-          ElMessage.success($t('ui.actionMessage.operationSuccess'));
-          resolve(true);
-        } finally {
-          loading.close();
-        }
-      })
-      .catch(() => resolve(false));
+  const statusLabel = dictionary.getDictLabel(
+    DICT_TYPE.COMMON_STATUS,
+    newStatus,
+  );
+  const confirmed = await confirm({
+    content: `确认将「${row.name}」的状态切换为「${statusLabel}」？`,
+  }).then(
+    () => true,
+    () => false,
+  );
+  if (!confirmed) return false;
+  const loading = ElLoading.service({
+    fullscreen: true,
+    text: $t('ui.actionMessage.updating', [row.name]),
   });
+  try {
+    await updateDataSourceConfigStatus(row.id, newStatus);
+    ElMessage.success($t('ui.actionMessage.operationSuccess'));
+    return true;
+  } finally {
+    loading.close();
+  }
 }
 
 const [Grid, gridApi] = useVbenVxeGrid({

@@ -98,7 +98,7 @@ function handleImport() {
 
 function handleEdit(row: InfraCodegenApi.CodegenTableRespVO) {
   router.push({
-    name: 'InfraCodegenEdit',
+    name: `${String(router.currentRoute.value.name)}-edit`,
     query: { id: row.id },
   });
 }

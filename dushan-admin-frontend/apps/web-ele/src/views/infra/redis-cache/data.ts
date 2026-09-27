@@ -3,7 +3,7 @@ import type { InfraRedisCacheApi } from '#/api/infra/redis-cache';
 export const CACHE_QUERY_PERMISSION = 'infra:cache:get-names';
 export const CACHE_DELETE_PERMISSION = 'infra:cache:get-names';
 export const DEFAULT_SCAN_PATTERN = '*';
-export const REDIS_CACHE_PAGE_SIZE = 1000;
+export const REDIS_CACHE_PAGE_SIZE = 200;
 
 export type RedisKeyTagType =
   | 'danger'

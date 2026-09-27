@@ -33,13 +33,13 @@ export function useTypeFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         options: dictionary.getDictOptions(
           DICT_TYPE.INFRA_CONFIG_MODULE,
           'string',
         ),
         placeholder: '请选择所属模块',
-      },
+      }),
       fieldName: 'module',
       label: '所属模块',
       rules: z.string().default('system'),
@@ -55,12 +55,12 @@ export function useTypeFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'Input',
-      componentProps: (ctx) => ({
-        disabled: !!ctx.rootValues?.id,
+      componentProps: {
         placeholder: '请输入配置类型编码',
-      }),
+      },
       dependencies: {
-        triggerFields: [''],
+        triggerFields: ['id'],
+        resolve: ({ values }) => ({ disabled: !!values.id }),
       },
       fieldName: 'code',
       label: '类型编码',
@@ -68,10 +68,10 @@ export function useTypeFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'RadioGroup',
-      componentProps: {
+      componentProps: () => ({
         isButton: true,
         options: dictionary.getDictOptions(DICT_TYPE.COMMON_STATUS, 'number'),
-      },
+      }),
       fieldName: 'status',
       label: '状态',
       rules: z.number().default(SwitchStatus.ENABLED),
@@ -93,14 +93,14 @@ export function useTypeGridFormSchema(): VbenFormSchema[] {
   return [
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(
           DICT_TYPE.INFRA_CONFIG_MODULE,
           'string',
         ),
         placeholder: '请选择模块',
-      },
+      }),
       fieldName: 'module',
       label: '所属模块',
     },
@@ -124,11 +124,11 @@ export function useTypeGridFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(DICT_TYPE.COMMON_STATUS, 'number'),
         placeholder: '请选择状态',
-      },
+      }),
       fieldName: 'status',
       label: '状态',
     },
@@ -180,12 +180,8 @@ export function useTypeGridColumns(
     {
       align: 'center',
       cellRender: {
-        attrs: { beforeChange: onStatusChange },
         name: 'CellSwitch',
-        props: {
-          checkedValue: SwitchStatus.ENABLED,
-          unCheckedValue: SwitchStatus.DISABLED,
-        },
+        props: { change: onStatusChange },
       },
       field: 'status',
       title: '状态',
@@ -236,15 +232,17 @@ export function useDataFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'ApiSelect',
-      componentProps: (ctx) => ({
+      componentProps: {
         api: getSimpleConfigTypeList,
-        disabled: !!ctx.rootValues?.id || !!ctx.rootValues?.lockTypeId,
         labelField: 'name',
         placeholder: '请选择配置类型',
         valueField: 'id',
-      }),
+      },
       dependencies: {
-        triggerFields: [''],
+        triggerFields: ['id', 'lockTypeId'],
+        resolve: ({ values }) => ({
+          disabled: !!values.id || !!values.lockTypeId,
+        }),
       },
       fieldName: 'typeId',
       label: '配置类型',
@@ -315,13 +313,13 @@ export function useDataFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'RadioGroup',
-      componentProps: {
+      componentProps: () => ({
         isButton: true,
         options: dictionary.getDictOptions(
           DICT_TYPE.INFRA_BOOLEAN_STRING,
           'boolean',
         ),
-      },
+      }),
       defaultValue: true,
       fieldName: 'visible',
       label: '是否可见',
@@ -344,14 +342,14 @@ export function useDataGridFormSchema(): VbenFormSchema[] {
   return [
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(
           DICT_TYPE.INFRA_CONFIG_MODULE,
           'string',
         ),
         placeholder: '请选择模块',
-      },
+      }),
       fieldName: 'module',
       label: '所属模块',
     },

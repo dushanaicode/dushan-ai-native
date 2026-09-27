@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 
 import boto3
+from botocore.client import BaseClient
 from botocore.exceptions import ClientError
 
 from module_infra.framework.file.core.client.s3.s3_file_client_config import S3FileClientConfig
@@ -29,13 +30,13 @@ class StandardS3Helper:
         return f"https://{endpoint}"
 
     @staticmethod
-    def create_client(config: S3FileClientConfig) -> boto3.client:
+    def create_client(config: S3FileClientConfig) -> BaseClient:
         """创建标准S3客户端"""
         endpoint = StandardS3Helper.build_endpoint(config.endpoint)
         region = config.region or "us-east-1"
         s3_config = boto3.session.Config(
             s3={
-                "addressing_style": "virtual",
+                "addressing_style": "path" if config.enable_path_style_access else "virtual",
                 "payload_signing_enabled": True,
                 "chunked_encoding": False,
                 "use_accelerate_endpoint": False,
@@ -56,7 +57,7 @@ class StandardS3Helper:
 
     @staticmethod
     async def upload_file(
-        client: boto3.client,
+        client: BaseClient,
         bucket: str,
         key: str,
         content: bytes,

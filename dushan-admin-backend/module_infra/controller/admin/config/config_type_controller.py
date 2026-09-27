@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import StreamingResponse
 
 from framework.common.contracts import SnowflakeIdStr
+from framework.common.exception import ServiceException
 from framework.common.page import PageResult, PageSettings
 from framework.common.schemas.request import IdListReqVO, IdReqVO, UpdateStatusReqVO
 from framework.common.utils import ConversionUtils
@@ -28,6 +29,7 @@ from module_infra.controller.admin.config.vo.type.type_resp_vo import ConfigType
 from module_infra.controller.admin.config.vo.type.type_save_req_vo import ConfigTypeSaveReqVO
 from module_infra.controller.admin.config.vo.type.type_simple_resp_vo import ConfigTypeSimpleRespVO
 from module_infra.dal.dataobject.config.config_type_do import InfraConfigTypeDO
+from module_infra.definitions.constants.error_code_constants import ErrorCodeConstants
 from module_infra.service.config.config_type_service import ConfigTypeService
 
 config_type_controller = APIRouter(prefix="/config/type", tags=["Infra - 配置类型管理"])
@@ -120,6 +122,8 @@ class ConfigTypeController:
         config_type_service: ConfigTypeService = Depends(DiDependency(ConfigTypeService)),
     ) -> Result[ConfigTypeRespVO]:
         config_type = await config_type_service.get_config_type_by_id(req_vo.id)
+        if config_type is None:
+            raise ServiceException(ErrorCodeConstants.CONFIG_TYPE_NOT_EXISTS)
         resp = ConfigTypeRespVO.model_validate(config_type)
         return Result.success(data=resp)
 
@@ -133,7 +137,7 @@ class ConfigTypeController:
         config_type_service: ConfigTypeService = Depends(DiDependency(ConfigTypeService)),
     ) -> Result[list]:
         if req_vo.module:
-            list_do = await config_type_service.get_config_types_by_module(req_vo.module)
+            list_do = await config_type_service.get_config_types_by_module(req_vo.module.code)
         else:
             list_do = await config_type_service.get_config_type_list()
         simple_list = [ConfigTypeSimpleRespVO.model_validate(item) for item in list_do]

@@ -3,6 +3,9 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from framework.common.page import PageQuery, PageResult
+from module_infra.controller.admin.cache.vo.cache.cache_cleanup_preset_resp_vo import (
+    CacheCleanupPresetRespVO,
+)
 from module_infra.controller.admin.cache.vo.cache.cache_db_info_resp_vo import CacheDbInfoRespVO
 from module_infra.controller.admin.cache.vo.cache.cache_info_resp_vo import CacheInfoRespVO
 from module_infra.controller.admin.cache.vo.cache.cache_key_detail_resp_vo import (
@@ -14,6 +17,10 @@ from module_infra.controller.admin.cache.vo.monitor.monitor_resp_vo import Monit
 @runtime_checkable
 class CacheService(Protocol):
     """缓存管理服务接口"""
+
+    async def get_cleanup_presets(self, db_name: str) -> list[CacheCleanupPresetRespVO]: ...
+
+    async def cleanup_preset(self, preset: str, db_name: str) -> int: ...
 
     async def get_cache_monitor_info(self) -> MonitorRespVO:
         """获取缓存监控的统计信息"""

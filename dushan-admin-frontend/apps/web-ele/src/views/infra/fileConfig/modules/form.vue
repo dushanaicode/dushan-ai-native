@@ -153,7 +153,7 @@ function normalizeFileConfigValues(
 </script>
 
 <template>
-  <Modal :title="title" class="w-1/2">
+  <Modal :title="title" class="w-[min(760px,calc(100vw-32px))]">
     <Form class="mx-4" />
   </Modal>
 </template>

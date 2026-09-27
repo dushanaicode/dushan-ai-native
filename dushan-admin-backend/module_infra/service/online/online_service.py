@@ -14,6 +14,6 @@ class OnlineService(Protocol):
         """获取在线用户列表"""
         ...
 
-    async def force_logout(self, token_ids: str) -> None:
+    async def force_logout(self, token_id: str) -> None:
         """强制退出在线用户"""
         ...

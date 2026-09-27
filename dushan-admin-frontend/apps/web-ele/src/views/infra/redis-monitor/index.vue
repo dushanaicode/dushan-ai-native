@@ -1,8 +1,8 @@
 <script lang="ts" setup>
-import { Page } from '@vben/common-ui';
+import { Loading, Page } from '@vben/common-ui';
 import { IconifyIcon } from '@vben/icons';
 
-import { ElAlert, ElButton, ElSkeleton } from 'element-plus';
+import { ElAlert, ElButton } from 'element-plus';
 
 import Commands from './components/commands.vue';
 import Info from './components/info.vue';
@@ -55,16 +55,20 @@ const {
         type="error"
       />
 
-      <ElSkeleton v-if="loading && !isDataLoaded" :rows="8" animated />
+      <Loading
+        :spinning="loading"
+        :aria-busy="loading"
+        class="min-h-80 space-y-4"
+      >
+        <template v-if="isDataLoaded">
+          <Info :items="infoItems" />
 
-      <template v-else>
-        <Info :items="infoItems" />
-
-        <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
-          <Memory :chart-data="memoryChartData" :metrics="memoryMetrics" />
-          <Commands :chart-data="commandChartData" :rows="commandRows" />
-        </div>
-      </template>
+          <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <Memory :chart-data="memoryChartData" :metrics="memoryMetrics" />
+            <Commands :chart-data="commandChartData" :rows="commandRows" />
+          </div>
+        </template>
+      </Loading>
     </div>
   </Page>
 </template>

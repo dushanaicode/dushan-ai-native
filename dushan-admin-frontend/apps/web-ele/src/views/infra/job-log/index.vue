@@ -75,7 +75,7 @@ async function handleExport() {
   exportTableRef.value?.setData({
     columns: fields,
     exportApi: exportJobLog,
-    fileName: '定时任务日志.xls',
+    fileName: '定时任务日志.xlsx',
     searchParams: normalizeSearchParams(formValues),
   });
   exportTableRef.value?.open();

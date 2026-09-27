@@ -27,7 +27,7 @@ class JobLogPageReqVO(PageQuery):
         "json_schema_extra": {
             "examples": [
                 {
-                    "jobId": 10,
+                    "jobId": "10",
                     "handlerName": "sysUserSessionTimeoutJob",
                     "beginTime": "2020-05-20 05:20:00",
                     "endTime": "2020-05-20 13:14:00",

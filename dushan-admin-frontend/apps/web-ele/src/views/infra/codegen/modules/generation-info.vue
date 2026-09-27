@@ -108,9 +108,9 @@ watch(
 watch(
   () => props.table,
   async (table) => {
-    await baseFormApi.resetForm();
-    await treeFormApi.resetForm();
-    await subFormApi.resetForm();
+    await baseFormApi.reset();
+    await treeFormApi.reset();
+    await subFormApi.reset();
 
     if (!table) return;
 
@@ -171,12 +171,13 @@ defineExpose({
   <div class="space-y-4">
     <BaseForm />
 
-    <div v-if="isTreeTable" class="codegen-extra-form">
+    <!-- 保持子表单挂载，reset/setValues才能完成，切换模板时也保留已填字段。 -->
+    <div v-show="isTreeTable" class="codegen-extra-form">
       <div class="codegen-extra-form__title">树表信息</div>
       <TreeForm />
     </div>
 
-    <div v-if="isSubTable" class="codegen-extra-form">
+    <div v-show="isSubTable" class="codegen-extra-form">
       <div class="codegen-extra-form__title">主子表信息</div>
       <SubForm />
     </div>

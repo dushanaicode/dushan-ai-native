@@ -1,6 +1,8 @@
 import asyncio
 from urllib.parse import quote
 
+from botocore.exceptions import ClientError
+
 from framework.common.utils import AsyncioUtils
 from module_infra.framework.file.core.client.abstract_file_client import AbstractFileClient
 from module_infra.framework.file.core.client.s3.s3_file_presigned_url_resp_dto import (
@@ -107,13 +109,26 @@ class S3FileClient(AbstractFileClient):
         await self._call(self._rename, old_key, new_key)
 
     def _rename(self, old_key, new_key):
+        """先拒绝已有目标；此检查不与复制原子执行，调用方须避免并发写同一目标。"""
         if old_key.endswith("/"):
             pages = self.sync_client.get_paginator("list_objects_v2").paginate(
                 Bucket=self.config.bucket, Prefix=old_key
             )
             keys = [row["Key"] for page in pages for row in page.get("Contents", [])]
+            destination = self.sync_client.list_objects_v2(
+                Bucket=self.config.bucket, Prefix=new_key, MaxKeys=1
+            )
+            if destination.get("Contents"):
+                raise FileExistsError(new_key)
         else:
             keys = [old_key]
+            try:
+                self.sync_client.head_object(Bucket=self.config.bucket, Key=new_key)
+            except ClientError as error:
+                if error.response["ResponseMetadata"]["HTTPStatusCode"] != 404:
+                    raise
+            else:
+                raise FileExistsError(new_key)
         for key in keys:
             target = new_key + key[len(old_key) :]
             self.sync_client.copy_object(
@@ -121,6 +136,8 @@ class S3FileClient(AbstractFileClient):
                 Key=target,
                 CopySource={"Bucket": self.config.bucket, "Key": key},
             )
+        # 复制中途失败保留全部源对象；已复制的目标可供调查，不冒充事务回滚。
+        for key in keys:
             self.sync_client.delete_object(Bucket=self.config.bucket, Key=key)
 
     async def close(self):

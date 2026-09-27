@@ -59,7 +59,7 @@ class FileContentMapper(BaseMapper[FileContentDO]):
             update(FileContentDO)
             .where(
                 FileContentDO.config_id == config_id,
-                FileContentDO.path.like(f"{old_prefix}%"),
+                FileContentDO.path.startswith(old_prefix, autoescape=True),
                 FileContentDO.deleted.is_(False),
             )
             .values(

@@ -25,7 +25,7 @@ class ApiAccessLogPageReqVO(PageQuery):
         "json_schema_extra": {
             "examples": [
                 {
-                    "userId": 1024,
+                    "userId": "1024",
                     "userType": 2,
                     "applicationName": "dashboard",
                     "requestUrl": "/xxx/yyy",

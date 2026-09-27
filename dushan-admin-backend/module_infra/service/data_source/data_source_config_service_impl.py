@@ -145,7 +145,7 @@ class DataSourceConfigServiceImpl(DataSourceConfigService):
             return
         if id is not None and data_source_config.id == id:
             return
-        raise ServiceException(ErrorCodeConstants.DATA_SOURCE_CONFIG_NAME_DUPLICATE, value=name)
+        raise ServiceException(ErrorCodeConstants.DATA_SOURCE_CONFIG_NAME_DUPLICATE, name)
 
     async def _update_default_data_source(self, source_type: int) -> None:
         """将同类型的其他数据源设置为非默认"""

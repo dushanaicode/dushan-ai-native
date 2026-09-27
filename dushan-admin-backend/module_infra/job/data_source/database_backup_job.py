@@ -53,71 +53,73 @@ class DatabaseBackupJob(JobHandler):
         temporary = cwd / "Temp" / "infra-backup" / uuid4().hex
         temporary.mkdir(parents=True)
         credential = temporary / "client.cnf"
-        # MySQL option file 支持双引号与反斜线转义；不把密码放进 argv 或日志。
-        values = {
-            "host": url.host or "localhost",
-            "port": str(url.port or 3306),
-            "user": url.username or "",
-            "password": url.password or "",
-        }
-        credential.write_text(
-            "[client]\n"
-            + "".join(
-                key + "=" + json.dumps(value, ensure_ascii=False) + "\n"
-                for key, value in values.items()
-            ),
-            encoding="utf-8",
-        )
-        directory = Path(self.settings.output_directory).resolve()
-        directory.mkdir(parents=True, exist_ok=True)
-        target = directory / (
-            "backup-"
-            + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-            + "-"
-            + uuid4().hex[:12]
-            + ".sql"
-        )
-        arguments = [
-            self.settings.executable,
-            "--defaults-file=" + str(credential),
-            "--no-login-paths",
-            "--single-transaction",
-            "--set-gtid-purged=OFF",
-            "--routines",
-            "--triggers",
-            "--events",
-        ]
-        if parameters.backup_type == "incremental":
-            arguments.extend(["--source-data=2", "--flush-logs"])
-        arguments.extend(["--databases", "--", url.database])
-        environment = dict(os.environ, **{key: str(temporary) for key in ("TEMP", "TMP", "TMPDIR")})
-        process = None
         try:
-            with target.open("xb") as output:
-                process = await asyncio.create_subprocess_exec(
-                    *arguments,
-                    cwd=cwd,
-                    env=environment,
-                    stdout=output,
-                    stderr=asyncio.subprocess.PIPE,
-                    creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
-                )
-                try:
-                    await asyncio.wait_for(process.communicate(), self.settings.timeout_seconds)
-                except BaseException:
-                    if process.returncode is None:
-                        process.kill()
-                    await CleanupUtils.run_cancellation_safe_cleanup(process.wait, "备份进程回收")
-                    raise
-                if process.returncode != 0:
-                    raise OSError("mysqldump 退出码: " + str(process.returncode))
-            if target.stat().st_size == 0:
-                raise OSError("数据库备份为空")
-            return str(target)
-        except BaseException:
-            # 保留失败产物用于调查，明确命名，不能被当作有效备份。
-            if target.exists():
-                target.rename(target.with_suffix(".failed.sql"))
-            raise
+            # MySQL option file 支持双引号与反斜线转义；不把密码放进 argv 或日志。
+            values = {
+                "host": url.host or "localhost",
+                "port": str(url.port or 3306),
+                "user": url.username or "",
+                "password": url.password or "",
+            }
+            credential.write_text(
+                "[client]\n"
+                + "".join(
+                    key + "=" + json.dumps(value, ensure_ascii=False) + "\n"
+                    for key, value in values.items()
+                ),
+                encoding="utf-8",
+            )
+            directory = Path(self.settings.output_directory).resolve()
+            directory.mkdir(parents=True, exist_ok=True)
+            target = directory / (
+                "backup-"
+                + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+                + "-"
+                + uuid4().hex[:12]
+                + ".sql"
+            )
+            arguments = [
+                self.settings.executable,
+                "--defaults-file=" + str(credential),
+                "--no-login-paths",
+                "--single-transaction",
+                "--set-gtid-purged=OFF",
+                "--routines",
+                "--triggers",
+                "--events",
+            ]
+            arguments.extend(["--databases", "--", url.database])
+            environment = dict(
+                os.environ, **{key: str(temporary) for key in ("TEMP", "TMP", "TMPDIR")}
+            )
+            try:
+                with target.open("xb") as output:
+                    process = await asyncio.create_subprocess_exec(
+                        *arguments,
+                        cwd=cwd,
+                        env=environment,
+                        stdout=output,
+                        stderr=asyncio.subprocess.PIPE,
+                        creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+                    )
+                    try:
+                        await asyncio.wait_for(process.communicate(), self.settings.timeout_seconds)
+                    except BaseException:
+                        if process.returncode is None:
+                            process.kill()
+                        await CleanupUtils.run_cancellation_safe_cleanup(
+                            process.wait, "备份进程回收"
+                        )
+                        raise
+                    if process.returncode != 0:
+                        raise OSError("mysqldump 退出码: " + str(process.returncode))
+                if target.stat().st_size == 0:
+                    raise OSError("数据库备份为空")
+                return str(target)
+            except BaseException:
+                # 保留失败产物用于调查，明确命名，不能被当作有效备份。
+                if target.exists():
+                    target.rename(target.with_suffix(".failed.sql"))
+                raise
         finally:
             credential.unlink(missing_ok=True)

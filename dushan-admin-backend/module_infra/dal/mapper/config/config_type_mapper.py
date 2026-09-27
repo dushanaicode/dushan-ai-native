@@ -6,6 +6,7 @@ from typing import Any
 from sqlalchemy import select, update
 from sqlalchemy.sql.elements import BinaryExpression
 
+from framework.common.enums import StatusEnum
 from framework.common.page import PageResult
 from framework.common.utils import StrUtils
 from framework.starter_database.public import (
@@ -63,12 +64,6 @@ class ConfigTypeMapper(BaseMapper[InfraConfigTypeDO]):
         )
         await self.write(stmt)
 
-    async def select_list(self) -> list[InfraConfigTypeDO]:
-        """查询所有未逻辑删除的配置类型记录"""
-        stmt = select(InfraConfigTypeDO)
-        result = await self.read(stmt)
-        return list(result.scalars().all())
-
     async def select_list_by_field(self, field: str, value: Any) -> list[InfraConfigTypeDO]:
         """根据指定字段查询配置类型数据列表"""
         column = InfraConfigTypeDO.__table__.c.get(field)
@@ -83,7 +78,10 @@ class ConfigTypeMapper(BaseMapper[InfraConfigTypeDO]):
         """根据模块标识查询所有启用的配置类型"""
         stmt = (
             select(InfraConfigTypeDO)
-            .where(InfraConfigTypeDO.module == module, InfraConfigTypeDO.status == 0)
+            .where(
+                InfraConfigTypeDO.module == module,
+                InfraConfigTypeDO.status == StatusEnum.ENABLE.code,
+            )
             .order_by(InfraConfigTypeDO.id.asc())
         )
         result = await self.read(stmt)

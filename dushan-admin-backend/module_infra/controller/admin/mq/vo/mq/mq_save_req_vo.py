@@ -20,7 +20,7 @@ class MqSaveReqVO(BaseRequestVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
+                    "id": "1024",
                     "topic": "test-topic",
                     "consumer": "test-consumer",
                     "retryCount": 3,

@@ -37,8 +37,8 @@ class JobLogServiceImpl(JobLogService):
         return count
 
     @override
-    async def get_job_log(self, id: int) -> JobLogDO | None:
-        return await self.job_log_mapper.select_by_id(id)
+    async def get_job_log(self, log_id: int) -> JobLogDO | None:
+        return await self.job_log_mapper.select_by_id(log_id)
 
     @override
     async def get_job_log_page(self, page_req_vo: JobLogPageReqVO) -> PageResult[JobLogDO]:

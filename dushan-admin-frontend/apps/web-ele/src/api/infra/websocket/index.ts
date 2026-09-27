@@ -22,7 +22,18 @@ export namespace InfraWebSocketApi {
   }
 
   /** WebSocket 状态信息（由服务层动态返回） */
-  export type WebsocketStatusVO = Record<string, unknown>;
+  export interface WebsocketStatusVO {
+    active_connections: number;
+    enabled: boolean;
+    login_required: boolean;
+    path: string;
+    sender_type: string;
+  }
+
+  export interface SocketReceipt {
+    accepted: number;
+    transport: 'local' | 'redis';
+  }
 }
 
 /** 获取 WebSocket 状态 */
@@ -36,12 +47,18 @@ export async function getWebSocketStatus() {
 export async function broadcastWebSocketMessage(
   data: InfraWebSocketApi.WebsocketBroadcastReqVO,
 ) {
-  return requestClient.post('/infra/websocket/broadcast', data);
+  return requestClient.post<InfraWebSocketApi.SocketReceipt>(
+    '/infra/websocket/broadcast',
+    data,
+  );
 }
 
 /** 发送消息给指定用户 */
 export async function sendWebSocketMessageToUser(
   data: InfraWebSocketApi.WebsocketSendToUserReqVO,
 ) {
-  return requestClient.post('/infra/websocket/send-to-user', data);
+  return requestClient.post<InfraWebSocketApi.SocketReceipt>(
+    '/infra/websocket/send-to-user',
+    data,
+  );
 }

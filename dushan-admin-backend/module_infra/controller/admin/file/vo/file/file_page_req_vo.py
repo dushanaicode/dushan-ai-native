@@ -26,7 +26,7 @@ class FilePageReqVO(PageQuery):
                 {
                     "path": "dushan",
                     "type": "jpg",
-                    "configId": 1,
+                    "configId": "1",
                     "createTime": ["2020-05-02 05:20:00", "2020-05-02 13:14:00"],
                 }
             ]

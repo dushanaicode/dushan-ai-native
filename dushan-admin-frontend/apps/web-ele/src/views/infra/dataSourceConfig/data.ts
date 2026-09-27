@@ -6,6 +6,7 @@ import { markRaw } from 'vue';
 
 import { z } from '#/adapter/form';
 import { DataSourceUrl } from '#/components/data-source-url';
+import { isDatabaseUrlForType } from '#/components/data-source-url/url';
 import { DICT_TYPE } from '#/constants/dict-types';
 import { InfraDbTypeEnum } from '#/constants/enums';
 import { SwitchStatus } from '#/constants/status';
@@ -24,10 +25,6 @@ const dbTypeLabelMap = Object.fromEntries(
 /** 新增/编辑表单 */
 export function useFormSchema(): VbenFormSchema[] {
   const dictionary = useDictionary();
-  const booleanOptions = dictionary.getDictOptions(
-    DICT_TYPE.INFRA_BOOLEAN_STRING,
-    'boolean',
-  );
   return [
     {
       component: 'Input',
@@ -36,6 +33,15 @@ export function useFormSchema(): VbenFormSchema[] {
         triggerFields: [''],
       },
       fieldName: 'id',
+    },
+    {
+      component: 'Input',
+      defaultValue: InfraDbTypeEnum.MYSQL.value,
+      dependencies: {
+        triggerFields: ['dbType'],
+        resolve: () => ({ show: false }),
+      },
+      fieldName: 'dbType',
     },
     {
       component: 'Input',
@@ -54,17 +60,38 @@ export function useFormSchema(): VbenFormSchema[] {
       fieldName: 'url',
       formItemClass: 'col-span-2',
       label: '连接 URL',
-      rules: 'required',
+      help: '编辑时留空保留原连接；连接中的密码不会回显。',
+      dependencies: {
+        triggerFields: ['id', 'dbType'],
+        resolve: ({ values, actions }) => {
+          const rule = z
+            .string()
+            .refine(
+              (value) =>
+                (!value && !!values.id) ||
+                isDatabaseUrlForType(value, String(values.dbType)),
+              '请选择已启用的数据库类型，并填写与其匹配的连接 URL',
+            );
+          return {
+            componentProps: {
+              dbType: values.dbType,
+              'onUpdate:dbType': (type: string) =>
+                actions.setFieldValue('dbType', type),
+            },
+            rules: values.id ? rule.optional() : rule,
+          };
+        },
+      },
     },
     {
       component: 'RadioGroup',
-      componentProps: {
+      componentProps: () => ({
         isButton: true,
         options: dictionary.getDictOptions(
           DICT_TYPE.INFRA_DATA_SOURCE_TYPE,
           'number',
         ),
-      },
+      }),
       defaultValue: 1,
       fieldName: 'sourceType',
       label: '主从类型',
@@ -72,30 +99,36 @@ export function useFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'RadioGroup',
-      componentProps: {
+      componentProps: () => ({
         isButton: true,
         options: dictionary.getDictOptions(DICT_TYPE.COMMON_STATUS, 'number'),
-      },
+      }),
       fieldName: 'status',
       label: '状态',
       rules: z.number().default(SwitchStatus.ENABLED),
     },
     {
       component: 'RadioGroup',
-      componentProps: {
+      componentProps: () => ({
         isButton: true,
-        options: booleanOptions,
-      },
+        options: dictionary.getDictOptions(
+          DICT_TYPE.INFRA_BOOLEAN_STRING,
+          'boolean',
+        ),
+      }),
       defaultValue: false,
       fieldName: 'isDefault',
       label: '默认数据源',
     },
     {
       component: 'RadioGroup',
-      componentProps: {
+      componentProps: () => ({
         isButton: true,
-        options: booleanOptions,
-      },
+        options: dictionary.getDictOptions(
+          DICT_TYPE.INFRA_BOOLEAN_STRING,
+          'boolean',
+        ),
+      }),
       defaultValue: false,
       fieldName: 'echo',
       label: 'SQL 日志',
@@ -114,7 +147,7 @@ export function useFormSchema(): VbenFormSchema[] {
     {
       component: 'InputNumber',
       componentProps: {
-        min: -1,
+        min: 0,
         placeholder: '请输入最大溢出连接数',
       },
       defaultValue: 20,
@@ -136,7 +169,7 @@ export function useFormSchema(): VbenFormSchema[] {
     {
       component: 'InputNumber',
       componentProps: {
-        min: 0,
+        min: 1,
         placeholder: '请输入获取连接最大等待时间',
       },
       defaultValue: 30,
@@ -182,24 +215,24 @@ export function useGridFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(
           DICT_TYPE.INFRA_DATA_SOURCE_TYPE,
           'number',
         ),
         placeholder: '请选择主从类型',
-      },
+      }),
       fieldName: 'sourceType',
       label: '主从类型',
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(DICT_TYPE.COMMON_STATUS, 'number'),
         placeholder: '请选择状态',
-      },
+      }),
       fieldName: 'status',
       label: '状态',
     },
@@ -251,12 +284,8 @@ export function useGridColumns(
     },
     {
       cellRender: {
-        attrs: { beforeChange: onStatusChange },
         name: 'CellSwitch',
-        props: {
-          checkedValue: SwitchStatus.ENABLED,
-          unCheckedValue: SwitchStatus.DISABLED,
-        },
+        props: { change: onStatusChange },
       },
       field: 'status',
       minWidth: 100,

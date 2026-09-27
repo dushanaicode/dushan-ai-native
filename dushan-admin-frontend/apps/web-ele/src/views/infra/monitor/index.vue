@@ -1,19 +1,16 @@
 <script lang="ts" setup>
 import { computed, onMounted, ref } from 'vue';
 
-import { Page } from '@vben/common-ui';
+import { Loading, Page } from '@vben/common-ui';
 import { IconifyIcon } from '@vben/icons';
+import { usePreferences } from '@vben/preferences';
 
-import {
-  ElAlert,
-  ElButton,
-  ElRadioButton,
-  ElRadioGroup,
-  ElSkeleton,
-} from 'element-plus';
+import { ElAlert, ElButton, ElRadioButton, ElRadioGroup } from 'element-plus';
 
+import { takeErrorMessage } from '#/api/error-feedback';
 import { getConfigValueByKey } from '#/api/infra/config/data';
 import { IFrame } from '#/components';
+import { $t } from '#/locales';
 
 defineOptions({ name: 'InfraMonitor' });
 
@@ -41,7 +38,10 @@ const monitorOptions: MonitorOption[] = [
 
 const errorMessage = ref('');
 const loading = ref(false);
+const initialized = ref(false);
+const frame = ref<InstanceType<typeof IFrame>>();
 const monitorType = ref<MonitorType>('jaeger');
+const { isDark } = usePreferences();
 const monitorUrls = ref<Record<MonitorType, string>>({
   ...DEFAULT_MONITOR_URLS,
 });
@@ -51,6 +51,13 @@ const currentSrc = computed(
     monitorUrls.value[monitorType.value] ||
     DEFAULT_MONITOR_URLS[monitorType.value],
 );
+const frameSrc = computed(() => {
+  if (monitorType.value !== 'jaeger') return currentSrc.value;
+  // Jaeger的UIConfig读取主题参数；不启用会隐藏搜索栏的uiEmbed布局。
+  const url = new URL(currentSrc.value, window.location.origin);
+  url.searchParams.set('nativeTheme', isDark.value ? 'dark' : 'light');
+  return url.href;
+});
 const currentTitle = computed(
   () =>
     monitorOptions.find((item) => item.value === monitorType.value)?.label ??
@@ -82,16 +89,25 @@ async function loadMonitorUrls() {
     };
   } catch (error) {
     console.warn('[InfraMonitor] load monitor urls failed:', error);
-    errorMessage.value = '监控地址配置读取失败，已使用默认地址';
+    errorMessage.value = takeErrorMessage(
+      error,
+      '监控地址配置读取失败，已使用默认地址',
+    );
     monitorUrls.value = { ...DEFAULT_MONITOR_URLS };
   } finally {
     loading.value = false;
+    initialized.value = true;
   }
 }
 
 onMounted(() => {
   void loadMonitorUrls();
 });
+
+async function refreshMonitor() {
+  await loadMonitorUrls();
+  frame.value?.reload();
+}
 </script>
 
 <template>
@@ -116,9 +132,17 @@ onMounted(() => {
             </ElRadioButton>
           </ElRadioGroup>
 
-          <ElButton :loading="loading" type="primary" @click="loadMonitorUrls">
+          <ElButton :loading="loading" type="primary" @click="refreshMonitor">
             <IconifyIcon icon="lucide:refresh-cw" class="mr-1 size-4" />
             刷新
+          </ElButton>
+          <ElButton
+            tag="a"
+            :href="currentSrc"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {{ $t('infraTools.openWindow') }}
           </ElButton>
         </div>
       </div>
@@ -131,14 +155,15 @@ onMounted(() => {
         type="warning"
       />
 
-      <ElSkeleton v-if="loading" :rows="8" animated />
-
-      <IFrame
-        v-else
-        class="min-h-0 flex-1"
-        :src="currentSrc"
-        :title="currentTitle"
-      />
+      <Loading :spinning="loading" :aria-busy="loading" class="min-h-0 flex-1">
+        <IFrame
+          ref="frame"
+          v-if="initialized"
+          class="h-full"
+          :src="frameSrc"
+          :title="currentTitle"
+        />
+      </Loading>
     </div>
   </Page>
 </template>

@@ -1,7 +1,9 @@
 <script lang="ts" setup>
 import type { RedisCacheKeyRow } from './data';
 
-import { computed, ref } from 'vue';
+import type { InfraRedisCacheApi } from '#/api/infra/redis-cache';
+
+import { computed, ref, watch } from 'vue';
 
 import { useAccess } from '@vben/access';
 import { Page } from '@vben/common-ui';
@@ -10,6 +12,9 @@ import { IconifyIcon } from '@vben/icons';
 import {
   ElAlert,
   ElButton,
+  ElDropdown,
+  ElDropdownItem,
+  ElDropdownMenu,
   ElLoading,
   ElMessage,
   ElMessageBox,
@@ -17,20 +22,23 @@ import {
   ElTabs,
 } from 'element-plus';
 
+import { notifyError } from '#/api/error-feedback';
+import { cleanupPreset, getCleanupPresets } from '#/api/infra/redis-cache';
+
 import CacheGroupPanel from './components/cache-group-panel.vue';
 import CacheValuePanel from './components/cache-value-panel.vue';
 import KeyDetailPanel from './components/key-detail-panel.vue';
 import KeyTreePanel from './components/key-tree-panel.vue';
 import { useRedisCache } from './composables/use-redis-cache';
-import { CACHE_DELETE_PERMISSION } from './data';
 
 defineOptions({ name: 'InfraRedisCache' });
 
 const activeTab = ref('db');
 const refreshing = ref(false);
 
-const { hasAccessByCodes } = useAccess();
-const canDelete = computed(() => hasAccessByCodes([CACHE_DELETE_PERMISSION]));
+const { hasAccessByRoles } = useAccess();
+const canDelete = computed(() => hasAccessByRoles(['super_admin']));
+const presets = ref<InfraRedisCacheApi.CleanupPreset[]>([]);
 
 const {
   cacheGroups,
@@ -72,6 +80,62 @@ const {
   treeData,
   typeTagType,
 } = useRedisCache();
+
+watch(
+  selectedDb,
+  async (dbName) => {
+    presets.value = [];
+    if (!dbName) return;
+    try {
+      const loaded = await getCleanupPresets(dbName);
+      if (dbName === selectedDb.value) presets.value = loaded;
+    } catch (error) {
+      notifyError(error);
+    }
+  },
+  { immediate: true },
+);
+
+async function handlePreset(code: InfraRedisCacheApi.CleanupPreset['code']) {
+  if (!ensureDeleteAccess()) return;
+  const preset = presets.value.find((item) => item.code === code);
+  if (!preset?.available) return;
+  const dbName = selectedDb.value;
+  try {
+    const description = `连接【${currentDbLabel.value}】：${preset.description}`;
+    await (preset.highRisk
+      ? ElMessageBox.prompt(
+          `${description} 请输入 CLEAR 确认。`,
+          preset.title,
+          {
+            type: 'warning',
+            inputPattern: /^CLEAR$/,
+            inputErrorMessage: '请输入 CLEAR',
+            confirmButtonText: '清理',
+            cancelButtonText: '取消',
+          },
+        )
+      : ElMessageBox.confirm(description, preset.title, {
+          type: 'info',
+          confirmButtonText: '清理',
+          cancelButtonText: '取消',
+        }));
+    await runDangerAction(
+      '正在清理选定缓存',
+      async () => {
+        await cleanupPreset(
+          code,
+          dbName,
+          preset.highRisk ? 'CLEAR' : undefined,
+        );
+        await refreshAll();
+      },
+      '选定预设清理完成',
+    );
+  } catch (error) {
+    if (!isCancelAction(error)) notifyError(error);
+  }
+}
 
 async function handleRefreshAll() {
   refreshing.value = true;
@@ -142,7 +206,7 @@ async function handleDeleteDbKey() {
     );
   } catch (error) {
     if (!isCancelAction(error)) {
-      ElMessage.error('Redis key 删除失败');
+      notifyError(error, 'Redis key 删除失败');
     }
   }
 }
@@ -176,7 +240,7 @@ async function handleClearCacheName(cacheName?: null | string) {
     );
   } catch (error) {
     if (!isCancelAction(error)) {
-      ElMessage.error('缓存分组清理失败');
+      notifyError(error, '缓存分组清理失败');
     }
   }
 }
@@ -211,7 +275,7 @@ async function handleClearCacheKey(row?: RedisCacheKeyRow) {
     );
   } catch (error) {
     if (!isCancelAction(error)) {
-      ElMessage.error('缓存 key 删除失败');
+      notifyError(error, '缓存 key 删除失败');
     }
   }
 }
@@ -240,7 +304,7 @@ async function handleClearAll() {
     );
   } catch (error) {
     if (!isCancelAction(error)) {
-      ElMessage.error('清空全部 Redis 缓存失败');
+      notifyError(error, '清空全部 Redis 缓存失败');
     }
   }
 }
@@ -253,11 +317,39 @@ async function handleClearAll() {
         <div class="min-w-0">
           <h2 class="text-lg font-semibold text-foreground">Redis 缓存</h2>
           <div class="text-sm text-muted-foreground">
-            浏览 Redis DB、查看缓存值，并按权限执行清理操作
+            作者专用：业务缓存可重新加载；认证、消息、调度与整库清理属于高风险操作
           </div>
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
+          <ElButton
+            v-if="canDelete"
+            type="success"
+            :disabled="
+              refreshing ||
+              !presets.some(
+                (item) => item.code === 'business' && item.available,
+              )
+            "
+            @click="handlePreset('business')"
+          >
+            清理可重建缓存
+          </ElButton>
+          <ElDropdown v-if="canDelete" @command="handlePreset">
+            <ElButton :disabled="refreshing">高风险清理预设</ElButton>
+            <template #dropdown>
+              <ElDropdownMenu>
+                <ElDropdownItem
+                  v-for="preset in presets.filter((item) => item.highRisk)"
+                  :key="preset.code"
+                  :command="preset.code"
+                  :disabled="!preset.available"
+                >
+                  {{ preset.title }}
+                </ElDropdownItem>
+              </ElDropdownMenu>
+            </template>
+          </ElDropdown>
           <ElButton
             v-if="canDelete"
             :disabled="refreshing"

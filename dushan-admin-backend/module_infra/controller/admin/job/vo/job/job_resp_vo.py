@@ -49,7 +49,7 @@ class JobRespVO(BaseVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
+                    "id": "1024",
                     "name": "测试任务",
                     "status": 0,
                     "handlerName": "sysUserSessionTimeoutJob",

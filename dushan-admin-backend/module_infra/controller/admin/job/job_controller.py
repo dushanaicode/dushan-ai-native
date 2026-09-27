@@ -29,6 +29,7 @@ from framework.starter_web.public import (
     Result,
     RoutePolicy,
 )
+from module_infra.controller.admin.job.vo.job.job_export_req_vo import JobExportReqVO
 from module_infra.controller.admin.job.vo.job.job_next_times_req_vo import JobNextTimesReqVO
 from module_infra.controller.admin.job.vo.job.job_page_req_vo import JobPageReqVO
 from module_infra.controller.admin.job.vo.job.job_resp_vo import JobRespVO
@@ -158,16 +159,14 @@ class JobController:
         permissions=("infra:job:export",), tenant_required=True, realm=SecurityRealm.TENANT
     )
     async def export_job_excel(
-        request: Request,
+        page_req_vo: JobExportReqVO = Query(),
         job_service: JobService = Depends(DiDependency(JobService)),
-        fields: list[str] = Query(None, description="导出的字段列表"),
         excel_writer: ExcelWriter = Depends(DiDependency(ExcelWriter)),
         page_settings: PageSettings = Depends(DiDependency(PageSettings)),
         files: FileResult = Depends(DiDependency(FileResult)),
         dictionaries: DictDataProvider = Depends(DiDependency(DictDataProvider)),
     ) -> StreamingResponse:
         excel_providers = ExcelProviders(dictionaries=dictionaries)
-        page_req_vo = RequestUtils.validate_with_auto_list_params(request, JobPageReqVO)
         page_req_vo.enable_fetch_all(
             max_rows=min(excel_writer.settings.max_export_rows, page_settings.fetch_all_max_rows)
         )
@@ -175,7 +174,7 @@ class JobController:
         excel_list: list[JobRespVO] = [JobRespVO.model_validate(row) for row in page_result.items]
         filename = "定时任务"
         file_data = await excel_writer.write(
-            "数据", JobRespVO, excel_list, providers=excel_providers, fields=fields
+            "数据", JobRespVO, excel_list, providers=excel_providers, fields=page_req_vo.fields
         )
         return files.excel_stream(file_data, file_name=f"{filename}.xlsx")
 

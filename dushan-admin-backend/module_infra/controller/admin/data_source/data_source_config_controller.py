@@ -21,6 +21,9 @@ from framework.starter_web.public import (
     Result,
     RoutePolicy,
 )
+from module_infra.controller.admin.data_source.vo.data_source_config_export_req_vo import (
+    DataSourceConfigExportReqVO,
+)
 from module_infra.controller.admin.data_source.vo.data_source_config_page_req_vo import (
     DataSourceConfigPageReqVO,
 )
@@ -226,20 +229,16 @@ class DataSourceConfigController:
         realm=SecurityRealm.TENANT,
     )
     async def export_data_source_config_list(
-        request: Request,
+        page_req_vo: DataSourceConfigExportReqVO = Query(),
         data_source_config_service: DataSourceConfigService = Depends(
             DiDependency(DataSourceConfigService)
         ),
-        fields: list[str] = Query(None, description="导出的字段列表"),
         excel_writer: ExcelWriter = Depends(DiDependency(ExcelWriter)),
         page_settings: PageSettings = Depends(DiDependency(PageSettings)),
         files: FileResult = Depends(DiDependency(FileResult)),
         dictionaries: DictDataProvider = Depends(DiDependency(DictDataProvider)),
     ) -> StreamingResponse:
         excel_providers = ExcelProviders(dictionaries=dictionaries)
-        page_req_vo = RequestUtils.validate_with_auto_list_params(
-            request, DataSourceConfigPageReqVO
-        )
         page_req_vo.enable_fetch_all(
             max_rows=min(excel_writer.settings.max_export_rows, page_settings.fetch_all_max_rows)
         )
@@ -256,6 +255,6 @@ class DataSourceConfigController:
             DataSourceConfigRespVO,
             data_source_config_resp_list,
             providers=excel_providers,
-            fields=fields,
+            fields=page_req_vo.fields,
         )
         return files.excel_stream(file_data, file_name=f"{filename}.xlsx")

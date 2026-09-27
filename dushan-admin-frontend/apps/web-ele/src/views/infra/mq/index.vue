@@ -80,7 +80,7 @@ function handleDetail(row: InfraMqApi.MqRespVO) {
 
 function handleViewLog(row?: InfraMqApi.MqRespVO) {
   router.push({
-    name: 'InfraMqLog',
+    name: `${String(router.currentRoute.value.name)}-log`,
     query: row?.consumer ? { consumer: row.consumer } : {},
   });
 }
@@ -92,7 +92,7 @@ async function handleExport() {
   exportTableRef.value?.setData({
     columns: fields,
     exportApi: exportMq,
-    fileName: 'MQ消息定义.xls',
+    fileName: 'MQ消息定义.xlsx',
     searchParams: normalizeSearchParams(formValues),
   });
   exportTableRef.value?.open();

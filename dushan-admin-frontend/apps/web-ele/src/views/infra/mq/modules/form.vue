@@ -8,7 +8,12 @@ import { useVbenModal } from '@vben/common-ui';
 import { ElMessage } from 'element-plus';
 
 import { useVbenForm } from '#/adapter/form';
-import { createMq, getMq, updateMq } from '#/api/infra/mq';
+import {
+  createMq,
+  getMq,
+  getRegisteredConsumers,
+  updateMq,
+} from '#/api/infra/mq';
 import { $t } from '#/locales';
 
 import { useFormSchema } from '../data';
@@ -20,6 +25,7 @@ const emit = defineEmits<{
 }>();
 
 const formData = ref<InfraMqApi.MqRespVO>();
+const consumers = ref<InfraMqApi.ConsumerDeclaration[]>([]);
 
 const title = computed(() =>
   formData.value?.id
@@ -49,8 +55,7 @@ const [Modal, modalApi] = useVbenModal({
 
     modalApi.lock();
     try {
-      const values = await formApi.getValues();
-      const data = normalizeMqValues(values);
+      const data = await formApi.getValues<InfraMqApi.MqSaveReqVO>();
 
       await (formData.value?.id ? updateMq(data) : createMq(data));
       await modalApi.close();
@@ -63,18 +68,34 @@ const [Modal, modalApi] = useVbenModal({
   async onOpenChange(isOpen: boolean) {
     if (!isOpen) {
       formData.value = undefined;
-      await formApi.resetForm();
-      return;
-    }
-
-    const data = modalApi.getData() as InfraMqApi.MqRespVO | undefined;
-    if (!data?.id) {
-      await formApi.resetForm();
+      await formApi.reset();
       return;
     }
 
     modalApi.lock();
     try {
+      await formApi.reset();
+      consumers.value = await getRegisteredConsumers();
+      formApi.updateSchema([
+        {
+          fieldName: 'consumer',
+          componentProps: {
+            options: consumers.value.map((item) => ({
+              label: item.key,
+              value: item.key,
+            })),
+            onChange: (key: string) => {
+              const selected = consumers.value.find((item) => item.key === key);
+              if (selected) {
+                formApi.setFieldValue('topic', selected.topic);
+                formApi.setFieldValue('retryCount', selected.retryCount);
+              }
+            },
+          },
+        },
+      ]);
+      const data = modalApi.getData() as InfraMqApi.MqRespVO | undefined;
+      if (!data?.id) return;
       formData.value = await getMq(data.id);
       await formApi.setValues(formData.value);
     } finally {
@@ -82,22 +103,6 @@ const [Modal, modalApi] = useVbenModal({
     }
   },
 });
-
-function normalizeMqValues(
-  values: Record<string, unknown>,
-): InfraMqApi.MqSaveReqVO {
-  return {
-    consumer: String(values.consumer ?? ''),
-    description: toOptionalString(values.description),
-    id: toOptionalString(values.id),
-    retryCount: Number(values.retryCount ?? 0),
-    topic: String(values.topic ?? ''),
-  };
-}
-
-function toOptionalString(value: unknown) {
-  return typeof value === 'string' && value ? value : undefined;
-}
 </script>
 
 <template>

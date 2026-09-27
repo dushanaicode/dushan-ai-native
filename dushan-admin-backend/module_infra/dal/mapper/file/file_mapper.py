@@ -43,9 +43,11 @@ class FileMapper(BaseMapper[FileDO]):
         result = await self.read(stmt)
         return result.scalar_one_or_none() or 0
 
-    async def select_by_storage_path(self, storage_path: str) -> FileDO | None:
-        """根据 storage_path 精确查询文件"""
-        stmt = select(FileDO).where(FileDO.storage_path == storage_path)
+    async def select_by_storage_path(self, config_id: int, storage_path: str) -> FileDO | None:
+        """根据存储配置与完整路径精确查询文件。"""
+        stmt = select(FileDO).where(
+            FileDO.config_id == config_id, FileDO.storage_path == storage_path
+        )
         result = await self.read(stmt)
         return result.scalar_one_or_none()
 
@@ -60,7 +62,8 @@ class FileMapper(BaseMapper[FileDO]):
     ) -> list[FileDO]:
         """按 config_id + storage_path 前缀查询（用于目录浏览时补充 DB 信息）"""
         stmt = select(FileDO).where(
-            FileDO.config_id == config_id, FileDO.storage_path.like(f"{storage_path_prefix}%")
+            FileDO.config_id == config_id,
+            FileDO.storage_path.like(StrUtils.escape_like(storage_path_prefix) + "%"),
         )
         result = await self.read(stmt)
         return list(result.scalars().all())
@@ -77,10 +80,10 @@ class FileMapper(BaseMapper[FileDO]):
         """搜索文件（模糊/前缀）"""
         stmt = select(FileDO).where(FileDO.config_id == config_id)
         if prefix:
-            stmt = stmt.where(FileDO.storage_path.like(f"{prefix}%"))
+            stmt = stmt.where(FileDO.storage_path.like(StrUtils.escape_like(prefix) + "%"))
         if keyword:
             if search_mode == "prefix":
-                stmt = stmt.where(FileDO.name.like(f"{keyword}%"))
+                stmt = stmt.where(FileDO.name.like(StrUtils.escape_like(keyword) + "%"))
             else:
                 escaped_kw = StrUtils.escape_like(keyword)
                 stmt = stmt.where(FileDO.name.ilike(f"%{escaped_kw}%"))

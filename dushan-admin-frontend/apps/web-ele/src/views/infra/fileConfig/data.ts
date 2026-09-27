@@ -2,6 +2,7 @@ import type { VbenFormSchema } from '#/adapter/form';
 import type { VxeTableGridOptions } from '#/adapter/vxe-table';
 import type { InfraFileConfigApi } from '#/api/infra/file-config';
 
+import { z } from '#/adapter/form';
 import { DICT_TYPE } from '#/constants/dict-types';
 import { useDictionary } from '#/services/dictionary/context';
 import { getRangePickerDefaultProps } from '#/utils/range-picker';
@@ -38,13 +39,13 @@ export function useFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         options: dictionary.getDictOptions(
           DICT_TYPE.INFRA_FILE_STORAGE,
           'number',
         ),
         placeholder: '请选择存储器',
-      },
+      }),
       dependencies: {
         show: (values) => !values.id,
         triggerFields: ['id'],
@@ -110,15 +111,17 @@ export function useFormSchema(): VbenFormSchema[] {
     {
       component: 'VbenInputPassword',
       componentProps: {
-        placeholder: '请输入密码',
+        placeholder: '新增时必填，修改时留空保留原密码',
       },
       dependencies: {
-        show: (values) => isStorage(values, [11, 12]),
-        triggerFields: ['storage'],
+        resolve: ({ values }) => ({
+          show: isStorage(values, [11, 12]),
+          rules: values.id ? z.string().optional() : 'required',
+        }),
+        triggerFields: ['storage', 'id'],
       },
       fieldName: 'config.password',
       label: '密码',
-      rules: 'required',
     },
     {
       component: 'RadioGroup',
@@ -177,28 +180,32 @@ export function useFormSchema(): VbenFormSchema[] {
     {
       component: 'Input',
       componentProps: {
-        placeholder: '请输入 Access Key',
+        placeholder: '新增时必填，修改时留空保留原 Key',
       },
       dependencies: {
-        show: (values) => isStorage(values, [20]),
-        triggerFields: ['storage'],
+        resolve: ({ values }) => ({
+          show: isStorage(values, [20]),
+          rules: values.id ? z.string().optional() : 'required',
+        }),
+        triggerFields: ['storage', 'id'],
       },
       fieldName: 'config.accessKey',
       label: 'Access Key',
-      rules: 'required',
     },
     {
       component: 'VbenInputPassword',
       componentProps: {
-        placeholder: '请输入 Access Secret',
+        placeholder: '新增时必填，修改时留空保留原 Secret',
       },
       dependencies: {
-        show: (values) => isStorage(values, [20]),
-        triggerFields: ['storage'],
+        resolve: ({ values }) => ({
+          show: isStorage(values, [20]),
+          rules: values.id ? z.string().optional() : 'required',
+        }),
+        triggerFields: ['storage', 'id'],
       },
       fieldName: 'config.accessSecret',
       label: 'Access Secret',
-      rules: 'required',
     },
     {
       component: 'Input',
@@ -214,13 +221,13 @@ export function useFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'RadioGroup',
-      componentProps: {
+      componentProps: () => ({
         isButton: true,
         options: dictionary.getDictOptions(
           DICT_TYPE.INFRA_BOOLEAN_STRING,
           'boolean',
         ),
-      },
+      }),
       defaultValue: false,
       dependencies: {
         show: (values) => isStorage(values, [20]),
@@ -233,15 +240,17 @@ export function useFormSchema(): VbenFormSchema[] {
     {
       component: 'Input',
       componentProps: {
-        placeholder: '请输入自定义域名',
+        placeholder: '请输入访问域名，S3 存储可留空',
       },
       dependencies: {
-        show: (values) => Boolean(values.storage),
+        resolve: ({ values }) => ({
+          show: Boolean(values.storage),
+          rules: isStorage(values, [20]) ? z.string().optional() : 'required',
+        }),
         triggerFields: ['storage'],
       },
       fieldName: 'config.domain',
       label: '自定义域名',
-      rules: 'required',
     },
     {
       component: 'Textarea',
@@ -270,24 +279,24 @@ export function useGridFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(
           DICT_TYPE.INFRA_FILE_STORAGE,
           'number',
         ),
         placeholder: '请选择存储器',
-      },
+      }),
       fieldName: 'storage',
       label: '存储器',
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(DICT_TYPE.COMMON_STATUS, 'number'),
         placeholder: '请选择状态',
-      },
+      }),
       fieldName: 'status',
       label: '状态',
     },

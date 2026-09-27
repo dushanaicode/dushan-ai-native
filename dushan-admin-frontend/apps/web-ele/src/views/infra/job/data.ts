@@ -54,12 +54,12 @@ export function useFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'Input',
-      componentProps: (ctx) => ({
-        disabled: !!ctx.rootValues?.id,
+      componentProps: {
         placeholder: '请输入处理器名称',
-      }),
+      },
       dependencies: {
         triggerFields: ['id'],
+        resolve: ({ values }) => ({ disabled: !!values.id }),
       },
       fieldName: 'handlerName',
       label: '处理器名称',
@@ -135,14 +135,14 @@ export function useGridFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(
           DICT_TYPE.INFRA_JOB_STATUS,
           'number',
         ),
         placeholder: '请选择任务状态',
-      },
+      }),
       fieldName: 'status',
       label: '任务状态',
     },
@@ -190,11 +190,11 @@ export function useGridColumns(
     {
       align: 'center',
       cellRender: {
-        attrs: { beforeChange: onStatusChange },
         name: 'CellSwitch',
         props: {
-          checkedValue: InfraJobStatusEnum.NORMAL,
-          unCheckedValue: InfraJobStatusEnum.STOP,
+          change: onStatusChange,
+          activeValue: InfraJobStatusEnum.NORMAL,
+          inactiveValue: InfraJobStatusEnum.STOP,
         },
       },
       field: 'status',
@@ -246,7 +246,7 @@ export function useGridColumns(
       fixed: 'right',
       slots: { default: 'actions' },
       title: '操作',
-      width: 170,
+      width: 220,
     },
   ];
 }

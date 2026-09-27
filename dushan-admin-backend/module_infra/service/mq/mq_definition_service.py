@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from framework.common.page import PageResult
+from module_infra.controller.admin.mq.vo.mq.mq_consumer_resp_vo import MqConsumerRespVO
 from module_infra.controller.admin.mq.vo.mq.mq_page_req_vo import MqPageReqVO
 from module_infra.controller.admin.mq.vo.mq.mq_save_req_vo import MqSaveReqVO
 from module_infra.dal.dataobject.mq.mq_do import MqDO
@@ -11,6 +12,8 @@ from module_infra.dal.dataobject.mq.mq_do import MqDO
 @runtime_checkable
 class MqDefinitionService(Protocol):
     """MQ 消息定义服务接口"""
+
+    async def get_registered_consumers(self) -> list[MqConsumerRespVO]: ...
 
     async def create_mq_definition(self, create_req_vo: MqSaveReqVO) -> int:
         """创建消息定义"""

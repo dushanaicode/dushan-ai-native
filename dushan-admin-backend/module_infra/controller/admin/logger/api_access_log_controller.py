@@ -22,6 +22,9 @@ from framework.starter_web.public import (
     Result,
     RoutePolicy,
 )
+from module_infra.controller.admin.logger.vo.apiaccesslog.apiaccesslog_api_access_log_export_req_vo import (
+    ApiAccessLogExportReqVO,
+)
 from module_infra.controller.admin.logger.vo.apiaccesslog.apiaccesslog_api_access_log_page_req_vo import (
     ApiAccessLogPageReqVO,
 )
@@ -82,16 +85,14 @@ class ApiAccessLogController:
         realm=SecurityRealm.TENANT,
     )
     async def export_api_access_log_excel(
-        request: Request,
+        page_req_vo: ApiAccessLogExportReqVO = Query(),
         api_access_log_service: ApiAccessLogService = Depends(DiDependency(ApiAccessLogService)),
-        fields: list[str] = Query(None, description="导出的字段列表"),
         excel_writer: ExcelWriter = Depends(DiDependency(ExcelWriter)),
         page_settings: PageSettings = Depends(DiDependency(PageSettings)),
         files: FileResult = Depends(DiDependency(FileResult)),
         dictionaries: DictDataProvider = Depends(DiDependency(DictDataProvider)),
     ) -> StreamingResponse:
         excel_providers = ExcelProviders(dictionaries=dictionaries)
-        page_req_vo = RequestUtils.validate_with_auto_list_params(request, ApiAccessLogPageReqVO)
         page_req_vo.enable_fetch_all(
             max_rows=min(excel_writer.settings.max_export_rows, page_settings.fetch_all_max_rows)
         )
@@ -103,6 +104,10 @@ class ApiAccessLogController:
         )
         filename = "API访问日志"
         file_data = await excel_writer.write(
-            "数据", ApiAccessLogRespVO, excel_list, providers=excel_providers, fields=fields
+            "数据",
+            ApiAccessLogRespVO,
+            excel_list,
+            providers=excel_providers,
+            fields=page_req_vo.fields,
         )
         return files.excel_stream(file_data, file_name=f"{filename}.xlsx")

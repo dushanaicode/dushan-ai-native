@@ -48,6 +48,8 @@ catalog:
   '@ctrl/tinycolor': ^4.2.0
   '@eslint-community/eslint-plugin-eslint-comments': ^4.7.2
   '@eslint/js': ^10.0.1
+  '@form-create/designer': 3.4.0
+  '@form-create/element-ui': 3.2.33
   '@iconify/json': ^2.2.520
   '@iconify/tailwind4': ^1.2.3
   '@iconify/vue': ^5.0.1
@@ -134,6 +136,7 @@ catalog:
   html-minifier-terser: ^7.2.0
   is-ci: ^4.1.0
   json-bigint: ^1.0.0
+  jsqr: 1.4.0
   knip: ^6.29.0
   lefthook: ^2.1.10
   lodash.clonedeep: ^4.5.0
@@ -203,6 +206,7 @@ catalog:
 allowBuilds:
   '@parcel/watcher': true
   core-js: true
+  core-js-pure: false # postinstall 无构建产物；显式跳过，保持严格脚本审批。
   esbuild: true
   lefthook: false
   vue-demi: true

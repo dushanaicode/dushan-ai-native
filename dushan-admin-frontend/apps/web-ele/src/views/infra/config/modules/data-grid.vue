@@ -79,7 +79,7 @@ async function handleExport() {
   exportTableRef.value?.setData({
     columns: fields,
     exportApi: exportConfigData,
-    fileName: '配置数据.xls',
+    fileName: '配置数据.xlsx',
     searchParams: normalizeSearchParams(formValues),
   });
   exportTableRef.value?.open();

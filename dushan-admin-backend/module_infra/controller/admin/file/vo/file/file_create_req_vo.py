@@ -22,7 +22,7 @@ class FileCreateReqVO(BaseRequestVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "configId": 11,
+                    "configId": "11",
                     "path": "dushan.jpg",
                     "name": "dushan.jpg",
                     "url": "https://www.dushan.cn/dushan.jpg",

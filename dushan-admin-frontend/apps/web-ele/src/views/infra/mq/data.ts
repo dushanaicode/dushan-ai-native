@@ -21,16 +21,18 @@ export function useFormSchema(): VbenFormSchema[] {
     {
       component: 'Input',
       componentProps: {
-        placeholder: '请输入消息主题',
+        placeholder: '选择消费者后自动填入',
+        disabled: true,
       },
       fieldName: 'topic',
       label: '消息主题',
       rules: 'required',
     },
     {
-      component: 'Input',
+      component: 'Select',
       componentProps: {
-        placeholder: '请输入消费者名称',
+        options: [],
+        placeholder: '请选择已注册的消费者',
       },
       fieldName: 'consumer',
       label: '消费者名称',
@@ -39,9 +41,9 @@ export function useFormSchema(): VbenFormSchema[] {
     {
       component: 'InputNumber',
       componentProps: {
-        clearable: true,
+        disabled: true,
         min: 0,
-        placeholder: '留空则继承全局配置',
+        placeholder: '由消费者声明确定',
       },
       fieldName: 'retryCount',
       label: '重试次数',

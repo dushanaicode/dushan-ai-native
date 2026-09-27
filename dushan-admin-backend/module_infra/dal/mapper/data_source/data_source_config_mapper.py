@@ -64,9 +64,3 @@ class DataSourceConfigMapper(BaseMapper[DataSourceConfigDO]):
         )
         result = await self.read(stmt)
         return result.scalar_one_or_none()
-
-    async def select_list(self) -> list[DataSourceConfigDO]:
-        """查询所有数据源配置列表"""
-        stmt = select(DataSourceConfigDO)
-        result = await self.read(stmt)
-        return list(result.scalars().all())

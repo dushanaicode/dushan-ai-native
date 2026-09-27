@@ -18,7 +18,7 @@ class ConfigTypeSimpleRespVO(BaseVO):
     model_config = {
         "json_schema_extra": {
             "examples": [
-                {"id": 1024, "module": "system", "name": "系统配置", "code": "system_config"}
+                {"id": "1024", "module": "system", "name": "系统配置", "code": "system_config"}
             ]
         }
     }

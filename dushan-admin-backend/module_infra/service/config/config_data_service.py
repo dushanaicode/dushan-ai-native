@@ -58,7 +58,7 @@ class ConfigDataService(Protocol):
         ...
 
     async def get_config_list_with_type_name(
-        self, req_vo: ConfigDataPageReqVO = None
+        self, req_vo: ConfigDataPageReqVO | None = None
     ) -> list[ConfigDataRespVO]:
         """获取配置列表，并关联配置类型名称"""
         ...

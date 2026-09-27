@@ -490,6 +490,9 @@ async def test_live_websocket_commands(admin_client, infra_app):
                 assert result["requestId"] == kind
                 if kind == "get-user-info":
                     assert isinstance(result["payload"]["data"]["id"], str)
+                    user_id = result["payload"]["data"]["id"]
+            status = (await admin_client.get("/admin-api/infra/websocket/status")).json()
+            assert status["data"]["active_connections"] == 1
             sent = (
                 await admin_client.post(
                     "/admin-api/infra/websocket/broadcast",
@@ -497,10 +500,36 @@ async def test_live_websocket_commands(admin_client, infra_app):
                 )
             ).json()
             assert sent["code"] == 0, sent
+            assert sent["data"] == {"transport": "local", "accepted": 1}
             assert (
                 json.loads(await asyncio.wait_for(ws.recv(), 5))["payload"]["payload"]
                 == "delivered"
             )
+            targeted = (
+                await admin_client.post(
+                    "/admin-api/infra/websocket/send-to-user",
+                    json={
+                        "userType": 2,
+                        "userId": user_id,
+                        "message": {"type": "text", "payload": "targeted"},
+                    },
+                )
+            ).json()
+            assert targeted["data"] == {"transport": "local", "accepted": 1}
+            assert (
+                json.loads(await asyncio.wait_for(ws.recv(), 5))["payload"]["payload"] == "targeted"
+            )
+            offline = (
+                await admin_client.post(
+                    "/admin-api/infra/websocket/send-to-user",
+                    json={
+                        "userType": 2,
+                        "userId": "10100000019999",
+                        "message": {"type": "text", "payload": "offline"},
+                    },
+                )
+            ).json()
+            assert offline["data"] == {"transport": "local", "accepted": 0}
     finally:
         server.should_exit = True
         await serving
@@ -535,6 +564,16 @@ async def test_job_definition_crud_notifies_runtime(admin_client):
         )
     ).json()
     assert stopped["code"] == 0, stopped
+    stored = (await admin_client.get("/admin-api/infra/job/get", params={"id": identifier})).json()
+    assert stored["data"]["status"] == 2
+    resumed = (
+        await admin_client.put(
+            "/admin-api/infra/job/update-status", params={"id": identifier, "status": 1}
+        )
+    ).json()
+    assert resumed["code"] == 0, resumed
+    stored = (await admin_client.get("/admin-api/infra/job/get", params={"id": identifier})).json()
+    assert stored["data"]["status"] == 1
     assert (
         await admin_client.delete("/admin-api/infra/job/delete", params={"id": identifier})
     ).json()["code"] == 0

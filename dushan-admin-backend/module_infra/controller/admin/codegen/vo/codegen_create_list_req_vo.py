@@ -15,6 +15,6 @@ class CodegenCreateListReqVO(BaseRequestVO):
     table_names: Annotated[list[str], Field(..., description="导入的表名称列表")]
     model_config = {
         "json_schema_extra": {
-            "examples": [{"dataSourceConfigId": 0, "tableNames": ["system_user", "system_role"]}]
+            "examples": [{"dataSourceConfigId": "1", "tableNames": ["system_user", "system_role"]}]
         }
     }

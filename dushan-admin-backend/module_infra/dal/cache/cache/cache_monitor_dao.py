@@ -40,6 +40,18 @@ class CacheMonitorDAO:
     async def delete_keys(self, keys, client_name="default"):
         return await self.manager.get_client(client_name).unlink(*keys) if keys else 0
 
+    async def delete_matching(self, client_name: str, pattern: str) -> int:
+        client = self.manager.get_client(client_name)
+        deleted, batch = 0, []
+        async for key in client.scan_iter(match=pattern, count=200):
+            batch.append(key)
+            if len(batch) == 200:
+                deleted += await client.unlink(*batch)
+                batch.clear()
+        if batch:
+            deleted += await client.unlink(*batch)
+        return deleted
+
     async def flush_db(self, client_name="default"):
         return await self.manager.get_client(client_name).flushdb(asynchronous=True)
 
@@ -58,14 +70,14 @@ class CacheMonitorDAO:
     async def scan_all_keys_in_db(self, db_name, pattern="*", max_keys=5000):
         keys = []
         async for key in self.manager.get_client(db_name).scan_iter(match=pattern, count=200):
-            keys.append(key.decode("utf-8"))
+            keys.append(key)
             if len(keys) >= max_keys:
                 break
         return sorted(keys)
 
     async def get_key_detail(self, db_name, key):
         client = self.manager.get_client(db_name)
-        kind = (await client.type(key)).decode("ascii")
+        kind = await client.type(key)
         ttl = await client.ttl(key)
         if re.search(
             r"password|secret|credential|token|ticket|file_config|mail_account|sms_channel|social",
@@ -88,32 +100,29 @@ class CacheMonitorDAO:
             return None, None
         if kind == "string":
             raw = await client.getrange(key, 0, 8191)
-            return raw.decode("utf-8", errors="replace"), await client.strlen(key)
+            return raw, await client.strlen(key)
         if kind == "hash":
             _, entries = await client.hscan(key, count=100)
-            data = {
-                k.decode("utf-8", errors="replace"): v.decode("utf-8", errors="replace")
-                for k, v in list(entries.items())[:100]
-            }
+            data = dict(list(entries.items())[:100])
             size = await client.hlen(key)
         elif kind == "list":
-            data = [v.decode("utf-8", errors="replace") for v in await client.lrange(key, 0, 99)]
+            data = await client.lrange(key, 0, 99)
             size = await client.llen(key)
         elif kind == "set":
             _, entries = await client.sscan(key, count=100)
-            data = [v.decode("utf-8", errors="replace") for v in entries[:100]]
+            data = entries[:100]
             size = await client.scard(key)
         elif kind == "zset":
             data = [
-                {"member": v.decode("utf-8", errors="replace"), "score": score}
+                {"member": v, "score": score}
                 for v, score in await client.zrange(key, 0, 99, withscores=True)
             ]
             size = await client.zcard(key)
         elif kind == "stream":
             data = [
                 {
-                    "id": identifier.decode("ascii"),
-                    "fields": list(v.decode("utf-8", errors="replace") for v in fields),
+                    "id": identifier,
+                    "fields": fields,
                 }
                 for identifier, fields in await client.xrange(key, count=100)
             ]

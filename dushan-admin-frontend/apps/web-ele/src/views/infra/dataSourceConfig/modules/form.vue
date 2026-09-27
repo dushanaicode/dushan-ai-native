@@ -108,11 +108,7 @@ const [Modal, modalApi] = useVbenModal({
 function normalizeDataSourceValues(
   values: Record<string, unknown>,
 ): InfraDataSourceConfigApi.DataSourceConfigSaveReqVO | undefined {
-  const url = normalizeUrl(values.url);
-  if (!url) {
-    ElMessage.error('请输入数据源连接 URL');
-    return undefined;
-  }
+  const url = normalizeUrl(values.url) || undefined;
 
   const status = Number(values.status);
   const isDefault = toBoolean(values.isDefault);
@@ -133,7 +129,7 @@ function normalizeDataSourceValues(
   }
 
   return {
-    dbType: inferDbType(url, formData.value?.dbType),
+    dbType: String(values.dbType),
     echo: toBoolean(values.echo),
     id: toOptionalString(values.id),
     isDefault,
@@ -173,19 +169,10 @@ function toOptionalString(value: unknown) {
   const trimmedValue = value.trim();
   return trimmedValue || undefined;
 }
-
-function inferDbType(url: unknown, fallback = 'mysql') {
-  if (typeof url !== 'string') {
-    return fallback;
-  }
-
-  const protocol = url.toLowerCase().split(':')[0] || fallback;
-  return protocol.split('+')[0] || fallback;
-}
 </script>
 
 <template>
-  <Modal :title="title" class="w-1/2">
+  <Modal :title="title" class="w-[min(960px,calc(100vw-32px))]">
     <Form class="mx-4" />
   </Modal>
 </template>

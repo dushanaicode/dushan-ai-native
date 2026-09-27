@@ -4,6 +4,7 @@ import asyncio
 import re
 
 import boto3
+from botocore.client import BaseClient
 from botocore.config import Config as BotoConfig
 from botocore.exceptions import ClientError
 
@@ -54,7 +55,7 @@ class AliyunOssHelper:
         return f"https://{endpoint}"
 
     @staticmethod
-    def create_client(config: S3FileClientConfig) -> boto3.client:
+    def create_client(config: S3FileClientConfig) -> BaseClient:
         """创建阿里云OSS客户端"""
         endpoint = AliyunOssHelper.build_endpoint(config.endpoint)
         region = config.region or "cn-hangzhou"
@@ -84,7 +85,7 @@ class AliyunOssHelper:
 
     @staticmethod
     async def upload_file(
-        client: boto3.client,
+        client: BaseClient,
         bucket: str,
         key: str,
         content: bytes,

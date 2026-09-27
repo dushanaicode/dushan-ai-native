@@ -75,7 +75,7 @@ async function handleExport() {
   exportTableRef.value?.setData({
     columns: fields,
     exportApi: exportMqLog,
-    fileName: 'MQ消费日志.xls',
+    fileName: 'MQ消费日志.xlsx',
     searchParams: normalizeSearchParams(formValues),
   });
   exportTableRef.value?.open();

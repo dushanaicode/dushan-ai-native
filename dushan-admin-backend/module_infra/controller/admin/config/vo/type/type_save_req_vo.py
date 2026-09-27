@@ -23,7 +23,7 @@ class ConfigTypeSaveReqVO(BaseRequestVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
+                    "id": "1024",
                     "module": "system",
                     "name": "系统配置",
                     "code": "system_config",

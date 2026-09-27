@@ -22,8 +22,15 @@ class CodegenUpdateReqVO(BaseRequestVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "table": {"id": 1, "tableName": "system_user", "className": "User"},
-                    "columns": [{"id": 1, "tableId": 1, "columnName": "id", "dataType": "bigint"}],
+                    "table": {
+                        "id": "1",
+                        "tableName": "system_user",
+                        "className": "User",
+                        "dataSourceConfigId": "1",
+                    },
+                    "columns": [
+                        {"id": "1", "tableId": "1", "columnName": "id", "dataType": "bigint"}
+                    ],
                 }
             ]
         }

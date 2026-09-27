@@ -2,6 +2,7 @@ import type { InfraServerApi } from '#/api/infra/server';
 
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 
+import { takeErrorMessage } from '#/api/error-feedback';
 import { getServerInfo } from '#/api/infra/server';
 
 import {
@@ -49,8 +50,8 @@ export function useServerMonitor() {
       server.value = await getServerInfo();
       lastUpdatedAt.value = new Date();
       errorMessage.value = '';
-    } catch {
-      errorMessage.value = '服务监控数据加载失败';
+    } catch (error) {
+      errorMessage.value = takeErrorMessage(error, '服务监控数据加载失败');
     } finally {
       loading.value = false;
       refreshing.value = false;

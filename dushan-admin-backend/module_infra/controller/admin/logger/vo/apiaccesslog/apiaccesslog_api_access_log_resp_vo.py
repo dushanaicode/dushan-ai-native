@@ -75,9 +75,9 @@ class ApiAccessLogRespVO(BaseVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
+                    "id": "1024",
                     "traceId": "66600cb6-7852-11eb-9439-0242ac130002",
-                    "userId": 1024,
+                    "userId": "1024",
                     "userType": 2,
                     "applicationName": "dashboard",
                     "requestMethod": "GET",
@@ -90,7 +90,7 @@ class ApiAccessLogRespVO(BaseVO):
                     "operateName": "创建商品",
                     "operateType": 1,
                     "beginTime": "2020-05-20T05:20:00Z",
-                    "endTime": "2020-05-02T013:14:00Z",
+                    "endTime": "2020-05-20T05:20:00.100Z",
                     "duration": 100,
                     "resultCode": 0,
                     "resultMsg": "渡山",

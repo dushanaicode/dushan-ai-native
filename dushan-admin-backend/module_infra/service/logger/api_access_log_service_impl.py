@@ -29,11 +29,13 @@ class ApiAccessLogServiceImpl(ApiAccessLogService):
     api_access_log_mapper: ApiAccessLogMapper = Inject()
     date_utils: DateUtils = Inject()
 
-    async def create_api_access_log(self, request):
-        values = request.model_dump(by_alias=False)
+    async def create_api_access_log(self, create_req_dto):
+        values = create_req_dto.model_dump(by_alias=False)
         tenant_id = values.pop("tenant_id") or self.tenant_settings.default_tenant_id
-        values["user_id"] = request.user_id
-        values["user_type"] = request.user_type if request.user_type is not None else 0
+        values["user_id"] = create_req_dto.user_id
+        values["user_type"] = (
+            create_req_dto.user_type if create_req_dto.user_type is not None else 0
+        )
         async with self.workloads.scope("infra.log.write", tenant_id):
             with self.database.scope():
                 await self.api_access_log_mapper.insert(ApiAccessLogDO(**values))

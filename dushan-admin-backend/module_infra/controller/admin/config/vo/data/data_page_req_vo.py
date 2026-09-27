@@ -25,7 +25,7 @@ class ConfigDataPageReqVO(PageQuery):
             "examples": [
                 {
                     "name": "名称",
-                    "typeId": 1,
+                    "typeId": "1",
                     "createTime": ["2020-05-20 05:20:00", "2020-05-20 13:14:00"],
                     "fields": ["name", "key", "typeId", "createTime"],
                 }

@@ -11,6 +11,7 @@ from module_infra.controller.admin.file.vo.file.file_page_req_vo import FilePage
 from module_infra.controller.admin.file.vo.file.file_presigned_url_resp_vo import (
     FilePresignedUrlRespVO,
 )
+from module_infra.controller.admin.file.vo.file.file_resp_vo import FileRespVO
 from module_infra.controller.admin.file.vo.file.file_search_req_vo import FileSearchReqVO
 from module_infra.dal.dataobject.file.file_do import FileDO
 
@@ -43,8 +44,8 @@ class FileService(Protocol):
         """删除文件"""
         ...
 
-    async def delete_file_by_storage_path(self, storage_path: str) -> bool:
-        """通过存储路径删除文件"""
+    async def delete_file_by_storage_path(self, config_id: int, storage_path: str) -> bool:
+        """删除指定配置与路径的已登记文件，无元数据时返回 False。"""
         ...
 
     async def get_file_content(self, config_id: int, path: str) -> bytes:
@@ -107,7 +108,7 @@ class FileService(Protocol):
         """在指定存储配置下创建目录"""
         ...
 
-    async def search_files(self, req_vo: FileSearchReqVO) -> PageResult[FileDO]:
+    async def search_files(self, req_vo: FileSearchReqVO) -> PageResult[FileRespVO]:
         """搜索文件（模糊/前缀）"""
         ...
 

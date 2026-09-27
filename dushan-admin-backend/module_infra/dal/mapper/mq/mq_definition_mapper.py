@@ -46,7 +46,7 @@ class MqDefinitionMapper(BaseMapper[MqDO]):
         result = await self.read(stmt)
         return result.scalar_one_or_none()
 
-    async def select_list(
+    async def select_filtered_list(
         self, topic: str | None = None, consumer: str | None = None
     ) -> list[MqDO]:
         """查询列表"""

@@ -51,7 +51,9 @@ export async function updateJob(data: InfraJobApi.JobSaveReqVO) {
 
 /** 更新定时任务的状态 */
 export async function updateJobStatus(id: string, status: number) {
-  return requestClient.put('/infra/job/update-status', { id, status });
+  return requestClient.put('/infra/job/update-status', null, {
+    params: { id, status },
+  });
 }
 
 /** 删除定时任务 */

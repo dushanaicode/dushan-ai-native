@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import select, update
+from sqlalchemy import select
 
 from framework.common.enums import StatusEnum
 from framework.common.page import PageResult
@@ -43,16 +43,7 @@ class FileConfigMapper(BaseMapper[FileConfigDO]):
         result = await self.read(stmt)
         return result.scalar_one_or_none()
 
-    async def update_batch(self, file_config: FileConfigDO) -> None:
-        """批量更新文件配置记录"""
-        stmt = (
-            update(FileConfigDO)
-            .where(FileConfigDO.deleted.is_(False))
-            .values(master=file_config.master)
-        )
-        await self.write(stmt)
-
-    async def select_list(self) -> list[FileConfigDO]:
+    async def select_enabled_list(self) -> list[FileConfigDO]:
         """根据条件获取文件配置列表"""
         stmt = select(FileConfigDO).where(FileConfigDO.status == StatusEnum.ENABLE.code)
         stmt = stmt.order_by(FileConfigDO.id.desc())

@@ -24,7 +24,7 @@ class JobSaveReqVO(BaseRequestVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1024,
+                    "id": "1024",
                     "name": "测试任务",
                     "handlerName": "sysUserSessionTimeoutJob",
                     "handlerParam": "dushan_job",

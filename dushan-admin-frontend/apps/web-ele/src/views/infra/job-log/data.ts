@@ -56,14 +56,14 @@ export function useGridFormSchema(defaultJobId?: number): VbenFormSchema[] {
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         clearable: true,
         options: dictionary.getDictOptions(
           DICT_TYPE.INFRA_JOB_LOG_STATUS,
           'number',
         ),
         placeholder: '请选择执行状态',
-      },
+      }),
       fieldName: 'status',
       label: '执行状态',
     },

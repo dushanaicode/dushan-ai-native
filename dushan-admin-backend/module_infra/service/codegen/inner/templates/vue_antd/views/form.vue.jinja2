@@ -14,12 +14,13 @@ import { $t } from '#/locales';
 
 import { useFormSchema } from '../data';
 
+const entityLabel = {{ class_comment | tojson }};
 const emit = defineEmits(['success']);
 const formData = ref<{{ module_name | pascal_case }}{{ class_name }}Api.{{ class_name }}>();
 const getTitle = computed(() =>
   formData.value?.id
-    ? $t('ui.actionTitle.edit', ['{{ class_comment }}'])
-    : $t('ui.actionTitle.create', ['{{ class_comment }}']),
+    ? $t('ui.actionTitle.edit', [entityLabel])
+    : $t('ui.actionTitle.create', [entityLabel]),
 );
 
 const [Form, formApi] = useVbenForm({
@@ -43,7 +44,7 @@ const [Modal, modalApi] = useVbenModal({
     }
     modalApi.lock();
     // 提交表单
-    const data = (await formApi.getValues()) as {{ module_name | pascal_case }}{{ class_name }}Api.{{ class_name }};
+    const data = (await formApi.getValues()) as {{ module_name | pascal_case }}{{ class_name }}Api.{{ class_name }}SaveReqVO;
     try {
       await (formData.value?.id ? update{{ class_name }}(data) : create{{ class_name }}(data));
       // 关闭并提示
@@ -59,28 +60,21 @@ const [Modal, modalApi] = useVbenModal({
       formData.value = undefined;
       return;
     }
-    // 加载数据
-    let data = modalApi.getData<{{ module_name | pascal_case }}{{ class_name }}Api.{{ class_name }}>();
-    if (!data) {
-      return;
+    const data = modalApi.getData() as {{ module_name | pascal_case }}{{ class_name }}Api.{{ class_name }} | null;
+    if (!data?.id) return;
+    modalApi.lock();
+    try {
+      formData.value = await get{{ class_name }}(data.id);
+      await formApi.setValues(formData.value);
+    } finally {
+      modalApi.unlock();
     }
-    if (data.id) {
-      modalApi.lock();
-      try {
-        data = await get{{ class_name }}(data.id as number);
-      } finally {
-        modalApi.unlock();
-      }
-    }
-    // 设置到 values
-    formData.value = data;
-    await formApi.setValues(formData.value);
   },
 });
 </script>
 
 <template>
-  <Modal class="w-2/5" :title="getTitle">
+  <Modal :title="getTitle">
     <Form class="mx-4" />
   </Modal>
 </template>

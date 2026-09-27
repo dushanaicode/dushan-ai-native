@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 
 import boto3
+from botocore.client import BaseClient
 from botocore.config import Config as BotoConfig
 from botocore.exceptions import ClientError
 
@@ -34,7 +35,7 @@ class TencentCosHelper:
         return f"https://{endpoint}"
 
     @staticmethod
-    def create_client(config: S3FileClientConfig) -> boto3.client:
+    def create_client(config: S3FileClientConfig) -> BaseClient:
         """创建腾讯云COS客户端"""
         region = config.region or "ap-shanghai"
         endpoint = config.endpoint
@@ -57,7 +58,7 @@ class TencentCosHelper:
 
     @staticmethod
     async def upload_file(
-        client: boto3.client,
+        client: BaseClient,
         bucket: str,
         key: str,
         content: bytes,

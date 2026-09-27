@@ -45,12 +45,6 @@ class ConfigDataMapper(BaseMapper[InfraConfigDataDO]):
         stmt = stmt.order_by(InfraConfigDataDO.id.desc())
         return await self.paginate_query(stmt, req_vo)
 
-    async def select_list(self) -> list[InfraConfigDataDO]:
-        """查询所有配置记录（未逻辑删除）"""
-        stmt = select(InfraConfigDataDO)
-        result = await self.read(stmt)
-        return list(result.scalars().all())
-
     async def select_ids_by_type_id(self, type_id: int) -> list[int]:
         """根据配置类型ID查询配置数据ID列表"""
         stmt = select(InfraConfigDataDO.id).where(InfraConfigDataDO.type_id == type_id)

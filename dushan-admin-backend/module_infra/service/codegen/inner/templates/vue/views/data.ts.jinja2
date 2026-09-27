@@ -1,75 +1,78 @@
 import type { VbenFormSchema } from '#/adapter/form';
 import type { VxeTableGridOptions } from '#/adapter/vxe-table';
 
-{% if not is_tree %}
-import { type OnActionClickFn } from '#/adapter/vxe-table';
-import { hasAccessByCodes } from '@vben/access';
-{% endif %}
 {% set has_dict = [] %}
 {% for column in columns %}{% if column.dict_type %}{% if has_dict.append(1) %}{% endif %}{% endif %}{% endfor %}
 {% if has_dict %}
-import { DICT_TYPE, getDictOptions } from '#/utils';
+import { useDictionary } from '#/services/dictionary/context';
 {% endif %}
 
 /** 新增/修改的表单 schema */
 export function useFormSchema(): VbenFormSchema[] {
+  {% if create_columns | selectattr('dict_type') | list %}
+  const dictionary = useDictionary();
+  {% endif %}
   return [
     {
       component: 'Input',
       fieldName: 'id',
       dependencies: {
-        triggerFields: [''],
-        show: () => false,
+        triggerFields: [],
+        resolve: () => ({ show: false }),
       },
     },
     {% for column in create_columns %}
-    {% if column.field_name not in ['creator', 'create_time', 'updater', 'update_time', 'deleted'] %}
+    {% if column.field_name not in ['creator', 'create_time', 'updater', 'update_time', 'deleted', 'tenant_id'] %}
     {
       fieldName: '{{ column.field_name | camel_case }}',
-      label: '{{ column.column_comment }}',
+      label: {{ column.column_comment | tojson }},
       {% if column.dict_type %}
-      {# 有字典类型，强制用 Select #}
-      component: 'Select',
-      componentProps: {
-        placeholder: '请选择{{ column.column_comment }}',
-        allowClear: true,
-        options: getDictOptions(DICT_TYPE.{{ column.dict_type | upper }}{% if column.field_type == 'int' %}, 'number'{% endif %}),
-      },
+      component: '{{ 'RadioGroup' if column.html_type == 'radio' else 'CheckboxGroup' if column.html_type == 'checkbox' else 'Select' }}',
+      componentProps: () => ({
+        placeholder: {{ ('请选择' ~ column.column_comment) | tojson }},
+        {{ 'clearable' if table.front_type == 0 else 'allowClear' }}: true,
+        options: dictionary.getDictOptions({{ column.dict_type | tojson }}{% if column.field_type == 'int' %}, 'number'{% endif %}),
+      }),
       {% elif column.field_name.endswith('_id') and column.field_type == 'int' %}
       component: 'Input',
       {% elif column.html_type == 'select' %}
       component: 'Select',
       componentProps: {
-        placeholder: '请选择{{ column.column_comment }}',
-        allowClear: true,
+        placeholder: {{ ('请选择' ~ column.column_comment) | tojson }},
+        {{ 'clearable' if table.front_type == 0 else 'allowClear' }}: true,
       },
       {% elif column.html_type == 'radio' %}
       component: 'RadioGroup',
       componentProps: {
-        options: getDictOptions(DICT_TYPE.{{ column.dict_type | upper }}, 'number'),
+        options: [],
         buttonStyle: 'solid',
         optionType: 'button',
       },
       {% elif column.html_type == 'datetime' %}
       component: 'DatePicker',
       componentProps: {
-        placeholder: '请选择{{ column.column_comment }}',
+        valueFormat: 'YYYY-MM-DD HH:mm:ss',
+        {% if table.front_type == 0 %}
+        type: 'datetime',
+        {% else %}
+        showTime: true,
+        {% endif %}
+        placeholder: {{ ('请选择' ~ column.column_comment) | tojson }},
       },
       {% elif column.html_type == 'textarea' %}
       component: 'Textarea',
       componentProps: {
-        placeholder: '请输入{{ column.column_comment }}',
+        placeholder: {{ ('请输入' ~ column.column_comment) | tojson }},
       },
-      {% elif column.field_type == 'int' and 'sort' in column.field_name %}
-      {#  int 类型 + 字段名包含 sort，用 InputNumber #}
+      {% elif column.field_type in ['int', 'float'] %}
       component: 'InputNumber',
       componentProps: {
-        placeholder: '请输入{{ column.column_comment }}',
+        placeholder: {{ ('请输入' ~ column.column_comment) | tojson }},
       },
       {% else %}
       component: 'Input',
       componentProps: {
-        placeholder: '请输入{{ column.column_comment }}',
+        placeholder: {{ ('请输入' ~ column.column_comment) | tojson }},
       },
       {% endif %}
       {% if not column.nullable %}
@@ -84,34 +87,50 @@ export function useFormSchema(): VbenFormSchema[] {
 {% if not is_tree %}
 /** 搜索表单 schema */
 export function useGridFormSchema(): VbenFormSchema[] {
+  {% if list_columns | selectattr('dict_type') | list %}
+  const dictionary = useDictionary();
+  {% endif %}
   return [
     {% for column in list_columns %}
-    {% if column.field_name not in ['id', 'creator', 'create_time', 'updater', 'update_time', 'deleted'] %}
+    {% if column.field_name not in ['id', 'creator', 'create_time', 'updater', 'update_time', 'deleted', 'tenant_id'] %}
     {
       fieldName: '{{ column.field_name | camel_case }}',
-      label: '{{ column.column_comment }}',
+      label: {{ column.column_comment | tojson }},
       {% if column.dict_type %}
       {# 有字典类型，优先用 Select #}
       component: 'Select',
-      componentProps: {
-        placeholder: '请选择{{ column.column_comment }}',
-        clearable: true,
-        options: getDictOptions(DICT_TYPE.{{ column.dict_type | upper }}{% if column.field_type == 'int' %}, 'number'{% endif %}),
-      },
+      componentProps: () => ({
+        placeholder: {{ ('请选择' ~ column.column_comment) | tojson }},
+        {{ 'clearable' if table.front_type == 0 else 'allowClear' }}: true,
+        options: dictionary.getDictOptions({{ column.dict_type | tojson }}{% if column.field_type == 'int' %}, 'number'{% endif %}),
+      }),
       {% elif column.field_name.endswith('_id') and column.field_type == 'int' %}
       component: 'Input',
       {% elif column.html_type == 'select' %}
       component: 'Select',
       componentProps: {
-        placeholder: '请选择{{ column.column_comment }}',
+        placeholder: {{ ('请选择' ~ column.column_comment) | tojson }},
         clearable: true,
       },
       {% elif column.html_type == 'datetime' %}
+      {% if column.list_operation_condition == 'BETWEEN' %}
       component: 'RangePicker',
+      componentProps: { valueFormat: 'YYYY-MM-DD HH:mm:ss' },
+      {% else %}
+      component: 'DatePicker',
+      componentProps: {
+        valueFormat: 'YYYY-MM-DD HH:mm:ss',
+        {% if table.front_type == 0 %}
+        type: 'datetime',
+        {% else %}
+        showTime: true,
+        {% endif %}
+      },
+      {% endif %}
       {% else %}
       component: 'Input',
       componentProps: {
-        placeholder: '请输入{{ column.column_comment }}',
+        placeholder: {{ ('请输入' ~ column.column_comment) | tojson }},
         clearable: true,
       },
       {% endif %}
@@ -123,20 +142,14 @@ export function useGridFormSchema(): VbenFormSchema[] {
 {% endif %}
 
 /** 表格列 */
-{% if is_tree %}
 export function useGridColumns(): VxeTableGridOptions['columns'] {
-{% else %}
-export function useGridColumns<T>(
-  onActionClick: OnActionClickFn<T>,
-): VxeTableGridOptions['columns'] {
-{% endif %}
   return [
     { type: 'checkbox', width: 40 },
     {% for column in list_result_columns %}
-    {% if column.field_name not in ['id', 'creator', 'create_time', 'updater', 'update_time', 'deleted'] %}
+    {% if column.field_name not in ['id', 'creator', 'create_time', 'updater', 'update_time', 'deleted', 'tenant_id'] %}
     {
       field: '{{ column.field_name | camel_case }}',
-      title: '{{ column.column_comment }}',
+      title: {{ column.column_comment | tojson }},
       minWidth: 120,
       {% if is_tree and tree_name_column and column.field_name == tree_name_column.field_name %}
       treeNode: true,
@@ -144,7 +157,7 @@ export function useGridColumns<T>(
       fixed: 'left',
       {% endif %}
       {% if column.dict_type %}
-      cellRender: { name: 'CellDict', props: { type: DICT_TYPE.{{ column.dict_type | upper }} } },
+      cellRender: { name: 'CellDict', props: { type: {{ column.dict_type | tojson }} } },
       {% endif %}
       {% if column.field_type == 'datetime' %}
       formatter: 'formatDateTime',
@@ -158,39 +171,12 @@ export function useGridColumns<T>(
       minWidth: 180,
       formatter: 'formatDateTime',
     },
-    {% if is_tree %}
     {
       title: '操作',
       width: 220,
       fixed: 'right',
       slots: { default: 'actions' },
     },
-    {% else %}
-    {
-      field: 'operation',
-      title: '操作',
-      width: 200,
-      fixed: 'right',
-      align: 'center',
-      cellRender: {
-        attrs: {
-          nameField: 'id',
-          onClick: onActionClick,
-        },
-        name: 'CellOperation',
-        options: [
-          {
-            code: 'edit',
-            show: hasAccessByCodes(['{{ module_name }}:{{ business_name }}:update']),
-          },
-          {
-            code: 'delete',
-            show: hasAccessByCodes(['{{ module_name }}:{{ business_name }}:delete']),
-          },
-        ],
-      },
-    },
-    {% endif %}
   ];
 }
 
@@ -200,15 +186,15 @@ export function useGridColumns<T>(
 export function useSub{{ sub.table.class_name }}GridColumns(): VxeTableGridOptions['columns'] {
   return [
     {% for column in sub.columns %}
-    {% if column.field_name not in ['id', 'creator', 'create_time', 'updater', 'update_time', 'deleted'] %}
+    {% if column.field_name not in ['id', 'creator', 'create_time', 'updater', 'update_time', 'deleted', 'tenant_id'] %}
     {% if sub.sub_join_column and column.field_name == sub.sub_join_column.field_name %}
     {% else %}
     {
       field: '{{ column.field_name | camel_case }}',
-      title: '{{ column.column_comment }}',
+      title: {{ column.column_comment | tojson }},
       minWidth: 120,
       {% if column.dict_type %}
-      cellRender: { name: 'CellDict', props: { type: DICT_TYPE.{{ column.dict_type | upper }} } },
+      cellRender: { name: 'CellDict', props: { type: {{ column.dict_type | tojson }} } },
       {% endif %}
       {% if column.field_type == 'datetime' %}
       formatter: 'formatDateTime',

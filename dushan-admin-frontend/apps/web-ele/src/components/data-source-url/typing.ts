@@ -1,24 +1,14 @@
 export interface DataSourceUrlProps {
+  dbType?: string;
   modelValue?: string;
-}
-
-export type DbDriverMode = 'async' | 'sync';
-
-export interface DbTypeConfig {
-  asyncDriver: string;
-  defaultPort: number;
-  name: string;
-  syncDriver: string;
 }
 
 export interface DataSourceUrlConfig {
   database: string;
   dbType: string;
-  filePath?: string;
   host: string;
   password: string;
-  port: number;
-  schema: string;
-  useAsync: boolean;
+  port: number | undefined;
+  query: string;
   username: string;
 }

@@ -10,6 +10,7 @@ from framework.starter_web.public import (
     Result,
     RoutePolicy,
 )
+from framework.starter_websocket.model.socket_receipt import SocketReceipt
 from module_infra.controller.admin.websocket.vo.websocket_broadcast_req_vo import (
     WebsocketBroadcastReqVO,
 )
@@ -40,9 +41,8 @@ class WebsocketController:
     async def broadcast(
         request: WebsocketBroadcastReqVO,
         service: WebSocketService = Depends(DiDependency(WebSocketService)),
-    ):
-        await service.broadcast_object_message(request.message)
-        return Result.success(True)
+    ) -> Result[SocketReceipt]:
+        return Result.success(await service.broadcast_object_message(request.message))
 
     @staticmethod
     @websocket_controller_router.post("/send-to-user")
@@ -52,6 +52,7 @@ class WebsocketController:
     async def send_to_user(
         request: WebsocketSendToUserReqVO,
         service: WebSocketService = Depends(DiDependency(WebSocketService)),
-    ):
-        await service.send_to_user(request.user_type, request.user_id, request.message)
-        return Result.success(True)
+    ) -> Result[SocketReceipt]:
+        return Result.success(
+            await service.send_to_user(request.user_type, request.user_id, request.message)
+        )

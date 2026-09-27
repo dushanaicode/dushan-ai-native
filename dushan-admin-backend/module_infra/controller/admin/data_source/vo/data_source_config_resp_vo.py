@@ -50,9 +50,8 @@ class DataSourceConfigRespVO(BaseVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1,
+                    "id": "1",
                     "name": "主数据库",
-                    "url": "mysql+aiomysql://root:123456@127.0.0.1:3306/test",
                     "status": 0,
                     "dbType": "mysql",
                     "sourceType": 1,

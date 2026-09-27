@@ -320,39 +320,39 @@ export function useGenerationInfoBaseFormSchema(): VbenFormSchema[] {
   return [
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         options: dictionary.getDictOptions(
           DICT_TYPE.INFRA_CODEGEN_TEMPLATE_TYPE,
           'number',
         ),
         placeholder: '请选择生成模板',
-      },
+      }),
       fieldName: 'templateType',
       label: '生成模板',
       rules: z.number().default(InfraCodegenTemplateTypeEnum.CRUD),
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         options: dictionary.getDictOptions(
           DICT_TYPE.INFRA_CODEGEN_FRONT_TYPE,
           'number',
         ),
         placeholder: '请选择前端类型',
-      },
+      }),
       fieldName: 'frontType',
       label: '前端类型',
       rules: 'selectRequired',
     },
     {
       component: 'Select',
-      componentProps: {
+      componentProps: () => ({
         options: dictionary.getDictOptions(
           DICT_TYPE.INFRA_CODEGEN_SCENE,
           'number',
         ),
         placeholder: '请选择生成场景',
-      },
+      }),
       fieldName: 'scene',
       label: '生成场景',
       rules: 'selectRequired',
@@ -376,10 +376,8 @@ export function useGenerationInfoBaseFormSchema(): VbenFormSchema[] {
         childrenField: 'children',
         clearable: true,
         labelField: 'name',
-        nodeKey: 'id',
         placeholder: '请选择上级菜单',
-        props: { label: 'name', children: 'children', disabled: 'disabled' },
-        treeDefaultExpandAll: true,
+        defaultExpandAll: true,
         valueField: 'id',
       },
       fieldName: 'parentMenuId',
@@ -423,13 +421,13 @@ export function useGenerationInfoBaseFormSchema(): VbenFormSchema[] {
     },
     {
       component: 'RadioGroup',
-      componentProps: {
+      componentProps: () => ({
         isButton: true,
         options: dictionary.getDictOptions(
           DICT_TYPE.INFRA_BOOLEAN_STRING,
           'boolean',
         ),
-      },
+      }),
       fieldName: 'enableExport',
       label: '启用导出',
       rules: z.boolean().default(true),

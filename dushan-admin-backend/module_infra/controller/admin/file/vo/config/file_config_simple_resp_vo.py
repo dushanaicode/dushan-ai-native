@@ -17,6 +17,6 @@ class FileConfigSimpleRespVO(BaseVO):
     master: Annotated[bool, Field(..., description="是否为主配置")]
     model_config = {
         "json_schema_extra": {
-            "examples": [{"id": 1, "name": "S3 - 阿里云", "storage": 20, "master": True}]
+            "examples": [{"id": "1", "name": "S3 - 阿里云", "storage": 20, "master": True}]
         }
     }

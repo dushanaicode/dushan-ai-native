@@ -11,6 +11,10 @@ from framework.starter_web.public import (
     Result,
     RoutePolicy,
 )
+from module_infra.controller.admin.cache.vo.cache.cache_cleanup_preset_resp_vo import (
+    CacheCleanupPresetRespVO,
+)
+from module_infra.controller.admin.cache.vo.cache.cache_cleanup_req_vo import CacheCleanupReqVO
 from module_infra.controller.admin.cache.vo.cache.cache_clear_cache_by_key_req_vo import (
     ClearCacheByKeyReqVO,
 )
@@ -34,9 +38,30 @@ cache_monitor_controller = APIRouter(prefix="/cache/monitor", tags=["Infra - 缓
 
 class CacheMonitorController:
     @staticmethod
+    @cache_monitor_controller.get("/cleanup-presets", summary="查看当前连接的清理预设")
+    @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT, roles=("super_admin",))
+    async def cleanup_presets(
+        db_name: str = Query(alias="dbName", min_length=1, max_length=63),
+        cache_service: CacheService = Depends(DiDependency(CacheService)),
+    ) -> Result[list[CacheCleanupPresetRespVO]]:
+        return Result.success(await cache_service.get_cleanup_presets(db_name))
+
+    @staticmethod
+    @cache_monitor_controller.post("/cleanup-preset", summary="作者执行已登记的缓存清理预设")
+    @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT, roles=("super_admin",))
+    async def cleanup_preset(
+        req: CacheCleanupReqVO,
+        cache_service: CacheService = Depends(DiDependency(CacheService)),
+    ) -> Result[int]:
+        return Result.success(await cache_service.cleanup_preset(req.preset, req.db_name))
+
+    @staticmethod
     @cache_monitor_controller.get("/get-names", summary="获得所有缓存名称")
     @RoutePolicy(
-        permissions=("infra:cache:get-names",), tenant_required=True, realm=SecurityRealm.TENANT
+        permissions=("infra:cache:get-names",),
+        tenant_required=True,
+        realm=SecurityRealm.TENANT,
+        roles=("super_admin",),
     )
     async def get_cache_names(
         page_param: PageQuery = Query(),
@@ -47,7 +72,7 @@ class CacheMonitorController:
 
     @staticmethod
     @cache_monitor_controller.get("/get-keys", summary="获得指定缓存名称下的键列表")
-    @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT)
+    @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT, roles=("super_admin",))
     async def get_cache_keys(
         req_vo: CacheKeysReqVO = Query(),
         cache_service: CacheService = Depends(DiDependency(CacheService)),
@@ -57,7 +82,7 @@ class CacheMonitorController:
 
     @staticmethod
     @cache_monitor_controller.get("/get-value", summary="获得指定缓存键的值")
-    @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT)
+    @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT, roles=("super_admin",))
     async def get_cache_value(
         req_vo: CacheValueReqVO = Query(),
         cache_service: CacheService = Depends(DiDependency(CacheService)),
@@ -69,7 +94,7 @@ class CacheMonitorController:
 
     @staticmethod
     @cache_monitor_controller.delete("/clear-cache-name", summary="清除指定缓存名称下的所有缓存")
-    @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT)
+    @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT, roles=("super_admin",))
     async def clear_cache_by_name(
         req_vo: ClearCacheByNameReqVO = Query(),
         cache_service: CacheService = Depends(DiDependency(CacheService)),
@@ -79,7 +104,7 @@ class CacheMonitorController:
 
     @staticmethod
     @cache_monitor_controller.delete("/clear-cache-key", summary="清除匹配模式的缓存键")
-    @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT)
+    @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT, roles=("super_admin",))
     async def clear_cache_by_key(
         req_vo: ClearCacheByKeyReqVO = Query(),
         cache_service: CacheService = Depends(DiDependency(CacheService)),
@@ -89,7 +114,7 @@ class CacheMonitorController:
 
     @staticmethod
     @cache_monitor_controller.delete("/clear-cache-all", summary="清除所有缓存(FLUSHDB)")
-    @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT)
+    @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT, roles=("super_admin",))
     async def clear_all_caches(
         cache_service: CacheService = Depends(DiDependency(CacheService)),
     ) -> Result[bool]:
@@ -99,7 +124,10 @@ class CacheMonitorController:
     @staticmethod
     @cache_monitor_controller.get("/db-list", summary="获取所有配置的 Redis DB 列表")
     @RoutePolicy(
-        permissions=("infra:cache:get-names",), tenant_required=True, realm=SecurityRealm.TENANT
+        permissions=("infra:cache:get-names",),
+        tenant_required=True,
+        realm=SecurityRealm.TENANT,
+        roles=("super_admin",),
     )
     async def get_db_list(
         cache_service: CacheService = Depends(DiDependency(CacheService)),
@@ -110,7 +138,10 @@ class CacheMonitorController:
     @staticmethod
     @cache_monitor_controller.get("/db-keys", summary="扫描指定 DB 中的所有 key")
     @RoutePolicy(
-        permissions=("infra:cache:get-names",), tenant_required=True, realm=SecurityRealm.TENANT
+        permissions=("infra:cache:get-names",),
+        tenant_required=True,
+        realm=SecurityRealm.TENANT,
+        roles=("super_admin",),
     )
     async def scan_db_keys(
         req_vo: ScanDbKeysReqVO = Query(),
@@ -122,7 +153,10 @@ class CacheMonitorController:
     @staticmethod
     @cache_monitor_controller.get("/key-detail", summary="获取指定 key 的详细信息")
     @RoutePolicy(
-        permissions=("infra:cache:get-names",), tenant_required=True, realm=SecurityRealm.TENANT
+        permissions=("infra:cache:get-names",),
+        tenant_required=True,
+        realm=SecurityRealm.TENANT,
+        roles=("super_admin",),
     )
     async def get_key_detail(
         req_vo: KeyDetailReqVO = Query(),
@@ -134,7 +168,10 @@ class CacheMonitorController:
     @staticmethod
     @cache_monitor_controller.delete("/delete-key", summary="删除指定 DB 中的单个 key")
     @RoutePolicy(
-        permissions=("infra:cache:get-names",), tenant_required=True, realm=SecurityRealm.TENANT
+        permissions=("infra:cache:get-names",),
+        tenant_required=True,
+        realm=SecurityRealm.TENANT,
+        roles=("super_admin",),
     )
     async def delete_key(
         req_vo: DeleteKeyReqVO = Query(),

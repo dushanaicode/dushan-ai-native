@@ -55,21 +55,21 @@ class JobServiceImpl(JobService):
         )
 
     @transactional
-    async def create_job(self, request):
-        if await self.mapper.select_by_handler_name(request.handler_name) is not None:
+    async def create_job(self, create_req_vo):
+        if await self.mapper.select_by_handler_name(create_req_vo.handler_name) is not None:
             raise ServiceException(ErrorCodeConstants.JOB_HANDLER_EXISTS)
-        row = self._row(request, self.database.next_id(), 1)
+        row = self._row(create_req_vo, self.database.next_id(), 1)
         definition = JobDefinitionStore.definition(row)
         await self.mapper.insert(row)
         await self.native.save(definition)
         return row.id
 
     @transactional
-    async def update_job(self, request):
-        old = await self._require(request.id)
+    async def update_job(self, update_req_vo):
+        old = await self._require(update_req_vo.id)
         if old.status != 1:
             raise ServiceException(ErrorCodeConstants.JOB_UPDATE_ONLY_NORMAL_STATUS)
-        row = self._row(request, old.id, old.status)
+        row = self._row(update_req_vo, old.id, old.status)
         await self.native.save(JobDefinitionStore.definition(row))
         await self.mapper.update_by_id(
             JobDO(
@@ -122,8 +122,8 @@ class JobServiceImpl(JobService):
     async def get_job(self, job_id):
         return await self.mapper.select_by_id(job_id)
 
-    async def get_job_page(self, request):
-        return await self.mapper.select_page(request)
+    async def get_job_page(self, page_req_vo):
+        return await self.mapper.select_page(page_req_vo)
 
     async def _require(self, identifier):
         row = await self.get_job(identifier)

@@ -45,8 +45,8 @@ class CodegenTableUpdateReqVO(BaseRequestVO):
         "json_schema_extra": {
             "examples": [
                 {
-                    "id": 1,
-                    "dataSourceConfigId": 0,
+                    "id": "1",
+                    "dataSourceConfigId": "1",
                     "tableName": "system_user",
                     "tableComment": "用户表",
                     "className": "User",
@@ -55,7 +55,7 @@ class CodegenTableUpdateReqVO(BaseRequestVO):
                     "templateType": 1,
                     "frontType": 0,
                     "scene": 1,
-                    "parentMenuId": 1024,
+                    "parentMenuId": "1024",
                     "moduleName": "system",
                     "businessName": "user",
                     "classComment": "用户",
