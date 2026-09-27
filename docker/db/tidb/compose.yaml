@@ -1,0 +1,36 @@
+name: dushan-native-tidb
+services:
+  tidb:
+    # 单节点 unistore，仅用于功能联调，不代表 TiKV 集群部署。
+    image: pingcap/tidb:v8.5.3@sha256:00f015520ce91734c3fbec720f23448e790e691655c7e181544a620872a00c61
+    restart: unless-stopped
+    command:
+      [
+        --store=unistore,
+        --path=/data,
+        --host=0.0.0.0,
+        -P,
+        "4000",
+        --status=10080,
+        --initialize-sql-file=/config/init.sql,
+      ]
+    environment:
+      GOMEMLIMIT: 1GiB
+    ports: ["127.0.0.1:${NATIVE_TIDB_PORT:-14000}:4000", "127.0.0.1:14080:10080"]
+    volumes:
+      - tidb-data:/data
+      - type: bind
+        source: ${NATIVE_RUNTIME_DIR:-../../../Temp/docker-runtime}/tidb-init.sql
+        target: /config/init.sql
+        read_only: true
+        bind: { create_host_path: false }
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, "http://127.0.0.1:10080/status"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+    logging:
+      driver: local
+      options: { max-size: 10m, max-file: "3" }
+volumes:
+  tidb-data:

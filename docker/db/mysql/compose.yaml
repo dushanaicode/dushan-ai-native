@@ -1,0 +1,45 @@
+services:
+  mysql:
+    # MySQL 8.4.11，固定官方仓库摘要。
+    image: mysql:8.4.11@sha256:0744ee5ef89ce6ccfa13de3e579fe6b9e27f93dd70da9c06d2c908b1b193fb8d
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: dushan_native
+      MYSQL_USER: dushan
+      MYSQL_PASSWORD_FILE: /run/secrets/mysql_password
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root_password
+      TZ: UTC
+    command: [--character-set-server=utf8mb4, --collation-server=utf8mb4_unicode_ci]
+    ports:
+      - "127.0.0.1:${NATIVE_MYSQL_PORT:-13306}:3306"
+    secrets: [mysql_password, mysql_root_password]
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - type: bind
+        source: ${NATIVE_RUNTIME_DIR:-../../../Temp/docker-runtime}/mysql-init
+        target: /docker-entrypoint-initdb.d
+        read_only: true
+        bind:
+          create_host_path: false
+    healthcheck:
+      test:
+        [
+          CMD-SHELL,
+          '[ -f /var/lib/mysql/.native-initialized ] && MYSQL_PWD="$$(cat /run/secrets/mysql_password)" mysql -h 127.0.0.1 -u dushan dushan_native -Nse "SELECT 1 FROM system_users LIMIT 1" >/dev/null',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 40s
+    logging:
+      driver: local
+      options: { max-size: 10m, max-file: "3" }
+
+secrets:
+  mysql_password:
+    file: ${NATIVE_RUNTIME_DIR:-../../../Temp/docker-runtime}/secrets/mysql-password
+  mysql_root_password:
+    file: ${NATIVE_RUNTIME_DIR:-../../../Temp/docker-runtime}/secrets/mysql-root-password
+
+volumes:
+  mysql-data:

@@ -1,0 +1,36 @@
+services:
+  redis:
+    # Redis 8.10.1。
+    image: redis:8.10.1@sha256:8a1efc5f479551822b47424ccae982026b633f28818eab0387348120a61e10e2
+    restart: unless-stopped
+    command: [redis-server, /usr/local/etc/redis/redis.conf]
+    ports:
+      - "127.0.0.1:${NATIVE_REDIS_PORT:-16379}:6379"
+    secrets: [redis_password]
+    volumes:
+      - redis-data:/data
+      - type: bind
+        source: ${NATIVE_RUNTIME_DIR:-../../Temp/docker-runtime}/redis.conf
+        target: /usr/local/etc/redis/redis.conf
+        read_only: true
+        bind:
+          create_host_path: false
+    healthcheck:
+      test:
+        [
+          CMD-SHELL,
+          'REDISCLI_AUTH="$$(cat /run/secrets/redis_password)" redis-cli ping | grep -qx PONG',
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+    logging:
+      driver: local
+      options: { max-size: 10m, max-file: "3" }
+
+secrets:
+  redis_password:
+    file: ${NATIVE_RUNTIME_DIR:-../../Temp/docker-runtime}/secrets/redis-password
+
+volumes:
+  redis-data:

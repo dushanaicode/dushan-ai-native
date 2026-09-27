@@ -1,0 +1,29 @@
+name: dushan-native-rabbitmq
+services:
+  rabbitmq:
+    # RabbitMQ 4.3.5 Management。
+    image: public.ecr.aws/docker/library/rabbitmq@sha256:06fb591136a49e861e01aaaf9ce45085839ca23c35913d45a1e83519bb9778ca
+    hostname: rabbitmq
+    restart: unless-stopped
+    ports:
+      [
+        "127.0.0.1:${NATIVE_RABBITMQ_PORT:-15673}:5672",
+        "127.0.0.1:${NATIVE_RABBITMQ_UI_PORT:-15674}:15672",
+      ]
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+      - type: bind
+        source: ${NATIVE_RUNTIME_DIR:-../../../Temp/docker-runtime}/rabbitmq.conf
+        target: /etc/rabbitmq/rabbitmq.conf
+        read_only: true
+        bind: { create_host_path: false }
+    healthcheck:
+      test: [CMD, rabbitmq-diagnostics, -q, ping]
+      interval: 15s
+      timeout: 10s
+      retries: 12
+    logging:
+      driver: local
+      options: { max-size: 10m, max-file: "3" }
+volumes:
+  rabbitmq-data:

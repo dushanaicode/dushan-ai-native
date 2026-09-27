@@ -1,0 +1,24 @@
+name: dushan-native-monitor
+
+services:
+  jaeger:
+    # Jaeger 2.21.0，固定官方镜像摘要。
+    image: quay.io/jaegertracing/jaeger@sha256:3d0ac795ff98aa04d1be04311d2dac6c25b4bfc8322dc02e53bc5b170c5018c3
+    pull_policy: never
+    container_name: dushan-native-jaeger
+    restart: unless-stopped
+    command: ['--config=/etc/jaeger/native.yaml']
+    environment:
+      TMPDIR: /tmp
+      TEMP: /tmp
+      TMP: /tmp
+    ports:
+      - '127.0.0.1:16686:16686'
+      - '127.0.0.1:4317:4317'
+    volumes:
+      - ./jaeger.yaml:/etc/jaeger/native.yaml:ro
+      - ./ui.js:/etc/jaeger/ui.js:ro
+      - ../../Temp/monitor-runtime/jaeger-data:/badger
+      - ../../Temp/monitor-runtime/jaeger:/tmp
+    logging:
+      driver: none

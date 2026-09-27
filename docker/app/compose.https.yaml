@@ -1,0 +1,31 @@
+services:
+  https:
+    image: nginx:1.28.3-alpine@sha256:a8b39bd9cf0f83869a2162827a0caf6137ddf759d50a171451b335cecc87d236
+    restart: unless-stopped
+    environment:
+      NATIVE_SERVER_NAME: ${NATIVE_SERVER_NAME:?设置实际 HTTPS 域名}
+      NGINX_ENVSUBST_FILTER: ^NATIVE_SERVER_NAME$
+    ports:
+      - "${NATIVE_HTTPS_BIND:-127.0.0.1}:${NATIVE_HTTPS_PORT:-18443}:443"
+    volumes:
+      - ./https.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - type: bind
+        source: ${NATIVE_TLS_DIR:?设置证书目录}/fullchain.pem
+        target: /etc/nginx/tls/fullchain.pem
+        read_only: true
+        bind: { create_host_path: false }
+      - type: bind
+        source: ${NATIVE_TLS_DIR:?设置证书目录}/privkey.pem
+        target: /etc/nginx/tls/privkey.pem
+        read_only: true
+        bind: { create_host_path: false }
+    depends_on:
+      frontend: { condition: service_healthy }
+    healthcheck:
+      test: [CMD, nginx, -t]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: local
+      options: { max-size: 10m, max-file: "3" }

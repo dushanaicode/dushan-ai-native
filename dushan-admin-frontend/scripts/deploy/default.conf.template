@@ -37,12 +37,22 @@ server {
     application/xml
     image/svg+xml;
 
-  # 上传大小上限：当前 Native 后端尚未提供具体文件上传契约，先给出一个覆盖常见图片/
-  # 文档上传场景的明确值；后续出现具体上传接口且需要更大体积时再按实际需求调整。
-  client_max_body_size 20m;
+  # 与后端 multipart 总 envelope 上限 51 MiB 保持一致。
+  client_max_body_size 51m;
 
   location = /admin-api {
     return 308 /admin-api/;
+  }
+
+  # FastAPI 文档与OpenAPI采用同源地址，接口调试仍走现有管理代理。
+  location ~ ^/(docs(/oauth2-redirect)?|redoc|openapi\.json)$ {
+    proxy_pass ${API_UPSTREAM};
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_redirect off;
   }
 
   # 管理接口保留 /admin-api 前缀，与后端路由及认证 Cookie Path 一致。
@@ -64,9 +74,9 @@ server {
     proxy_redirect off;
   }
 
-  # WebSocket 的同源 /api 通道继续剥离代理前缀（/api/ws -> 后端 /ws）。
+  # WebSocket 保留完整路径（/api/ws -> 后端 /api/ws）。
   location = /api {
-    proxy_pass ${API_UPSTREAM}/;
+    proxy_pass ${API_UPSTREAM};
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
@@ -77,8 +87,10 @@ server {
 
   location ^~ /api/ {
     # API_UPSTREAM 只填协议+主机[:端口]（例如 http://backend:48080），不带路径和末尾斜杠；
-    # 末尾的 / 让 nginx 用它替换匹配到的 /api/ 前缀。缺失时由 05-require-api-upstream.sh 阻止启动。
-    proxy_pass ${API_UPSTREAM}/;
+    # 不附加末尾斜杠，保留后端 WebSocket 端点的 /api 前缀。
+    proxy_pass ${API_UPSTREAM};
+    # 一次性握手票据位于查询参数，不写入访问日志。
+    access_log off;
     proxy_http_version 1.1;
 
     proxy_set_header Host $host;

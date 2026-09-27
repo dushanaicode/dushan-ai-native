@@ -30,7 +30,9 @@ docker run -d -p 8010:8080 -e API_UPSTREAM=http://backend:48080 --name dushan-ad
 
 浏览器地址与后端认证 Cookie 的 `Path=/admin-api/system/auth` 匹配，刷新和退出请求可携带 Cookie。后端错误原样透传，不会被 SPA 回退成 `index.html`。页面与接口同源，静态资源响应不添加跨域头。
 
-WebSocket 保留独立的 `/api/` 通道，代理剥离此前缀（`/api/ws` -> `http://backend:48080/ws`）；管理 API 客户端不使用该前缀。
+WebSocket 使用独立的 `/api/` 通道并保留完整路径（`/api/ws` -> `http://backend:48080/api/ws`）；管理 API 客户端不使用该前缀。该通道关闭访问日志，避免记录查询参数中的一次性握手票据。
+
+本地开发已启用 `VITE_WEBSOCKET_ENABLED=true`、`VITE_WEBSOCKET_PATH=/api/ws`。生产环境默认关闭；部署前启用后端 `config.models.websocket.enabled`，将实际站点 Origin 加入 `allowed_origins`，再将 `.env.production` 中的 `VITE_WEBSOCKET_ENABLED` 改为 `true` 并重新构建。不要将 Origin 配成通配符。登录后通过 `/admin-api/system/auth/websocket-ticket` 获取一次性票据；收到通知定位事件后，客户端通过当前会话的未读接口取得内容。
 
 ## WebSocket、SSE 与上传
 

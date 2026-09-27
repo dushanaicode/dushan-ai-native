@@ -1,0 +1,5 @@
+name: dushan-native-dev
+
+include:
+  - db/mysql/compose.yaml
+  - redis/compose.yaml

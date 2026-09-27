@@ -1,0 +1,31 @@
+name: dushan-native-opengauss
+services:
+  opengauss:
+    # 先按 README 导入厂商 6.0.5 x86_64 包；不从不明镜像仓库替代。
+    image: ${NATIVE_OPENGAUSS_IMAGE:-sha256:3c22505ad3bc234ce94300e548330b4de92b9299ad156fdc4e5a351a799485ef}
+    pull_policy: never
+    restart: unless-stopped
+    cap_add: [SYS_NICE]
+    mem_limit: 4g
+    env_file: ["${NATIVE_RUNTIME_DIR:-../../../Temp/docker-runtime}/opengauss.env"]
+    environment:
+      OTHER_PG_CONF: |
+        max_process_memory = 2GB
+        shared_buffers = 128MB
+        cstore_buffers = 16MB
+    ports: ["127.0.0.1:${NATIVE_OPENGAUSS_PORT:-15433}:5432"]
+    volumes:
+      - opengauss-data:/var/lib/opengauss/data
+      - ./init.sql:/docker-entrypoint-initdb.d/010-native.sql:ro
+    shm_size: 1gb
+    healthcheck:
+      test: [CMD-SHELL, 'su - omm -c "gsql -d postgres -p 5432 -c \"SELECT 1\"" >/dev/null']
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 60s
+    logging:
+      driver: local
+      options: { max-size: 10m, max-file: "3" }
+volumes:
+  opengauss-data:

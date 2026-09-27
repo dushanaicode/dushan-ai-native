@@ -1,0 +1,24 @@
+name: dushan-native-dameng
+services:
+  dameng:
+    image: ${NATIVE_DAMENG_IMAGE:-sha256:e8d89c8c9c56f19fdaf0f791477361d60b39e70a49e8ad62acbba176a54ef244}
+    pull_policy: never
+    restart: unless-stopped
+    env_file: ["${NATIVE_RUNTIME_DIR:-../../../Temp/docker-runtime}/dameng.env"]
+    environment:
+      UNICODE_FLAG: "1"
+      CASE_SENSITIVE: "1"
+      INSTANCE_NAME: NATIVE
+    ports: ["127.0.0.1:${NATIVE_DAMENG_PORT:-15236}:5236"]
+    volumes: [dameng-data:/opt/dmdbms/data]
+    healthcheck:
+      test: [CMD-SHELL, 'bash -c "echo > /dev/tcp/127.0.0.1/5236"']
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+    logging:
+      driver: local
+      options: { max-size: 10m, max-file: "3" }
+volumes:
+  dameng-data:

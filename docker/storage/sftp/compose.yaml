@@ -1,0 +1,32 @@
+name: dushan-native-sftp
+services:
+  sftp:
+    # atmoz/sftp Debian 镜像，固定本轮查询的摘要。
+    image: atmoz/sftp@sha256:75dcc29683ad479bdb99010666f2f55e99014350a1e862fe32b565845feb0fcd
+    restart: unless-stopped
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        chown 1001:1001 /home/dushan/upload
+        exec /entrypoint
+    ports: ["127.0.0.1:${NATIVE_SFTP_PORT:-12222}:22"]
+    volumes:
+      - sftp-data:/home/dushan/upload
+      - sftp-hostkeys:/etc/ssh
+      - type: bind
+        source: ${NATIVE_RUNTIME_DIR:-../../../Temp/docker-runtime}/sftp-users.conf
+        target: /etc/sftp/users.conf
+        read_only: true
+        bind: { create_host_path: false }
+    healthcheck:
+      test: [CMD-SHELL, 'bash -c "echo > /dev/tcp/127.0.0.1/22"']
+      interval: 15s
+      timeout: 5s
+      retries: 6
+    logging:
+      driver: local
+      options: { max-size: 10m, max-file: "3" }
+volumes:
+  sftp-data:
+  sftp-hostkeys:

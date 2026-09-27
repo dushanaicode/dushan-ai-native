@@ -1,0 +1,29 @@
+name: dushan-native-postgres
+services:
+  postgres:
+    # pgvector 0.8.6 + PostgreSQL 17；此服务本身就是完整的 PostgreSQL。
+    image: pgvector/pgvector:0.8.6-pg17@sha256:cf134a767f474095eeba57e0117be8e568e011a63f33fbf252f14c9b760f8e6f
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: native
+      POSTGRES_USER: native
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    secrets: [postgres_password]
+    ports: ["127.0.0.1:${NATIVE_POSTGRES_PORT:-15432}:5432"]
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/010-vector.sql:ro
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U native -d native"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    logging:
+      driver: local
+      options: { max-size: 10m, max-file: "3" }
+secrets:
+  postgres_password:
+    file: ${NATIVE_RUNTIME_DIR:-../../../Temp/docker-runtime}/secrets/postgres-password
+volumes:
+  postgres-data:

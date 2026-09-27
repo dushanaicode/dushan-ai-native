@@ -1,4 +1,12 @@
-FROM node:24.16.0-slim AS builder
+FROM node:24.16.0-slim@sha256:2c87ef9bd3c6a3bd4b472b4bec2ce9d16354b0c574f736c476489d09f560a203 AS builder
+WORKDIR /app
+ENV TMPDIR=/app/Temp TMP=/app/Temp TEMP=/app/Temp \
+    NPM_CONFIG_CACHE=/app/Temp/npm COREPACK_HOME=/app/Temp/corepack
+
+ARG VITE_WEBSOCKET_ENABLED=false
+ARG VITE_APP_QR_LOGIN_ORIGIN=
+ENV VITE_WEBSOCKET_ENABLED=${VITE_WEBSOCKET_ENABLED}
+ENV VITE_APP_QR_LOGIN_ORIGIN=${VITE_APP_QR_LOGIN_ORIGIN}
 
 # --max-old-space-size
 ENV PNPM_HOME="/pnpm"
@@ -8,21 +16,19 @@ ENV TZ=Asia/Shanghai
 ENV CI=true
 
 # 启用 corepack，按 package.json 的 packageManager 字段使用锁定的 pnpm 版本
-RUN npm i -g corepack && corepack enable
-
-WORKDIR /app
+RUN mkdir -p /app/Temp && npm i -g corepack && corepack enable
 
 # copy package.json and pnpm-lock.yaml to workspace
 COPY . /app
 
 # 安装依赖（锁文件冻结，不新增或升级任何包）
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+RUN --mount=type=cache,id=pnpm,target=/app/Temp/pnpm pnpm install --store-dir=/app/Temp/pnpm --frozen-lockfile
 # 只构建 web-ele 及其 workspace 依赖，不再构建 playground 与其余四个应用
 RUN pnpm run build:ele
 
 RUN echo "Builder Success 🎉"
 
-FROM nginx:stable-alpine AS production
+FROM nginx:1.28.3-alpine@sha256:a8b39bd9cf0f83869a2162827a0caf6137ddf759d50a171451b335cecc87d236 AS production
 
 # 复制 web-ele 构建产物
 COPY --from=builder /app/apps/web-ele/dist /usr/share/nginx/html

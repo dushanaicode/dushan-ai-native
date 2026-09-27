@@ -1,0 +1,48 @@
+name: dushan-native-tempo
+services:
+  tempo:
+    image: grafana/tempo:2.8.2@sha256:0ef775495967cd5d7a6b2e146b6ea695d624803c8db8349fb8ce4164f719f9b7
+    restart: unless-stopped
+    command: [-config.file=/etc/tempo.yaml]
+    ports: ["127.0.0.1:13200:3200", "127.0.0.1:14317:4317", "127.0.0.1:14318:4318"]
+    volumes: ["./tempo.yaml:/etc/tempo.yaml:ro", "tempo-data:/var/tempo"]
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, "http://127.0.0.1:3200/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+    logging:
+      driver: local
+      options: { max-size: 10m, max-file: "3" }
+  grafana:
+    image: grafana/grafana:12.1.1@sha256:a1701c2180249361737a99a01bc770db39381640e4d631825d38ff4535efa47d
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: nativeadmin
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_password
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_SECURITY_ALLOW_EMBEDDING: "true"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    secrets: [grafana_password]
+    ports: ["127.0.0.1:${NATIVE_GRAFANA_PORT:-13000}:3000"]
+    volumes:
+      [
+        "./datasources.yaml:/etc/grafana/provisioning/datasources/tempo.yaml:ro",
+        "grafana-data:/var/lib/grafana",
+      ]
+    depends_on:
+      tempo: { condition: service_healthy }
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, "http://127.0.0.1:3000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+    logging:
+      driver: local
+      options: { max-size: 10m, max-file: "3" }
+secrets:
+  grafana_password:
+    file: ${NATIVE_RUNTIME_DIR:-../../../Temp/docker-runtime}/secrets/grafana-password
+volumes:
+  tempo-data:
+  grafana-data:

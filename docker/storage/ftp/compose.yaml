@@ -1,0 +1,21 @@
+name: dushan-native-ftp
+services:
+  ftp:
+    image: dushan-native-ftp:local
+    build: .
+    restart: unless-stopped
+    env_file: ["${NATIVE_RUNTIME_DIR:-../../../Temp/docker-runtime}/ftp.env"]
+    environment:
+      FTP_PASV_ADDRESS: ${NATIVE_FTP_PASV_ADDRESS:-127.0.0.1}
+    ports: ["127.0.0.1:12121:21", "127.0.0.1:12100-12110:12100-12110"]
+    volumes: [ftp-data:/home/vsftpd]
+    healthcheck:
+      test: [CMD-SHELL, 'bash -c "echo > /dev/tcp/127.0.0.1/21"']
+      interval: 15s
+      timeout: 5s
+      retries: 6
+    logging:
+      driver: local
+      options: { max-size: 10m, max-file: "3" }
+volumes:
+  ftp-data:

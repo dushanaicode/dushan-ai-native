@@ -1,0 +1,40 @@
+name: dushan-native-oceanbase
+services:
+  oceanbase:
+    image: oceanbase/oceanbase-ce:4.3.5.4-104000042025090916@sha256:34701382e27e30ed5777e0d76e7e5abe23e186fc4c7078d7374f726840f44af4
+    restart: unless-stopped
+    env_file: ["${NATIVE_RUNTIME_DIR:-../../../Temp/docker-runtime}/oceanbase.env"]
+    environment:
+      MODE: mini
+      OB_MEMORY_LIMIT: 6G
+      OB_SYSTEM_MEMORY: 1G
+      OB_DATAFILE_SIZE: 3G
+      OB_LOG_DISK_SIZE: 5G
+      OB_TENANT_MEMORY_SIZE: 2G
+      OB_TENANT_LOG_DISK_SIZE: 2G
+      OB_TENANT_MIN_CPU: "1"
+      OB_TENANT_INIT_SQL_DIR: /etc/native-init
+    ports: ["127.0.0.1:${NATIVE_OCEANBASE_PORT:-12881}:2881"]
+    volumes:
+      - oceanbase-data:/root/ob
+      - oceanbase-config:/root/.obd/cluster
+      - ./init:/etc/native-init:ro
+    ulimits:
+      nofile: { soft: 65536, hard: 65536 }
+      stack: { soft: -1, hard: -1 }
+    healthcheck:
+      test:
+        [
+          CMD-SHELL,
+          'MYSQL_PWD="$$OB_TENANT_PASSWORD" obclient -h127.0.0.1 -P2881 -uroot@test -Dnative -Nse "SELECT 1" >/dev/null',
+        ]
+      interval: 20s
+      timeout: 10s
+      retries: 30
+      start_period: 120s
+    logging:
+      driver: local
+      options: { max-size: 10m, max-file: "3" }
+volumes:
+  oceanbase-data:
+  oceanbase-config:

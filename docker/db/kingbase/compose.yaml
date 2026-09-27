@@ -1,0 +1,22 @@
+name: dushan-native-kingbase
+services:
+  kingbase:
+    # 官方 V9 x86_64 安装包导入后使用，PG 模式。
+    image: ${NATIVE_KINGBASE_IMAGE:-sha256:0bce318e74adca7a3d619b55b336269017507fd679833b7ce5d8400289661724}
+    pull_policy: never
+    restart: unless-stopped
+    env_file: ["${NATIVE_RUNTIME_DIR:-../../../Temp/docker-runtime}/kingbase.env"]
+    ports: ["127.0.0.1:${NATIVE_KINGBASE_PORT:-15434}:54321"]
+    volumes: [kingbase-data:/home/kingbase/userdata]
+    shm_size: 1gb
+    healthcheck:
+      test: [CMD-SHELL, 'bash -c "echo > /dev/tcp/127.0.0.1/54321"']
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+    logging:
+      driver: local
+      options: { max-size: 10m, max-file: "3" }
+volumes:
+  kingbase-data:

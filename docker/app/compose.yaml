@@ -1,0 +1,62 @@
+name: dushan-native-app
+include:
+  - ../db/mysql/compose.yaml
+  - ../redis/compose.yaml
+services:
+  backend:
+    image: dushan-native-backend:local
+    build:
+      context: ../../dushan-admin-backend
+    init: true
+    restart: unless-stopped
+    environment:
+      SERVER_ENV: ${NATIVE_APP_ENV:-staging}
+    volumes:
+      - type: bind
+        source: ${NATIVE_RUNTIME_DIR:-../../Temp/docker-runtime}/application
+        target: /config
+        read_only: true
+        bind: { create_host_path: false }
+      - backend-files:/app/Temp/files
+    depends_on:
+      mysql: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test:
+        [
+          CMD,
+          python,
+          -c,
+          'import urllib.request; urllib.request.urlopen("http://127.0.0.1:48080/health", timeout=3)',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 30s
+    logging:
+      driver: local
+      options: { max-size: 10m, max-file: "3" }
+  frontend:
+    image: dushan-native-frontend:local
+    build:
+      context: ../../dushan-admin-frontend
+      dockerfile: scripts/deploy/Dockerfile
+      args:
+        VITE_WEBSOCKET_ENABLED: "true"
+        VITE_APP_QR_LOGIN_ORIGIN: ${NATIVE_PUBLIC_ORIGIN:-http://localhost:18080}
+    restart: unless-stopped
+    environment:
+      API_UPSTREAM: http://backend:48080
+    ports: ["127.0.0.1:${NATIVE_HTTP_PORT:-18080}:8080"]
+    depends_on:
+      backend: { condition: service_healthy }
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, "http://127.0.0.1:8080/"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+    logging:
+      driver: local
+      options: { max-size: 10m, max-file: "3" }
+volumes:
+  backend-files:

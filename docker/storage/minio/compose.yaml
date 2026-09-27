@@ -1,0 +1,25 @@
+name: dushan-native-minio
+services:
+  minio:
+    # 历史社区版仅供本地联调；新生产选型见 README。
+    image: dushan-native-minio:2025-09-07
+    build: .
+    restart: unless-stopped
+    command: [server, /data, --console-address, ":9001"]
+    env_file: ["${NATIVE_RUNTIME_DIR:-../../../Temp/docker-runtime}/minio.env"]
+    ports:
+      [
+        "127.0.0.1:${NATIVE_MINIO_PORT:-19000}:9000",
+        "127.0.0.1:${NATIVE_MINIO_UI_PORT:-19001}:9001",
+      ]
+    volumes: [minio-data:/data]
+    healthcheck:
+      test: [CMD, curl, -f, "http://127.0.0.1:9000/minio/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+    logging:
+      driver: local
+      options: { max-size: 10m, max-file: "3" }
+volumes:
+  minio-data:

@@ -1,0 +1,46 @@
+service:
+  extensions: [jaeger_storage, jaeger_query]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [jaeger_storage_exporter]
+  telemetry:
+    resource:
+      service.name: jaeger
+    metrics:
+      level: none
+    logs:
+      level: info
+
+extensions:
+  jaeger_query:
+    http:
+      endpoint: 0.0.0.0:16686
+    storage:
+      traces: native
+    ui:
+      config_file: /etc/jaeger/ui.js
+  jaeger_storage:
+    backends:
+      native:
+        badger:
+          directories:
+            keys: /badger/key
+            values: /badger/data
+          ephemeral: false
+          ttl:
+            spans: 72h
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+
+processors:
+  batch:
+
+exporters:
+  jaeger_storage_exporter:
+    trace_storage: native

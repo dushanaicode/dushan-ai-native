@@ -1,0 +1,24 @@
+name: dushan-native-mailpit
+services:
+  mailpit:
+    image: axllent/mailpit:v1.27.8@sha256:6abc8e633df15eaf785cfcf38bae48e66f64beecdc03121e249d0f9ec15f0707
+    restart: unless-stopped
+    environment:
+      MP_DATABASE: /data/mailpit.db
+      MP_MAX_MESSAGES: "500"
+    ports:
+      [
+        "127.0.0.1:${NATIVE_SMTP_PORT:-11025}:1025",
+        "127.0.0.1:${NATIVE_MAILPIT_UI_PORT:-18025}:8025",
+      ]
+    volumes: [mailpit-data:/data]
+    healthcheck:
+      test: [CMD, /mailpit, readyz]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+    logging:
+      driver: local
+      options: { max-size: 10m, max-file: "3" }
+volumes:
+  mailpit-data:
