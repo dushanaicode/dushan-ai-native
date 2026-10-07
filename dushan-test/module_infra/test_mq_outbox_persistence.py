@@ -205,6 +205,10 @@ async def test_insert_shares_business_transaction_and_rejects_content_conflict(o
         async with case.database.transaction() as session:
             await session.execute(insert(JobSignalDO).values(id=1, revision=1))
             await case.store.insert(record)
+        async with case.database.read_session() as session:
+            assert (
+                await session.scalar(select(JobSignalDO.revision).where(JobSignalDO.id == 1)) == 1
+            )
         await case.store.insert(record)
         assert len(await case.rows()) == 1
         with pytest.raises(MQException) as error:
@@ -213,7 +217,7 @@ async def test_insert_shares_business_transaction_and_rejects_content_conflict(o
         assert (await case.rows())[0].message == record.message.model_dump_json()
 
 
-async def test_claim_is_exclusive_and_independently_committed(outbox_case):
+async def test_claim_is_exclusive_and_independently_committed(outbox_case, monkeypatch):
     case = outbox_case
     record = case.record()
     with case.enter():
@@ -223,11 +227,28 @@ async def test_claim_is_exclusive_and_independently_committed(outbox_case):
         with case.enter():
             return await case.claim(record.id)
 
-    claims = await asyncio.gather(claim(), claim())
+    barrier = asyncio.Barrier(2)
+    select_ready = case.store.mapper.select_ready
+
+    async def select_same_candidate(*args):
+        row = await select_ready(*args)
+        assert row is not None and row.record_id == record.id
+        await barrier.wait()
+        return row
+
+    with monkeypatch.context() as patch:
+        patch.setattr(case.store.mapper, "select_ready", select_same_candidate)
+        claims = await asyncio.wait_for(asyncio.gather(claim(), claim()), timeout=10)
     assert sum(value is not None for value in claims) == 1
     claimed = next(value for value in claims if value is not None)
     assert claimed.attempts == 1 and len(claimed.claim_token) == 32
     with case.enter():
+        row = (await case.rows())[0]
+        assert row.state == "sending" and row.attempts == claimed.attempts
+        assert row.claim_token == claimed.claim_token
+        assert row.claim_expires_at_us == case.store.date_utils.to_timestamp_micros(
+            claimed.claim_expires_at
+        )
         another = case.record()
         await case.store.insert(another)
         with pytest.raises(ValueError, match="outer"):
@@ -235,6 +256,60 @@ async def test_claim_is_exclusive_and_independently_committed(outbox_case):
                 await case.claim(another.id)
                 raise ValueError("outer")
         assert all(row.state == "sending" for row in await case.rows())
+
+
+@pytest.mark.parametrize(
+    "changed_field, expected_attempts",
+    [
+        ("state", 0),
+        ("ready_at_us", 0),
+        ("attempts", 1),
+        ("attempts", 3),
+        ("claim_token", 0),
+        ("claim_expires_at_us", 0),
+    ],
+)
+async def test_claim_rechecks_candidate_before_update(
+    outbox_case, monkeypatch, changed_field, expected_attempts
+):
+    """候选读取后条件已变化，不能凭旧快照领取或覆盖现有租约。"""
+    case = outbox_case
+    now = datetime.now(UTC)
+    changes = {
+        "state": OutboxState.CANCELLED.value,
+        "ready_at_us": case.store.date_utils.to_timestamp_micros(now + timedelta(seconds=1)),
+        "attempts": expected_attempts,
+        "claim_token": uuid4().hex,
+        "claim_expires_at_us": case.store.date_utils.to_timestamp_micros(
+            now + timedelta(seconds=30)
+        ),
+    }
+    select_ready = case.store.mapper.select_ready
+
+    async def change_candidate(*args):
+        row = await select_ready(*args)
+        assert row is not None
+        async with case.database.transaction(propagation="requires_new"):
+            await case.store.mapper.write(
+                update(MqOutboxDO)
+                .where(MqOutboxDO.id == row.id)
+                .values({changed_field: changes[changed_field]})
+            )
+        assert row.state == "pending" and row.attempts == 0
+        return row
+
+    with case.enter():
+        record = case.record()
+        await case.store.insert(record)
+        monkeypatch.setattr(case.store.mapper, "select_ready", change_candidate)
+        assert await case.claim(record.id, now=record.ready_at) is None
+        row = (await case.rows())[0]
+        assert getattr(row, changed_field) == changes[changed_field]
+        assert row.state == (changes["state"] if changed_field == "state" else "pending")
+        assert row.attempts == expected_attempts
+        assert row.claim_token == (
+            changes["claim_token"] if changed_field == "claim_token" else None
+        )
 
 
 async def test_concurrent_same_record_insert_is_idempotent(outbox_case):
@@ -249,6 +324,62 @@ async def test_concurrent_same_record_insert_is_idempotent(outbox_case):
     with case.enter():
         assert len(await case.rows()) == 1
         assert (await case.rows())[0].message == record.message.model_dump_json()
+
+
+async def test_claim_rejects_exhausted_record_missed_by_expiry_scan(outbox_case, monkeypatch):
+    """过期扫描与重试结算并发时，即使扫描未见候选，也不能超次数认领。"""
+    case = outbox_case
+    with case.enter():
+        record = case.record(attempts=3)
+        await case.store.insert(record)
+        monkeypatch.setattr(case.store.mapper, "expire", AsyncMock())
+        assert await case.claim(record.id, max_attempts=3) is None
+        row = (await case.rows())[0]
+        assert row.state == "pending" and row.attempts == 3 and row.claim_token is None
+
+
+@pytest.mark.parametrize("record_id", [None, "shared"])
+async def test_claim_and_expiry_only_affect_current_tenant(outbox_case, record_id):
+    """扫描与指定编号领取均隔离租户，过期处理不改写其他租户记录。"""
+    case = outbox_case
+    now = datetime.now(UTC)
+    with case.enter("2"):
+        other = case.record("shared", tenant_id="2")
+        exhausted = case.record("exhausted", tenant_id="2", attempts=3)
+        expired = case.record("expired", tenant_id="2", attempts=1).model_copy(
+            update={
+                "state": OutboxState.SENDING,
+                "claim_token": uuid4().hex,
+                "claim_expires_at": now - timedelta(microseconds=1),
+            }
+        )
+        for record in (other, exhausted, expired):
+            await case.store.insert(record)
+    with case.enter():
+        current = case.record("shared")
+        await case.store.insert(current)
+        claimed = await case.claim(record_id)
+        assert claimed is not None and claimed.message == current.message
+        assert claimed.attempts == 1
+        assert len(await case.rows()) == 1
+    with case.enter("2"):
+        rows = {row.record_id: row for row in await case.rows()}
+        assert rows[other.id].state == "pending" and rows[other.id].attempts == 0
+        assert rows[exhausted.id].state == "pending" and rows[exhausted.id].attempts == 3
+        assert rows[expired.id].state == "sending"
+        assert rows[expired.id].claim_token == expired.claim_token
+        assert rows[expired.id].claim_expires_at_us == case.store.date_utils.to_timestamp_micros(
+            expired.claim_expires_at
+        )
+        other_claimed = await case.claim(record_id)
+        assert other_claimed is not None and other_claimed.message == other.message
+        assert other_claimed.claim_token != claimed.claim_token
+        rows = {row.record_id: row for row in await case.rows()}
+        assert rows[exhausted.id].state == "dead"
+        assert rows[expired.id].state == "unknown"
+    with case.enter():
+        row = (await case.rows())[0]
+        assert row.state == "sending" and row.claim_token == claimed.claim_token
 
 
 async def test_retry_replaces_token_and_expired_live_state_cannot_finish(outbox_case):

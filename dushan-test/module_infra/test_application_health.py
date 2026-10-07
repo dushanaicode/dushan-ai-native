@@ -1,6 +1,7 @@
 import asyncio
 import time
 from contextvars import Context
+from uuid import uuid4
 
 import pytest
 import pytest_asyncio
@@ -13,15 +14,16 @@ from server.starter_server import StarterServer
 pytestmark = pytest.mark.asyncio(loop_scope="module")
 
 
-@pytest_asyncio.fixture(scope="module", loop_scope="module")
+@pytest_asyncio.fixture(loop_scope="module")
 async def health_app(infra_app, tmp_path_factory):
     values = yaml.safe_load(
         (infra_app.state.bootstrap.base_dir / "application.yaml").read_text(encoding="utf-8")
     )
     models = values["config"]["models"]
     values["banner"]["enabled"] = False
+    namespace = "health-" + uuid4().hex
     for name in ("job", "mq", "websocket"):
-        models[name]["namespace"] = "health-" + name
+        models[name]["namespace"] = namespace + "-" + name
     models["websocket"]["transport"] = "redis"
     folder = tmp_path_factory.mktemp("health-config")
     (folder / "application.yaml").write_text(
@@ -64,7 +66,8 @@ async def test_enabled_missing_runtime_is_unhealthy(health_app, monkeypatch, com
         response = await health(health_app)
         assert response.status_code == 503
         assert response.json()["data"]["components"][component] == "not_ready"
-    assert (await health(health_app)).status_code == 200
+    restored = await health(health_app)
+    assert restored.status_code == 200, restored.text
 
 
 @pytest.mark.parametrize("task_name", ["_loop_task", "_renew_task"])
@@ -80,7 +83,8 @@ async def test_job_background_task_exit_is_unhealthy(health_app, task_name):
     finally:
         callback = runtime._loop if task_name == "_loop_task" else runtime._renew
         setattr(runtime, task_name, asyncio.create_task(callback(), context=Context()))
-    assert (await health(health_app)).status_code == 200
+    restored = await health(health_app)
+    assert restored.status_code == 200, restored.text
 
 
 async def test_paused_scheduler_is_unhealthy(health_app):
@@ -156,7 +160,8 @@ async def test_websocket_background_exit_is_unhealthy(health_app, task_name):
         else:
             callback = runtime._heartbeats if task_name == "_heartbeat" else runtime._renew
             setattr(owner, attribute, asyncio.create_task(callback(), context=Context()))
-    assert (await health(health_app)).status_code == 200
+    restored = await health(health_app)
+    assert restored.status_code == 200, restored.text
 
 
 async def test_redis_timeout_is_bounded_and_recovers_without_messages(health_app, monkeypatch):

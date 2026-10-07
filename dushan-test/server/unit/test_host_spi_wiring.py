@@ -1,4 +1,5 @@
 import ast
+import asyncio
 from contextlib import contextmanager
 from pathlib import Path
 from types import SimpleNamespace
@@ -17,6 +18,7 @@ from framework.starter_web.exception.error_log_recorder import ErrorLogRecorder
 from framework.starter_web.spi.access_log_provider import AccessLogProvider
 from framework.starter_web.spi.error_log_provider import ErrorLogProvider
 from server.bootstrap.steps.framework_spi_step import FrameworkSpiStep
+from server.routing.application_health import ApplicationHealth
 
 
 @pytest.fixture
@@ -237,6 +239,7 @@ class ConfigProbe(ConfigSourceProvider):
         ),
         environ={},
     )
+    app.add_api_route("/access-probe", lambda: {"ok": True})
     previous = app.state.bootstrap.exception_handler.error_recorder
     async with app.router.lifespan_context(app):
         with app.state.application_context.execution():
@@ -257,15 +260,44 @@ class ConfigProbe(ConfigSourceProvider):
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app), base_url="http://test"
         ) as client:
-            response = await client.get("/health")
+            response = await client.get("/access-probe")
         assert response.status_code == 200
         if enabled:
             assert len(access.records) == 1
             assert access.records[0].method == "GET"
-            assert access.records[0].route == "/health"
+            assert access.records[0].route == "/access-probe"
     assert app.state.bootstrap.exception_handler.error_recorder is previous
     assert app.state.access_log_provider is None
     assert app.state.access_log_tasks is None
+
+
+@pytest.mark.parametrize("ready", [False, True])
+async def test_health_does_not_wait_for_business_access_log(config_dir, monkeypatch, ready):
+    """健康检查的响应上界不能依赖数据库/Redis 日志写入。"""
+    app = create_public_app(base_dir=config_dir(), environ={})
+
+    async def blocked(record):
+        await asyncio.Event().wait()
+
+    writer = AsyncMock(side_effect=blocked)
+
+    async def write(callback, record):
+        await callback(record)
+
+    async def components(ctx):
+        return {"bootstrap": ready}
+
+    async with app.router.lifespan_context(app):
+        monkeypatch.setattr(app.state, "access_log_provider", SimpleNamespace(write=writer))
+        monkeypatch.setattr(app.state, "access_log_tasks", SimpleNamespace(run_isolated=write))
+        monkeypatch.setattr(ApplicationHealth, "check", components)
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app), base_url="http://test"
+        ) as client:
+            response = await asyncio.wait_for(client.get("/health"), 0.5)
+        assert response.status_code == (200 if ready else 503)
+        writer.assert_not_called()
+        writer.assert_not_awaited()
 
 
 def test_server_has_no_business_module_imports():

@@ -100,7 +100,7 @@ class OutboxProviderAdapter(OutboxProvider):
         now_us = self.date_utils.to_timestamp_micros(now)
         async with self.database.transaction(propagation="requires_new"):
             await self.mapper.expire(tenant_id, now_us, max_attempts)
-            row = await self.mapper.select_ready(now_us, record_id)
+            row = await self.mapper.select_ready(now_us, record_id, max_attempts)
             if row is None:
                 return None
             claimed = self.record(row).model_copy(
@@ -111,7 +111,7 @@ class OutboxProviderAdapter(OutboxProvider):
                     "claim_expires_at": now + timedelta(seconds=lease_seconds),
                 }
             )
-            await self.mapper.update_by_condition(
+            affected = await self.mapper.update_by_condition(
                 {
                     "state": claimed.state.value,
                     "attempts": claimed.attempts,
@@ -121,8 +121,15 @@ class OutboxProviderAdapter(OutboxProvider):
                     ),
                 },
                 MqOutboxDO.id == row.id,
+                MqOutboxDO.tenant_id == tenant_id,
+                MqOutboxDO.state == OutboxState.PENDING.value,
+                MqOutboxDO.ready_at_us <= now_us,
+                MqOutboxDO.attempts < max_attempts,
+                MqOutboxDO.attempts == row.attempts,
+                MqOutboxDO.claim_token.is_(None),
+                MqOutboxDO.claim_expires_at_us.is_(None),
             )
-            return claimed
+            return claimed if affected == 1 else None
 
     @override
     async def finish(

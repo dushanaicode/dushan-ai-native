@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
+from framework.starter_web.routing.access_log_policy import AccessLogPolicy
 from framework.starter_web.routing.route_policy import RoutePolicy
 from server.routing.application_health import ApplicationHealth
 
@@ -10,6 +11,7 @@ health_router = APIRouter(tags=["服务状态"])
 class HealthController:
     @staticmethod
     @health_router.get("/health", summary="检查服务运行就绪状态", response_class=JSONResponse)
+    @AccessLogPolicy(enabled=False)
     @RoutePolicy.public()
     async def health(request: Request) -> JSONResponse:
         """所有已启用的必要组件均可用才返回 200，否则返回 503。"""
