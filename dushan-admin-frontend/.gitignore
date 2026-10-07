@@ -12,7 +12,6 @@ dist.war
 *-dist.war
 coverage
 *.local
-**/.vitepress/cache
 .cache
 .turbo
 .temp

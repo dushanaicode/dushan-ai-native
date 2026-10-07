@@ -2,7 +2,7 @@
   "$schema": "https://unpkg.com/knip/schema.json",
   // Iconify 构建插件按图标集合名动态读取 JSON 数据，不存在普通源码 import。
   "ignoreDependencies": ["@iconify/json"],
-  "ignore": ["**/dist/**", "**/Temp/**", "docs/**", "public/**"],
+  "ignore": ["**/dist/**", "**/Temp/**", "public/**"],
   "workspaces": {
     ".": {
       "entry": ["oxlint.config.ts"],

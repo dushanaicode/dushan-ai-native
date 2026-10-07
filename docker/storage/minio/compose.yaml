@@ -1,7 +1,7 @@
 name: dushan-native-minio
 services:
   minio:
-    # 历史社区版仅供本地联调；新生产选型见 README。
+    # 历史社区版仅供本地联调；新生产选型见独立文档站（dushan-docs）的“Docker 部署 / 对象存储”主题。
     image: dushan-native-minio:2025-09-07
     build: .
     restart: unless-stopped

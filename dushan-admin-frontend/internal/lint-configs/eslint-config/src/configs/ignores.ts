@@ -40,7 +40,6 @@ export async function ignores(): Promise<Linter.Config[]> {
         '**/__snapshots__',
         '**/*.snap',
         '**/fixtures/**',
-        '**/.vitepress/cache/**',
         '**/auto-import?(s).d.ts',
         '**/components.d.ts',
         '**/vite.config.mts.*',

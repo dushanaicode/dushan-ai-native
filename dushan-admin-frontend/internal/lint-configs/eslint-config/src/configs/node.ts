@@ -54,14 +54,6 @@ export async function node(): Promise<Linter.Config[]> {
       },
     },
     {
-      files: ['docs/**/**'],
-      rules: {
-        'n/no-extraneous-import': 'off',
-        'n/prefer-global/buffer': 'off',
-        'n/prefer-global/process': 'off',
-      },
-    },
-    {
       files: ['**/**/playwright.config.ts'],
       rules: {
         'n/prefer-global/buffer': 'off',
