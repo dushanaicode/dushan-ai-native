@@ -46,6 +46,11 @@ export namespace SystemTenantPackageApi {
     status?: number;
   }
 
+  /** 导出查询 ReqVO */
+  export interface TenantPackageExportReqVO extends TenantPackagePageReqVO {
+    fields?: string[];
+  }
+
   /** 租户套餐精简信息 */
   export interface TenantPackageSimpleRespVO {
     id: string;
@@ -125,7 +130,7 @@ export async function getExportTenantPackageFields() {
 
 /** 导出租户套餐 Excel */
 export async function exportTenantPackage(
-  params: SystemTenantPackageApi.TenantPackagePageReqVO,
+  params: SystemTenantPackageApi.TenantPackageExportReqVO,
 ) {
   return requestClient.download('/system/tenant/package/export-excel', {
     params,

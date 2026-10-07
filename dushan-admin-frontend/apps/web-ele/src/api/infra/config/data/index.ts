@@ -39,10 +39,14 @@ export namespace InfraConfigDataApi {
   /** 配置数据分页查询 ReqVO */
   export interface ConfigDataPageReqVO extends PageParam {
     createTime?: string[];
-    fields?: string[];
     module?: string;
     name?: string;
     typeId?: string;
+  }
+
+  /** 导出查询 ReqVO */
+  export interface ConfigDataExportReqVO extends ConfigDataPageReqVO {
+    fields?: string[];
   }
 }
 
@@ -106,7 +110,7 @@ export async function getExportConfigDataFields() {
 
 /** 导出参数配置 Excel */
 export async function exportConfigData(
-  params: InfraConfigDataApi.ConfigDataPageReqVO,
+  params: InfraConfigDataApi.ConfigDataExportReqVO,
 ) {
   return requestClient.download('/infra/config/export-excel', {
     params,

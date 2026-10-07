@@ -38,6 +38,11 @@ export namespace InfraApiAccessLogApi {
     userId?: string;
     userType?: number;
   }
+
+  /** 导出查询 ReqVO */
+  export interface ApiAccessLogExportReqVO extends ApiAccessLogPageReqVO {
+    fields?: string[];
+  }
 }
 
 /** 获得 API 访问日志分页 */
@@ -62,7 +67,7 @@ export async function getExportApiAccessLogFields() {
 
 /** 导出 API 访问日志 */
 export async function exportApiAccessLog(
-  params: InfraApiAccessLogApi.ApiAccessLogPageReqVO,
+  params: InfraApiAccessLogApi.ApiAccessLogExportReqVO,
 ) {
   return requestClient.download('/infra/logger/api-access-log/export-excel', {
     params,

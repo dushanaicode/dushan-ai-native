@@ -145,7 +145,7 @@ export function usePostGridColumns(
       align: 'center',
       cellRender: {
         name: 'CellSwitch',
-        props: { change: onStatusChange },
+        props: { auth: ['system:dept:post:update'], change: onStatusChange },
       },
       field: 'status',
       title: '状态',

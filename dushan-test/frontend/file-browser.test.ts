@@ -92,7 +92,7 @@ it('上传固定使用发起时的空间，切换后完成不会刷新错误位�
   const file = new File(['file'], 'file.txt');
   const pending = state.handleUploadFile(file);
   expect(state.uploading.value).toBe(1);
-  expect(api.upload).toHaveBeenCalledWith(file, 'docs/', '1');
+  expect(api.upload).toHaveBeenCalledWith(file, 'private', 'docs/', '1');
   await state.handleConfigChange('2');
   const requests = api.list.mock.calls.length;
   uploaded.resolve('https://files.example.test/file.txt');
@@ -100,6 +100,16 @@ it('上传固定使用发起时的空间，切换后完成不会刷新错误位�
   expect(state.uploading.value).toBe(0);
   expect(state.configId.value).toBe('2');
   expect(api.list).toHaveBeenCalledTimes(requests);
+});
+
+it('管理上传显式携带用户选择的公开可见性', async () => {
+  const state = browser();
+  await state.loadConfigList();
+  expect(state.uploadVisibility.value).toBe('private');
+  state.uploadVisibility.value = 'public';
+  const file = new File(['public'], 'public.txt');
+  await state.handleUploadFile(file);
+  expect(api.upload).toHaveBeenCalledWith(file, 'public', undefined, '1');
 });
 
 it('目录始终排在文件前，名称和大小排序不修改原列表', async () => {

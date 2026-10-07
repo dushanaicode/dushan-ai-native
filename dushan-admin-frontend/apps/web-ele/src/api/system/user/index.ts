@@ -42,11 +42,15 @@ export namespace SystemUserApi {
   export interface UserPageReqVO extends PageParam {
     createTime?: string[];
     deptId?: string;
-    fields?: string[];
     mobile?: string;
     roleId?: string;
     status?: number;
     username?: string;
+  }
+
+  /** 导出查询 ReqVO */
+  export interface UserExportReqVO extends UserPageReqVO {
+    fields?: string[];
   }
 
   /** 用户精简信息 */
@@ -128,7 +132,7 @@ export async function getExportUserFields() {
 }
 
 /** 导出用户 Excel */
-export async function exportUser(params: SystemUserApi.UserPageReqVO) {
+export async function exportUser(params: SystemUserApi.UserExportReqVO) {
   return requestClient.download('/system/user/export-excel', {
     params,
     paramsSerializer: 'repeat',

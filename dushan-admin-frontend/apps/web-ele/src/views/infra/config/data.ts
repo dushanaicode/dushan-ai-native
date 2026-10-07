@@ -181,7 +181,7 @@ export function useTypeGridColumns(
       align: 'center',
       cellRender: {
         name: 'CellSwitch',
-        props: { change: onStatusChange },
+        props: { auth: ['infra:config:type:update'], change: onStatusChange },
       },
       field: 'status',
       title: '状态',

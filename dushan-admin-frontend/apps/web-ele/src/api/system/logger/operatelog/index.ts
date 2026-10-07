@@ -39,6 +39,11 @@ export namespace SystemOperateLogApi {
     type?: string;
     userId?: string;
   }
+
+  /** 导出查询 ReqVO */
+  export interface OperateLogExportReqVO extends OperateLogPageReqVO {
+    fields?: string[];
+  }
 }
 
 /** 获得操作日志分页 */
@@ -60,7 +65,7 @@ export async function getExportOperateLogFields() {
 
 /** 导出操作日志 Excel */
 export async function exportOperateLog(
-  params: SystemOperateLogApi.OperateLogPageReqVO,
+  params: SystemOperateLogApi.OperateLogExportReqVO,
 ) {
   return requestClient.download('/system/logger/operate-log/export-excel', {
     params,

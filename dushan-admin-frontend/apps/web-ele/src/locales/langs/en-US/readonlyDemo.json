@@ -1,0 +1,6 @@
+{
+  "label": "Read-only demo",
+  "description": "You are using a read-only demo account: you can browse the features open to the demo, but changes will not take effect.",
+  "entered": "Entered read-only demo mode",
+  "denied": "Read-only demo mode: changes are not allowed"
+}

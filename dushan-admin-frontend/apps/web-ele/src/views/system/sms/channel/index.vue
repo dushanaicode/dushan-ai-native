@@ -195,7 +195,7 @@ const [Grid, gridApi] = useVbenVxeGrid({
             {
               label: '回执地址',
               type: 'text',
-              auth: ['system:sms:channel:query'],
+              auth: ['system:sms:channel:update'],
               onClick: onCallbackUrl.bind(null, row),
             },
             {

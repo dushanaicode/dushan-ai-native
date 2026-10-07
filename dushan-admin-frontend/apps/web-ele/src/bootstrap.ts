@@ -14,6 +14,7 @@ import { $t, setupI18n } from '#/locales';
 import { initComponentAdapter } from './adapter/component';
 import { initSetupVbenForm } from './adapter/form';
 import { refreshTokenApi } from './api/core/auth';
+import { installDemoErrorBoundary } from './api/error-feedback';
 import App from './app.vue';
 import { router } from './router';
 import { routes } from './router/routes';
@@ -47,6 +48,9 @@ async function bootstrap(namespace: string) {
   //   zIndex: 2000,
   // });
   const app = createApp(App);
+  const releaseDemoErrorBoundary = installDemoErrorBoundary(app);
+  app.onUnmount(releaseDemoErrorBoundary);
+  import.meta.hot?.dispose(releaseDemoErrorBoundary);
 
   // 页面和区域加载统一使用 Vben 的 v-loading / v-spinning。
   registerLoadingDirective(app);

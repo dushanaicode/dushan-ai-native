@@ -8,6 +8,7 @@ export namespace InfraJobApi {
   export interface JobRespVO {
     createTime: string;
     cronExpression: string;
+    fanOut: boolean;
     handlerName: string;
     handlerParam?: string;
     id: string;
@@ -21,6 +22,7 @@ export namespace InfraJobApi {
   /** 定时任务创建/修改 ReqVO */
   export interface JobSaveReqVO {
     cronExpression: string;
+    fanOut: boolean;
     handlerName: string;
     handlerParam?: string;
     id?: string;
@@ -36,6 +38,11 @@ export namespace InfraJobApi {
     handlerName?: string;
     name?: string;
     status?: number;
+  }
+
+  /** 导出查询 ReqVO */
+  export interface JobExportReqVO extends JobPageReqVO {
+    fields?: string[];
   }
 }
 
@@ -100,7 +107,7 @@ export async function getExportJobFields() {
 }
 
 /** 导出定时任务 Excel */
-export async function exportJob(params: InfraJobApi.JobPageReqVO) {
+export async function exportJob(params: InfraJobApi.JobExportReqVO) {
   return requestClient.download('/infra/job/export-excel', {
     params,
     paramsSerializer: 'repeat',

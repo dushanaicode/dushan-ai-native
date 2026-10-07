@@ -26,6 +26,11 @@ export namespace SystemLoginLogApi {
     userIp?: string;
     username?: string;
   }
+
+  /** 导出查询 ReqVO */
+  export interface LoginLogExportReqVO extends LoginLogPageReqVO {
+    fields?: string[];
+  }
 }
 
 /** 获得登录日志分页 */
@@ -47,7 +52,7 @@ export async function getExportLoginLogFields() {
 
 /** 导出登录日志 Excel */
 export async function exportLoginLog(
-  params: SystemLoginLogApi.LoginLogPageReqVO,
+  params: SystemLoginLogApi.LoginLogExportReqVO,
 ) {
   return requestClient.download('/system/logger/login-log/export-excel', {
     params,

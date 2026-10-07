@@ -5,6 +5,9 @@ import { requestClient } from '#/api/request';
 
 /** 文件端点（`/infra/file`）。ID 均为雪花字符串。 */
 export namespace InfraFileApi {
+  export type FileVisibility = 'private' | 'public';
+  export type FileUploadUsage = 'avatar' | 'form-file' | 'form-image' | 'logo';
+
   /** 文件信息 RespVO */
   export interface FileRespVO {
     configId: string;
@@ -15,6 +18,7 @@ export namespace InfraFileApi {
     size: number;
     type?: string;
     url: string;
+    visibility: FileVisibility;
   }
 
   /** 文件分页查询 ReqVO */
@@ -23,24 +27,6 @@ export namespace InfraFileApi {
     createTime?: string[];
     path?: string;
     type?: string;
-  }
-
-  /** 文件预签名地址 RespVO */
-  export interface FilePresignedUrlRespVO {
-    configId: string;
-    path: string;
-    uploadUrl: string;
-    url: string;
-  }
-
-  /** 文件创建 ReqVO（配合预签名直传） */
-  export interface FileCreateReqVO {
-    configId: string;
-    name: string;
-    path: string;
-    size: number;
-    type?: string;
-    url: string;
   }
 
   /** 文件/目录对象信息 */
@@ -52,6 +38,7 @@ export namespace InfraFileApi {
     size?: number;
     type?: string;
     url?: string;
+    visibility?: FileVisibility;
   }
 
   /** 列举对象响应 VO */
@@ -87,6 +74,7 @@ export namespace InfraFileApi {
 /** 上传文件（后端中转） */
 export async function uploadFile(
   file: File,
+  visibility: InfraFileApi.FileVisibility,
   directory?: string,
   configId?: string,
 ) {
@@ -94,20 +82,21 @@ export async function uploadFile(
     configId,
     directory,
     file,
+    visibility,
   });
 }
 
-/** 获取文件预签名地址 */
-export async function getFilePresignedUrl(name: string, directory?: string) {
-  return requestClient.get<InfraFileApi.FilePresignedUrlRespVO>(
-    '/infra/file/presigned-url',
-    { params: { directory, name } },
+/** 按用途上传业务文件，目录和可见性由服务端决定。 */
+export async function uploadBusinessFile(
+  file: File,
+  usage: InfraFileApi.FileUploadUsage,
+  signal: AbortSignal,
+) {
+  return requestClient.upload<string>(
+    '/infra/file/business-upload',
+    { file, usage },
+    { signal },
   );
-}
-
-/** 创建文件记录（配合预签名直传） */
-export async function createFileRecord(data: InfraFileApi.FileCreateReqVO) {
-  return requestClient.post<string>('/infra/file/create', data);
 }
 
 /** 获得文件分页 */

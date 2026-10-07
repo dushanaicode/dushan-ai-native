@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 
+import { useAccess } from '@vben/access';
 import { $t } from '@vben/locales';
 
 import { ElSwitch } from 'element-plus';
@@ -14,6 +15,7 @@ defineOptions({ inheritAttrs: false });
 const props = withDefaults(
   defineProps<{
     activeValue?: number;
+    auth: string[];
     inactiveValue?: number;
     change: (value: number) => Promise<unknown>;
     modelValue: number;
@@ -28,6 +30,8 @@ const emit = defineEmits<{
   'update:modelValue': [value: number];
 }>();
 
+const { hasAccessByCodes } = useAccess();
+const allowed = computed(() => hasAccessByCodes(props.auth));
 const loading = ref(false);
 let active = true;
 onBeforeUnmount(() => {
@@ -54,6 +58,7 @@ async function update(value: boolean | number | string) {
   <ElSwitch
     v-bind="$attrs"
     :active-text="$t('common.enabled')"
+    :disabled="!allowed || loading"
     :inactive-text="$t('common.disabled')"
     :loading="loading"
     :model-value="modelValue === activeValue"

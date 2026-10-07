@@ -10,7 +10,6 @@ import { isEmpty } from '@vben/utils';
 import { ElLoading, ElMessage } from 'element-plus';
 
 import { ACTION_ICON, TableAction, useVbenVxeGrid } from '#/adapter/vxe-table';
-import { getConfigDataPage } from '#/api/infra/config/data';
 import {
   deleteConfigType,
   deleteConfigTypeList,
@@ -128,33 +127,6 @@ async function handleStatusChange(
   }
 }
 
-async function findTypesWithConfigData(
-  rows: InfraConfigTypeApi.ConfigTypeRespVO[],
-) {
-  const typeNames: string[] = [];
-
-  for (const row of rows) {
-    if (!row.id) {
-      continue;
-    }
-
-    const result = await getConfigDataPage({
-      page: 1,
-      pageSize: 1,
-      typeId: row.id,
-    });
-    if (result.total > 0) {
-      typeNames.push(row.name);
-    }
-  }
-
-  return typeNames;
-}
-
-function getChildDataWarning(typeNames: string[]) {
-  return `配置类型「${typeNames.join('、')}」下存在配置数据，请先删除配置数据`;
-}
-
 async function handleDelete(row: InfraConfigTypeApi.ConfigTypeRespVO) {
   const loading = ElLoading.service({
     fullscreen: true,
@@ -162,12 +134,6 @@ async function handleDelete(row: InfraConfigTypeApi.ConfigTypeRespVO) {
   });
 
   try {
-    const typeNames = await findTypesWithConfigData([row]);
-    if (typeNames.length > 0) {
-      ElMessage.warning(getChildDataWarning(typeNames));
-      return;
-    }
-
     if (!row.id) {
       return;
     }
@@ -189,12 +155,6 @@ async function handleDeleteBatch() {
   });
 
   try {
-    const typeNames = await findTypesWithConfigData(checkedRows.value);
-    if (typeNames.length > 0) {
-      ElMessage.warning(getChildDataWarning(typeNames));
-      return;
-    }
-
     await deleteConfigTypeList(checkedIds.value);
     ElMessage.success($t('ui.actionMessage.deleteSuccess'));
     emit('select', undefined);

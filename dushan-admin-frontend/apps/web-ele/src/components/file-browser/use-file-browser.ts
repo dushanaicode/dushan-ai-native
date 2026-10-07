@@ -5,9 +5,12 @@ import type {
   ViewMode,
 } from './typing';
 
+import type { InfraFileApi } from '#/api/infra/file';
+
 import { computed, onScopeDispose, ref } from 'vue';
 
 import { $t } from '@vben/locales';
+import { triggerDownload } from '@vben/utils';
 
 import { takeErrorMessage } from '#/api/error-feedback';
 import {
@@ -20,6 +23,7 @@ import {
   uploadFile,
 } from '#/api/infra/file';
 import { getSimpleFileConfigList } from '#/api/infra/file-config';
+import { resolveFileUrl } from '#/services/file/file-access';
 
 export function useFileBrowser() {
   const configId = ref<null | string>(null);
@@ -29,6 +33,8 @@ export function useFileBrowser() {
   const loadFailed = ref(false);
   const errorMessage = ref('');
   const uploading = ref(0);
+  const uploadVisibility = ref<InfraFileApi.FileVisibility>('private');
+  const downloadController = new AbortController();
   const viewMode = ref<ViewMode>('list');
   const sortBy = ref<'modified' | 'name' | 'size'>('name');
   const selectedKeys = ref<string[]>([]);
@@ -40,6 +46,7 @@ export function useFileBrowser() {
   onScopeDispose(() => {
     active = false;
     request?.abort();
+    downloadController.abort();
   });
 
   const breadcrumbs = computed<BreadcrumbItem[]>(() => {
@@ -158,6 +165,7 @@ export function useFileBrowser() {
           size: item.size,
           type: item.type,
           url: item.url,
+          visibility: item.visibility,
         }));
       } else {
         const result = await listObjects({ configId: id, prefix }, options);
@@ -233,7 +241,12 @@ export function useFileBrowser() {
     const directory = currentPrefix.value;
     uploading.value++;
     try {
-      await uploadFile(file, directory || undefined, id);
+      await uploadFile(
+        file,
+        uploadVisibility.value,
+        directory || undefined,
+        id,
+      );
       if (active && configId.value === id && currentPrefix.value === directory)
         await refresh();
     } finally {
@@ -281,17 +294,12 @@ export function useFileBrowser() {
         : objects.value.map((item) => item.key);
   }
 
-  function handleDownloadItem(item: FileObject) {
+  async function handleDownloadItem(item: FileObject) {
     if (!item.url) {
       return;
     }
-    const link = document.createElement('a');
-    link.href = item.url;
-    link.download = item.name;
-    link.style.display = 'none';
-    document.body.append(link);
-    link.click();
-    link.remove();
+    const url = await resolveFileUrl(item.url, downloadController.signal);
+    triggerDownload(url, item.name);
   }
 
   async function handleRenameItem(oldKey: string, newName: string) {
@@ -347,6 +355,7 @@ export function useFileBrowser() {
     toggleSelect,
     toggleSelectAll,
     uploading,
+    uploadVisibility,
     viewMode,
   };
 }

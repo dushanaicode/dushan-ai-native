@@ -1,15 +1,10 @@
+import type { InfraFileApi } from '#/api/infra/file';
 import type { FilePorts } from '#/components';
 
-import { uploadFile } from '#/api/infra/file';
+import { uploadBusinessFile } from '#/api/infra/file';
 
-/**
- * 文件上传端口。
- *
- * 后端 `POST /infra/file/upload` 直接返回访问 URL，业务 VO 的头像、Logo
- * 等字段均保存该 URL（如 `avatar: HttpUrl`）。因此端口的文件 id 即 URL：
- * `upload` 包装响应为满足 StoredFile 契约的记录，`resolve` 将 id 原样
- * 解析回可访问地址，与 `CropperAvatar`/`FileUpload`/`ImageUpload` 配合。
- */
+import { resolveFileUrl } from './file-access';
+
 const EXTENSION_MIME: Record<string, string> = {
   avif: 'image/avif',
   gif: 'image/gif',
@@ -38,13 +33,12 @@ function mediaType(name: string): string {
   return EXTENSION_MIME[ext] ?? 'application/octet-stream';
 }
 
-export function createFilePorts(options?: {
-  configId?: string;
-  directory?: string;
-}): FilePorts {
+export function createFilePorts(
+  usage: InfraFileApi.FileUploadUsage,
+): FilePorts {
   return {
-    upload: async (file) => {
-      const url = await uploadFile(file, options?.directory, options?.configId);
+    upload: async (file, { signal }) => {
+      const url = await uploadBusinessFile(file, usage, signal);
       return {
         id: url,
         mediaType: file.type || mediaType(file.name),
@@ -52,17 +46,19 @@ export function createFilePorts(options?: {
         size: file.size,
       };
     },
-    resolve: async (ids) => {
-      return ids.map((id) => {
-        const name = fileName(id);
-        return {
-          id,
-          mediaType: mediaType(name),
-          name,
-          size: 0,
-          url: id,
-        };
-      });
+    resolve: async (ids, signal) => {
+      return Promise.all(
+        ids.map(async (id) => {
+          const name = fileName(id);
+          return {
+            id,
+            mediaType: mediaType(name),
+            name,
+            size: 0,
+            url: await resolveFileUrl(id, signal),
+          };
+        }),
+      );
     },
   };
 }

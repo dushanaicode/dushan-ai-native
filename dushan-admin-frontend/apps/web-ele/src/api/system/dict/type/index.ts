@@ -31,6 +31,11 @@ export namespace SystemDictTypeApi {
     type?: string;
   }
 
+  /** 导出查询 ReqVO */
+  export interface DictTypeExportReqVO extends DictTypePageReqVO {
+    fields?: string[];
+  }
+
   /** 字典类型精简信息 */
   export interface DictTypeSimpleRespVO {
     id: string;
@@ -104,7 +109,7 @@ export async function getExportDictTypeFields() {
 
 /** 导出字典类型 Excel */
 export async function exportDictType(
-  params: SystemDictTypeApi.DictTypePageReqVO,
+  params: SystemDictTypeApi.DictTypeExportReqVO,
 ) {
   return requestClient.download('/system/dict/type/export-excel', {
     params,

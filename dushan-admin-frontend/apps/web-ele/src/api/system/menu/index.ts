@@ -55,6 +55,7 @@ export namespace SystemMenuApi {
   /** 菜单精简信息（分配菜单树用） */
   export interface MenuSimpleRespVO {
     id: string;
+    kind: MenuKind;
     name: string;
     parentId: string;
   }

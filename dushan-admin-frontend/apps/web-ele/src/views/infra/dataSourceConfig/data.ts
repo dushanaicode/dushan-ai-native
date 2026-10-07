@@ -285,7 +285,7 @@ export function useGridColumns(
     {
       cellRender: {
         name: 'CellSwitch',
-        props: { change: onStatusChange },
+        props: { auth: ['infra:data-source:update'], change: onStatusChange },
       },
       field: 'status',
       minWidth: 100,

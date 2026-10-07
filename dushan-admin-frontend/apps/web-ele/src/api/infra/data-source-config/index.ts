@@ -47,6 +47,11 @@ export namespace InfraDataSourceConfigApi {
     status?: number;
   }
 
+  /** 导出查询 ReqVO */
+  export interface DataSourceConfigExportReqVO extends DataSourceConfigPageReqVO {
+    fields?: string[];
+  }
+
   /** 数据源配置精简信息 */
   export interface DataSourceConfigSimpleRespVO {
     dbType: string;
@@ -98,13 +103,6 @@ export async function getDataSourceConfig(id: string) {
   );
 }
 
-/** 获得数据源配置列表 */
-export async function getDataSourceConfigList() {
-  return requestClient.get<InfraDataSourceConfigApi.DataSourceConfigRespVO[]>(
-    '/infra/data-source/list',
-  );
-}
-
 /** 获得数据源配置分页 */
 export async function getDataSourceConfigPage(
   params: InfraDataSourceConfigApi.DataSourceConfigPageReqVO,
@@ -137,7 +135,7 @@ export async function getExportDataSourceConfigFields() {
 
 /** 导出数据源配置 */
 export async function exportDataSourceConfig(
-  params: InfraDataSourceConfigApi.DataSourceConfigPageReqVO,
+  params: InfraDataSourceConfigApi.DataSourceConfigExportReqVO,
 ) {
   return requestClient.download('/infra/data-source/export-excel', {
     params,

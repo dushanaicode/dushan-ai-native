@@ -372,7 +372,7 @@ export function useGridColumns(
       align: 'center',
       cellRender: {
         name: 'CellSwitch',
-        props: { change: onStatusChange },
+        props: { auth: ['system:notification:update'], change: onStatusChange },
       },
       field: 'status',
       title: '状态',

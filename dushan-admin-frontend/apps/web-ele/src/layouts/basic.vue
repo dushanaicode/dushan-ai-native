@@ -22,6 +22,7 @@ import { useAuthStore } from '#/store';
 import LoginForm from '#/views/_core/authentication/login.vue';
 
 import NotificationCenter from '../components/notification-center.vue';
+import ReadonlyDemoBadge from '../components/readonly-demo-badge.vue';
 import { useRealtime } from '../services/realtime';
 
 const realtime = useRealtime();
@@ -163,6 +164,9 @@ watch(
     @clear-preferences-and-logout="handleLogout"
     @logout="handleLogout"
   >
+    <template #header-right-0>
+      <ReadonlyDemoBadge />
+    </template>
     <template #user-dropdown>
       <UserDropdown
         :avatar

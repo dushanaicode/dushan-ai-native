@@ -53,10 +53,10 @@ export namespace SystemNoticeMessageApi {
   }
 }
 
-/** 获得站内信 */
-export async function getNoticeMessage(id: string) {
+/** 获得我的站内信 */
+export async function getMyNoticeMessage(id: string) {
   return requestClient.get<SystemNoticeMessageApi.NoticeMessageRespVO>(
-    `/system/notification/message/get?id=${encodeURIComponent(id)}`,
+    `/system/notification/message/get-my?id=${encodeURIComponent(id)}`,
   );
 }
 

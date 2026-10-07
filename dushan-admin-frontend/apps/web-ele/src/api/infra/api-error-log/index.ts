@@ -40,6 +40,11 @@ export namespace InfraApiErrorLogApi {
     userId?: string;
     userType?: number;
   }
+
+  /** 导出查询 ReqVO */
+  export interface ApiErrorLogExportReqVO extends ApiErrorLogPageReqVO {
+    fields?: string[];
+  }
 }
 
 /** 获得 API 错误日志分页 */
@@ -74,7 +79,7 @@ export async function getExportApiErrorLogFields() {
 
 /** 导出 API 错误日志 */
 export async function exportApiErrorLog(
-  params: InfraApiErrorLogApi.ApiErrorLogPageReqVO,
+  params: InfraApiErrorLogApi.ApiErrorLogExportReqVO,
 ) {
   return requestClient.download('/infra/logger/api-error-log/export-excel', {
     params,

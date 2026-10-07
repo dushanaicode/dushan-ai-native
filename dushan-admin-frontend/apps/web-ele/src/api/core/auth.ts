@@ -111,10 +111,14 @@ export async function socialAuthRedirectApi(
     .string()
     .url()
     .parse(
-      await anonymousClient.get('/system/auth/social-auth-redirect', {
-        ...tenantRequest(tenantId),
-        params: { type, redirectUri },
-      }),
+      await anonymousClient.post(
+        '/system/auth/social-auth-redirect',
+        undefined,
+        {
+          ...tenantRequest(tenantId),
+          params: { type, redirectUri },
+        },
+      ),
     );
 }
 

@@ -197,7 +197,10 @@ export function useGridColumns(
       align: 'center',
       cellRender: {
         name: 'CellSwitch',
-        props: { change: onStatusChange },
+        props: {
+          auth: ['system:tenant:package:update'],
+          change: onStatusChange,
+        },
       },
       field: 'status',
       title: '状态',

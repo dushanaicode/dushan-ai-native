@@ -10,7 +10,7 @@ import { $t } from '@vben/locales';
 import { ElCheckbox, ElMessage, ElTree } from 'element-plus';
 
 import { useVbenForm } from '#/adapter/form';
-import { getMenuList } from '#/api/system/menu';
+import { getMenuSimpleList } from '#/api/system/menu';
 import { assignRoleMenu, getRoleMenuList } from '#/api/system/role';
 
 import { useAssignMenuFormSchema } from '../data';
@@ -21,7 +21,7 @@ const emit = defineEmits<{
   success: [];
 }>();
 
-interface MenuTreeNode extends SystemMenuApi.MenuRespVO {
+interface MenuTreeNode extends SystemMenuApi.MenuSimpleRespVO {
   children?: MenuTreeNode[];
 }
 
@@ -91,7 +91,7 @@ const [Modal, modalApi] = useVbenModal({
 async function loadMenuTree() {
   menuLoading.value = true;
   try {
-    const data = await getMenuList({ paginate: false });
+    const data = await getMenuSimpleList();
     menuTree.value = buildMenuTree(data);
   } finally {
     menuLoading.value = false;
@@ -127,7 +127,7 @@ function toggleExpandAll() {
   expandedKeys.value = isExpanded.value ? getAllNodeIds(menuTree.value) : [];
 }
 
-function buildMenuTree(list: SystemMenuApi.MenuRespVO[]) {
+function buildMenuTree(list: SystemMenuApi.MenuSimpleRespVO[]) {
   const nodeMap = new Map<string, MenuTreeNode>();
   const roots: MenuTreeNode[] = [];
 

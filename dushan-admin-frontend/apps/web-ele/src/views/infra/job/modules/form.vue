@@ -72,6 +72,7 @@ const [Modal, modalApi] = useVbenModal({
       await formApi.resetForm();
       await formApi.setValues({
         cronExpression: '* * * * *',
+        fanOut: false,
         retryCount: 0,
         retryInterval: 0,
       });
@@ -93,6 +94,7 @@ function normalizeJobValues(
 ): InfraJobApi.JobSaveReqVO {
   return {
     cronExpression: String(values.cronExpression ?? ''),
+    fanOut: values.fanOut as boolean,
     handlerName: String(values.handlerName ?? ''),
     handlerParam:
       typeof values.handlerParam === 'string' && values.handlerParam

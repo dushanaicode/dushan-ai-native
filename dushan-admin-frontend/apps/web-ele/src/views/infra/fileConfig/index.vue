@@ -278,7 +278,7 @@ const [Grid, gridApi] = useVbenVxeGrid({
             {
               label: $t('common.test'),
               type: 'text',
-              auth: ['infra:file:config:query'],
+              auth: ['infra:file:config:update'],
               onClick: handleTest.bind(null, row),
             },
           ]"

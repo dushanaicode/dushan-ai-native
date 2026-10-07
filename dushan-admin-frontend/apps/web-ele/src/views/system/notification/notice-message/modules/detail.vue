@@ -9,7 +9,7 @@ import { formatDateTime } from '@vben/utils';
 
 import { ElAvatar, ElDescriptions, ElDescriptionsItem } from 'element-plus';
 
-import { getNoticeMessage } from '#/api/system/notification/notice-message';
+import { getMyNoticeMessage } from '#/api/system/notification/notice-message';
 import { DictTag } from '#/components';
 import { DICT_TYPE } from '#/constants/dict-types';
 
@@ -34,7 +34,7 @@ const [Modal, modalApi] = useVbenModal({
 
     modalApi.lock();
     try {
-      detail.value = await getNoticeMessage(data.id);
+      detail.value = await getMyNoticeMessage(data.id);
     } finally {
       modalApi.unlock();
     }

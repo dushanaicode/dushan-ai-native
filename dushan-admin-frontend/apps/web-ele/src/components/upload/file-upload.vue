@@ -11,7 +11,7 @@ import {
 } from 'vue';
 
 import { $t } from '@vben/locales';
-import { downloadFileFromUrl } from '@vben/utils';
+import { triggerDownload } from '@vben/utils';
 
 import { ElAlert, ElButton, ElDialog, ElImage, ElProgress } from 'element-plus';
 
@@ -128,7 +128,7 @@ async function show(id: string) {
     if (file.mediaType.startsWith('image/')) {
       preview.value = file.url;
       previewOpen.value = true;
-    } else await downloadFileFromUrl({ source: file.url, fileName: file.name });
+    } else triggerDownload(file.url, file.name);
   } catch (error) {
     if (!signal.aborted) report(error);
   }

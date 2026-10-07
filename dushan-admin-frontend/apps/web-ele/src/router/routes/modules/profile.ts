@@ -13,6 +13,17 @@ const routes: RouteRecordRaw[] = [
       title: $t('page.auth.profile'),
     },
   },
+  {
+    name: 'MyNoticeMessage',
+    path: '/my-notice-message',
+    component: () =>
+      import('#/views/system/notification/notice-message/index.vue'),
+    meta: {
+      icon: 'ep:message',
+      hideInMenu: true,
+      title: $t('utils.notification.myMessages'),
+    },
+  },
 ];
 
 export default routes;

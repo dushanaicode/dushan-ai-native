@@ -6,7 +6,10 @@ import { computed, ref, watch } from 'vue';
 import { Loading } from '@vben/common-ui';
 import { IconifyIcon } from '@vben/icons';
 
-import { ElDialog } from 'element-plus';
+import { ElAlert, ElDialog } from 'element-plus';
+
+import { takeErrorMessage } from '#/api/error-feedback';
+import { resolveFileUrl } from '#/services/file/file-access';
 
 import { getPreviewType } from '../typing';
 
@@ -31,26 +34,44 @@ const previewType = computed<PreviewType>(() =>
 );
 
 const textContent = ref('');
-const textLoading = ref(false);
+const previewUrl = ref('');
+const loading = ref(false);
+const failed = ref('');
 
 watch(
-  () => props.file,
-  async (file) => {
+  () => [props.file, props.modelValue] as const,
+  async ([file, open], _, onCleanup) => {
+    const controller = new AbortController();
+    const { signal } = controller;
+    onCleanup(() => controller.abort());
     textContent.value = '';
-    if (!file?.url || getPreviewType(file.type) !== 'text') {
+    previewUrl.value = '';
+    failed.value = '';
+    loading.value = false;
+    if (!open || !file?.url) {
       return;
     }
 
-    textLoading.value = true;
+    loading.value = true;
     try {
-      const response = await fetch(file.url);
-      textContent.value = await response.text();
-    } catch {
-      textContent.value = '无法加载文件内容';
+      const url = await resolveFileUrl(file.url, signal);
+      signal.throwIfAborted();
+      previewUrl.value = url;
+      if (getPreviewType(file.type) === 'text') {
+        const response = await fetch(url, { signal });
+        if (!response.ok) throw new Error('无法加载文件内容');
+        const text = await response.text();
+        signal.throwIfAborted();
+        textContent.value = text;
+      }
+    } catch (error) {
+      if (!signal.aborted)
+        failed.value = takeErrorMessage(error, '无法加载文件内容');
     } finally {
-      textLoading.value = false;
+      if (!signal.aborted) loading.value = false;
     }
   },
+  { immediate: true },
 );
 </script>
 
@@ -63,13 +84,15 @@ watch(
     top="5vh"
     width="80%"
   >
-    <div v-if="file?.url" class="preview-body">
+    <ElAlert v-if="failed" type="error" :title="failed" :closable="false" />
+    <Loading v-else-if="loading" spinning aria-busy="true" class="min-h-40" />
+    <div v-else-if="file && previewUrl" class="preview-body">
       <div v-if="previewType === 'image'" class="preview-image">
-        <img :alt="file.name" :src="file.url" />
+        <img :alt="file.name" :src="previewUrl" />
       </div>
 
       <div v-else-if="previewType === 'video'" class="preview-video">
-        <video autoplay controls :src="file.url">
+        <video autoplay controls :src="previewUrl">
           您的浏览器不支持视频播放
         </video>
       </div>
@@ -77,23 +100,17 @@ watch(
       <div v-else-if="previewType === 'audio'" class="preview-audio">
         <IconifyIcon icon="lucide:file-audio" class="preview-audio__icon" />
         <div class="preview-audio__name">{{ file.name }}</div>
-        <audio autoplay controls :src="file.url">
+        <audio autoplay controls :src="previewUrl">
           您的浏览器不支持音频播放
         </audio>
       </div>
 
       <div v-else-if="previewType === 'pdf'" class="preview-pdf">
-        <iframe :src="file.url"></iframe>
+        <iframe :src="previewUrl" sandbox=""></iframe>
       </div>
 
       <div v-else-if="previewType === 'text'" class="preview-text">
-        <Loading
-          :spinning="textLoading"
-          :aria-busy="textLoading"
-          class="min-h-40"
-        >
-          <pre v-if="!textLoading">{{ textContent }}</pre>
-        </Loading>
+        <pre>{{ textContent }}</pre>
       </div>
 
       <div v-else class="preview-unsupported">
@@ -101,11 +118,11 @@ watch(
         <p>该文件类型暂不支持预览</p>
         <a
           class="preview-unsupported__link"
-          :href="file.url"
+          :href="previewUrl"
+          :download="file.name"
           rel="noreferrer"
-          target="_blank"
         >
-          打开文件
+          下载文件
         </a>
       </div>
     </div>

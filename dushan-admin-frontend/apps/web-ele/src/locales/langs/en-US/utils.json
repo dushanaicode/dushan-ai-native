@@ -102,7 +102,9 @@
     "loading": "Verifying"
   },
   "notification": {
+    "myMessages": "My Messages",
     "readAll": "Mark all as read",
+    "viewAll": "View all",
     "refresh": "Refresh",
     "failed": "Notification request failed. Please retry",
     "read": "Mark as read",

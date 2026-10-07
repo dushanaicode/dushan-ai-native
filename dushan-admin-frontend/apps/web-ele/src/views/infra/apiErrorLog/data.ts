@@ -107,9 +107,11 @@ export function useGridColumns(): VxeTableGridOptions<InfraApiErrorLogApi.ApiErr
       title: '用户编号',
     },
     {
-      cellRender: {
-        name: 'CellDict',
-        props: { type: DICT_TYPE.USER_TYPE },
+      slots: {
+        default: ({ row }) =>
+          row.userType === 0
+            ? '-'
+            : h(DictTag, { type: DICT_TYPE.USER_TYPE, value: row.userType }),
       },
       field: 'userType',
       minWidth: 110,
@@ -172,10 +174,12 @@ export function useDetailSchema(): DescriptionItemSchema[] {
     { field: 'userId', label: '用户编号' },
     {
       content: (data) =>
-        h(DictTag, {
-          type: DICT_TYPE.USER_TYPE,
-          value: data.userType,
-        }),
+        data.userType === 0
+          ? '-'
+          : h(DictTag, {
+              type: DICT_TYPE.USER_TYPE,
+              value: data.userType,
+            }),
       field: 'userType',
       label: '用户类型',
     },

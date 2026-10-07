@@ -33,6 +33,11 @@ export namespace SystemPostApi {
     status?: number;
   }
 
+  /** 导出查询 ReqVO */
+  export interface PostExportReqVO extends PostPageReqVO {
+    fields?: string[];
+  }
+
   /** 岗位精简信息 */
   export interface PostSimpleRespVO {
     id: string;
@@ -98,7 +103,7 @@ export async function getExportPostFields() {
 }
 
 /** 导出岗位 Excel */
-export async function exportPost(params: SystemPostApi.PostPageReqVO) {
+export async function exportPost(params: SystemPostApi.PostExportReqVO) {
   return requestClient.download('/system/dept/post/export-excel', {
     params,
     paramsSerializer: 'repeat',

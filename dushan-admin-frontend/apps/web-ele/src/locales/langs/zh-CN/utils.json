@@ -102,7 +102,9 @@
     "loading": "验证处理中"
   },
   "notification": {
+    "myMessages": "我的站内信",
     "readAll": "全部已读",
+    "viewAll": "查看全部",
     "refresh": "刷新",
     "failed": "通知操作失败，请重试",
     "read": "标记已读",

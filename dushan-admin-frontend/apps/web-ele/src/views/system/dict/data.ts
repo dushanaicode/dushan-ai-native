@@ -142,7 +142,7 @@ export function useTypeGridColumns(
       align: 'center',
       cellRender: {
         name: 'CellSwitch',
-        props: { change: onStatusChange },
+        props: { auth: ['system:dict:update'], change: onStatusChange },
       },
       field: 'status',
       title: '状态',
@@ -325,7 +325,7 @@ export function useDataGridColumns(
       align: 'center',
       cellRender: {
         name: 'CellSwitch',
-        props: { change: onStatusChange },
+        props: { auth: ['system:dict:update'], change: onStatusChange },
       },
       field: 'status',
       title: '状态',

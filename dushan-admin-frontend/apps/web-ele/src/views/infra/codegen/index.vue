@@ -18,7 +18,8 @@ import {
   getCodegenTablePage,
   syncCodegenFromDb,
 } from '#/api/infra/codegen';
-import { getDataSourceConfigList } from '#/api/infra/data-source-config';
+import { getDataSourceConfigListByStatus } from '#/api/infra/data-source-config';
+import { SwitchStatus } from '#/constants/status';
 import { $t } from '#/locales';
 
 import { useGridColumns, useGridFormSchema } from './data';
@@ -64,9 +65,12 @@ function toOptionalString(value: unknown) {
 }
 
 async function loadDataSourceConfigNameMap() {
-  const configs = await getDataSourceConfigList();
+  const groups = await Promise.all([
+    getDataSourceConfigListByStatus(SwitchStatus.ENABLED),
+    getDataSourceConfigListByStatus(SwitchStatus.DISABLED),
+  ]);
   dataSourceConfigNameMap.value = new Map(
-    configs.map((item) => [item.id, item.name]),
+    groups.flat().map((item) => [item.id, item.name]),
   );
 }
 

@@ -29,7 +29,6 @@ export const DICT_TYPE = {
   SYSTEM_LOGIN_RESULT: 'system_login_result',
   SYSTEM_LOGIN_TYPE: 'system_login_type',
   SYSTEM_MAIL_SEND_STATUS: 'system_mail_send_status',
-  SYSTEM_MENU_TYPE: 'system_menu_type',
   SYSTEM_NOTICE_PUSH_STATUS: 'system_notice_push_status',
   SYSTEM_NOTICE_TYPE: 'system_notice_type',
   SYSTEM_NOTIFICATION_CHANNEL: 'system_notification_channel',

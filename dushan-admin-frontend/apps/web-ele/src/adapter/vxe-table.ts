@@ -74,6 +74,7 @@ setupVbenVxeTable({
     vxeUI.renderer.add('CellSwitch', {
       renderTableDefault({ props }, { column, row }) {
         const { change, ...switchProps } = props as {
+          auth: string[];
           change: (value: number, record: typeof row) => Promise<unknown>;
         };
         return h(CellSwitch, {

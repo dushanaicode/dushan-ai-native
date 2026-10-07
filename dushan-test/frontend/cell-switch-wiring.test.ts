@@ -71,6 +71,20 @@ const modules = [
   ],
 ] as const;
 
+const updateCodes: Record<string, string> = {
+  'infra/job': 'infra:job:update',
+  'infra/config': 'infra:config:type:update',
+  'infra/dataSourceConfig': 'infra:data-source:update',
+  'system/notification/notice': 'system:notification:update',
+  'system/tenant': 'system:tenant:update',
+  'system/tenantPackage': 'system:tenant:package:update',
+  'system/oauth2/client': 'system:oauth2:client:update',
+  'system/sms/channel': 'system:sms:channel:update',
+  'system/sms/template': 'system:sms:template:update',
+  'system/mail/template': 'system:mail:template:update',
+  'system/social/client': 'system:social:client:update',
+};
+
 for (const [name, module] of modules) {
   it(`${name} 的实际Schema和Vxe渲染器传递状态及原始行`, async () => {
     const change = vi.fn(async () => true);
@@ -89,5 +103,6 @@ for (const [name, module] of modules) {
     await expect(vnode.props!.change(next)).resolves.toBe(true);
     expect(change).toHaveBeenCalledExactlyOnceWith(next, row);
     if (name === 'infra/job') expect(vnode.props!.inactiveValue).toBe(2);
+    expect(vnode.props!.auth).toEqual([updateCodes[name]]);
   });
 }

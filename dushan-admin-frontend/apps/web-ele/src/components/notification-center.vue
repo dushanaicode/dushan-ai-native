@@ -2,6 +2,7 @@
 import type { NotificationRuntime } from '../services/notifications/runtime';
 
 import { computed, ref, shallowRef, watch } from 'vue';
+import { useRouter } from 'vue-router';
 
 import { useVbenModal } from '@vben/common-ui';
 import { Bell } from '@vben/icons';
@@ -21,6 +22,7 @@ import { takeErrorMessage } from '#/api/error-feedback';
 import NotificationContent from './notification-content.vue';
 
 const props = defineProps<{ runtime: NotificationRuntime }>();
+const router = useRouter();
 const visible = ref(false);
 const selectedId = ref<string>();
 const localError = shallowRef<unknown>();
@@ -49,6 +51,10 @@ async function run(action: () => Promise<void>) {
     if (!(error instanceof DOMException && error.name === 'AbortError'))
       localError.value = error;
   }
+}
+function viewAll() {
+  visible.value = false;
+  void router.push({ name: 'MyNoticeMessage' });
 }
 function open(id: string) {
   selectedId.value = id;
@@ -115,6 +121,9 @@ function open(id: string) {
       @click="run(() => runtime.refresh())"
     >
       <span>{{ $t('utils.notification.refresh') }}</span>
+    </ElButton>
+    <ElButton text @click="viewAll">
+      <span>{{ $t('utils.notification.viewAll') }}</span>
     </ElButton>
   </ElPopover>
   <Modal :title="selected?.title">

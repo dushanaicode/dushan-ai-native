@@ -35,6 +35,11 @@ export namespace SystemRoleApi {
     status?: number;
   }
 
+  /** 导出查询 ReqVO */
+  export interface RoleExportReqVO extends RolePageReqVO {
+    fields?: string[];
+  }
+
   /** 角色精简信息 */
   export interface RoleSimpleRespVO {
     id: string;
@@ -105,7 +110,7 @@ export async function getExportRoleFields() {
 }
 
 /** 导出角色 Excel */
-export async function exportRole(params: SystemRoleApi.RolePageReqVO) {
+export async function exportRole(params: SystemRoleApi.RoleExportReqVO) {
   return requestClient.download('/system/permission/role/export-excel', {
     params,
     paramsSerializer: 'repeat',

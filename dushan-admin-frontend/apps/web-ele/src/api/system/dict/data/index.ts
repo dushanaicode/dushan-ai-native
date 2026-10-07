@@ -41,6 +41,11 @@ export namespace SystemDictDataApi {
     status?: number;
   }
 
+  /** 导出查询 ReqVO */
+  export interface DictDataExportReqVO extends DictDataPageReqVO {
+    fields?: string[];
+  }
+
   /** 字典数据精简信息（/simple-list，前端字典运行时消费） */
   export interface DictDataSimpleRespVO {
     colorType?: string;
@@ -110,7 +115,7 @@ export async function getExportDictDataFields() {
 
 /** 导出字典数据 Excel */
 export async function exportDictData(
-  params: SystemDictDataApi.DictDataPageReqVO,
+  params: SystemDictDataApi.DictDataExportReqVO,
 ) {
   return requestClient.download('/system/dict/data/export-excel', {
     params,

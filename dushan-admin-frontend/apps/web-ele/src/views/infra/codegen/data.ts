@@ -5,14 +5,14 @@ import type { SystemMenuApi } from '#/api/system/menu';
 
 import { z } from '#/adapter/form';
 import { getDataSourceConfigListByStatus } from '#/api/infra/data-source-config';
-import { getMenuList } from '#/api/system/menu';
+import { getMenuSimpleList } from '#/api/system/menu';
 import { DICT_TYPE } from '#/constants/dict-types';
 import { InfraCodegenTemplateTypeEnum } from '#/constants/enums';
 import { SwitchStatus } from '#/constants/status';
 import { useDictionary } from '#/services/dictionary/context';
 import { getRangePickerDefaultProps } from '#/utils/range-picker';
 
-interface MenuTreeNode extends SystemMenuApi.MenuRespVO {
+interface MenuTreeNode extends SystemMenuApi.MenuSimpleRespVO {
   children?: MenuTreeNode[];
   disabled?: boolean;
 }
@@ -23,6 +23,8 @@ const pythonTypeOptions = [
   { label: 'float', value: 'float' },
   { label: 'Decimal', value: 'Decimal' },
   { label: 'bool', value: 'bool' },
+  { label: 'date', value: 'date' },
+  { label: 'time', value: 'time' },
   { label: 'datetime', value: 'datetime' },
   { label: 'bytes', value: 'bytes' },
 ];
@@ -59,7 +61,7 @@ const subJoinExcludeFields = new Set([
   'updater',
 ]);
 
-function buildMenuTree(list: SystemMenuApi.MenuRespVO[]): MenuTreeNode[] {
+function buildMenuTree(list: SystemMenuApi.MenuSimpleRespVO[]): MenuTreeNode[] {
   const nodeMap = new Map<string, MenuTreeNode>();
   const roots: MenuTreeNode[] = [];
 
@@ -361,7 +363,7 @@ export function useGenerationInfoBaseFormSchema(): VbenFormSchema[] {
       component: 'ApiTreeSelect',
       componentProps: {
         api: async () => {
-          const data = await getMenuList();
+          const data = await getMenuSimpleList();
           return [
             {
               children: buildMenuTree(data),

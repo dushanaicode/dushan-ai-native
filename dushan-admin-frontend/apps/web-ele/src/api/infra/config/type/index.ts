@@ -29,10 +29,14 @@ export namespace InfraConfigTypeApi {
   export interface ConfigTypePageReqVO extends PageParam {
     code?: string;
     createTime?: string[];
-    fields?: string[];
     module?: string;
     name?: string;
     status?: number;
+  }
+
+  /** 导出查询 ReqVO */
+  export interface ConfigTypeExportReqVO extends ConfigTypePageReqVO {
+    fields?: string[];
   }
 
   /** 配置类型精简信息 */
@@ -101,7 +105,7 @@ export async function getConfigType(id: string) {
 /** 获得全部配置类型精简列表 */
 export async function getSimpleConfigTypeList(module?: string) {
   return requestClient.get<InfraConfigTypeApi.ConfigTypeSimpleRespVO[]>(
-    '/infra/config/type/list-all-simple',
+    '/infra/config/type/simple-list',
     { params: module === undefined ? {} : { module } },
   );
 }
@@ -113,7 +117,7 @@ export async function getExportConfigTypeFields() {
 
 /** 导出配置类型 Excel */
 export async function exportConfigType(
-  params: InfraConfigTypeApi.ConfigTypePageReqVO,
+  params: InfraConfigTypeApi.ConfigTypeExportReqVO,
 ) {
   return requestClient.download('/infra/config/type/export-excel', {
     params,

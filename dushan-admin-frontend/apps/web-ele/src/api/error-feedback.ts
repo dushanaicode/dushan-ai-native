@@ -1,15 +1,18 @@
+import type { App } from 'vue';
+
 import { $t } from '@vben/locales';
 import { isAxiosError } from '@vben/request';
 
 import { ElMessage } from 'element-plus';
 
 import { SessionChangedError } from '../services/session/coordinator';
-import { BusinessError } from './business-error';
+import { BusinessError, isDemoDenied } from './business-error';
 
 const displayed = new WeakSet<object>();
 
 /** 后端业务错误以公开 message 为准；无后端响应时由调用方提供本地说明。 */
 export function getErrorMessage(error: unknown, fallback: string): string {
+  if (isDemoDenied(error)) return $t('readonlyDemo.denied');
   return error instanceof BusinessError ? error.message : fallback;
 }
 
@@ -38,5 +41,32 @@ export function notifyError(error: unknown, fallback?: string): void {
         ? error.message
         : $t('ui.fallback.http.internalServerError')),
   );
-  if (message) ElMessage.error(message);
+  if (message) {
+    if (isDemoDenied(error)) ElMessage.warning(message);
+    else ElMessage.error(message);
+  }
+}
+
+/** 请求仍拒绝以终止成功流程；只在最终 UI 边界消费已说明的只读拒绝。 */
+export function installDemoErrorBoundary(app: App): () => void {
+  const previous = app.config.errorHandler;
+  app.config.errorHandler = (error, instance, info) => {
+    if (isDemoDenied(error)) {
+      notifyError(error);
+    } else if (previous) {
+      previous(error, instance, info);
+    } else {
+      throw error;
+    }
+  };
+  const onUnhandledRejection = (event: PromiseRejectionEvent) => {
+    if (!isDemoDenied(event.reason)) return;
+    notifyError(event.reason);
+    event.preventDefault();
+  };
+  window.addEventListener('unhandledrejection', onUnhandledRejection);
+  return () => {
+    app.config.errorHandler = previous;
+    window.removeEventListener('unhandledrejection', onUnhandledRejection);
+  };
 }

@@ -105,7 +105,7 @@ export async function getSimpleFileConfigList(options?: NativeRequestConfig) {
 
 /** 测试文件配置是否正确 */
 export async function testFileConfig(id: string) {
-  return requestClient.get<string>('/infra/file/config/test', {
+  return requestClient.post<string>('/infra/file/config/test', undefined, {
     params: { id },
   });
 }

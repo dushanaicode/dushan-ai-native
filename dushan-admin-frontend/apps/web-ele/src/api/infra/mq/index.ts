@@ -41,6 +41,11 @@ export namespace InfraMqApi {
     status?: number;
     topic?: string;
   }
+
+  /** 导出查询 ReqVO */
+  export interface MqExportReqVO extends MqPageReqVO {
+    fields?: string[];
+  }
 }
 
 export async function getRegisteredConsumers() {
@@ -85,7 +90,7 @@ export async function getExportMqFields() {
 }
 
 /** 导出消息定义 */
-export async function exportMq(params: InfraMqApi.MqPageReqVO) {
+export async function exportMq(params: InfraMqApi.MqExportReqVO) {
   return requestClient.download('/infra/mq/export-excel', {
     params,
     paramsSerializer: 'repeat',

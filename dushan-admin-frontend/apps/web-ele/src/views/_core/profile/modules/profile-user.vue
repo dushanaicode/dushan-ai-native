@@ -20,7 +20,7 @@ const emit = defineEmits<{
   success: [];
 }>();
 
-const filePorts = createFilePorts({ directory: 'avatar' });
+const filePorts = createFilePorts('avatar');
 
 const avatar = ref('');
 watch(

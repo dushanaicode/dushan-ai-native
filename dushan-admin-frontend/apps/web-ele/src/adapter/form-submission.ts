@@ -2,7 +2,8 @@ import type { NativeRequestConfig } from '../api/response';
 
 import { cloneDeep, get, isEqual } from '@vben/utils';
 
-import { BusinessError } from '../api/business-error';
+import { BusinessError, isDemoDenied } from '../api/business-error';
+import { notifyError } from '../api/error-feedback';
 
 export interface FormErrorTarget {
   isMounted: boolean;
@@ -53,6 +54,10 @@ export class FormSubmission {
       // 网络故障由请求层提示并继续传播，程序错误也不能静默变成普通校验失败。
       if (!(error instanceof BusinessError)) throw error;
       if (!current()) return { status: 'stale' };
+      if (isDemoDenied(error)) {
+        notifyError(error);
+        return { status: 'error' };
+      }
       const fields = error.details?.fields ?? [];
       if (fields.length === 0) {
         this.notify(error.message);

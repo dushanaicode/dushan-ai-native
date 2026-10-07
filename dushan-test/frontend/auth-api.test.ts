@@ -123,6 +123,7 @@ describe('核心接口与后端真实端点对齐', () => {
     );
     expect(calls[1]).toMatchObject({
       client: 'anonymous',
+      method: 'post',
       config: {
         headers: { 'X-Tenant-Id': '2' },
         withCredentials: true,

@@ -43,6 +43,11 @@ export namespace SystemSmsLogApi {
     sendTime?: string[];
     templateId?: string;
   }
+
+  /** 导出查询 ReqVO */
+  export interface SmsLogExportReqVO extends SmsLogPageReqVO {
+    fields?: string[];
+  }
 }
 
 /** 获得短信日志分页 */
@@ -59,7 +64,7 @@ export async function getExportSmsLogFields() {
 }
 
 /** 导出短信日志 Excel */
-export async function exportSmsLog(params: SystemSmsLogApi.SmsLogPageReqVO) {
+export async function exportSmsLog(params: SystemSmsLogApi.SmsLogExportReqVO) {
   return requestClient.download('/system/sms/log/export-excel', {
     params,
     paramsSerializer: 'repeat',

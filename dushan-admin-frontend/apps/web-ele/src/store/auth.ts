@@ -120,7 +120,12 @@ export const useAuthStore = defineStore('auth', () => {
         await (onSuccess ? onSuccess() : router.push(userInfo.homePath));
       }
       session.assertCurrent(scope);
-      if (!wasExpired && userInfo.realName)
+      if (userStore.userRoles.includes('readonly'))
+        ElNotification({
+          message: $t('readonlyDemo.entered'),
+          type: 'warning',
+        });
+      else if (!wasExpired && userInfo.realName)
         ElNotification({
           message: `${$t('authentication.loginSuccessDesc')}:${userInfo.realName}`,
           title: $t('authentication.loginSuccess'),

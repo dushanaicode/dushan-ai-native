@@ -43,6 +43,11 @@ export namespace SystemMailLogApi {
     userId?: string;
     userType?: number;
   }
+
+  /** 导出查询 ReqVO */
+  export interface MailLogExportReqVO extends MailLogPageReqVO {
+    fields?: string[];
+  }
 }
 
 /** 获得邮箱日志分页 */
@@ -68,7 +73,9 @@ export async function getExportMailLogFields() {
 }
 
 /** 导出邮箱日志 Excel */
-export async function exportMailLog(params: SystemMailLogApi.MailLogPageReqVO) {
+export async function exportMailLog(
+  params: SystemMailLogApi.MailLogExportReqVO,
+) {
   return requestClient.download('/system/mail/log/export-excel', {
     params,
     paramsSerializer: 'repeat',

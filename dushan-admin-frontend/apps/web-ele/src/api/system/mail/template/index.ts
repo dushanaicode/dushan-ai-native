@@ -42,6 +42,11 @@ export namespace SystemMailTemplateApi {
     status?: number;
   }
 
+  /** 导出查询 ReqVO */
+  export interface MailTemplateExportReqVO extends MailTemplatePageReqVO {
+    fields?: string[];
+  }
+
   /** 邮件发送 ReqVO */
   export interface MailTemplateSendReqVO {
     bccMails?: string[];
@@ -120,7 +125,7 @@ export async function getExportMailTemplateFields() {
 
 /** 导出邮件模版 Excel */
 export async function exportMailTemplate(
-  params: SystemMailTemplateApi.MailTemplatePageReqVO,
+  params: SystemMailTemplateApi.MailTemplateExportReqVO,
 ) {
   return requestClient.download('/system/mail/template/export-excel', {
     params,

@@ -27,6 +27,11 @@ export namespace InfraJobLogApi {
     jobId?: string;
     status?: number;
   }
+
+  /** 导出查询 ReqVO */
+  export interface JobLogExportReqVO extends JobLogPageReqVO {
+    fields?: string[];
+  }
 }
 
 /** 获得定时任务日志 */
@@ -50,7 +55,7 @@ export async function getExportJobLogFields() {
 }
 
 /** 导出定时任务日志 Excel */
-export async function exportJobLog(params: InfraJobLogApi.JobLogPageReqVO) {
+export async function exportJobLog(params: InfraJobLogApi.JobLogExportReqVO) {
   return requestClient.download('/infra/job/log/export-excel', {
     params,
     paramsSerializer: 'repeat',

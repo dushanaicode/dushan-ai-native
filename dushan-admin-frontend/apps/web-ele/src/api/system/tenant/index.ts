@@ -55,6 +55,11 @@ export namespace SystemTenantApi {
     status?: number;
   }
 
+  /** 导出查询 ReqVO */
+  export interface TenantExportReqVO extends TenantPageReqVO {
+    fields?: string[];
+  }
+
   /** 租户精简信息 */
   export interface TenantSimpleRespVO {
     id: string;
@@ -135,7 +140,7 @@ export async function getExportTenantFields() {
 }
 
 /** 导出租户 Excel */
-export async function exportTenant(params: SystemTenantApi.TenantPageReqVO) {
+export async function exportTenant(params: SystemTenantApi.TenantExportReqVO) {
   return requestClient.download('/system/tenant/export-excel', {
     params,
     paramsSerializer: 'repeat',

@@ -84,7 +84,8 @@ export function parseFileAccess(
   return records.map((record) => {
     const url = new URL(record.url, window.location.origin);
     if (
-      !['http:', 'https:'].includes(url.protocol) ||
+      (!['http:', 'https:'].includes(url.protocol) &&
+        !(url.protocol === 'blob:' && url.origin === window.location.origin)) ||
       url.username ||
       url.password
     )

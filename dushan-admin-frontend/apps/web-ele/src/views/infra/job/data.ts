@@ -66,6 +66,13 @@ export function useFormSchema(): VbenFormSchema[] {
       rules: 'required',
     },
     {
+      component: 'Switch',
+      defaultValue: false,
+      fieldName: 'fanOut',
+      help: '开启后，对每个有效租户分别执行；关闭时只执行当前租户。',
+      label: '按租户执行',
+    },
+    {
       component: 'Textarea',
       componentProps: {
         placeholder: '请输入处理器参数',
@@ -192,6 +199,7 @@ export function useGridColumns(
       cellRender: {
         name: 'CellSwitch',
         props: {
+          auth: ['infra:job:update'],
           change: onStatusChange,
           activeValue: InfraJobStatusEnum.NORMAL,
           inactiveValue: InfraJobStatusEnum.STOP,
@@ -256,6 +264,11 @@ export function useDetailSchema(): DescriptionItemSchema[] {
   return [
     { field: 'id', label: '任务编号' },
     { field: 'name', label: '任务名称' },
+    {
+      content: (data) => (data?.fanOut ? '每个有效租户分别执行' : '当前租户'),
+      field: 'fanOut',
+      label: '执行范围',
+    },
     {
       content: (data) =>
         h(DictTag, {

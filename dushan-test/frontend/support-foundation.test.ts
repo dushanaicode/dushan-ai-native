@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createApp, h, nextTick, ref } from 'vue';
 
+import { useAccessStore } from '@vben/stores';
+
+import { createPinia } from 'pinia';
+
 import CellSwitch from '../../dushan-admin-frontend/apps/web-ele/src/adapter/cell-switch.vue';
 import { formRules } from '../../dushan-admin-frontend/apps/web-ele/src/adapter/form-rules';
 import { getRangePickerDefaultProps } from '../../dushan-admin-frontend/apps/web-ele/src/utils/range-picker';
@@ -87,13 +91,38 @@ describe('支撑层数据边界', () => {
   });
 });
 
+function accessPinia(codes: string[]) {
+  const pinia = createPinia();
+  useAccessStore(pinia).setAccessCodes(codes);
+  return pinia;
+}
+
 describe('CellSwitch 的实际交互', () => {
+  it('缺少 auth 权限码时禁用开关且不发起修改', async () => {
+    const change = vi.fn(async () => true);
+    const element = document.createElement('div');
+    const app = createApp(() =>
+      h(CellSwitch, { auth: ['row:update'], change, modelValue: 0 }),
+    );
+    app.use(accessPinia([]));
+    app.mount(element);
+    try {
+      const input = element.querySelector<HTMLInputElement>('input')!;
+      expect(input.disabled).toBe(true);
+      element.querySelector<HTMLElement>('.el-switch')!.click();
+      await nextTick();
+      expect(change).not.toHaveBeenCalled();
+    } finally {
+      app.unmount();
+    }
+  });
   it('任务状态1/2正确切换，初始化和外部刷新不会自动写状态', async () => {
     const state = ref(2);
     const change = vi.fn(async (_value: number) => true);
     const element = document.createElement('div');
     const app = createApp(() =>
       h(CellSwitch, {
+        auth: ['row:update'],
         modelValue: state.value,
         activeValue: 1,
         inactiveValue: 2,
@@ -105,6 +134,7 @@ describe('CellSwitch 的实际交互', () => {
     );
     const errors: unknown[] = [];
     app.config.errorHandler = (error) => errors.push(error);
+    app.use(accessPinia(['row:update']));
     app.mount(element);
     try {
       await nextTick();
@@ -134,11 +164,13 @@ describe('CellSwitch 的实际交互', () => {
     const element = document.createElement('div');
     const app = createApp(() =>
       h(CellSwitch, {
+        auth: ['row:update'],
         change,
         modelValue: 0,
         'onUpdate:modelValue': update,
       }),
     );
+    app.use(accessPinia(['row:update']));
     app.mount(element);
     const button = element.querySelector<HTMLElement>('.el-switch')!;
     const input = element.querySelector<HTMLInputElement>('input')!;
@@ -170,6 +202,7 @@ describe('CellSwitch 的实际交互', () => {
     document.body.append(element);
     const app = createApp(() =>
       h(CellSwitch, {
+        auth: ['row:update'],
         modelValue: state.value,
         change,
         'onUpdate:modelValue': (value) => {
@@ -178,6 +211,7 @@ describe('CellSwitch 的实际交互', () => {
       }),
     );
     app.config.errorHandler = (error) => errors.push(error);
+    app.use(accessPinia(['row:update']));
     app.mount(element);
     try {
       const button = element.querySelector<HTMLElement>('.el-switch')!;

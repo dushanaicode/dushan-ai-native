@@ -18,3 +18,7 @@ export class BusinessError extends Error {
     this.details = body.error;
   }
 }
+
+export function isDemoDenied(error: unknown): boolean {
+  return error instanceof BusinessError && error.code === 901;
+}

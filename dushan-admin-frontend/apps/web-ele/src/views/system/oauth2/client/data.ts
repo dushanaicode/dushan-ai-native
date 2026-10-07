@@ -95,9 +95,10 @@ export function useFormSchema(): VbenFormSchema[] {
     {
       component: 'ImageUpload',
       componentProps: {
-        ports: createFilePorts({ directory: 'oauth2/client' }),
+        ports: createFilePorts('logo'),
         helpText: '支持 jpg/png/webp，建议使用正方形图片',
         maxNumber: 1,
+        maxSize: 2,
       },
       fieldName: 'logo',
       label: '客户端图标',
@@ -316,7 +317,10 @@ export function useGridColumns(
       align: 'center',
       cellRender: {
         name: 'CellSwitch',
-        props: { change: onStatusChange },
+        props: {
+          auth: ['system:oauth2:client:update'],
+          change: onStatusChange,
+        },
       },
       field: 'status',
       title: '状态',

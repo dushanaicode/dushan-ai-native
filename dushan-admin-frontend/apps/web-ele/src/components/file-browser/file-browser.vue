@@ -8,7 +8,6 @@ import { useAccess } from '@vben/access';
 import { Loading } from '@vben/common-ui';
 import { IconifyIcon } from '@vben/icons';
 import { $t } from '@vben/locales';
-import { openWindow } from '@vben/utils';
 
 import { useClipboard } from '@vueuse/core';
 import {
@@ -31,7 +30,7 @@ import { notifyError } from '#/api/error-feedback';
 import FileGridView from './components/file-grid-view.vue';
 import FileListView from './components/file-list-view.vue';
 import FilePreviewDialog from './components/file-preview-dialog.vue';
-import { getPreviewType, getStorageLabel } from './typing';
+import { getStorageLabel } from './typing';
 import { useFileBrowser } from './use-file-browser';
 
 defineOptions({ name: 'FileBrowser' });
@@ -75,6 +74,7 @@ const {
   toggleSelect,
   toggleSelectAll,
   uploading,
+  uploadVisibility,
   viewMode,
 } = useFileBrowser();
 
@@ -154,12 +154,9 @@ const showPreview = ref(false);
 const previewFile = ref<FileObject | null>(null);
 
 function openPreview(item: FileObject) {
-  const previewType = getPreviewType(item.type);
-  if (previewType !== 'none' && item.url) {
+  if (item.url) {
     previewFile.value = item;
     showPreview.value = true;
-  } else if (item.url) {
-    openWindow(item.url);
   }
 }
 
@@ -193,8 +190,12 @@ function handleOpenUrl(item: FileObject) {
   openPreview(item);
 }
 
-function handleDownload(item: FileObject) {
-  handleDownloadItem(item);
+async function handleDownload(item: FileObject) {
+  try {
+    await handleDownloadItem(item);
+  } catch (error) {
+    notifyError(error);
+  }
 }
 
 const showRename = ref(false);
@@ -365,6 +366,16 @@ async function handleSearchFiles() {
       </div>
 
       <div class="file-browser__toolbar-right">
+        <ElSelect
+          v-if="canUpload"
+          v-model="uploadVisibility"
+          aria-label="上传文件可见性"
+          :disabled="!hasConfig || uploading > 0"
+          class="w-28"
+        >
+          <ElOption label="私有" value="private" />
+          <ElOption label="公开" value="public" />
+        </ElSelect>
         <ElUpload
           v-if="canUpload"
           :before-upload="handleBeforeUpload"

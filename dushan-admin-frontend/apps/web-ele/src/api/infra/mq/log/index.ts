@@ -28,6 +28,11 @@ export namespace InfraMqLogApi {
     messageId?: string;
     status?: number;
   }
+
+  /** 导出查询 ReqVO */
+  export interface MqLogExportReqVO extends MqLogPageReqVO {
+    fields?: string[];
+  }
 }
 
 /** 获得消费日志 */
@@ -51,7 +56,7 @@ export async function getExportMqLogFields() {
 }
 
 /** 导出MQ日志 */
-export async function exportMqLog(params: InfraMqLogApi.MqLogPageReqVO) {
+export async function exportMqLog(params: InfraMqLogApi.MqLogExportReqVO) {
   return requestClient.download('/infra/mq/log/export-excel', {
     params,
     paramsSerializer: 'repeat',

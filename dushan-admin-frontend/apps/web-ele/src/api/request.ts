@@ -12,7 +12,7 @@ import {
   configureSessionStreaming,
 } from '../services/session/http';
 import { getSession } from '../services/session/runtime';
-import { BusinessError } from './business-error';
+import { BusinessError, isDemoDenied } from './business-error';
 import { notifyError } from './error-feedback';
 import {
   configureNativeStreaming,
@@ -62,6 +62,7 @@ function createRequestClient(
         return;
       if (
         error instanceof BusinessError &&
+        !isDemoDenied(error) &&
         (error.config as NativeRequestConfig).errorMessageMode === 'form'
       )
         return;

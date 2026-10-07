@@ -1,16 +1,21 @@
 <script lang="ts" setup>
 import type { FileObject } from '../typing';
 
+import { ref, watch } from 'vue';
+
 import { IconifyIcon } from '@vben/icons';
 import { $t } from '@vben/locales';
 
 import { ElDropdown, ElDropdownItem, ElDropdownMenu } from 'element-plus';
 
+import { notifyError } from '#/api/error-feedback';
+import { resolveFileUrl } from '#/services/file/file-access';
+
 import { getFileIcon, isImageType } from '../typing';
 
 defineOptions({ name: 'FileGridView' });
 
-defineProps<{
+const props = defineProps<{
   canDelete?: boolean;
   canUpdate?: boolean;
   objects: FileObject[];
@@ -26,6 +31,27 @@ const emit = defineEmits<{
   rename: [item: FileObject];
   toggleSelect: [key: string];
 }>();
+const thumbnailUrls = ref(new Map<string, string>());
+watch(
+  () => props.objects,
+  (objects, _, onCleanup) => {
+    const controller = new AbortController();
+    onCleanup(() => controller.abort());
+    thumbnailUrls.value = new Map();
+    for (const item of objects) {
+      if (!item.url || !isImageType(item.type)) continue;
+      void resolveFileUrl(item.url, controller.signal)
+        .then((url) => {
+          if (!controller.signal.aborted)
+            thumbnailUrls.value.set(item.key, url);
+        })
+        .catch((error: unknown) => {
+          if (!controller.signal.aborted) notifyError(error);
+        });
+    }
+  },
+  { immediate: true },
+);
 
 function handleCommand(command: string, item: FileObject) {
   switch (command) {
@@ -124,11 +150,11 @@ function onImageError(event: Event) {
 
       <div class="file-grid__preview" @click="emit('open', item)">
         <img
-          v-if="isImageType(item.type) && item.url"
+          v-if="thumbnailUrls.has(item.key)"
           :alt="item.name"
           class="file-grid__thumb"
           loading="lazy"
-          :src="item.url"
+          :src="thumbnailUrls.get(item.key)"
           @error="onImageError"
         />
         <IconifyIcon v-else :icon="getFileIcon(item)" class="file-grid__icon" />

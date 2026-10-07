@@ -35,6 +35,11 @@ export namespace SystemMailAccountApi {
     username?: string;
   }
 
+  /** 导出查询 ReqVO */
+  export interface MailAccountExportReqVO extends MailAccountPageReqVO {
+    fields?: string[];
+  }
+
   /** 邮箱账号精简信息 */
   export interface MailAccountSimpleRespVO {
     id: string;
@@ -95,7 +100,7 @@ export async function getExportMailAccountFields() {
 
 /** 导出邮箱账号 Excel */
 export async function exportMailAccount(
-  params: SystemMailAccountApi.MailAccountPageReqVO,
+  params: SystemMailAccountApi.MailAccountExportReqVO,
 ) {
   return requestClient.download('/system/mail/account/export-excel', {
     params,

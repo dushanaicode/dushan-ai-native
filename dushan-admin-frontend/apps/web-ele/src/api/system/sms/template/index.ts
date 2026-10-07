@@ -44,6 +44,11 @@ export namespace SystemSmsTemplateApi {
     type?: number;
   }
 
+  /** 导出查询 ReqVO */
+  export interface SmsTemplateExportReqVO extends SmsTemplatePageReqVO {
+    fields?: string[];
+  }
+
   /** 短信发送 ReqVO */
   export interface SmsTemplateSendReqVO {
     mobile: string;
@@ -120,7 +125,7 @@ export async function getExportSmsTemplateFields() {
 
 /** 导出短信模板 Excel */
 export async function exportSmsTemplate(
-  params: SystemSmsTemplateApi.SmsTemplatePageReqVO,
+  params: SystemSmsTemplateApi.SmsTemplateExportReqVO,
 ) {
   return requestClient.download('/system/sms/template/export-excel', {
     params,
