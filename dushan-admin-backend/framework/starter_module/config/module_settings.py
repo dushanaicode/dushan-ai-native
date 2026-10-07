@@ -1,5 +1,3 @@
-import json
-
 from pydantic import BaseModel, ConfigDict, field_validator
 
 from framework.common.importing.package_locator import PackageLocator
@@ -12,19 +10,6 @@ class ModuleSettings(BaseModel):
 
     packages: tuple[str, ...]
     enabled: tuple[str, ...]
-
-    @field_validator("packages", "enabled", mode="before")
-    @classmethod
-    def parse_array(cls, value: object) -> object:
-        """环境覆盖使用 JSON 数组，值和结构随后统一校验。"""
-        if isinstance(value, str):
-            try:
-                value = json.loads(value)
-            except json.JSONDecodeError:
-                raise ValueError("模块列表必须是 JSON 数组") from None
-            if not isinstance(value, list):
-                raise ValueError("模块列表必须是 JSON 数组")
-        return value
 
     @field_validator("packages", "enabled")
     @classmethod

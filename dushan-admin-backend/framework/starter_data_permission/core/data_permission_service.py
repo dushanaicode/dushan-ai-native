@@ -1,7 +1,7 @@
 import asyncio
 import hashlib
 import json
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 from contextvars import ContextVar
 from time import monotonic
 from typing import get_args
@@ -119,7 +119,8 @@ class DataPermissionService(DataAccessProvider):
         return snapshot.grant
 
     @asynccontextmanager
-    async def enter(self, identity):
+    async def enter(self, identity, *, capability=None):
+        """绑定数据范围，并为工作负载当前能力建立可释放的资源豁免。"""
         if self._closed:
             raise DataPermissionException(DataPermissionErrorCodes.CLOSED)
         binding = ApplicationContext.current_execution()
@@ -144,7 +145,20 @@ class DataPermissionService(DataAccessProvider):
                 binding, identity, grant, monotonic() + self.settings.snapshot_seconds
             )
             self._frame.set(frame)
-            yield
+            async with AsyncExitStack() as stack:
+                if not isinstance(identity, LoginSession):
+                    if not capability:
+                        raise DataPermissionException(DataPermissionErrorCodes.CONFIGURATION)
+                    if self.exemptions is not None:
+                        resources = await self._call(
+                            lambda: self.exemptions.workload_resources(identity, capability)
+                        )
+                        for resource, operations in resources.items():
+                            for operation in operations:
+                                await stack.enter_async_context(
+                                    self.exempt(resource, operation, reason=capability)
+                                )
+                yield
         finally:
             if frame is not None:
                 frame.active = False

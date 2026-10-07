@@ -37,9 +37,6 @@ class AbstractFileClient(ABC):
             f"{str(domain).rstrip('/')}/admin-api/infra/file/{self._id}/get/{quote(path, safe='/')}"
         )
 
-    async def get_presigned_object_url(self, path):
-        raise ValueError("当前存储不支持直传预签名")
-
     async def presign_get_url(self, path, expiration_seconds=None):
         return self.format_file_url(self.config.domain, self.key(path))
 

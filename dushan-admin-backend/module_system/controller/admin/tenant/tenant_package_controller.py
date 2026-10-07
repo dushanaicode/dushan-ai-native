@@ -3,14 +3,12 @@ from fastapi.responses import StreamingResponse
 
 from framework.common.contracts import SnowflakeIdStr
 from framework.common.enums import StatusEnum
-from framework.common.page import PageResult, PageSettings
+from framework.common.page import PageResult
 from framework.common.schemas.request import IdListReqVO, IdReqVO, UpdateStatusReqVO
 from framework.starter_di.public import (
     DiDependency,
 )
 from framework.starter_excel.public import (
-    DictDataProvider,
-    ExcelProviders,
     ExcelWriter,
 )
 from framework.starter_security.public import (
@@ -21,25 +19,23 @@ from framework.starter_web.public import (
     Result,
     RoutePolicy,
 )
-from module_system.controller.admin.tenant.vo.packages.packages_package_export_req_vo import (
+from module_system.controller.admin.tenant.vo.package.tenant_package_export_req_vo import (
     TenantPackageExportReqVO,
 )
-from module_system.controller.admin.tenant.vo.packages.packages_package_page_req_vo import (
+from module_system.controller.admin.tenant.vo.package.tenant_package_page_req_vo import (
     TenantPackagePageReqVO,
 )
-from module_system.controller.admin.tenant.vo.packages.packages_package_resp_vo import (
+from module_system.controller.admin.tenant.vo.package.tenant_package_resp_vo import (
     TenantPackageRespVO,
 )
-from module_system.controller.admin.tenant.vo.packages.packages_package_save_req_vo import (
+from module_system.controller.admin.tenant.vo.package.tenant_package_save_req_vo import (
     TenantPackageSaveReqVO,
 )
-from module_system.controller.admin.tenant.vo.packages.packages_package_simple_resp_vo import (
+from module_system.controller.admin.tenant.vo.package.tenant_package_simple_resp_vo import (
     TenantPackageSimpleRespVO,
 )
 from module_system.dal.dataobject.tenant.tenant_package_do import TenantPackageDO
 from module_system.service.tenant.tenant_package_service import TenantPackageService
-from module_system.spi.dept.dept_info_provider_adapter import DeptInfoProviderAdapter
-from module_system.spi.dept.post_info_provider_adapter import PostInfoProviderAdapter
 
 tenant_package_controller = APIRouter(prefix="/tenant/package", tags=["System - 租户套餐管理"])
 
@@ -193,17 +189,8 @@ class TenantPackageController:
         tenant_package_service: TenantPackageService = Depends(DiDependency(TenantPackageService)),
         excel_writer: ExcelWriter = Depends(DiDependency(ExcelWriter)),
         files: FileResult = Depends(DiDependency(FileResult)),
-        dictionaries: DictDataProvider = Depends(DiDependency(DictDataProvider)),
-        departments: DeptInfoProviderAdapter = Depends(DiDependency(DeptInfoProviderAdapter)),
-        posts: PostInfoProviderAdapter = Depends(DiDependency(PostInfoProviderAdapter)),
-        page_settings: PageSettings = Depends(DiDependency(PageSettings)),
     ) -> StreamingResponse:
-        excel_providers = ExcelProviders(
-            dictionaries=dictionaries, departments=departments, posts=posts
-        )
-        page_req_vo.enable_fetch_all(
-            max_rows=min(excel_writer.settings.max_export_rows, page_settings.fetch_all_max_rows)
-        )
+        excel_writer.prepare_export_query(page_req_vo)
         list_data_page: PageResult[
             TenantPackageDO
         ] = await tenant_package_service.get_tenant_package_page(page_req_vo)
@@ -216,7 +203,6 @@ class TenantPackageController:
             "数据",
             TenantPackageRespVO,
             tenant_package_resp_list,
-            providers=excel_providers,
             fields=page_req_vo.fields,
         )
         return files.excel_stream(file_data, file_name=f"{filename}.xlsx")

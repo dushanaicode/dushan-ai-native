@@ -7,6 +7,7 @@ from framework.common.contracts import (
     SnowflakeIdStr,
 )
 from framework.common.schemas import BaseVO
+from module_infra.definitions.enums.file.file_visibility_enum import FileVisibilityEnum
 
 
 class FileRespVO(BaseVO):
@@ -17,6 +18,7 @@ class FileRespVO(BaseVO):
     path: Annotated[str, Field(..., validation_alias="storage_path", description="完整存储路径")]
     name: Annotated[str, Field(..., description="原文件名")]
     url: Annotated[str, Field(..., description="文件 URL")]
+    visibility: Annotated[FileVisibilityEnum, Field(..., description="可见性")]
     type: Annotated[str | None, Field(None, description="文件MIME类型")]
     size: Annotated[int, Field(..., description="文件大小")]
     create_time: Annotated[datetime, Field(..., description="创建时间")]
@@ -29,6 +31,7 @@ class FileRespVO(BaseVO):
                     "path": "dushan.jpg",
                     "name": "dushan.jpg",
                     "url": "https://www.dushan.info/dushan.jpg",
+                    "visibility": "public",
                     "type": "application/octet-stream",
                     "size": 2048,
                     "createTime": "2020-05-20T05:20:00Z",

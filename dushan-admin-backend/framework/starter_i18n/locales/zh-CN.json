@@ -17,7 +17,7 @@
     "bad_gateway": "网关异常",
     "service_unavailable": "服务暂时不可用",
     "repeated_requests": "重复请求，请稍后重试",
-    "demo_deny": "演示模式，禁止写操作",
+    "demo_deny": "演示账号只能查看，不能修改",
     "signature_mismatch": "签名不匹配"
   },
   "validation": {

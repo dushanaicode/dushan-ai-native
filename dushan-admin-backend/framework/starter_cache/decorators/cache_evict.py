@@ -14,7 +14,7 @@ from framework.starter_cache.model.cache_key import CacheKey
 from framework.starter_cache.model.cache_prefix_invalidation_command import (
     CachePrefixInvalidationCommand,
 )
-from framework.starter_di.context.get_bean import get_bean
+from framework.starter_di.context.application_context import ApplicationContext
 
 
 class CacheEvict:
@@ -22,14 +22,15 @@ class CacheEvict:
 
     用法：
 
-        @invalidate(SystemCacheKeys.ROLE, key="id:{{role_id}}")
+        @invalidate(SystemCacheKeyConstants.ROLE, key="id:{{role_id}}")
         async def update_role(self, role_id: int, ...) -> None: ...
 
     命令在调用业务方法之前就构造好，因为渲染键模板需要入参；业务抛异常时不执行失效。
-    涉及数据库事务时必须把本装饰器放在 @transactional 外层，
-    否则失效会发生在提交之前，提交失败会留下已经被删掉的缓存和没有变化的数据。
-    需要严格的"提交后再失效"语义时，改用 TransactionManager.after_commit 配合
-    CacheInvalidationDispatcher，本装饰器不替代事务协作。
+    即使把本装饰器放在 @transactional 外层，方法加入上游 REQUIRED 事务时，
+    返回也不代表最外层事务已经提交，缓存仍可能提前失效。
+    数据库写入必须在事务内通过 SessionProvider.after_commit 登记
+    CacheInvalidationDispatcher 的失效动作，确保最外层事务成功提交后才执行；
+    本装饰器不替代提交后回调。
     """
 
     @classmethod
@@ -54,7 +55,7 @@ class CacheEvict:
                     cache_key, key, all_entries, func, signature, args, kwargs
                 )
                 result = await func(*args, **kwargs)
-                await get_bean(CacheInvalidationDispatcher).dispatch(command)
+                await ApplicationContext.lookup(CacheInvalidationDispatcher).dispatch(command)
                 return result
 
             return wrapper

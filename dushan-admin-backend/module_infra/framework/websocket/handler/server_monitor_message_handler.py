@@ -25,7 +25,7 @@ from module_infra.service.server.server_service import ServerService
         type="get-server-monitor-data",
         payload=InfraSocketRequest,
         policy=RoutePolicy(
-            permissions=("infra:server:query",), tenant_required=True, realm=SecurityRealm.TENANT
+            permissions=("infra:server:list",), tenant_required=True, realm=SecurityRealm.TENANT
         ),
     )
 )

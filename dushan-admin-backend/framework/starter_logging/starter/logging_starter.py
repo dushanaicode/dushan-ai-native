@@ -10,81 +10,8 @@ from loguru import logger
 from framework.common.security.sanitizer import Sanitizer
 from framework.starter_logging.config.log_settings import LogSettings
 from framework.starter_logging.core.logger_configurator import LoggerConfigurator
+from framework.starter_logging.core.terminal_shutdown_observer import TerminalShutdownObserver
 from framework.starter_logging.diagnostics.terminal_error_reporter import TerminalErrorReporter
-from framework.starter_logging.starter.terminal_shutdown_observer import TerminalShutdownObserver
-
-
-def _run_logger_action(result_future: Future[object], action: Callable[[], object]) -> None:
-    """在 daemon 线程中执行一个可能同步阻塞的 Loguru 动作。"""
-    try:
-        result = action()
-    except BaseException as error:
-        result_future.set_exception(error)
-    else:
-        result_future.set_result(result)
-
-
-def _observe_completion_future(future: asyncio.Future[object]) -> None:
-    """观察超时后才到达的线程异常，避免事件循环报告未消费异常。"""
-    if not future.cancelled():
-        future.exception()
-
-
-def _observe_terminal_task(
-    future: asyncio.Future[object],
-    *,
-    observer: TerminalShutdownObserver,
-) -> None:
-    """观察后台清理的最终结果，调用方已离开时仍报告失败。"""
-    if future.cancelled():
-        return
-    error = future.exception()
-    if error is not None and observer.detached:
-        TerminalErrorReporter.report("Loguru 后台终态失败", error)
-
-
-async def _run_logger_action_in_daemon(action: Callable[[], object], name: str) -> object:
-    """让同步日志动作在 daemon 线程执行，取消等待不取消其最终清理。"""
-    result_future: Future[object] = Future()
-    Thread(
-        target=_run_logger_action,
-        args=(result_future, action),
-        name=name,
-        daemon=True,
-    ).start()
-    action_future = asyncio.wrap_future(result_future)
-    action_future.add_done_callback(_observe_completion_future)
-    return await asyncio.shield(action_future)
-
-
-async def _terminate_logger(deadline: float, configurator: LoggerConfigurator) -> None:
-    """在期限内排空日志，随后完成本实例输出的终态清理。"""
-    terminal_error: BaseException | None = None
-    try:
-        async with asyncio.timeout_at(deadline):
-            completion = cast(
-                Awaitable[None],
-                await _run_logger_action_in_daemon(logger.complete, "Loguru queue drain"),
-            )
-            await completion
-    except BaseException as error:
-        terminal_error = error
-
-    try:
-        await _run_logger_action_in_daemon(
-            configurator.remove_owned_handlers, "Loguru handler removal"
-        )
-    except BaseException as removal_error:
-        if terminal_error is None:
-            raise
-        terminal_error.add_note(
-            "Loguru 输出移除失败：{}：{}".format(
-                type(removal_error).__name__,
-                Sanitizer.sanitize_log_value(removal_error),
-            )
-        )
-    if terminal_error is not None:
-        raise terminal_error
 
 
 class LoggingStarter:
@@ -163,11 +90,11 @@ class LoggingStarter:
             self._shutdown_deadline = loop.time() + self.SHUTDOWN_TIMEOUT_SECONDS
             self._shutdown_observer = TerminalShutdownObserver()
             self._shutdown_task = asyncio.create_task(
-                _terminate_logger(self._shutdown_deadline, self._configurator),
+                LoggingStarter._terminate_logger(self._shutdown_deadline, self._configurator),
                 name="Loguru terminal shutdown",
             )
             self._shutdown_task.add_done_callback(
-                partial(_observe_terminal_task, observer=self._shutdown_observer)
+                partial(LoggingStarter._observe_terminal_task, observer=self._shutdown_observer)
             )
         terminal_task = self._shutdown_task
         observer = self._shutdown_observer
@@ -183,3 +110,78 @@ class LoggingStarter:
                 if terminal_error is not None and terminal_error is not wait_error:
                     TerminalErrorReporter.report("Loguru 后台终态失败", terminal_error)
             raise
+
+    @staticmethod
+    def _run_logger_action(result_future: Future[object], action: Callable[[], object]) -> None:
+        """在 daemon 线程中执行一个可能同步阻塞的 Loguru 动作。"""
+        try:
+            result = action()
+        except BaseException as error:
+            result_future.set_exception(error)
+        else:
+            result_future.set_result(result)
+
+    @staticmethod
+    def _observe_completion_future(future: asyncio.Future[object]) -> None:
+        """观察超时后才到达的线程异常，避免事件循环报告未消费异常。"""
+        if not future.cancelled():
+            future.exception()
+
+    @staticmethod
+    def _observe_terminal_task(
+        future: asyncio.Future[object],
+        *,
+        observer: TerminalShutdownObserver,
+    ) -> None:
+        """观察后台清理的最终结果，调用方已离开时仍报告失败。"""
+        if future.cancelled():
+            return
+        error = future.exception()
+        if error is not None and observer.detached:
+            TerminalErrorReporter.report("Loguru 后台终态失败", error)
+
+    @staticmethod
+    async def _run_logger_action_in_daemon(action: Callable[[], object], name: str) -> object:
+        """让同步日志动作在 daemon 线程执行，取消等待不取消其最终清理。"""
+        result_future: Future[object] = Future()
+        Thread(
+            target=LoggingStarter._run_logger_action,
+            args=(result_future, action),
+            name=name,
+            daemon=True,
+        ).start()
+        action_future = asyncio.wrap_future(result_future)
+        action_future.add_done_callback(LoggingStarter._observe_completion_future)
+        return await asyncio.shield(action_future)
+
+    @staticmethod
+    async def _terminate_logger(deadline: float, configurator: LoggerConfigurator) -> None:
+        """在期限内排空日志，随后完成本实例输出的终态清理。"""
+        terminal_error: BaseException | None = None
+        try:
+            async with asyncio.timeout_at(deadline):
+                completion = cast(
+                    Awaitable[None],
+                    await LoggingStarter._run_logger_action_in_daemon(
+                        logger.complete, "Loguru queue drain"
+                    ),
+                )
+                await completion
+        except BaseException as error:
+            terminal_error = error
+
+        try:
+            await LoggingStarter._run_logger_action_in_daemon(
+                configurator.remove_owned_handlers, "Loguru handler removal"
+            )
+        except BaseException as removal_error:
+            if terminal_error is None:
+                raise
+            terminal_error.add_note(
+                "Loguru 输出移除失败：{}：{}".format(
+                    type(removal_error).__name__,
+                    Sanitizer.sanitize_log_value(removal_error),
+                )
+            )
+        if terminal_error is not None:
+            raise terminal_error

@@ -1,12 +1,9 @@
-import hashlib
-import mimetypes
 import os
-from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 from fastapi.responses import Response
 
-from framework.common.contracts import SnowflakeIdInput, SnowflakeIdStr
+from framework.common.contracts import SnowflakeIdInput
 from framework.common.exception import ServiceException
 from framework.common.page import PageResult
 from framework.common.schemas.request import IdListReqVO, IdReqVO
@@ -22,14 +19,12 @@ from framework.starter_tenant.public import (
 from framework.starter_web.public import (
     AccessLogPolicy,
     FileResult,
-    RequestUtils,
     Result,
     RoutePolicy,
 )
 from module_infra.controller.admin.file.vo.file.file_create_directory_req_vo import (
     FileCreateDirectoryReqVO,
 )
-from module_infra.controller.admin.file.vo.file.file_create_req_vo import FileCreateReqVO
 from module_infra.controller.admin.file.vo.file.file_delete_by_key_req_vo import (
     FileDeleteByKeyReqVO,
 )
@@ -41,17 +36,13 @@ from module_infra.controller.admin.file.vo.file.file_list_objects_resp_vo import
     FileListObjectsRespVO,
 )
 from module_infra.controller.admin.file.vo.file.file_page_req_vo import FilePageReqVO
-from module_infra.controller.admin.file.vo.file.file_presigned_url_req_vo import (
-    FilePresignedUrlReqVO,
-)
-from module_infra.controller.admin.file.vo.file.file_presigned_url_resp_vo import (
-    FilePresignedUrlRespVO,
-)
 from module_infra.controller.admin.file.vo.file.file_rename_req_vo import FileRenameReqVO
 from module_infra.controller.admin.file.vo.file.file_resp_vo import FileRespVO
 from module_infra.controller.admin.file.vo.file.file_search_req_vo import FileSearchReqVO
 from module_infra.dal.dataobject.file.file_do import FileDO
 from module_infra.definitions.constants.error_code_constants import ErrorCodeConstants
+from module_infra.definitions.enums.file.file_upload_usage_enum import FileUploadUsageEnum
+from module_infra.definitions.enums.file.file_visibility_enum import FileVisibilityEnum
 from module_infra.service.file.file_service import FileService
 from module_system.api.auth.workload_api import WorkloadApi
 
@@ -61,75 +52,48 @@ FILE_CACHE_MAX_AGE_SECONDS = 31536000
 
 class FileController:
     @staticmethod
-    def _build_file_response_headers(filename: str, content: bytes) -> dict[str, str]:
-        encoded_filename = quote(filename)
-        etag = hashlib.sha256(content).hexdigest()
-        return {
-            "Cache-Control": f"public, max-age={FILE_CACHE_MAX_AGE_SECONDS}, immutable",
-            "Content-Disposition": f"inline; filename*=UTF-8''{encoded_filename}",
-            "ETag": f'"{etag}"',
-            "X-Content-Type-Options": "nosniff",
-        }
-
-    @staticmethod
     @file_controller.post(
         "/upload",
         summary="上传文件",
-        description="模式一：后端上传文件。可选传入 configId 指定存储桶，不传则使用 master 配置",
+        description="文件管理上传。指定可见性，可选存储配置和目录，不传 configId 则使用主配置",
     )
-    @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT)
+    @RoutePolicy(
+        permissions=("infra:file:upload",), tenant_required=True, realm=SecurityRealm.TENANT
+    )
     async def upload_file(
         file: UploadFile = File(..., description="上传的文件"),
+        visibility: FileVisibilityEnum = Form(..., description="可见性"),
         directory: str | None = Form(default=None, description="文件目录"),
         config_id: SnowflakeIdInput | None = Form(
             default=None, alias="configId", description="存储配置ID，不传则使用主配置"
         ),
         file_service: FileService = Depends(DiDependency(FileService)),
     ) -> Result[str]:
-        if file.size is not None and file.size == 0:
-            raise ServiceException(ErrorCodeConstants.FILE_IS_EMPTY)
         content = await file.read()
         original_filename = os.path.basename(file.filename or "")
-        content_type = file.content_type
         file_url = await file_service.create_file(
             content=content,
+            visibility=visibility,
             name=original_filename,
             directory=directory,
-            type_hint=content_type,
-            path=None,
             config_id=config_id,
         )
         return Result.success(data=file_url)
 
     @staticmethod
-    @file_controller.get(
-        "/presigned-url",
-        summary="获取文件预签名地址",
-        description="模式二：前端上传文件：用于前端直接上传七牛、阿里云 OSS 等文件存储器",
-    )
+    @file_controller.post("/business-upload", summary="业务上传文件")
     @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT)
-    async def get_file_presigned_url(
-        req_vo: FilePresignedUrlReqVO = Query(),
+    async def business_upload_file(
+        file: UploadFile = File(..., description="上传的文件"),
+        usage: FileUploadUsageEnum = Form(..., description="上传用途"),
         file_service: FileService = Depends(DiDependency(FileService)),
-    ) -> Result[FilePresignedUrlRespVO]:
-        presigned_url_resp = await file_service.get_file_presigned_url(
-            name=req_vo.name, directory=req_vo.directory
+    ) -> Result[str]:
+        file_url = await file_service.create_business_file(
+            content=await file.read(usage.max_size + 1),
+            name=os.path.basename(file.filename or ""),
+            usage=usage,
         )
-        return Result.success(data=presigned_url_resp)
-
-    @staticmethod
-    @file_controller.post(
-        "/create",
-        summary="创建文件记录",
-        description="模式二：前端上传文件：配合 presigned-url 接口，记录已上传的文件信息",
-    )
-    @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT)
-    async def create_file_record(
-        create_req_vo: FileCreateReqVO,
-        file_service: FileService = Depends(DiDependency(FileService)),
-    ) -> Result[SnowflakeIdStr]:
-        file_id = await file_service.create_file_record(create_req_vo)
-        return Result.success(data=file_id)
+        return Result.success(data=file_url)
 
     @staticmethod
     @file_controller.delete("/delete", summary="删除文件")
@@ -156,33 +120,52 @@ class FileController:
 
     @staticmethod
     @file_controller.get("/{config_id}/get/{path:path}", summary="下载文件", response_model=None)
-    @AccessLogPolicy(enabled=False)
     @RoutePolicy.public()
+    @AccessLogPolicy(enabled=False)
     async def get_file_content(
         config_id: SnowflakeIdInput,
         path: str,
-        request: Request,
         file_service: FileService = Depends(DiDependency(FileService)),
         workloads: WorkloadApi = Depends(DiDependency(WorkloadApi)),
         tenant: TenantSettings = Depends(DiDependency(TenantSettings)),
         files: FileResult = Depends(DiDependency(FileResult)),
     ) -> Response:
         async with workloads.scope("infra.file.read", tenant.default_tenant_id):
-            try:
-                content = await file_service.get_file_content(config_id, path)
-            except FileNotFoundError as error:
-                raise HTTPException(status_code=404, detail="文件不存在") from error
-        filename = path.split("/")[-1]
-        mime_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
-        headers = FileController._build_file_response_headers(filename, content)
-        headers["Content-Security-Policy"] = "sandbox; default-src 'none'"
-        if mime_type not in {"image/png", "image/jpeg", "image/gif", "image/webp", "image/avif"}:
-            headers["Content-Disposition"] = headers["Content-Disposition"].replace(
-                "inline;", "attachment;", 1
-            )
-        if request.headers.get("if-none-match") == headers["ETag"]:
-            return Response(status_code=304, headers=headers)
-        return files.stream_bytes(content, filename, media_type=mime_type, headers=headers)
+            file = await file_service.find_file(config_id, path, public_only=True)
+        if file is None:
+            raise ServiceException(ErrorCodeConstants.FILE_NOT_EXISTS)
+        return files.stream_bytes(
+            file.content,
+            file.name,
+            media_type=file.type,
+            disposition="inline",
+            cache="public",
+            max_age=FILE_CACHE_MAX_AGE_SECONDS,
+            immutable=True,
+        )
+
+    @staticmethod
+    @file_controller.get(
+        "/private/{config_id}/{path:path}", summary="读取租户文件", response_model=None
+    )
+    @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT)
+    @AccessLogPolicy(enabled=False)
+    async def get_private_file_content(
+        config_id: SnowflakeIdInput,
+        path: str,
+        file_service: FileService = Depends(DiDependency(FileService)),
+        files: FileResult = Depends(DiDependency(FileResult)),
+    ) -> Response:
+        file = await file_service.find_file(config_id, path, public_only=False)
+        if file is None:
+            raise ServiceException(ErrorCodeConstants.FILE_NOT_EXISTS)
+        return files.stream_bytes(
+            file.content,
+            file.name,
+            media_type=file.type,
+            disposition="inline",
+            cache="no-store",
+        )
 
     @staticmethod
     @file_controller.get("/page", summary="获得文件分页")
@@ -190,9 +173,9 @@ class FileController:
         permissions=("infra:file:query",), tenant_required=True, realm=SecurityRealm.TENANT
     )
     async def get_file_page(
-        request: Request, file_service: FileService = Depends(DiDependency(FileService))
+        page_req_vo: FilePageReqVO = Query(),
+        file_service: FileService = Depends(DiDependency(FileService)),
     ) -> Result[PageResult[FileRespVO]]:
-        page_req_vo = RequestUtils.validate_with_auto_list_params(request, FilePageReqVO)
         page_result: PageResult[FileDO] = await file_service.get_file_page(page_req_vo)
         resp_vo: PageResult[FileRespVO] = page_result.convert(FileRespVO)
         return Result.success(data=resp_vo)

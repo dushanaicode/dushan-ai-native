@@ -1,5 +1,3 @@
-"""校验原生路由装配覆盖全部 Admin 控制器，并保留明确的访问策略。"""
-
 import importlib
 import pkgutil
 

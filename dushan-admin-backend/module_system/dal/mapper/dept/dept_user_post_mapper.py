@@ -10,7 +10,7 @@ from framework.starter_database.public import (
 from framework.starter_di.public import (
     mapper,
 )
-from module_system.dal.dataobject.dept.dept_user_post_do import UserPostDO
+from module_system.dal.dataobject.dept.user_post_do import UserPostDO
 
 
 @mapper()

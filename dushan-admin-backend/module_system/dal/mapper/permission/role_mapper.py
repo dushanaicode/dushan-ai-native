@@ -25,16 +25,15 @@ class RoleMapper(BaseMapper[RoleDO]):
         stmt = select(RoleDO)
         if req_vo.name:
             escaped = StrUtils.escape_like(req_vo.name)
-            stmt = stmt.where(RoleDO.name.ilike(f"%{escaped}%"))
+            stmt = stmt.where(RoleDO.name.ilike(f"%{escaped}%", escape="\\"))
         if req_vo.code:
             escaped_code = StrUtils.escape_like(req_vo.code)
-            stmt = stmt.where(RoleDO.code.ilike(f"%{escaped_code}%"))
+            stmt = stmt.where(RoleDO.code.ilike(f"%{escaped_code}%", escape="\\"))
         if req_vo.status is not None:
             stmt = stmt.where(RoleDO.status == req_vo.status)
-        if req_vo.create_time and len(req_vo.create_time) >= 2:
-            stmt = stmt.where(
-                RoleDO.create_time.between(req_vo.create_time[0], req_vo.create_time[1])
-            )
+        if req_vo.create_time is not None:
+            start_time, end_time = req_vo.create_time
+            stmt = stmt.where(RoleDO.create_time.between(start_time, end_time))
         stmt = stmt.order_by(RoleDO.sort.asc())
         return await self.paginate_query(stmt, req_vo)
 

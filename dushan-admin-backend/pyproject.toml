@@ -7,13 +7,14 @@ license = "MIT"
 dynamic = ["dependencies"]
 
 [tool.poetry.dependencies]
-# 主项目只关联已经存在的模块；模块依赖由各自的 pyproject.toml 维护。
+# 依赖只在最上层声明一次：本文件放启动必需的库，framework 放组件额外需要的库，
+# 业务模块只放自身特有的库；可单独关闭的并行业务模块之间允许重复。
 framework = { path = "./framework", develop = true }
 module-system = { path = "./module_system", develop = true }
 module-infra = { path = "./module_infra", develop = true }
 
 [tool.poetry.group.core.dependencies]
-# 应用工厂、配置、日志上下文和 ASGI 引擎直接使用的依赖。
+# 启动必需，framework 与各模块共用，下游不再重复声明。
 fastapi = "==0.137.1"
 pydantic = "==2.13.4"
 loguru = "==0.7.3"

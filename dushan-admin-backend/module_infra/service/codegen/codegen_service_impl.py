@@ -16,22 +16,22 @@ from framework.starter_di.public import (
 from module_infra.controller.admin.codegen.vo.codegen_create_list_req_vo import (
     CodegenCreateListReqVO,
 )
-from module_infra.controller.admin.codegen.vo.codegen_database_table_resp_vo import (
-    DatabaseTableRespVO,
-)
 from module_infra.controller.admin.codegen.vo.codegen_preview_resp_vo import CodegenPreviewRespVO
 from module_infra.controller.admin.codegen.vo.codegen_table_page_req_vo import CodegenTablePageReqVO
 from module_infra.controller.admin.codegen.vo.codegen_update_req_vo import CodegenUpdateReqVO
+from module_infra.controller.admin.codegen.vo.database_table_resp_vo import (
+    DatabaseTableRespVO,
+)
 from module_infra.dal.dataobject.codegen.codegen_column_do import CodegenColumnDO
 from module_infra.dal.dataobject.codegen.codegen_table_do import CodegenTableDO
 from module_infra.dal.mapper.codegen.codegen_column_mapper import CodegenColumnMapper
 from module_infra.dal.mapper.codegen.codegen_table_mapper import CodegenTableMapper
 from module_infra.definitions.constants.error_code_constants import ErrorCodeConstants
 from module_infra.service.codegen.codegen_service import CodegenService
-from module_infra.service.codegen.inner.inner_codegen_builder import CodegenBuilder
-from module_infra.service.codegen.inner.inner_codegen_engine import CodegenEngine
-from module_infra.service.codegen.inner.inner_db_schema_reader import DbSchemaReader
 from module_infra.service.data_source.data_source_config_service import DataSourceConfigService
+from module_infra.util.codegen.codegen_builder_utils import CodegenBuilderUtils
+from module_infra.util.codegen.codegen_engine_utils import CodegenEngineUtils
+from module_infra.util.codegen.db_schema_utils import DbSchemaUtils
 
 
 @service(interface=CodegenService)
@@ -41,9 +41,8 @@ class CodegenServiceImpl(CodegenService):
     codegen_table_mapper: CodegenTableMapper = Inject()
     codegen_column_mapper: CodegenColumnMapper = Inject()
     data_source_config_service: DataSourceConfigService = Inject()
-    db_schema_reader: DbSchemaReader = Inject()
-    codegen_builder: CodegenBuilder = Inject()
-    codegen_engine: CodegenEngine = Inject()
+    db_schema_reader: DbSchemaUtils = Inject()
+    codegen_engine: CodegenEngineUtils = Inject()
 
     @override
     @transactional
@@ -75,10 +74,10 @@ class CodegenServiceImpl(CodegenService):
             table_do.data_source_config_id = req_vo.data_source_config_id
             table_do.table_name = table_name
             table_do.table_comment = table_comment
-            table_do.class_name = CodegenBuilder.build_class_name(table_name)
-            table_do.module_name = CodegenBuilder.build_module_name(table_name)
-            table_do.business_name = CodegenBuilder.build_business_name(table_name)
-            table_do.class_comment = CodegenBuilder.build_class_comment(table_comment)
+            table_do.class_name = CodegenBuilderUtils.build_class_name(table_name)
+            table_do.module_name = CodegenBuilderUtils.build_module_name(table_name)
+            table_do.business_name = CodegenBuilderUtils.build_business_name(table_name)
+            table_do.class_comment = CodegenBuilderUtils.build_class_comment(table_comment)
             table_do.author = "admin"
             table_do.template_type = 1
             table_do.front_type = 0
@@ -92,23 +91,26 @@ class CodegenServiceImpl(CodegenService):
                 column_do.column_name = db_col["column_name"]
                 column_do.column_comment = db_col["column_comment"]
                 column_do.data_type = db_col["data_type"]
-                column_do.field_type = CodegenBuilder.map_field_type(db_col["data_type"])
-                column_do.field_name = CodegenBuilder.build_field_name(db_col["column_name"])
-                column_do.primary_key = CodegenBuilder.is_primary_key(db_col["column_key"])
-                column_do.create_operation = CodegenBuilder.should_create_operation(
+                column_do.field_type = CodegenBuilderUtils.map_field_type(db_col["data_type"])
+                column_do.field_name = CodegenBuilderUtils.build_field_name(db_col["column_name"])
+                column_do.primary_key = CodegenBuilderUtils.is_primary_key(db_col["column_key"])
+                column_do.create_operation = CodegenBuilderUtils.should_create_operation(
                     db_col["column_name"]
                 )
-                column_do.update_operation = CodegenBuilder.should_update_operation(
+                column_do.update_operation = CodegenBuilderUtils.should_update_operation(
                     db_col["column_name"]
                 )
-                column_do.list_operation_result = CodegenBuilder.should_list_operation_result(
+                column_do.list_operation_result = CodegenBuilderUtils.should_list_operation_result(
                     db_col["column_name"]
                 )
                 column_do.list_operation = False
                 column_do.list_operation_condition = "="
                 column_do.nullable = db_col["is_nullable"]
-                column_do.column_size = db_col.get("column_size")
-                column_do.html_type = CodegenBuilder.build_html_type(
+                column_do.column_size = db_col["column_size"]
+                column_do.numeric_precision = db_col["numeric_precision"]
+                column_do.numeric_scale = db_col["numeric_scale"]
+                column_do.type_metadata_synced = db_col["type_metadata_synced"]
+                column_do.html_type = CodegenBuilderUtils.build_html_type(
                     db_col["column_name"], db_col["data_type"]
                 )
                 column_do.order_no = idx
@@ -122,8 +124,29 @@ class CodegenServiceImpl(CodegenService):
     async def update_codegen_table(self, req_vo: CodegenUpdateReqVO) -> None:
         """更新代码生成配置"""
         table_do = await self._validate_table_exists(req_vo.table.id)
-        update_table_data = req_vo.table.model_dump(
-            exclude={"id", "create_time", "update_time"}, exclude_unset=True, by_alias=False
+        update_table_data = req_vo.table.to_write_dict(
+            fields={
+                "data_source_config_id",
+                "table_name",
+                "table_comment",
+                "class_name",
+                "author",
+                "remark",
+                "template_type",
+                "front_type",
+                "scene",
+                "parent_menu_id",
+                "module_name",
+                "business_name",
+                "class_comment",
+                "enable_export",
+                "tree_parent_column_id",
+                "tree_name_column_id",
+                "master_table_id",
+                "sub_join_column_id",
+                "sub_join_many",
+            },
+            exclude_unset=True,
         )
         for field, value in update_table_data.items():
             setattr(table_do, field, value)
@@ -132,19 +155,22 @@ class CodegenServiceImpl(CodegenService):
             column_do = await self.codegen_column_mapper.select_by_id(column_vo.id)
             if column_do is None or column_do.table_id != table_do.id:
                 raise ValueError("字段不属于当前代码生成表")
-            update_column_data = column_vo.model_dump(
-                exclude={
-                    "id",
-                    "table_id",
-                    "column_name",
-                    "data_type",
-                    "order_no",
-                    "primary_key",
-                    "create_time",
-                    "update_time",
+            update_column_data = column_vo.to_write_dict(
+                fields={
+                    "column_comment",
+                    "field_type",
+                    "field_name",
+                    "create_operation",
+                    "update_operation",
+                    "list_operation",
+                    "list_operation_result",
+                    "list_operation_condition",
+                    "nullable",
+                    "html_type",
+                    "dict_type",
+                    "example",
                 },
                 exclude_unset=True,
-                by_alias=False,
             )
             for field, value in update_column_data.items():
                 setattr(column_do, field, value)
@@ -162,11 +188,15 @@ class CodegenServiceImpl(CodegenService):
 
     @override
     @transactional
-    @transactional
-    async def delete_codegen_table_list(self, table_ids: list[int]) -> None:
-        """批量删除代码生成表"""
+    async def delete_codegen_table_list(self, table_ids: list[int]) -> int:
+        """批量删除命中的代码生成表及其列，返回实际删除的表数。"""
+        deleted_count = 0
         for table_id in table_ids:
-            await self.delete_codegen_table(table_id)
+            count = await self.codegen_table_mapper.delete_by_id(table_id)
+            if count:
+                await self.codegen_column_mapper.delete_by_table_id(table_id)
+                deleted_count += count
+        return deleted_count
 
     @override
     async def get_codegen_table_page(
@@ -247,23 +277,26 @@ class CodegenServiceImpl(CodegenService):
                 column_do.column_name = db_col["column_name"]
                 column_do.column_comment = db_col["column_comment"]
                 column_do.data_type = db_col["data_type"]
-                column_do.field_type = CodegenBuilder.map_field_type(db_col["data_type"])
-                column_do.field_name = CodegenBuilder.build_field_name(db_col["column_name"])
-                column_do.primary_key = CodegenBuilder.is_primary_key(db_col["column_key"])
-                column_do.create_operation = CodegenBuilder.should_create_operation(
+                column_do.field_type = CodegenBuilderUtils.map_field_type(db_col["data_type"])
+                column_do.field_name = CodegenBuilderUtils.build_field_name(db_col["column_name"])
+                column_do.primary_key = CodegenBuilderUtils.is_primary_key(db_col["column_key"])
+                column_do.create_operation = CodegenBuilderUtils.should_create_operation(
                     db_col["column_name"]
                 )
-                column_do.update_operation = CodegenBuilder.should_update_operation(
+                column_do.update_operation = CodegenBuilderUtils.should_update_operation(
                     db_col["column_name"]
                 )
-                column_do.list_operation_result = CodegenBuilder.should_list_operation_result(
+                column_do.list_operation_result = CodegenBuilderUtils.should_list_operation_result(
                     db_col["column_name"]
                 )
                 column_do.list_operation = False
                 column_do.list_operation_condition = "="
                 column_do.nullable = db_col["is_nullable"]
-                column_do.column_size = db_col.get("column_size")
-                column_do.html_type = CodegenBuilder.build_html_type(
+                column_do.column_size = db_col["column_size"]
+                column_do.numeric_precision = db_col["numeric_precision"]
+                column_do.numeric_scale = db_col["numeric_scale"]
+                column_do.type_metadata_synced = db_col["type_metadata_synced"]
+                column_do.html_type = CodegenBuilderUtils.build_html_type(
                     db_col["column_name"], db_col["data_type"]
                 )
                 column_do.order_no = idx
@@ -279,13 +312,16 @@ class CodegenServiceImpl(CodegenService):
                     existing_col.computed_expression = db_col["computed_expression"]
                     existing_col.computed_persisted = db_col["computed_persisted"]
                     changed = True
-                if existing_col.data_type != db_col["data_type"]:
-                    existing_col.data_type = db_col["data_type"]
-                    changed = True
-                new_size = db_col.get("column_size")
-                if existing_col.column_size != new_size:
-                    existing_col.column_size = new_size
-                    changed = True
+                for field in (
+                    "data_type",
+                    "column_size",
+                    "numeric_precision",
+                    "numeric_scale",
+                    "type_metadata_synced",
+                ):
+                    if getattr(existing_col, field) != db_col[field]:
+                        setattr(existing_col, field, db_col[field])
+                        changed = True
                 if changed:
                     await self.codegen_column_mapper.update_by_id(existing_col)
         for existing_col in existing_columns:

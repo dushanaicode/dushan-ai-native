@@ -15,7 +15,7 @@ from framework.starter_di.public import (
 )
 from module_system.controller.admin.dept.vo.dept.dept_list_req_vo import DeptListReqVO
 from module_system.controller.admin.dept.vo.dept.dept_save_req_vo import DeptSaveReqVO
-from module_system.dal.cache.cache_key_constants import SystemCacheKeys
+from module_system.dal.cache.system_cache_key_constants import SystemCacheKeyConstants
 from module_system.dal.dataobject.dept.dept_do import DeptDO
 from module_system.dal.mapper.dept.dept_mapper import DeptMapper
 from module_system.definitions.constants.error_code_constants import ErrorCodeConstants
@@ -24,7 +24,7 @@ from module_system.service.permission.authorization_revision_service import (
     AuthorizationRevisionService,
 )
 
-_DEPT_CACHE_KEY = SystemCacheKeys.DEPT_CHILDREN_ID_LIST
+_DEPT_CACHE_KEY = SystemCacheKeyConstants.DEPT_CHILDREN_ID_LIST
 
 
 @service(interface=DeptService)
@@ -48,7 +48,20 @@ class DeptServiceImpl(DeptService):
             create_req_vo.parent_id = "0"
         await self._validate_parent_dept(None, create_req_vo.parent_id)
         await self._validate_dept_name_unique(None, create_req_vo.parent_id, create_req_vo.name)
-        dept = DeptDO(**create_req_vo.model_dump(exclude_unset=True, by_alias=False))
+        dept = DeptDO(
+            **create_req_vo.to_write_dict(
+                fields={
+                    "id",
+                    "name",
+                    "parent_id",
+                    "sort",
+                    "leader_user_id",
+                    "phone",
+                    "email",
+                    "status",
+                }
+            )
+        )
         dept = await self.dept_mapper.insert(dept)
         return dept.id
 
@@ -68,7 +81,20 @@ class DeptServiceImpl(DeptService):
         await self._validate_dept_name_unique(
             update_req_vo.id, update_req_vo.parent_id, update_req_vo.name
         )
-        update_obj = DeptDO(**update_req_vo.model_dump(exclude_unset=True, by_alias=False))
+        update_obj = DeptDO(
+            **update_req_vo.to_write_dict(
+                fields={
+                    "id",
+                    "name",
+                    "parent_id",
+                    "sort",
+                    "leader_user_id",
+                    "phone",
+                    "email",
+                    "status",
+                }
+            )
+        )
         await self.dept_mapper.update_by_id(update_obj)
 
     @override
@@ -124,6 +150,20 @@ class DeptServiceImpl(DeptService):
         return await self.dept_mapper.select_batch_ids(ids)
 
     @override
+    async def get_dept_names_by_ids(self, ids: Collection[int]) -> dict[int, str]:
+        """批量读取部门名称，不附加状态筛选。"""
+        return {entry.id: entry.name for entry in await self.dept_mapper.select_by_ids(ids)}
+
+    @override
+    async def get_dept_ids_by_names(self, names: Collection[str]) -> dict[str, int]:
+        """批量解析部门名称；跨父部门重名时拒绝选择任意一条。"""
+        entries = await self.dept_mapper.select_list_by_names(names)
+        resolved = {entry.name: entry.id for entry in entries}
+        if len(resolved) != len(entries):
+            raise ValueError("名称重复，不能唯一确定部门或岗位")
+        return resolved
+
+    @override
     async def get_dept_list(self, req_vo: DeptListReqVO) -> list[DeptDO]:
         dept_list = await self.dept_mapper.select_list_by_vo(req_vo)
         return sorted(dept_list, key=lambda d: d.sort)
@@ -172,8 +212,8 @@ class DeptServiceImpl(DeptService):
             parent_ids = [dept.id for dept in depts]
         return children
 
-    @cache(_DEPT_CACHE_KEY, key="{{id}}", ttl_seconds=3600)
     @override
+    @cache(_DEPT_CACHE_KEY, key="{{id}}", ttl_seconds=3600)
     async def get_child_dept_id_list_from_cache(self, id: int) -> set[int]:
         depts = await self.get_dept_list(DeptListReqVO())
         result: set[int] = set()
@@ -187,12 +227,11 @@ class DeptServiceImpl(DeptService):
                 result.add(dept.id)
                 self._collect_child_ids(dept.id, all_depts, result)
 
-    async def _validate_dept_exists(self, dept_id: int | None) -> None:
-        if dept_id is None:
-            return
+    async def _validate_dept_exists(self, dept_id: int) -> DeptDO:
         dept = await self.dept_mapper.select_by_id(dept_id)
         if dept is None:
             raise ServiceException(ErrorCodeConstants.DEPT_NOT_FOUND)
+        return dept
 
     async def _validate_parent_dept(self, dept_id: int | None, parent_id: int | None) -> None:
         if parent_id is None or parent_id == DeptDO.PARENT_ID_ROOT:

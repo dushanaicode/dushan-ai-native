@@ -14,8 +14,8 @@ from framework.starter_mq.exception.mq_exception import MQException
 from framework.starter_mq.model.consumer_definition import ConsumerDefinition
 from framework.starter_mq.model.consumer_override import ConsumerOverride
 from framework.starter_mq.model.retry_policy import RetryPolicy
-from server.bootstrap.bootstrapper import BootstrapError
-from server.starter_server import create_app
+from server.bootstrap.bootstrap_error import BootstrapError
+from server.starter_server import StarterServer
 from starter_mq.conftest import SOURCE
 
 
@@ -105,7 +105,7 @@ async def test_disabled_configuration_does_not_open_broker(config_dir, monkeypat
         raise AssertionError("disabled MQ connected")
 
     monkeypatch.setattr(RedisBackend, "open", forbidden)
-    app = create_app(base_dir=config_dir({"banner": {"enabled": False}}), environ={})
+    app = StarterServer.create_app(base_dir=config_dir({"banner": {"enabled": False}}), environ={})
     async with app.router.lifespan_context(app):
         assert app.state.mq is None
 
@@ -124,7 +124,7 @@ async def test_duplicate_key_fails_real_bootstrap(config_dir, module_package):
     module_package(
         "duplicate_mq", name="duplicate_mq", scan_roots=(".",), files={"components.py": source}
     )
-    app = create_app(
+    app = StarterServer.create_app(
         base_dir=config_dir(
             {
                 "banner": {"enabled": False},

@@ -7,7 +7,7 @@ from pydantic import ValidationError
 
 from framework.starter_tenant.entity.tenant_base_do import TenantBaseDO
 from module_infra.controller.admin.file.vo.config.file_config_resp_vo import FileConfigRespVO
-from module_infra.controller.admin.file.vo.file.file_create_req_vo import FileCreateReqVO
+from module_infra.controller.admin.file.vo.file.file_list_objects_req_vo import FileListObjectsReqVO
 from module_infra.definitions.constants.error_code_constants import ErrorCodeConstants
 from module_infra.framework.file.core.client.abstract_file_client import AbstractFileClient
 from module_infra.framework.file.core.client.local.local_file_client import LocalFileClient
@@ -145,7 +145,7 @@ MODELS = [
         ],
     ),
     (
-        "module_infra.dal.dataobject.config.config_data_do",
+        "module_infra.dal.dataobject.config.infra_config_data_do",
         "InfraConfigDataDO",
         [
             "type_id",
@@ -161,7 +161,7 @@ MODELS = [
         ],
     ),
     (
-        "module_infra.dal.dataobject.config.config_type_do",
+        "module_infra.dal.dataobject.config.infra_config_type_do",
         "InfraConfigTypeDO",
         ["module", "name", "code", "status", "remark", "deleted_time"],
     ),
@@ -203,6 +203,7 @@ MODELS = [
             "path",
             "storage_path",
             "url",
+            "visibility",
             "type",
             "size",
             "hash",
@@ -360,6 +361,7 @@ ERRORS = [
     ("DATA_SOURCE_CONFIG_TEST_FAILED", 1001009002, "infra.data_source.test_failed"),
     ("DATA_SOURCE_CONFIG_DELETE_DEFAULT", 1001009003, "infra.data_source.delete_default"),
     ("DATA_SOURCE_CONFIG_ACTIVATE_FAILED", 1001009004, "infra.data_source.activate_failed"),
+    ("DATA_SOURCE_CONFIG_URL_REQUIRED", 1001009005, "infra.data_source.url_required"),
     ("CONFIG_DATA_NOT_EXISTS", 1001010000, "infra.config.data_not_exists"),
     ("CONFIG_DATA_KEY_DUPLICATE", 1001010001, "infra.config.data_key_duplicate"),
     (
@@ -417,17 +419,10 @@ def test_error_codes_and_translations(name, code, key):
 
 
 def test_file_ids_reject_numbers():
-    values = dict(
-        configId="1",
-        name="test",
-        path="test.txt",
-        url="http://testserver/test.txt",
-        type="text/plain",
-        size=1,
-    )
-    assert FileCreateReqVO.model_validate(values).config_id == 1
+    values = dict(configId="1", prefix="", delimiter="/")
+    assert FileListObjectsReqVO.model_validate(values).config_id == 1
     with pytest.raises(ValidationError):
-        FileCreateReqVO.model_validate({**values, "configId": 1})
+        FileListObjectsReqVO.model_validate({**values, "configId": 1})
 
 
 @pytest.mark.parametrize(

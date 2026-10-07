@@ -1,0 +1,16 @@
+from typing import Protocol, runtime_checkable
+
+
+@runtime_checkable
+class SystemAccessPolicyService(Protocol):
+    """判断作者超级管理员身份，并计算租户套餐允许的菜单范围。"""
+
+    def is_owner(self, user_id: int | str, tenant_id: str | None) -> bool: ...
+
+    def is_current_owner(self) -> bool: ...
+
+    def require_owner(self) -> None: ...
+
+    def protect_owner_account(self, user_id: int | str, tenant_id: str) -> None: ...
+
+    async def menu_ids(self, user_id: int | str, tenant_id: str) -> set[int]: ...

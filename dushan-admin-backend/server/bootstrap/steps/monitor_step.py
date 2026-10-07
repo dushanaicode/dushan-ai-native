@@ -5,7 +5,7 @@ from framework.starter_database.config.database_settings import DatabaseSettings
 from framework.starter_database.session.session_provider import SessionProvider
 from framework.starter_monitor.config.monitor_settings import MonitorSettings
 from framework.starter_monitor.starter.monitor_starter import MonitorStarter
-from server.bootstrap.context import AppBootstrapContext
+from server.bootstrap.app_bootstrap_context import AppBootstrapContext
 
 
 class MonitorStep:

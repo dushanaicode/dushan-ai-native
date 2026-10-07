@@ -3,8 +3,12 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from framework.common.page import PageResult
-from module_system.controller.admin.mail.vo.account.account_page_req_vo import MailAccountPageReqVO
-from module_system.controller.admin.mail.vo.account.account_save_req_vo import MailAccountSaveReqVO
+from module_system.controller.admin.mail.vo.account.mail_account_page_req_vo import (
+    MailAccountPageReqVO,
+)
+from module_system.controller.admin.mail.vo.account.mail_account_save_req_vo import (
+    MailAccountSaveReqVO,
+)
 from module_system.dal.cache.mail.dto.mail_account_cache_dto import MailAccountCacheDTO
 from module_system.dal.dataobject.mail.mail_account_do import MailAccountDO
 

@@ -10,7 +10,7 @@ from framework.starter_database.public import (
 from framework.starter_di.public import (
     mapper,
 )
-from module_system.controller.admin.tenant.vo.packages.packages_package_page_req_vo import (
+from module_system.controller.admin.tenant.vo.package.tenant_package_page_req_vo import (
     TenantPackagePageReqVO,
 )
 from module_system.dal.dataobject.tenant.tenant_package_do import TenantPackageDO
@@ -25,13 +25,12 @@ class TenantPackageMapper(BaseMapper[TenantPackageDO]):
         stmt = select(TenantPackageDO)
         if req_vo.name:
             escaped = StrUtils.escape_like(req_vo.name)
-            stmt = stmt.where(TenantPackageDO.name.ilike(f"%{escaped}%"))
+            stmt = stmt.where(TenantPackageDO.name.ilike(f"%{escaped}%", escape="\\"))
         if req_vo.status is not None:
             stmt = stmt.where(TenantPackageDO.status == req_vo.status)
-        if req_vo.create_time and len(req_vo.create_time) >= 2:
-            stmt = stmt.where(
-                TenantPackageDO.create_time.between(req_vo.create_time[0], req_vo.create_time[1])
-            )
+        if req_vo.create_time is not None:
+            start_time, end_time = req_vo.create_time
+            stmt = stmt.where(TenantPackageDO.create_time.between(start_time, end_time))
         stmt = stmt.order_by(TenantPackageDO.id.desc())
         return await self.paginate_query(stmt, req_vo)
 

@@ -9,8 +9,8 @@ from framework.starter_tenant.definitions.constants.tenant_error_codes import Te
 from framework.starter_tenant.definitions.enums.tenant_model_kind import TenantModelKind
 from framework.starter_tenant.exception.tenant_exception import TenantException
 from framework.starter_tenant.model.tenant_model import TenantModel
-from server.bootstrap.bootstrapper import BootstrapError
-from server.starter_server import create_app
+from server.bootstrap.bootstrap_error import BootstrapError
+from server.starter_server import StarterServer
 
 
 def test_model_requires_nonnullable_tenant_and_scoped_unique_key():
@@ -42,7 +42,7 @@ class Unmarked(BaseDO):
 """
     module_package(name, name=name, scan_roots=(".",), files={"models.py": source})
     importlib.import_module(name + ".models")
-    app = create_app(
+    app = StarterServer.create_app(
         base_dir=config_dir(
             {
                 "banner": {"enabled": False},

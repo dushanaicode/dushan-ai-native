@@ -8,7 +8,7 @@ from sqlalchemy import Column, Integer, MetaData, String, Table, insert, select
 
 from framework.starter_captcha.definitions.constants.captcha_error_codes import CaptchaErrorCodes
 from framework.starter_captcha.exception.captcha_exception import CaptchaException
-from framework.starter_di.context.get_bean import get_bean
+from framework.starter_di.context.application_context import ApplicationContext
 from framework.starter_monitor.core.monitor_service import MonitorService
 from framework.starter_monitor.decorators.auto_trace import AutoTrace
 from framework.starter_monitor.decorators.biz_trace import BizTrace
@@ -76,7 +76,7 @@ async def test_background_task_and_multiple_applications_are_isolated(
             background_id = await task
             assert background_id != parent.get_span_context().trace_id
             with b.state.application_context.execution():
-                assert get_bean(MonitorService) is b.state.monitor
+                assert ApplicationContext.lookup(MonitorService) is b.state.monitor
                 second_id = await work()
                 assert second_id != parent.get_span_context().trace_id
     await a.state.monitor.flush()

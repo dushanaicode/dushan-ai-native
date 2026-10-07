@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from framework.common.utils.cleanup_utils import CleanupUtils
 from framework.starter_ip.config.ip_settings import IpSettings
 from framework.starter_ip.starter.ip_starter import IpStarter
-from server.bootstrap.context import AppBootstrapContext
+from server.bootstrap.app_bootstrap_context import AppBootstrapContext
 
 
 class IpStep:

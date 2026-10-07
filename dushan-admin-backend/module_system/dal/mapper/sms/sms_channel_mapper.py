@@ -10,7 +10,9 @@ from framework.starter_database.public import (
 from framework.starter_di.public import (
     mapper,
 )
-from module_system.controller.admin.sms.vo.channel.channel_page_req_vo import SmsChannelPageReqVO
+from module_system.controller.admin.sms.vo.channel.sms_channel_page_req_vo import (
+    SmsChannelPageReqVO,
+)
 from module_system.dal.dataobject.sms.sms_channel_do import SmsChannelDO
 
 
@@ -23,16 +25,15 @@ class SmsChannelMapper(BaseMapper[SmsChannelDO]):
         stmt = select(SmsChannelDO)
         if req_vo.signature:
             escaped_sig = StrUtils.escape_like(req_vo.signature)
-            stmt = stmt.where(SmsChannelDO.signature.ilike(f"%{escaped_sig}%"))
+            stmt = stmt.where(SmsChannelDO.signature.ilike(f"%{escaped_sig}%", escape="\\"))
         if req_vo.status is not None:
             stmt = stmt.where(SmsChannelDO.status == req_vo.status)
         if req_vo.code:
             escaped_code = StrUtils.escape_like(req_vo.code)
-            stmt = stmt.where(SmsChannelDO.code.ilike(f"%{escaped_code}%"))
-        if req_vo.create_time and len(req_vo.create_time) == 2:
-            stmt = stmt.where(
-                SmsChannelDO.create_time.between(req_vo.create_time[0], req_vo.create_time[1])
-            )
+            stmt = stmt.where(SmsChannelDO.code.ilike(f"%{escaped_code}%", escape="\\"))
+        if req_vo.create_time is not None:
+            start_time, end_time = req_vo.create_time
+            stmt = stmt.where(SmsChannelDO.create_time.between(start_time, end_time))
         stmt = stmt.order_by(SmsChannelDO.id.desc())
         return await self.paginate_query(stmt, req_vo)
 

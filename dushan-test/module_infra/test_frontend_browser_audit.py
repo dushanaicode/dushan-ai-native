@@ -23,7 +23,7 @@ async def test_frontend_audit_host(infra_database, monkeypatch):
     )
     from module_system.framework.sms.model.sms_send_resp_dto import SmsSendRespDTO
     from module_system.framework.sms.model.sms_template_resp_dto import SmsTemplateRespDTO
-    from server.starter_server import create_app
+    from server.starter_server import StarterServer
 
     work = Path(os.environ["DUSHAN_AUDIT_WORKDIR"]).resolve()
     assert work.is_relative_to((Path.cwd() / "Temp").resolve())
@@ -198,7 +198,7 @@ async def test_frontend_audit_host(infra_database, monkeypatch):
         cursor.execute(
             "CREATE TABLE qa_codegen_record (id BIGINT PRIMARY KEY, name VARCHAR(50) NOT NULL COMMENT '名称', tenant_id VARCHAR(32) NOT NULL DEFAULT '1', creator VARCHAR(64) NOT NULL DEFAULT '', create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updater VARCHAR(64) NOT NULL DEFAULT '', update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, deleted TINYINT NOT NULL DEFAULT 0) COMMENT='浏览器测试表'"
         )
-    app = create_app(base_dir=folder, app_env="dev", environ={})
+    app = StarterServer.create_app(base_dir=folder, app_env="dev", environ={})
     app.add_middleware(HttpRouteCoverage)
     async with app.router.lifespan_context(app):
         HttpRouteCoverage.register(app)

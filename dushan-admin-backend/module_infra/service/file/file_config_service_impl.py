@@ -12,7 +12,6 @@ from framework.starter_di.public import (
     Inject,
     service,
 )
-from module_infra.dal.cache.file.file_config_cache_dao import FileConfigCacheDAO
 from module_infra.dal.dataobject.file.file_config_do import FileConfigDO
 from module_infra.dal.mapper.file.file_config_mapper import FileConfigMapper
 from module_infra.dal.mapper.file.file_mapper import FileMapper
@@ -27,7 +26,6 @@ class FileConfigServiceImpl(FileConfigService):
     mapper: FileConfigMapper = Inject()
     files: FileMapper = Inject()
     factory: FileClientFactory = Inject()
-    cache: FileConfigCacheDAO = Inject()
     database: SessionProvider = Inject()
 
     @staticmethod
@@ -52,7 +50,9 @@ class FileConfigServiceImpl(FileConfigService):
     @transactional
     async def create_file_config(self, create_req_vo):
         row = FileConfigDO(
-            **create_req_vo.model_dump(exclude={"id", "config"}, by_alias=False),
+            **create_req_vo.to_write_dict(
+                fields={"name", "storage", "remark"}, exclude_unset=False
+            ),
             config=self._config(create_req_vo.storage, create_req_vo.config),
             master=False,
         )
@@ -62,7 +62,9 @@ class FileConfigServiceImpl(FileConfigService):
     @transactional
     async def update_file_config(self, update_req_vo):
         old = await self._require(update_req_vo.id)
-        values = update_req_vo.model_dump(exclude={"config"}, by_alias=False)
+        values = update_req_vo.to_write_dict(
+            fields={"id", "name", "storage", "remark"}, exclude_unset=False
+        )
         if update_req_vo.storage != old.storage and await self.files.select_count_by_config_id(
             old.id
         ):
@@ -73,7 +75,7 @@ class FileConfigServiceImpl(FileConfigService):
             old.config if update_req_vo.storage == old.storage else None,
         )
         await self.mapper.update_by_id(FileConfigDO(**values))
-        self.database.after_commit(lambda: self._invalidate(old.id), name="file-config-update")
+        self.database.after_commit(lambda: self.factory.evict(old.id), name="file-config-update")
 
     @transactional
     async def update_file_config_master(self, file_config_id):
@@ -84,7 +86,6 @@ class FileConfigServiceImpl(FileConfigService):
             await session.execute(select(FileConfigDO.id).with_for_update())
             await self.mapper.update_by_condition({"master": False}, FileConfigDO.master.is_(True))
             await self.mapper.update_by_id(FileConfigDO(id=file_config_id, master=True))
-        self.database.after_commit(lambda: self.cache.delete_config(0), name="file-master-update")
 
     @transactional
     async def delete_file_config(self, file_config_id):
@@ -95,7 +96,7 @@ class FileConfigServiceImpl(FileConfigService):
             raise ServiceException(ErrorCodeConstants.FILE_CONFIG_HAS_FILE)
         await self.mapper.delete_by_id(file_config_id)
         self.database.after_commit(
-            lambda: self._invalidate(file_config_id), name="file-config-delete"
+            lambda: self.factory.evict(file_config_id), name="file-config-delete"
         )
 
     @transactional
@@ -140,13 +141,8 @@ class FileConfigServiceImpl(FileConfigService):
     async def get_master_file_client(self):
         return await self.get_file_client(0)
 
-    async def _require(self, identifier):
+    async def _require(self, identifier: int) -> FileConfigDO:
         row = await self.mapper.select_by_id(identifier)
         if row is None:
             raise ServiceException(ErrorCodeConstants.FILE_CONFIG_DATA_NOT_EXISTS)
         return row
-
-    async def _invalidate(self, identifier):
-        await self.cache.delete_config(identifier)
-        await self.cache.delete_config(0)
-        await self.factory.evict(identifier)

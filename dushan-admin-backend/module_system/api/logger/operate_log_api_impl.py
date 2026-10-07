@@ -29,4 +29,4 @@ class OperateLogApiImpl(OperateLogApi):
         self, page_req_dto: OperateLogPageReqDTO
     ) -> PageResult[OperateLogRespDTO]:
         operate_log_page = await self.operate_log_service.get_operate_log_page_dto(page_req_dto)
-        return operate_log_page.convert(lambda item: OperateLogRespDTO.model_validate(item))
+        return operate_log_page.convert(OperateLogRespDTO)

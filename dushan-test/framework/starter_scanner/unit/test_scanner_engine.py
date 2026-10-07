@@ -18,7 +18,7 @@ from framework.starter_scanner.core.scanner_engine import ScannerEngine
 from framework.starter_scanner.exception.scanner_exception import ScannerException
 
 pytestmark = pytest.mark.unit
-COMPONENT = "from framework.starter_scanner.annotation.scanner_decorator import scanner\n@scanner\nclass Example: pass\n"
+COMPONENT = "from framework.starter_scanner.decorators.scanner_decorator import scanner\n@scanner\nclass Example: pass\n"
 
 
 def test_error_code_marker_is_immutable_and_rejects_duplicate_declaration():

@@ -15,7 +15,7 @@ from framework.starter_di.public import (
 from framework.starter_tenant.public import (
     TenantSettings,
 )
-from module_infra.controller.admin.logger.vo.apiaccesslog.apiaccesslog_api_access_log_page_req_vo import (
+from module_infra.controller.admin.logger.vo.api_access_log.api_access_log_page_req_vo import (
     ApiAccessLogPageReqVO,
 )
 from module_infra.dal.dataobject.logger.api_access_log_do import ApiAccessLogDO
@@ -48,16 +48,9 @@ class ApiAccessLogServiceImpl(ApiAccessLogService):
 
     @override
     async def clean_access_log(self, exceed_day: int, delete_limit: int) -> int:
-        count = 0
+        """清理超过保留天数的访问日志。"""
         expire_date = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=exceed_day)
-        while True:
-            delete_count = await self.api_access_log_mapper.delete_by_create_time_lt(
-                expire_date, delete_limit
-            )
-            count += delete_count
-            if delete_count < delete_limit:
-                break
-        return count
+        return await self.api_access_log_mapper.delete_by_create_time_lt(expire_date, delete_limit)
 
     workloads: WorkloadApi = Inject()
     tenant_settings: TenantSettings = Inject()

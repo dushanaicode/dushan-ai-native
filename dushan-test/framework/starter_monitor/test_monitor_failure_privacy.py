@@ -10,7 +10,7 @@ from framework.starter_monitor.core.monitor_service import MonitorService
 from framework.starter_monitor.core.sdk_log_guard import SdkLogGuard
 from framework.starter_monitor.decorators.biz_trace import BizTrace
 from framework.starter_monitor.exception.monitor_exception import MonitorException
-from framework.starter_monitor.util.trace_utils import TraceUtils
+from framework.starter_monitor.utils.trace_utils import TraceUtils
 
 
 class CloseOnceExporter(SpanExporter):

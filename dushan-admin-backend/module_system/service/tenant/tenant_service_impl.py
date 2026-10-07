@@ -20,6 +20,7 @@ from framework.starter_di.public import (
 )
 from framework.starter_security.public import (
     PasswordEncoder,
+    SecurityContext,
     SecurityErrorCodes,
     SecurityException,
     SecurityRealm,
@@ -34,9 +35,9 @@ from framework.starter_tenant.public import (
 )
 from module_system.controller.admin.tenant.vo.tenant.tenant_page_req_vo import TenantPageReqVO
 from module_system.controller.admin.tenant.vo.tenant.tenant_simple_resp_vo import TenantSimpleRespVO
-from module_system.dal.dataobject.permission.permission_user_role_do import UserRoleDO
 from module_system.dal.dataobject.permission.role_do import RoleDO
 from module_system.dal.dataobject.permission.role_menu_do import RoleMenuDO
+from module_system.dal.dataobject.permission.user_role_do import UserRoleDO
 from module_system.dal.dataobject.tenant.tenant_do import TenantDO
 from module_system.dal.dataobject.user.admin_user_do import AdminUserDO
 from module_system.dal.mapper.auth.system_authentication_mapper import SystemAuthenticationMapper
@@ -55,7 +56,9 @@ from module_system.definitions.enums.permission.role_code_enum import (
 from module_system.service.permission.authorization_revision_service import (
     AuthorizationRevisionService,
 )
-from module_system.service.permission.system_access_policy import SystemAccessPolicy
+from module_system.service.permission.system_access_policy_service import (
+    SystemAccessPolicyService,
+)
 from module_system.service.tenant.tenant_service import TenantService
 from module_system.service.workload.system_workload_service import SystemWorkloadService
 
@@ -171,7 +174,8 @@ class TenantServiceImpl(TenantService):
     authentication: SystemAuthenticationMapper = Inject()
     workloads: SystemWorkloadService = Inject()
     revisions: AuthorizationRevisionService = Inject()
-    access_policy: SystemAccessPolicy = Inject()
+    access_policy: SystemAccessPolicyService = Inject()
+    security: SecurityContext = Inject()
 
     async def _package(self, package_id):
         package = await self.packages.select_by_id(package_id)
@@ -189,8 +193,18 @@ class TenantServiceImpl(TenantService):
         identifier = self.database.next_id()
         async with self.workloads.scope("system.tenant.provision", str(identifier)):
             async with self.database.transaction():
-                values = create_req_vo.model_dump(
-                    exclude={"username", "password", "id"}, by_alias=False
+                values = create_req_vo.to_write_dict(
+                    fields={
+                        "name",
+                        "contact_name",
+                        "contact_mobile",
+                        "status",
+                        "websites",
+                        "package_id",
+                        "expire_time",
+                        "account_count",
+                    },
+                    exclude_unset=False,
                 )
                 await self.tenant_mapper.insert(TenantDO(id=identifier, **values))
                 role = await self.roles.insert(
@@ -233,7 +247,20 @@ class TenantServiceImpl(TenantService):
         package = await self._package(update_req_vo.package_id)
         async with self.workloads.scope("system.tenant.provision", str(tenant.id)):
             async with self.database.transaction():
-                values = update_req_vo.model_dump(exclude={"username", "password"}, by_alias=False)
+                values = update_req_vo.to_write_dict(
+                    fields={
+                        "id",
+                        "name",
+                        "contact_name",
+                        "contact_mobile",
+                        "status",
+                        "websites",
+                        "package_id",
+                        "expire_time",
+                        "account_count",
+                    },
+                    exclude_unset=False,
+                )
                 await self.tenant_mapper.update_by_id(TenantDO(**values))
                 if tenant.package_id != update_req_vo.package_id:
                     await self._apply_role_menus(set(package.menu_ids))
@@ -246,30 +273,26 @@ class TenantServiceImpl(TenantService):
                     await self.revisions.advance()
 
     async def _apply_role_menus(self, menu_ids):
+        """管理员使用套餐全集，普通角色仅保留套餐内已有菜单。"""
         changed = False
         for role in await self.roles.select_list():
             current = {row.menu_id for row in await self.role_menus.select_list_by_role_id(role.id)}
             wanted = menu_ids if role.code == RoleCodeEnum.TENANT_ADMIN.code else current & menu_ids
-            changed = changed or current != wanted
-            if current - wanted:
-                await self.role_menus.delete_list_by_role_id_and_menu_ids(role.id, current - wanted)
-            await self.role_menus.insert_batch(
-                [RoleMenuDO(role_id=role.id, menu_id=menu_id) for menu_id in wanted - current]
-            )
+            if await self.role_menus.sync_menu_ids(role.id, current, wanted):
+                changed = True
         return changed
 
-    async def handle_tenant_info(self, handler):
+    async def get_current_tenant(self):
         tenant = await self.get_tenant(int(self.tenant_context.get_required_tenant_id()))
         if tenant is None:
             raise ServiceException(ErrorCodeConstants.TENANT_NOT_EXISTS)
-        await handler.handle(tenant)
+        return tenant
 
-    async def handle_tenant_menu(self, handler):
-        identity = self.access_policy.security.require()
-        menu_ids = await self.access_policy.menu_ids(identity.account_id, identity.tenant_id)
-        await handler.handle(menu_ids)
+    async def get_current_menu_ids(self):
+        identity = self.security.require()
+        return await self.access_policy.menu_ids(identity.account_id, identity.tenant_id)
 
-    async def valid_tenant(self, id):
+    async def valid_tenant(self, id: int) -> TenantDO:
         tenant = await self.get_tenant(int(id))
         if tenant is None:
             raise ServiceException(ErrorCodeConstants.TENANT_NOT_EXISTS)
@@ -279,6 +302,7 @@ class TenantServiceImpl(TenantService):
             timezone.utc
         ).replace(tzinfo=None):
             raise ServiceException(ErrorCodeConstants.TENANT_EXPIRE, tenant.name)
+        return tenant
 
     async def tenant_info(self, tenant_id):
         result = await self.tenant_mapper.read_from_primary(
@@ -309,7 +333,8 @@ class TenantServiceImpl(TenantService):
         return None
 
     async def authorize_workload(self, identity, capability):
-        if capability not in WorkloadConstants.RESOURCES:
+        """根据能力声明授予后台身份最小租户资源范围。"""
+        if capability not in WorkloadConstants.CAPABILITIES:
             raise SecurityException(SecurityErrorCodes.DENIED, detail=f"未登记的能力：{capability}")
         if capability not in identity.capabilities:
             raise SecurityException(
@@ -323,7 +348,9 @@ class TenantServiceImpl(TenantService):
             resources=tuple(
                 (
                     TenantResourceGrant(resource=resource, actions=actions)
-                    for resource, actions in WorkloadConstants.RESOURCES[capability].items()
+                    for resource, actions in WorkloadConstants.CAPABILITIES[capability][
+                        "resources"
+                    ].items()
                 )
             ),
             expires_at=identity.expires_at,

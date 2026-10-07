@@ -22,7 +22,7 @@ from framework.starter_di.public import (
 from framework.starter_tenant.public import (
     TenantContext,
 )
-from module_system.dal.cache.cache_key_constants import SystemCacheKeys
+from module_system.dal.cache.system_cache_key_constants import SystemCacheKeyConstants
 from module_system.dal.dataobject.sms.sms_code_do import SmsCodeDO
 from module_system.dal.mapper.sms.sms_code_mapper import SmsCodeMapper
 from module_system.definitions.constants.error_code_constants import ErrorCodeConstants
@@ -144,7 +144,7 @@ class SmsCodeServiceImpl(SmsCodeService):
         if record.used:
             raise ServiceException(ErrorCodeConstants.SMS_CODE_USED)
         attempts = await self.cache.eval_atomic(
-            SystemCacheKeys.SMS_CODE_ATTEMPTS,
+            SystemCacheKeyConstants.SMS_CODE_ATTEMPTS,
             (str(record.id),),
             SmsCodeConstants.ATTEMPT_SCRIPT,
             (self.settings.expire_times,),

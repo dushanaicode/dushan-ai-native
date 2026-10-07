@@ -13,8 +13,8 @@ from framework.starter_web.routing.authenticated_websocket_route import Authenti
 from framework.starter_web.routing.decorators import controller, route
 from framework.starter_web.routing.route_policy import RoutePolicy
 from framework.starter_web.routing.router_registration import RouterRegistration
-from server.bootstrap.bootstrapper import BootstrapError
-from server.starter_server import create_app
+from server.bootstrap.bootstrap_error import BootstrapError
+from server.starter_server import StarterServer
 
 pytestmark = pytest.mark.unit
 
@@ -86,7 +86,7 @@ def feature_app(
             "scanner": {"enabled": scanner},
         }
     )
-    return create_app(base_dir=root, environ={}, **kwargs)
+    return StarterServer.create_app(base_dir=root, environ={}, **kwargs)
 
 
 @pytest.mark.parametrize("scanner", [True, False])
@@ -128,8 +128,8 @@ def test_discovery_explicit_di_parameters_and_cleanup(module_package, config_dir
 
 def test_modules_off_and_multiple_applications(module_package, config_dir):
     first = feature_app(module_package, config_dir)
-    second = create_app(base_dir=first.state.bootstrap.base_dir, environ={})
-    disabled = create_app(
+    second = StarterServer.create_app(base_dir=first.state.bootstrap.base_dir, environ={})
+    disabled = StarterServer.create_app(
         base_dir=first.state.bootstrap.base_dir, environ={"MODULES_ENABLED": '["framework"]'}
     )
     with TestClient(first) as a, TestClient(second) as b, TestClient(disabled) as c:
@@ -158,7 +158,7 @@ def test_conditional_controller_is_not_published(module_package, config_dir):
 def test_explicit_duplicates_fail_before_mutation(config_dir, first, second):
     router = APIRouter()
     router.add_api_route(first, lambda: {})
-    app = create_app(
+    app = StarterServer.create_app(
         base_dir=config_dir(),
         environ={},
         routers=[RouterRegistration(router, policy=RoutePolicy.public())],
@@ -172,7 +172,7 @@ def test_explicit_duplicates_fail_before_mutation(config_dir, first, second):
 
 
 def test_native_late_registration_is_audited_at_startup(config_dir):
-    app = create_app(base_dir=config_dir(), environ={})
+    app = StarterServer.create_app(base_dir=config_dir(), environ={})
     app.add_api_route("/health", lambda: {})
     with pytest.raises(BootstrapError) as error, TestClient(app):
         pass
@@ -193,7 +193,7 @@ def test_explicit_router_keeps_lifespan(config_dir):
 
     router = APIRouter(lifespan=lifespan)
     router.add_api_route("/native", lambda: {"ok": True})
-    app = create_app(
+    app = StarterServer.create_app(
         base_dir=config_dir(),
         environ={},
         routers=[RouterRegistration(router, "/api", RoutePolicy.public())],
@@ -207,7 +207,7 @@ def test_protected_registration_requires_provider(config_dir):
     router = APIRouter()
     router.add_api_route("/protected", lambda: {})
     with pytest.raises(ValueError, match="缺少授权提供者"):
-        create_app(
+        StarterServer.create_app(
             base_dir=config_dir(),
             environ={},
             routers=[RouterRegistration(router, policy=RoutePolicy())],
@@ -241,7 +241,7 @@ def test_security_dependency_openapi_and_tenant_boundary(config_dir):
     async def protected():
         return RequestContext.current().identity
 
-    app = create_app(
+    app = StarterServer.create_app(
         base_dir=config_dir(),
         environ={},
         access_provider=provider,
@@ -295,7 +295,9 @@ def test_ignored_protected_declaration_is_not_published(config_dir):
         return {}
 
     with pytest.raises(ValueError, match="裸端点"):
-        create_app(base_dir=config_dir(), environ={}, routers=[RouterRegistration(router)])
+        StarterServer.create_app(
+            base_dir=config_dir(), environ={}, routers=[RouterRegistration(router)]
+        )
 
 
 def test_controller_with_policy_fails_without_provider(module_package, config_dir):
@@ -309,7 +311,9 @@ def test_controller_with_policy_fails_without_provider(module_package, config_di
 
 def test_controller_requires_di_and_duplicate_operations_fail(module_package, config_dir):
     app = feature_app(module_package, config_dir)
-    disabled = create_app(base_dir=app.state.bootstrap.base_dir, environ={"DI_ENABLED": "false"})
+    disabled = StarterServer.create_app(
+        base_dir=app.state.bootstrap.base_dir, environ={"DI_ENABLED": "false"}
+    )
     with pytest.raises(BootstrapError) as error, TestClient(disabled):
         pass
     assert "要求启用 DI" in str(error.value.__cause__)
@@ -347,7 +351,7 @@ def test_protected_mount_is_rejected_instead_of_bypassing_dependency(config_dir)
     router = APIRouter()
     router.mount("/mounted", mounted)
     with pytest.raises(ValueError, match="Mount/WebSocket"):
-        create_app(
+        StarterServer.create_app(
             base_dir=config_dir(),
             environ={},
             access_provider=lambda: None,
@@ -356,7 +360,7 @@ def test_protected_mount_is_rejected_instead_of_bypassing_dependency(config_dir)
 
 
 def test_explicit_registration_closes_after_startup(config_dir):
-    app = create_app(base_dir=config_dir(), environ={})
+    app = StarterServer.create_app(base_dir=config_dir(), environ={})
     router = APIRouter()
     router.get("/late")(lambda: {})
     with TestClient(app):
@@ -385,7 +389,9 @@ def test_ambiguous_native_operation_id_is_rejected(config_dir):
     router = APIRouter()
     router.add_api_route("/ambiguous", lambda: {}, methods=["GET", "POST"])
     with pytest.raises(ValueError, match="唯一标识"):
-        create_app(base_dir=config_dir(), environ={}, routers=[RouterRegistration(router)])
+        StarterServer.create_app(
+            base_dir=config_dir(), environ={}, routers=[RouterRegistration(router)]
+        )
 
 
 async def _socket_endpoint(websocket):
@@ -398,7 +404,7 @@ async def _socket_authorizer(websocket, endpoint):
 
 
 def test_register_websocket_before_seal_reject_duplicates_and_after_seal(config_dir):
-    app = create_app(base_dir=config_dir(), environ={})
+    app = StarterServer.create_app(base_dir=config_dir(), environ={})
     registrar = app.state.web_routes
     route = registrar.register_websocket(
         "/socket", _socket_endpoint, authorizer=_socket_authorizer, policy=RoutePolicy(), name="s1"
@@ -428,7 +434,7 @@ def test_register_websocket_before_seal_reject_duplicates_and_after_seal(config_
 
 
 def test_unregister_websocket_requires_ownership_and_rejects_after_seal(config_dir):
-    app = create_app(base_dir=config_dir(), environ={})
+    app = StarterServer.create_app(base_dir=config_dir(), environ={})
     registrar = app.state.web_routes
     foreign = AuthenticatedWebSocketRoute(
         "/foreign", _socket_endpoint, authorizer=_socket_authorizer, policy=RoutePolicy()

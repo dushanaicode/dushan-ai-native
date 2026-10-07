@@ -15,7 +15,7 @@ from module_infra.controller.admin.online.vo.online_force_logout_req_vo import (
     OnlineForceLogoutReqVO,
 )
 from module_infra.controller.admin.online.vo.online_info_req_vo import OnlineInfoReqVO
-from module_infra.controller.admin.online.vo.online_resp_vo import OnlineInfoRespVO
+from module_infra.controller.admin.online.vo.online_info_resp_vo import OnlineInfoRespVO
 from module_infra.service.online.online_service import OnlineService
 
 online_controller = APIRouter(prefix="/online", tags=["Infra - 在线用户管理"])

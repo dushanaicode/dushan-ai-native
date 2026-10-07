@@ -8,7 +8,8 @@ class ModuleDefinition(BaseModel):
     """module.toml 的完整静态契约，不创建服务、路由或生命周期对象。
 
     scan_roots 相对 package，点号表示整个包；definitions 是包内 module:Class 列表，
-    不受自动扫描开关和筛选器影响。resource_roots 相对包的物理目录。
+    不受自动扫描开关和筛选器影响。routers 是包内 module:属性，属性为 APIRouter 列表，
+    仅在模块启用时由宿主导入并登记；无 HTTP 入口写 []。resource_roots 相对包的物理目录。
     所有字段显式提供，新增模块不需要框架枚举或目录名称推断。
     """
 
@@ -18,6 +19,7 @@ class ModuleDefinition(BaseModel):
     package: str
     scan_roots: tuple[str, ...]
     definitions: tuple[str, ...]
+    routers: tuple[str, ...]
     requires: tuple[str, ...]
     resource_roots: tuple[I18nLocaleRoot, ...]
     required_message_keys: tuple[str, ...]
@@ -30,14 +32,14 @@ class ModuleDefinition(BaseModel):
             raise ValueError("必须使用合法点分标识符")
         return value
 
-    @field_validator("scan_roots", "definitions", "requires", "required_message_keys")
+    @field_validator("scan_roots", "definitions", "routers", "requires", "required_message_keys")
     @classmethod
     def validate_list(cls, values: tuple[str, ...], info: ValidationInfo) -> tuple[str, ...]:
         """拒绝重复关系，扫描根不允许跳出声明包。"""
         if len(values) != len(set(values)):
             raise ValueError("不允许重复项")
         for value in values:
-            if info.field_name == "definitions":
+            if info.field_name in {"definitions", "routers"}:
                 module, separator, name = value.partition(":")
                 if (
                     not separator
@@ -45,7 +47,7 @@ class ModuleDefinition(BaseModel):
                     or not PackageLocator.is_valid_name(name)
                     or "." in name
                 ):
-                    raise ValueError("显式定义使用包内 module:Class，根模块用 .:Class")
+                    raise ValueError("使用包内 module:名称，根模块用 .:名称")
             elif info.field_name == "required_message_keys":
                 if not value or value != value.strip():
                     raise ValueError("消息键不接受空值或首尾空白")

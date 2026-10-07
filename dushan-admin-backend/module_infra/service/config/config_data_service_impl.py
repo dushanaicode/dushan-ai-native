@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from typing import override
 
+from pydantic import JsonValue
+
 from framework.common.enums import StatusEnum
 from framework.common.exception import ServiceException
 from framework.common.page import PageResult
@@ -23,11 +25,11 @@ from framework.starter_tenant.public import (
 )
 from module_infra.api.config.dto.config_group_dto import ConfigGroupDTO
 from module_infra.api.config.dto.config_item_dto import ConfigItemDTO
-from module_infra.controller.admin.config.vo.data.data_page_req_vo import ConfigDataPageReqVO
-from module_infra.controller.admin.config.vo.data.data_resp_vo import ConfigDataRespVO
-from module_infra.controller.admin.config.vo.data.data_save_req_vo import ConfigDataSaveReqVO
-from module_infra.dal.dataobject.config.config_data_do import InfraConfigDataDO
-from module_infra.dal.dataobject.config.config_type_do import InfraConfigTypeDO
+from module_infra.controller.admin.config.vo.data.config_data_page_req_vo import ConfigDataPageReqVO
+from module_infra.controller.admin.config.vo.data.config_data_resp_vo import ConfigDataRespVO
+from module_infra.controller.admin.config.vo.data.config_data_save_req_vo import ConfigDataSaveReqVO
+from module_infra.dal.dataobject.config.infra_config_data_do import InfraConfigDataDO
+from module_infra.dal.dataobject.config.infra_config_type_do import InfraConfigTypeDO
 from module_infra.dal.mapper.config.config_data_mapper import ConfigDataMapper
 from module_infra.definitions.constants.error_code_constants import ErrorCodeConstants
 from module_infra.service.config.config_data_service import ConfigDataService
@@ -46,7 +48,24 @@ class ConfigDataServiceImpl(ConfigDataService):
     async def create_config(self, create_req_vo: ConfigDataSaveReqVO) -> int:
         await self._validate_config_type_exists(create_req_vo.type_id)
         await self._validate_config_key_unique(None, create_req_vo.key)
-        config = InfraConfigDataDO(**create_req_vo.model_dump(by_alias=False))
+        config = InfraConfigDataDO(
+            **create_req_vo.to_write_dict(
+                fields={
+                    "id",
+                    "type_id",
+                    "name",
+                    "key",
+                    "value",
+                    "description",
+                    "input_type",
+                    "input_props",
+                    "sort",
+                    "visible",
+                    "remark",
+                },
+                exclude_unset=False,
+            )
+        )
         await self.config_data_mapper.insert(config)
         await self._schedule_refresh()
         return config.id
@@ -57,7 +76,24 @@ class ConfigDataServiceImpl(ConfigDataService):
         await self._validate_config_exists(update_req_vo.id)
         await self._validate_config_type_exists(update_req_vo.type_id)
         await self._validate_config_key_unique(update_req_vo.id, update_req_vo.key)
-        update_obj = InfraConfigDataDO(**update_req_vo.model_dump(by_alias=False))
+        update_obj = InfraConfigDataDO(
+            **update_req_vo.to_write_dict(
+                fields={
+                    "id",
+                    "type_id",
+                    "name",
+                    "key",
+                    "value",
+                    "description",
+                    "input_type",
+                    "input_props",
+                    "sort",
+                    "visible",
+                    "remark",
+                },
+                exclude_unset=False,
+            )
+        )
         await self.config_data_mapper.update_by_id(update_obj)
         await self._schedule_refresh()
 
@@ -247,12 +283,13 @@ class ConfigDataServiceImpl(ConfigDataService):
             raise ServiceException(ErrorCodeConstants.CONFIG_DATA_NOT_EXISTS)
         return config
 
-    async def _validate_config_type_exists(self, type_id: int) -> None:
+    async def _validate_config_type_exists(self, type_id: int) -> InfraConfigTypeDO:
         config_type = await self.config_type_service.get_config_type_by_id(type_id)
         if config_type is None:
             raise ServiceException(ErrorCodeConstants.CONFIG_TYPE_NOT_EXISTS)
         if config_type.status != StatusEnum.ENABLE.code:
             raise ServiceException(ErrorCodeConstants.CONFIG_TYPE_NOT_ENABLE)
+        return config_type
 
     async def _validate_config_key_unique(self, config_id: int | None, key: str) -> None:
         config = await self.config_data_mapper.select_by_key(key)
@@ -296,7 +333,7 @@ class ConfigDataServiceImpl(ConfigDataService):
             if result.listener_errors:
                 raise ExceptionGroup("配置已提交但通知失败", list(result.listener_errors))
 
-    async def get_config_map(self):
+    async def get_config_map(self) -> dict[str, JsonValue]:
         values = {}
         for row in await self.get_config_list():
             try:

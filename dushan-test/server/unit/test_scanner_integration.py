@@ -10,7 +10,7 @@ from fixtures.scanner_fixtures import error_source
 from framework.common.exception.exceptions.configuration_exception import ConfigurationException
 from framework.common.exception.exceptions.service_exception import ServiceException
 from framework.starter_config.provider.bootstrap_config_error import BootstrapConfigError
-from server.bootstrap.bootstrapper import BootstrapError
+from server.bootstrap.bootstrap_error import BootstrapError
 
 pytestmark = pytest.mark.unit
 

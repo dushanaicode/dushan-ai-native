@@ -13,5 +13,7 @@ class DataAccessProvider(Protocol):
     """
 
     def enter(
-        self, identity: LoginSession | WorkloadIdentity
-    ) -> AbstractAsyncContextManager[None]: ...
+        self, identity: LoginSession | WorkloadIdentity, *, capability: str | None = None
+    ) -> AbstractAsyncContextManager[None]:
+        """会话不带能力；工作负载传入本次已验证的单一执行能力。"""
+        ...

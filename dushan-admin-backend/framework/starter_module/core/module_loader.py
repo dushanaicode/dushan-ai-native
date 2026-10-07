@@ -60,8 +60,9 @@ class ModuleLoader:
         try:
             order = tuple(TopologicalSorter(graph).static_order())
         except CycleError as error:
+            _, cycle = error.args
             raise ConfigurationException(
-                msg="模块依赖存在循环: " + ", ".join(sorted(graph)), cause=error
+                msg="模块依赖存在循环: " + " -> ".join(cycle), cause=error
             ) from error
         logger.info("【ModuleStarter】加载完成，启用顺序：{}", ", ".join(order))
         return tuple(declarations[name] for name in order)

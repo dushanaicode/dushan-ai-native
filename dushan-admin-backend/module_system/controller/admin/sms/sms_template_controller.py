@@ -2,15 +2,13 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 
 from framework.common.contracts import SnowflakeIdStr
-from framework.common.page import PageResult, PageSettings
+from framework.common.page import PageResult
 from framework.common.schemas.request import IdListReqVO, IdReqVO, UpdateStatusReqVO
 from framework.common.utils import ConversionUtils
 from framework.starter_di.public import (
     DiDependency,
 )
 from framework.starter_excel.public import (
-    DictDataProvider,
-    ExcelProviders,
     ExcelWriter,
 )
 from framework.starter_security.public import (
@@ -21,22 +19,26 @@ from framework.starter_web.public import (
     Result,
     RoutePolicy,
 )
-from module_system.controller.admin.sms.vo.template.template_export_req_vo import (
+from module_system.controller.admin.sms.vo.template.sms_template_export_req_vo import (
     SmsTemplateExportReqVO,
 )
-from module_system.controller.admin.sms.vo.template.template_page_req_vo import SmsTemplatePageReqVO
-from module_system.controller.admin.sms.vo.template.template_resp_vo import SmsTemplateRespVO
-from module_system.controller.admin.sms.vo.template.template_save_req_vo import SmsTemplateSaveReqVO
-from module_system.controller.admin.sms.vo.template.template_send_req_vo import SmsTemplateSendReqVO
-from module_system.controller.admin.sms.vo.template.template_simple_resp_vo import (
+from module_system.controller.admin.sms.vo.template.sms_template_page_req_vo import (
+    SmsTemplatePageReqVO,
+)
+from module_system.controller.admin.sms.vo.template.sms_template_resp_vo import SmsTemplateRespVO
+from module_system.controller.admin.sms.vo.template.sms_template_save_req_vo import (
+    SmsTemplateSaveReqVO,
+)
+from module_system.controller.admin.sms.vo.template.sms_template_send_req_vo import (
+    SmsTemplateSendReqVO,
+)
+from module_system.controller.admin.sms.vo.template.sms_template_simple_resp_vo import (
     SmsTemplateSimpleRespVO,
 )
 from module_system.dal.dataobject.sms.sms_template_do import SmsTemplateDO
 from module_system.service.sms.bo.sms_send_bo import SmsSendBO
 from module_system.service.sms.sms_send_service import SmsSendService
 from module_system.service.sms.sms_template_service import SmsTemplateService
-from module_system.spi.dept.dept_info_provider_adapter import DeptInfoProviderAdapter
-from module_system.spi.dept.post_info_provider_adapter import PostInfoProviderAdapter
 
 sms_template_controller = APIRouter(prefix="/sms/template", tags=["System - 短信模版管理"])
 
@@ -167,17 +169,8 @@ class SmsTemplateController:
         sms_template_service: SmsTemplateService = Depends(DiDependency(SmsTemplateService)),
         excel_writer: ExcelWriter = Depends(DiDependency(ExcelWriter)),
         files: FileResult = Depends(DiDependency(FileResult)),
-        dictionaries: DictDataProvider = Depends(DiDependency(DictDataProvider)),
-        departments: DeptInfoProviderAdapter = Depends(DiDependency(DeptInfoProviderAdapter)),
-        posts: PostInfoProviderAdapter = Depends(DiDependency(PostInfoProviderAdapter)),
-        page_settings: PageSettings = Depends(DiDependency(PageSettings)),
     ) -> StreamingResponse:
-        excel_providers = ExcelProviders(
-            dictionaries=dictionaries, departments=departments, posts=posts
-        )
-        page_req_vo.enable_fetch_all(
-            max_rows=min(excel_writer.settings.max_export_rows, page_settings.fetch_all_max_rows)
-        )
+        excel_writer.prepare_export_query(page_req_vo)
         page_result: PageResult[SmsTemplateDO] = await sms_template_service.get_sms_template_page(
             page_req_vo
         )
@@ -189,7 +182,6 @@ class SmsTemplateController:
             "数据",
             SmsTemplateRespVO,
             excel_list,
-            providers=excel_providers,
             fields=page_req_vo.fields,
         )
         return files.excel_stream(file_data, file_name=f"{filename}.xlsx")

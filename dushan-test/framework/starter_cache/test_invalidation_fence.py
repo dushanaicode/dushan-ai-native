@@ -1,10 +1,3 @@
-"""失效栅栏的收尾契约：begin 之后无论发生什么，generation 都必须回到 FINALIZED。
-
-栅栏停在 ACTIVE 不会返回脏数据，但会让该前缀的回源发布一直被拒绝：读侧每次都判信封
-作废、删键、加锁、回源，比没有缓存更慢，且没有任何其他症状。这组用例锁住收尾行为，
-以及"上一轮没收尾"时必须留下的告警。
-"""
-
 import asyncio
 
 from loguru import logger
@@ -18,6 +11,9 @@ from framework.starter_cache.definitions.enums.cache_generation_state_enum impor
 )
 from framework.starter_cache.exception.cache_exception import CacheException
 
+# 失效栅栏的收尾契约：begin 之后无论发生什么，generation 都必须回到 FINALIZED。
+# 栅栏停在 ACTIVE 不会返回脏数据，但会让该前缀的回源发布一直被拒绝，读侧每次都判信封作废、
+# 删键、加锁、回源，比没有缓存更慢且没有其他症状；这组用例锁住收尾行为及上一轮未收尾时的告警。
 pytestmark = requires_redis
 
 

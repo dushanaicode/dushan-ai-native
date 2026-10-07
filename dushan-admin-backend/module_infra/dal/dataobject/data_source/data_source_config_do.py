@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Computed, SmallInteger, String, UniqueConstraint
+from sqlalchemy import Boolean, SmallInteger, String, UniqueConstraint, true
 from sqlalchemy.orm import Mapped, mapped_column
 
 from framework.common.enums import StatusEnum
@@ -41,11 +41,11 @@ class DataSourceConfigDO(GlobalControlDO):
     remark: Mapped[str | None] = mapped_column(String(500), comment="备注")
     active_key: Mapped[int | None] = mapped_column(
         SmallInteger,
-        Computed("CASE WHEN deleted = 0 THEN 1 ELSE NULL END"),
+        GlobalControlDO.active_key_computed(),
         comment="仅有效记录参与业务唯一约束",
     )
     default_active: Mapped[int | None] = mapped_column(
         SmallInteger,
-        Computed("CASE WHEN deleted = 0 AND is_default = 1 THEN 1 ELSE NULL END"),
+        GlobalControlDO.active_key_computed(is_default == true()),
         comment="有效默认配置唯一标记",
     )

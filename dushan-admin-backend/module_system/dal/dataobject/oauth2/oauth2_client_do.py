@@ -52,5 +52,5 @@ class OAuth2ClientDO(GlobalControlDO):
     )
 
     credential_revision: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=1, comment="???????"
+        Integer, nullable=False, default=1, comment="客户端凭据版本"
     )

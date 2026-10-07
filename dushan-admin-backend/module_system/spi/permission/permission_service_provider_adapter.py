@@ -1,9 +1,13 @@
+from typing import override
+
 from framework.starter_di.public import (
     Inject,
     service,
 )
 from framework.starter_security.public import (
+    LoginSession,
     PermissionProvider,
+    PermissionSnapshot,
 )
 from module_system.service.permission.permission_service import PermissionService
 
@@ -12,5 +16,6 @@ from module_system.service.permission.permission_service import PermissionServic
 class PermissionServiceProviderAdapter(PermissionProvider):
     delegate: PermissionService = Inject()
 
-    async def snapshot(self, session, *, binding: str):
+    @override
+    async def snapshot(self, session: LoginSession, *, binding: str) -> PermissionSnapshot:
         return await self.delegate.permission_snapshot(session, binding=binding)

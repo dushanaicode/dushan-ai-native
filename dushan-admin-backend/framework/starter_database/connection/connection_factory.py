@@ -1,9 +1,13 @@
 import asyncio
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from sqlalchemy import event, text
 from sqlalchemy.engine import make_url
+from sqlalchemy.exc import ArgumentError
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
+from framework.common.exception.exceptions.configuration_exception import ConfigurationException
 from framework.common.utils.cleanup_utils import CleanupUtils
 from framework.starter_database.config.data_source_settings import DataSourceSettings
 from framework.starter_database.config.database_settings import DatabaseSettings
@@ -12,6 +16,32 @@ from framework.starter_database.exception.database_error_translator import Datab
 
 class ConnectionFactory:
     """复用 SQLAlchemy 方言加载异步驱动，驱动依赖只在实际启用时导入。"""
+
+    @classmethod
+    @asynccontextmanager
+    async def temporary_engine(
+        cls, source: DataSourceSettings, settings: DatabaseSettings
+    ) -> AsyncIterator[AsyncEngine]:
+        """复用连接池配置管理临时引擎，释放失败不能覆盖主错误或调用取消。"""
+        try:
+            engine = cls.create(source, settings)
+        except (ArgumentError, ModuleNotFoundError, ValueError) as error:
+            raise ConfigurationException(msg="数据源连接配置无效") from error
+        primary_error = None
+        try:
+            yield engine
+        except BaseException as error:
+            primary_error = error
+        finally:
+            error, cancellation = await CleanupUtils.run_cancellation_safe_cleanup(
+                engine.dispose, "临时数据库引擎关闭"
+            )
+            CleanupUtils.raise_collected_cleanup_errors(
+                "临时数据库引擎关闭失败",
+                [] if error is None else [error],
+                primary_error=primary_error,
+                caller_cancellation=cancellation,
+            )
 
     @staticmethod
     def create(source: DataSourceSettings, settings: DatabaseSettings) -> AsyncEngine:

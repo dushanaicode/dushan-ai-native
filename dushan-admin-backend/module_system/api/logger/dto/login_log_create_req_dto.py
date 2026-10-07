@@ -17,10 +17,16 @@ class LoginLogCreateReqDTO(BaseDTO):
     user_type: Annotated[int | None, Field(None, description="用户类型")]
     username: Annotated[str, Field(..., description="用户账号")]
     result: Annotated[int, Field(..., description="登录结果")]
-    user_ip: Annotated[str | None, Field(None, description="用户IP")]
+    user_ip: Annotated[str, Field(description="用户IP")]
     user_agent: Annotated[str | None, Field(None, description="浏览器UA")]
     tenant_id: Annotated[str | None, Field(None, description="租户编号")]
     creator: Annotated[str | None, Field(None, description="创建者")]
+
+    @field_validator("user_agent")
+    @classmethod
+    def _truncate_user_agent(cls, value: str | None) -> str | None:
+        """按登录日志存储上限裁剪浏览器标识，保留缺失值。"""
+        return None if value is None else value[:512]
 
     @field_validator("log_type", mode="before")
     @classmethod

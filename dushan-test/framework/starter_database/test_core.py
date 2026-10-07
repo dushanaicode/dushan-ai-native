@@ -32,6 +32,10 @@ async def test_crud_audit_soft_delete_and_portable_limited_purge(database_case):
         assert await mapper.purge_limited_by_condition(Item.id > 0, limit=2) == 2
         with database.options(include_deleted=True):
             assert await mapper.count() == 2
+        assert await mapper.purge_in_batches_by_condition(Item.id > 0, limit=1) == 2
+        with database.options(include_deleted=True):
+            assert await mapper.count() == 0
+        assert await mapper.purge_in_batches_by_condition(Item.id > 0, limit=1) == 0
     assert database.get_metrics()["pools"]["primary"]["leases"] == 0
 
 

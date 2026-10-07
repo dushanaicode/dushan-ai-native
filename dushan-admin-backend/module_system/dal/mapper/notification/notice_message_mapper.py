@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from sqlalchemy import MergedResult, func, select, update
 
 from framework.common.page import PageResult
+from framework.common.utils import StrUtils
 from framework.starter_database.public import (
     BaseMapper,
 )
@@ -37,10 +38,14 @@ class NoticeMessageMapper(BaseMapper[NoticeMessageDO]):
         if req_vo.read_status is not None:
             stmt = stmt.where(NoticeMessageDO.read_status == req_vo.read_status)
         if req_vo.notice_title is not None:
-            stmt = stmt.where(NoticeMessageDO.notice_title.like(f"%{req_vo.notice_title}%"))
+            stmt = stmt.where(
+                NoticeMessageDO.notice_title.like(
+                    f"%{StrUtils.escape_like(req_vo.notice_title)}%", escape="\\"
+                )
+            )
         if req_vo.notice_type is not None:
             stmt = stmt.where(NoticeMessageDO.notice_type == req_vo.notice_type)
-        if req_vo.create_time and len(req_vo.create_time) == 2:
+        if req_vo.create_time is not None:
             start_time, end_time = req_vo.create_time
             stmt = stmt.where(NoticeMessageDO.create_time.between(start_time, end_time))
         stmt = stmt.order_by(NoticeMessageDO.id.desc())
@@ -52,15 +57,15 @@ class NoticeMessageMapper(BaseMapper[NoticeMessageDO]):
         stmt = select(NoticeMessageDO)
         if req_vo.read_status is not None:
             stmt = stmt.where(NoticeMessageDO.read_status == req_vo.read_status)
-        if (
-            req_vo.create_time
-            and isinstance(req_vo.create_time, (list, tuple))
-            and (len(req_vo.create_time) == 2)
-        ):
+        if req_vo.create_time is not None:
             start_time, end_time = req_vo.create_time
             stmt = stmt.where(NoticeMessageDO.create_time.between(start_time, end_time))
         if req_vo.notice_title is not None:
-            stmt = stmt.where(NoticeMessageDO.notice_title.like(f"%{req_vo.notice_title}%"))
+            stmt = stmt.where(
+                NoticeMessageDO.notice_title.like(
+                    f"%{StrUtils.escape_like(req_vo.notice_title)}%", escape="\\"
+                )
+            )
         if req_vo.notice_type is not None:
             stmt = stmt.where(NoticeMessageDO.notice_type == req_vo.notice_type)
         stmt = stmt.where(
@@ -68,6 +73,14 @@ class NoticeMessageMapper(BaseMapper[NoticeMessageDO]):
         )
         stmt = stmt.order_by(NoticeMessageDO.id.desc())
         return await self.paginate_query(stmt, req_vo)
+
+    async def select_my(self, id: int, user_id: int, user_type: int) -> NoticeMessageDO | None:
+        stmt = select(NoticeMessageDO).where(
+            NoticeMessageDO.id == id,
+            NoticeMessageDO.user_id == user_id,
+            NoticeMessageDO.user_type == user_type,
+        )
+        return (await self.read(stmt)).scalars().one_or_none()
 
     async def update_list_read(self, ids: Collection[int], user_id: int, user_type: int) -> int:
         stmt = (

@@ -63,6 +63,21 @@ class ErrorCodeConstants:
         description="无法获取调度器任务列表",
         message_key="infra.job.sync_fail_scheduler",
     )
+    JOB_FAN_OUT_DEFAULT_TENANT_ONLY = ErrorCode(
+        code=1001001012,
+        description="仅默认租户可以管理逐租户执行的任务",
+        message_key="infra.job.fan_out_default_tenant_only",
+    )
+    JOB_LOG_NOT_EXISTS = ErrorCode(
+        code=1001001013,
+        description="定时任务日志不存在",
+        message_key="infra.job.log_not_exists",
+    )
+    JOB_PARAMETERS_MISMATCH = ErrorCode(
+        code=1001001014,
+        description="手动触发使用已保存参数；修改参数需更新任务定义",
+        message_key="infra.job.parameters_mismatch",
+    )
     API_ERROR_LOG_NOT_FOUND = ErrorCode(
         code=1001002000,
         description="API 错误日志不存在",
@@ -81,6 +96,16 @@ class ErrorCodeConstants:
     )
     FILE_IS_EMPTY = ErrorCode(
         code=1001003002, description="文件为空", message_key="infra.file.is_empty"
+    )
+    FILE_UPLOAD_TYPE_NOT_ALLOWED = ErrorCode(
+        code=1001003003,
+        description="文件类型不符合上传用途要求",
+        message_key="infra.file.upload_type_not_allowed",
+    )
+    FILE_UPLOAD_SIZE_EXCEEDED = ErrorCode(
+        code=1001003004,
+        description="文件大小超过上传用途上限",
+        message_key="infra.file.upload_size_exceeded",
     )
     FILE_NODE_NOT_EXISTS = ErrorCode(
         code=1001004000, description="文件节点不存在", message_key="infra.file.node_not_exists"
@@ -184,6 +209,11 @@ class ErrorCodeConstants:
         code=1001009004,
         description="激活数据源失败：{}",
         message_key="infra.data_source.activate_failed",
+    )
+    DATA_SOURCE_CONFIG_URL_REQUIRED = ErrorCode(
+        code=1001009005,
+        description="数据源连接 URL 不能为空",
+        message_key="infra.data_source.url_required",
     )
     CONFIG_DATA_NOT_EXISTS = ErrorCode(
         code=1001010000, description="参数配置不存在", message_key="infra.config.data_not_exists"

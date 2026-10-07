@@ -13,6 +13,7 @@ class MailAccount:
     user: str | None = None
     password: str | None = None
     from_address: str | None = None
+    display_name: str | None = None
     debug: bool = False
     charset: str = "utf-8"
     encode_filename: bool = True
@@ -26,6 +27,10 @@ class MailAccount:
     connection_timeout: int = 0
     write_timeout: int = 0
     custom_property: dict[str, str] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        """将可选发件人显示名规范为空字符串或去除首尾空白的名称。"""
+        self.display_name = "" if self.display_name is None else self.display_name.strip()
 
     def set_custom_property(self, key: str, value: str):
         """设置自定义属性"""

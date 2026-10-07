@@ -30,6 +30,7 @@ async def test_job_workload_and_persistent_delivery_claim(admin_client, system_a
     )
     from module_system.dal.mapper.mail.mail_log_mapper import MailLogMapper
     from module_system.dal.mapper.notification.notice_message_mapper import NoticeMessageMapper
+    from module_system.definitions.enums.mail.mail_send_status_enum import MailSendStatusEnum
     from module_system.framework.notification.delivery.delivery_definite_failure import (
         DeliveryDefiniteFailure,
     )
@@ -57,6 +58,25 @@ async def test_job_workload_and_persistent_delivery_claim(admin_client, system_a
                     category=1,
                     publisher="test",
                     publish_time=now - timedelta(minutes=1),
+                )
+            )
+            future = await mapper.insert(
+                AnnouncementDO(
+                    title="Future" + uuid4().hex,
+                    content="Test",
+                    status=1,
+                    category=1,
+                    publisher="test",
+                    publish_time=now + timedelta(days=1),
+                )
+            )
+            unscheduled = await mapper.insert(
+                AnnouncementDO(
+                    title="Unscheduled" + uuid4().hex,
+                    content="Test",
+                    status=1,
+                    category=1,
+                    publisher="test",
                 )
             )
             log = await application.container.get(MailLogMapper).insert(
@@ -88,6 +108,8 @@ async def test_job_workload_and_persistent_delivery_claim(admin_client, system_a
                 SystemJobParameters(), context
             )
             assert (await mapper.select_by_id(announcement.id)).status == 2
+            assert (await mapper.select_by_id(future.id)).status == 1
+            assert (await mapper.select_by_id(unscheduled.id)).status == 1
             messages = application.container.get(NoticeMessageMapper)
             count = await messages.count(NoticeMessageDO.notice_title == announcement.title)
             assert count > 0
@@ -97,17 +119,28 @@ async def test_job_workload_and_persistent_delivery_claim(admin_client, system_a
             assert await messages.count(NoticeMessageDO.notice_title == announcement.title) == count
         async with application.container.get(SystemWorkloadService).scope("system.mail.send", "1"):
             delivery = application.container.get(NotificationDeliveryService)
-            attempt = await delivery.claim("mail", log.id)
-            assert attempt is not None
-            with pytest.raises(DeliveryDefiniteFailure):
-                await delivery.claim("mail", log.id)
-            await delivery.started("mail", log.id, attempt)
-            with pytest.raises(MessageResultUnknown):
-                await delivery.claim("mail", log.id)
-            await delivery.finish(
-                "mail", log.id, attempt, send_status=10, send_message_id="local-result"
-            )
-            assert await delivery.claim("mail", log.id) is None
+            calls = []
+
+            def result_values(identifier):
+                """映射真实回执为邮件终态。"""
+                return {
+                    "send_status": MailSendStatusEnum.SUCCESS.code,
+                    "send_message_id": identifier,
+                }
+
+            async def send(on_request_started):
+                """验证认领及请求开始后的重复投递均被持久状态拒绝。"""
+                calls.append(log.id)
+                with pytest.raises(DeliveryDefiniteFailure):
+                    await delivery.execute("mail", log.id, send=send, result_values=result_values)
+                await on_request_started()
+                with pytest.raises(MessageResultUnknown):
+                    await delivery.execute("mail", log.id, send=send, result_values=result_values)
+                return "local-result"
+
+            await delivery.execute("mail", log.id, send=send, result_values=result_values)
+            await delivery.execute("mail", log.id, send=send, result_values=result_values)
+            assert calls == [log.id]
 
 
 async def test_registration_and_logout_revoke_cookie_and_session(system_app):
@@ -525,7 +558,7 @@ async def test_sms_controller_structured_command_persists_disabled_template_log(
 
 async def test_permission_cache_invalidation_obeys_transaction_commit(admin_client, system_app):
     from framework.starter_cache.core.cache_handler import CacheHandler
-    from module_system.dal.cache.cache_key_constants import SystemCacheKeys
+    from module_system.dal.cache.system_cache_key_constants import SystemCacheKeyConstants
     from module_system.service.permission.permission_cache_service import PermissionCacheService
 
     application = system_app.state.application_context
@@ -538,16 +571,16 @@ async def test_permission_cache_invalidation_obeys_transaction_commit(admin_clie
             cache = application.container.get(CacheHandler)
             service = application.container.get(PermissionCacheService)
             key = "contract-" + uuid4().hex
-            await cache.set(SystemCacheKeys.ROLE, key, None)
+            await cache.set(SystemCacheKeyConstants.ROLE, key, None)
             with pytest.raises(RuntimeError, match="rollback"):
                 async with system_app.state.database.transaction():
                     await service.invalidate_role_caches()
-                    assert (await cache.get(SystemCacheKeys.ROLE, key)).hit
+                    assert (await cache.get(SystemCacheKeyConstants.ROLE, key)).hit
                     raise RuntimeError("rollback")
-            assert (await cache.get(SystemCacheKeys.ROLE, key)).hit
+            assert (await cache.get(SystemCacheKeyConstants.ROLE, key)).hit
             async with system_app.state.database.transaction():
                 await service.invalidate_role_caches()
-            assert not (await cache.get(SystemCacheKeys.ROLE, key)).hit
+            assert not (await cache.get(SystemCacheKeyConstants.ROLE, key)).hit
 
 
 async def test_manual_announcement_publish_is_atomic_and_does_not_mutate_template(
@@ -842,6 +875,38 @@ async def test_role_assignment_and_permission_revocation(admin_client, system_ap
         assert (await user.get("/admin-api/system/user/page")).json()[
             "code"
         ] == SecurityErrorCodes.DENIED.code
+        menus = (await admin_client.get("/admin-api/system/permission/menu/list")).json()
+        assert menus["code"] == 0, menus
+        query_menu = next(
+            row["id"] for row in menus["data"] if row["permission"] == "system:user:query"
+        )
+        dept_menu = next(
+            row["id"] for row in menus["data"] if row["permission"] == "system:dept:query"
+        )
+        for menu_ids in [
+            [query_menu, dept_menu],
+            [query_menu, dept_menu],
+            [dept_menu],
+            [query_menu, dept_menu],
+            [],
+        ]:
+            assigned = (
+                await admin_client.post(
+                    "/admin-api/system/permission/assign-role-menu",
+                    json={"roleId": role_id, "menuIds": menu_ids},
+                )
+            ).json()
+            assert assigned["code"] == 0 and assigned["data"] is True, assigned
+            selected = (
+                await admin_client.get(
+                    "/admin-api/system/permission/list-role-menus", params={"roleId": role_id}
+                )
+            ).json()
+            assert selected["code"] == 0, selected
+            assert set(selected["data"]) == set(menu_ids)
+            assert (await user.get("/admin-api/system/user/page")).json()["code"] == (
+                0 if query_menu in menu_ids else SecurityErrorCodes.DENIED.code
+            )
         result = (
             await admin_client.post(
                 "/admin-api/system/permission/assign-user-role",
@@ -1091,12 +1156,20 @@ async def test_live_http_process(system_app):
 async def test_tenant_provision_and_cross_tenant_isolation(admin_client, system_app):
     from framework.starter_cache.core.cache_handler import CacheHandler
     from module_system.controller.admin.tenant.vo.tenant.tenant_save_req_vo import TenantSaveReqVO
-    from module_system.dal.cache.cache_key_constants import SystemCacheKeys
+    from module_system.dal.cache.system_cache_key_constants import SystemCacheKeyConstants
+    from module_system.dal.dataobject.permission.role_do import RoleDO
+    from module_system.dal.dataobject.permission.role_menu_do import RoleMenuDO
+    from module_system.dal.mapper.permission.role_mapper import RoleMapper
+    from module_system.dal.mapper.permission.role_menu_mapper import RoleMenuMapper
     from module_system.dal.mapper.user.admin_user_mapper import AdminUserMapper
+    from module_system.definitions.enums.permission.role_code_enum import RoleCodeEnum
     from module_system.service.tenant.tenant_service import TenantService
     from module_system.service.workload.system_workload_service import SystemWorkloadService
 
     suffix = uuid4().hex[:8]
+    menus = (await admin_client.get("/admin-api/system/permission/menu/list")).json()
+    assert menus["code"] == 0, menus
+    first_menu, second_menu = [int(row["id"]) for row in menus["data"][:2]]
     package = (
         await admin_client.post(
             "/admin-api/system/tenant/package/create",
@@ -1129,19 +1202,52 @@ async def test_tenant_provision_and_cross_tenant_isolation(admin_client, system_
         tenant = {"data": str(identifier)}
         workloads = application.container.get(SystemWorkloadService)
         cache = application.container.get(CacheHandler)
+        role_menus = application.container.get(RoleMenuMapper)
+        async with workloads.scope("system.tenant.provision", tenant["data"]):
+            roles = application.container.get(RoleMapper)
+            admin_role = next(
+                role
+                for role in await roles.select_list()
+                if role.code == RoleCodeEnum.TENANT_ADMIN.code
+            )
+            regular_role = await roles.insert(RoleDO(name="普通角色", code="regular", sort=1))
+            await role_menus.insert_batch(
+                [
+                    RoleMenuDO(role_id=regular_role.id, menu_id=menu_id)
+                    for menu_id in {first_menu, second_menu}
+                ]
+            )
+        for wanted, regular_wanted in [
+            ({first_menu, second_menu}, {first_menu, second_menu}),
+            ({first_menu}, {first_menu}),
+            ({first_menu, second_menu}, {first_menu}),
+            (set(), set()),
+        ]:
+            await application.container.get(TenantService).update_tenant_role_menu(
+                identifier, wanted
+            )
+            async with workloads.scope("system.tenant.provision", tenant["data"]):
+                assert {
+                    row.menu_id for row in await role_menus.select_list_by_role_id(admin_role.id)
+                } == wanted
+                assert {
+                    row.menu_id for row in await role_menus.select_list_by_role_id(regular_role.id)
+                } == regular_wanted
         async with workloads.scope("system.auth", tenant["data"]):
-            await cache.set(SystemCacheKeys.ROLE, "missing-role", None)
-            cached = await cache.get(SystemCacheKeys.ROLE, "missing-role")
+            await cache.set(SystemCacheKeyConstants.ROLE, "missing-role", None)
+            cached = await cache.get(SystemCacheKeyConstants.ROLE, "missing-role")
             assert cached.hit and cached.value is None
-            redis = cache.get_client(SystemCacheKeys.ROLE)
-            ttl = await redis.ttl(cache.build_full_key(SystemCacheKeys.ROLE, "missing-role"))
+            redis = cache.get_client(SystemCacheKeyConstants.ROLE)
+            ttl = await redis.ttl(
+                cache.build_full_key(SystemCacheKeyConstants.ROLE, "missing-role")
+            )
             assert 0 < ttl <= 3600
             users = await application.container.get(AdminUserMapper).select_list()
             assert len(users) == 1
             assert users[0].tenant_id == tenant["data"]
             foreign_user = str(users[0].id)
         async with workloads.scope("system.auth", "1"):
-            assert not (await cache.get(SystemCacheKeys.ROLE, "missing-role")).hit
+            assert not (await cache.get(SystemCacheKeyConstants.ROLE, "missing-role")).hit
             assert (
                 await application.container.get(AdminUserMapper).select_by_id(int(foreign_user))
                 is None
@@ -1199,10 +1305,8 @@ async def test_message_proofs_bind_payload_audience_and_workload(admin_client, s
 async def test_system_module_requires_data_permission_at_startup(system_app, tmp_path):
     import yaml
 
-    from framework.starter_di.definitions.constants.di_error_codes import DiErrorCodes
-    from framework.starter_di.exception.di_exception import DiException
-    from server.bootstrap.bootstrapper import BootstrapError
-    from server.starter_server import create_app
+    from server.bootstrap.bootstrap_error import BootstrapError
+    from server.starter_server import StarterServer
 
     source = system_app.state.bootstrap.base_dir / "application.yaml"
     values = yaml.safe_load(source.read_text(encoding="utf-8"))
@@ -1212,11 +1316,10 @@ async def test_system_module_requires_data_permission_at_startup(system_app, tmp
     (tmp_path / "application.yaml").write_text(
         yaml.safe_dump(values, allow_unicode=True), encoding="utf-8"
     )
-    app = create_app(base_dir=tmp_path, app_env="dev", environ={})
+    app = StarterServer.create_app(base_dir=tmp_path, app_env="dev", environ={})
     with pytest.raises(BootstrapError) as caught:
         async with app.router.lifespan_context(app):
             pytest.fail("启用 system 但关闭数据权限的应用不能就绪")
     error = caught.value.__cause__
-    assert isinstance(error, DiException), repr(error)
-    assert error.error_code == DiErrorCodes.MISSING_BINDING
-    assert "SystemWorkloadServiceImpl" in error.msg and "DataPermissionService" in error.msg
+    assert isinstance(error, ValueError), repr(error)
+    assert str(error) == "声明数据访问策略的模型要求启用 Data Permission"

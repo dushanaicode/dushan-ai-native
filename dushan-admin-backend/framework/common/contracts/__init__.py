@@ -1,3 +1,4 @@
+from framework.common.contracts.datetime_range_input import DateTimeRangeInput
 from framework.common.contracts.snowflake_id import (
     SnowflakeCursorStr,
     SnowflakeId,
@@ -7,6 +8,7 @@ from framework.common.contracts.snowflake_id import (
 )
 
 __all__ = [
+    "DateTimeRangeInput",
     "SnowflakeCursorStr",
     "SnowflakeId",
     "SnowflakeIdInput",

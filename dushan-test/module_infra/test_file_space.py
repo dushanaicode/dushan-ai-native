@@ -62,7 +62,7 @@ async def test_selected_storage_and_directory_upload_roundtrip(admin_client, inf
         response = (
             await admin_client.post(
                 "/admin-api/infra/file/upload",
-                data={"configId": config_id, "directory": prefix},
+                data={"configId": config_id, "directory": prefix, "visibility": "public"},
                 files={"file": ("readme.txt", b"file-space-content", "text/plain")},
             )
         ).json()
@@ -122,7 +122,7 @@ async def test_selected_storage_and_directory_upload_roundtrip(admin_client, inf
 
 
 @pytest.mark.asyncio(loop_scope="module")
-async def test_private_minio_bucket_switch_and_signed_read(admin_client):
+async def test_private_minio_bucket_switch_and_authenticated_read(admin_client, infra_app):
     resource_path = os.environ.get("DUSHAN_FILE_TEST_MINIO")
     if resource_path is None:
         pytest.skip("需要独立 MinIO 资源清单")
@@ -181,7 +181,7 @@ async def test_private_minio_bucket_switch_and_signed_read(admin_client):
         uploaded = (
             await admin_client.post(
                 "/admin-api/infra/file/upload",
-                data={"configId": identifier, "directory": "docs"},
+                data={"configId": identifier, "directory": "docs", "visibility": "private"},
                 files={"file": ("private.txt", b"private-file-content", "text/plain")},
             )
         ).json()
@@ -196,11 +196,18 @@ async def test_private_minio_bucket_switch_and_signed_read(admin_client):
         assert listing["code"] == 0, listing
         item = listing["data"]["objects"][0]
         assert item["name"] == "private.txt"
-        async with AsyncClient() as public:
-            assert (await public.get(uploaded["data"])).status_code == 403
-            signed = await public.get(item["url"])
-            assert signed.status_code == 200 and signed.content == b"private-file-content"
-        assert "X-Amz-Signature=" in item["url"]
+        assert item["url"] == uploaded["data"]
+        assert item["url"].startswith(f"/admin-api/infra/file/private/{identifier}/")
+        async with AsyncClient(
+            transport=ASGITransport(app=infra_app), base_url="http://testserver"
+        ) as public:
+            denied = await public.get(item["url"])
+            assert denied.json()["code"] == 401
+            anonymous_path = f"/admin-api/infra/file/{identifier}/get/{item['key']}"
+            missing = await public.get(anonymous_path)
+            assert missing.json()["code"] == 404
+        downloaded = await admin_client.get(item["url"])
+        assert downloaded.status_code == 200 and downloaded.content == b"private-file-content"
         found = (
             await admin_client.get(
                 "/admin-api/infra/file/search",
@@ -209,7 +216,7 @@ async def test_private_minio_bucket_switch_and_signed_read(admin_client):
         ).json()
         assert found["code"] == 0, found
         assert found["data"]["items"][0]["path"] == item["key"]
-        assert "X-Amz-Signature=" in found["data"]["items"][0]["url"]
+        assert found["data"]["items"][0]["url"] == uploaded["data"]
         assert (
             await admin_client.delete(
                 "/admin-api/infra/file/delete-by-key",

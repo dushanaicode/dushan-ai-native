@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query
 from starlette.responses import StreamingResponse
 
-from framework.common.page import PageResult, PageSettings
+from framework.common.page import PageResult
 from framework.common.utils import ConversionUtils
 from framework.starter_di.public import (
     DiDependency,
@@ -18,17 +18,16 @@ from framework.starter_web.public import (
     AccessLogPolicy,
     FileResult,
     OperateTypeEnum,
-    RequestUtils,
     Result,
     RoutePolicy,
 )
-from module_infra.controller.admin.logger.vo.apiaccesslog.apiaccesslog_api_access_log_export_req_vo import (
+from module_infra.controller.admin.logger.vo.api_access_log.api_access_log_export_req_vo import (
     ApiAccessLogExportReqVO,
 )
-from module_infra.controller.admin.logger.vo.apiaccesslog.apiaccesslog_api_access_log_page_req_vo import (
+from module_infra.controller.admin.logger.vo.api_access_log.api_access_log_page_req_vo import (
     ApiAccessLogPageReqVO,
 )
-from module_infra.controller.admin.logger.vo.apiaccesslog.apiaccesslog_api_access_log_resp_vo import (
+from module_infra.controller.admin.logger.vo.api_access_log.api_access_log_resp_vo import (
     ApiAccessLogRespVO,
 )
 from module_infra.dal.dataobject.logger.api_access_log_do import ApiAccessLogDO
@@ -42,22 +41,21 @@ api_access_log_controller = APIRouter(
 class ApiAccessLogController:
     @staticmethod
     @api_access_log_controller.get("/page", summary="获得 API 访问日志分页")
+    @RoutePolicy(
+        permissions=("infra:logger:api-access-log:query",),
+        tenant_required=True,
+        realm=SecurityRealm.TENANT,
+    )
     @AccessLogPolicy(
         enabled=True,
         operate_module="访问日志",
         operate_name="查询访问日志",
         operate_type=OperateTypeEnum.GET,
     )
-    @RoutePolicy(
-        permissions=("infra:logger:api-access-log:query",),
-        tenant_required=True,
-        realm=SecurityRealm.TENANT,
-    )
     async def get_api_access_log_page(
-        request: Request,
+        page_req_vo: ApiAccessLogPageReqVO = Query(),
         api_access_log_service: ApiAccessLogService = Depends(DiDependency(ApiAccessLogService)),
     ) -> Result[PageResult[ApiAccessLogRespVO]]:
-        page_req_vo = RequestUtils.validate_with_auto_list_params(request, ApiAccessLogPageReqVO)
         page_result: PageResult[
             ApiAccessLogDO
         ] = await api_access_log_service.get_api_access_log_page(page_req_vo)
@@ -88,14 +86,11 @@ class ApiAccessLogController:
         page_req_vo: ApiAccessLogExportReqVO = Query(),
         api_access_log_service: ApiAccessLogService = Depends(DiDependency(ApiAccessLogService)),
         excel_writer: ExcelWriter = Depends(DiDependency(ExcelWriter)),
-        page_settings: PageSettings = Depends(DiDependency(PageSettings)),
         files: FileResult = Depends(DiDependency(FileResult)),
         dictionaries: DictDataProvider = Depends(DiDependency(DictDataProvider)),
     ) -> StreamingResponse:
         excel_providers = ExcelProviders(dictionaries=dictionaries)
-        page_req_vo.enable_fetch_all(
-            max_rows=min(excel_writer.settings.max_export_rows, page_settings.fetch_all_max_rows)
-        )
+        excel_writer.prepare_export_query(page_req_vo)
         page_result: PageResult[
             ApiAccessLogDO
         ] = await api_access_log_service.get_api_access_log_page(page_req_vo)

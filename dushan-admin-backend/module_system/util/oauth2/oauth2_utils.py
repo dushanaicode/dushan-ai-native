@@ -1,18 +1,14 @@
 from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-from framework.starter_di.public import (
-    util,
-)
 from framework.starter_security.public import (
     OpaqueToken,
 )
 
 
-@util
 class OAuth2Utils:
     @staticmethod
-    async def append_query_param(url: str, params: dict) -> str:
+    def append_query_param(url: str, params: dict) -> str:
         parts = urlsplit(url)
         query = [
             (key, value)
@@ -21,21 +17,21 @@ class OAuth2Utils:
         ]
         return urlunsplit(parts._replace(query=urlencode(query + list(params.items()))))
 
-    async def build_authorization_code_redirect_uri(
-        self, redirect_uri, authorization_code, state=None
-    ):
+    @staticmethod
+    def build_authorization_code_redirect_uri(redirect_uri, authorization_code, state=None):
         params = {"code": authorization_code}
         if state is not None:
             params["state"] = state
-        return await self.append_query_param(redirect_uri, params)
+        return OAuth2Utils.append_query_param(redirect_uri, params)
 
-    async def build_implicit_redirect_uri(
-        self, redirect_uri, access_token, state, expire_time, scopes, additional_information=None
+    @staticmethod
+    def build_implicit_redirect_uri(
+        redirect_uri, access_token, state, expire_time, scopes, additional_information=None
     ):
         params = {
             "access_token": access_token,
             "token_type": "Bearer",
-            "expires_in": self.get_expires_in(expire_time),
+            "expires_in": OAuth2Utils.get_expires_in(expire_time),
             "scope": " ".join(scopes),
         }
         if state is not None:
@@ -44,22 +40,21 @@ class OAuth2Utils:
             params["additional_information"] = additional_information
         return urlunsplit(urlsplit(redirect_uri)._replace(fragment=urlencode(params)))
 
-    async def build_unsuccessful_redirect(
-        self, redirect_uri, response_type, state, error, description
-    ):
+    @staticmethod
+    def build_unsuccessful_redirect(redirect_uri, response_type, state, error, description):
         params = {"error": error, "error_description": description}
         if state is not None:
             params["state"] = state
         if response_type == "token":
             return urlunsplit(urlsplit(redirect_uri)._replace(fragment=urlencode(params)))
-        return await self.append_query_param(redirect_uri, params)
+        return OAuth2Utils.append_query_param(redirect_uri, params)
 
     @staticmethod
-    async def build_scopes(scope: str | None) -> list[str]:
+    def build_scopes(scope: str | None) -> list[str]:
         return [] if scope is None else scope.split()
 
     @staticmethod
-    async def build_scope_str(scopes: list[str]) -> str:
+    def build_scope_str(scopes: list[str]) -> str:
         return " ".join(scopes)
 
     @staticmethod

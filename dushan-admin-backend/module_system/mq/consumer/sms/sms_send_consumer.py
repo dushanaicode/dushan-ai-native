@@ -20,7 +20,7 @@ from module_system.service.sms.sms_send_service import SmsSendService
 @consumer(
     ConsumerDefinition(
         key="system.sms.send",
-        destination="sms:send",
+        destination=SmsSendMessage.stream_key,
         mode=MessageMode.STREAM,
         message=SmsSendMessage,
         group="sms-consumers",

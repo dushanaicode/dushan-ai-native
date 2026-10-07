@@ -13,10 +13,14 @@ from framework.starter_di.public import (
     Inject,
     service,
 )
-from module_system.controller.admin.mail.vo.account.account_page_req_vo import MailAccountPageReqVO
-from module_system.controller.admin.mail.vo.account.account_save_req_vo import MailAccountSaveReqVO
-from module_system.dal.cache.cache_key_constants import SystemCacheKeys
+from module_system.controller.admin.mail.vo.account.mail_account_page_req_vo import (
+    MailAccountPageReqVO,
+)
+from module_system.controller.admin.mail.vo.account.mail_account_save_req_vo import (
+    MailAccountSaveReqVO,
+)
 from module_system.dal.cache.mail.dto.mail_account_cache_dto import MailAccountCacheDTO
+from module_system.dal.cache.system_cache_key_constants import SystemCacheKeyConstants
 from module_system.dal.dataobject.mail.mail_account_do import MailAccountDO
 from module_system.dal.mapper.mail.mail_account_mapper import MailAccountMapper
 from module_system.definitions.constants.error_code_constants import ErrorCodeConstants
@@ -38,7 +42,21 @@ class MailAccountServiceImpl(MailAccountService):
     async def create_mail_account(self, create_req_vo: MailAccountSaveReqVO) -> int:
         if create_req_vo.id is not None:
             raise IllegalArgumentException(msg="新增邮箱账号不能指定编号")
-        account = MailAccountDO(**create_req_vo.model_dump(by_alias=False))
+        account = MailAccountDO(
+            **create_req_vo.to_write_dict(
+                fields={
+                    "id",
+                    "mail",
+                    "username",
+                    "password",
+                    "host",
+                    "port",
+                    "ssl_enable",
+                    "starttls_enable",
+                },
+                exclude_unset=False,
+            )
+        )
         await self.mail_account_mapper.insert(account)
         return account.id
 
@@ -46,12 +64,24 @@ class MailAccountServiceImpl(MailAccountService):
     @transactional
     async def update_mail_account(self, update_req_vo: MailAccountSaveReqVO) -> None:
         self.database.after_commit(
-            lambda: self.cache_handler.delete_all(SystemCacheKeys.MAIL_ACCOUNT),
+            lambda: self.cache_handler.delete_all(SystemCacheKeyConstants.MAIL_ACCOUNT),
             required=True,
             name="system-cache",
         )
         await self._validate_exists(update_req_vo.id)
-        values = update_req_vo.model_dump(by_alias=False)
+        values = update_req_vo.to_write_dict(
+            fields={
+                "id",
+                "mail",
+                "username",
+                "password",
+                "host",
+                "port",
+                "ssl_enable",
+                "starttls_enable",
+            },
+            exclude_unset=False,
+        )
         if update_req_vo.password is None:
             values.pop("password")
         update_obj = MailAccountDO(**values)
@@ -61,7 +91,7 @@ class MailAccountServiceImpl(MailAccountService):
     @transactional
     async def delete_mail_account(self, id: int) -> None:
         self.database.after_commit(
-            lambda: self.cache_handler.delete_all(SystemCacheKeys.MAIL_ACCOUNT),
+            lambda: self.cache_handler.delete_all(SystemCacheKeyConstants.MAIL_ACCOUNT),
             required=True,
             name="system-cache",
         )
@@ -74,7 +104,7 @@ class MailAccountServiceImpl(MailAccountService):
     @transactional
     async def delete_mail_account_batch(self, ids: list[int]) -> int:
         self.database.after_commit(
-            lambda: self.cache_handler.delete_all(SystemCacheKeys.MAIL_ACCOUNT),
+            lambda: self.cache_handler.delete_all(SystemCacheKeyConstants.MAIL_ACCOUNT),
             required=True,
             name="system-cache",
         )
@@ -93,15 +123,13 @@ class MailAccountServiceImpl(MailAccountService):
     async def get_mail_account(self, id: int) -> MailAccountDO | None:
         return await self.mail_account_mapper.select_by_id(id)
 
+    @override
     @cache(
-        SystemCacheKeys.MAIL_ACCOUNT,
+        SystemCacheKeyConstants.MAIL_ACCOUNT,
         key="id:{{id}}",
         ttl_seconds=default_ttl,
-        unless=lambda result, *_, **__: (
-            not (result is not None and (not isinstance(result, Exception)))
-        ),
+        unless=lambda result, *_, **__: result is None,
     )
-    @override
     async def get_mail_account_from_cache(self, id: int) -> MailAccountCacheDTO | None:
         loaded = await self.get_mail_account(id)
         return None if loaded is None else MailAccountCacheDTO.model_validate(loaded)
@@ -116,7 +144,9 @@ class MailAccountServiceImpl(MailAccountService):
     async def get_mail_account_list(self) -> list[MailAccountDO]:
         return await self.mail_account_mapper.select_all()
 
-    async def _validate_exists(self, id: int) -> None:
+    async def _validate_exists(self, id: int) -> MailAccountDO:
         """校验邮箱账号是否存在"""
-        if await self.mail_account_mapper.select_by_id(id) is None:
+        account = await self.mail_account_mapper.select_by_id(id)
+        if account is None:
             raise ServiceException(ErrorCodeConstants.MAIL_ACCOUNT_NOT_EXISTS)
+        return account

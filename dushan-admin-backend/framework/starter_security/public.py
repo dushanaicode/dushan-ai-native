@@ -26,6 +26,7 @@ from framework.starter_security.spi.permission_provider import PermissionProvide
 from framework.starter_security.spi.public_request_context_provider import (
     PublicRequestContextProvider,
 )
+from framework.starter_security.spi.request_access_provider import RequestAccessProvider
 from framework.starter_security.spi.tenant_access_provider import TenantAccessProvider
 from framework.starter_security.spi.token_provider import TokenProvider
 from framework.starter_security.spi.workload_provider import WorkloadProvider
@@ -45,6 +46,7 @@ __all__ = [
     "PermissionProvider",
     "PermissionSnapshot",
     "PublicRequestContextProvider",
+    "RequestAccessProvider",
     "SecurityContext",
     "SecurityErrorCodes",
     "SecurityException",

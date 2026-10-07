@@ -1,0 +1,17 @@
+from datetime import date, datetime, time
+from decimal import Decimal
+from typing import Annotated
+
+from pydantic import Field
+
+from framework.common.contracts import SnowflakeIdStr, SnowflakeCursorStr
+from framework.common.schemas import BaseVO
+
+
+class {{ class_name }}RespVO(BaseVO):
+    id: SnowflakeIdStr
+{% for column in columns %}
+{% if column.field_name not in ['id', 'tenant_id', 'deleted', 'creator', 'updater'] %}
+    {{ column.field_name }}: Annotated[{{ column | response_type }}{{ ' | None' if column.nullable else '' }}, Field({{ 'None' if column.nullable else '...' }}, description={{ column.column_comment | pyrepr }})]
+{% endif %}
+{% endfor %}

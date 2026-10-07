@@ -1,5 +1,3 @@
-"""仅供独立进程验证，包含退出控制端点，不是产品路由。"""
-
 import argparse
 import asyncio
 import json
@@ -14,6 +12,7 @@ from granian.server.embed import Server as GranianServer
 
 
 async def run(engine, port, evidence):
+    """仅供独立进程验证，包含退出控制端点，不是产品路由。"""
     if "DUSHAN_SECURITY_WHEEL_ROOT" in os.environ:
         # 测试环境的 editable .pth 也会添加源码，安装验证必须排除该重复来源。
         source_backend = Path(__file__).resolve().parents[3] / "dushan-admin-backend"
@@ -22,12 +21,12 @@ async def run(engine, port, evidence):
     from fixtures.starter_steps import StarterSteps
     from framework.starter_security.integration.security_access import SecurityAccess
     from framework.starter_web.routing.route_policy import RoutePolicy
-    from server.starter_server import create_app
+    from server.starter_server import StarterServer
 
     (evidence / "origin.json").write_text(
         json.dumps({"security": security_module.__file__}), encoding="utf-8"
     )
-    app = create_app(
+    app = StarterServer.create_app(
         steps=StarterSteps.without_tenant(), access_provider=SecurityAccess(), engine=engine
     )
 

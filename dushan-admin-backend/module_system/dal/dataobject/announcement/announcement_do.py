@@ -6,6 +6,9 @@ from sqlalchemy.orm import Mapped, mapped_column
 from framework.starter_tenant.public import (
     TenantBaseDO,
 )
+from module_system.definitions.enums.announcement.announcement_status_enum import (
+    AnnouncementStatusEnum,
+)
 
 
 class AnnouncementDO(TenantBaseDO):
@@ -20,7 +23,7 @@ class AnnouncementDO(TenantBaseDO):
     status: Mapped[int] = mapped_column(
         SmallInteger,
         nullable=False,
-        default=0,
+        default=AnnouncementStatusEnum.DRAFT.code,
         comment="公告状态（0-草稿，1-待发布，2-已发布，3-已过期）",
     )
     is_top: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, comment="是否置顶")

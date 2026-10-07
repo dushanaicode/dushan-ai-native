@@ -1,5 +1,3 @@
-"""在 -I -S 子进程验证已安装 wheel，显式注入依赖目录，绝不处理 editable .pth。"""
-
 import importlib
 import json
 import sys
@@ -7,6 +5,7 @@ from pathlib import Path
 
 
 def main():
+    """在 -I -S 子进程验证已安装 wheel，显式注入依赖目录，绝不处理 editable .pth。"""
     installation, dependencies, application_root, output = map(Path, sys.argv[1:])
     sys.path[:0] = [str(installation), str(application_root)]
     sys.path.append(str(dependencies))
@@ -18,7 +17,7 @@ def main():
     from framework.starter_scanner.definitions.constants.scanner_error_codes import (
         ScannerErrorCodes,
     )
-    from server.starter_server import create_app
+    from server.starter_server import StarterServer
 
     assert Path(framework.__file__).resolve().is_relative_to(installation)
     imported = []
@@ -29,7 +28,7 @@ def main():
         module = importlib.import_module(name)
         assert Path(module.__file__).resolve() == path.resolve(), name
         imported.append(name)
-    app = create_app(
+    app = StarterServer.create_app(
         base_dir=application_root,
         environ={
             "LOG_ENABLE_FILE_OVERALL": "false",

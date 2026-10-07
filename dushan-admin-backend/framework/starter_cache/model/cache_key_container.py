@@ -7,7 +7,7 @@ class CacheKeyContainer:
     用法：
 
         @framework(providers=[CacheKeyContainer])
-        class SystemCacheKeys(CacheKeyContainer):
+        class SystemCacheKeyConstants(CacheKeyContainer):
             ROLE = CacheKey(key="role", remark="角色信息", client_name="default")
 
     容器由 DI 以 list[CacheKeyContainer] 汇总，CacheKeyRegistry 在启动时统一校验键集合；

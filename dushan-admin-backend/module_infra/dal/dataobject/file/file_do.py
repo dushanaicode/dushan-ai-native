@@ -26,6 +26,7 @@ class FileDO(TenantBaseDO):
     path: Mapped[str] = mapped_column(String(255), nullable=False, comment="路径，即文件名")
     storage_path: Mapped[str] = mapped_column(String(1000), nullable=False, comment="实际存储路径")
     url: Mapped[str] = mapped_column(String(255), nullable=False, comment="访问地址")
+    visibility: Mapped[str] = mapped_column(String(16), nullable=False, comment="可见性")
     type: Mapped[str] = mapped_column(String(255), nullable=False, comment="文件的 MIME 类型")
     size: Mapped[int] = mapped_column(Integer, nullable=False, comment="文件大小")
     hash: Mapped[str | None] = mapped_column(String(64), nullable=True, comment="文件哈希值")

@@ -14,11 +14,13 @@ from framework.starter_web.response.result import Result
 from module_system.controller.admin.announcement.vo.announcement_save_req_vo import (
     AnnouncementSaveReqVO,
 )
-from module_system.controller.admin.mail.vo.template.template_send_req_vo import (
+from module_system.controller.admin.mail.vo.template.mail_template_send_req_vo import (
     MailTemplateSendReqVO,
 )
 from module_system.controller.admin.notification.vo.notice.notice_send_req_vo import NoticeSendReqVO
-from module_system.controller.admin.sms.vo.channel.channel_save_req_vo import SmsChannelSaveReqVO
+from module_system.controller.admin.sms.vo.channel.sms_channel_save_req_vo import (
+    SmsChannelSaveReqVO,
+)
 from module_system.router import admin_router_main
 from module_system.service.mail.bo.mail_batch_send_bo import MailBatchSendBO
 

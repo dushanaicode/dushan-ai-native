@@ -90,7 +90,7 @@ def test_response_configuration_is_applied_without_global_state(config_dir):
         == 2
     )
     files = FileResult(first.response_settings)
-    response = files.from_bytes(b"ok", "a.txt")
+    response = files.from_bytes(b"ok", "a.png", media_type="image/png")
     assert response.headers["cache-control"] == "private, max-age=20"
     assert response.headers["content-disposition"].startswith("inline;")
     with pytest.raises(ValueError, match="内存下载超过"):

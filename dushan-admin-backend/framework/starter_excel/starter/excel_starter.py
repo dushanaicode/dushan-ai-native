@@ -1,5 +1,7 @@
 from loguru import logger
 
+from framework.common.page.config.page_settings import PageSettings
+from framework.starter_excel.config.excel_settings import ExcelSettings
 from framework.starter_excel.reader.excel_reader import ExcelReader
 from framework.starter_excel.writer.excel_writer import ExcelWriter
 
@@ -8,9 +10,10 @@ class ExcelStarter:
     """构造本应用唯一的导入导出实例，交给 DI 作为预定义实例提供。"""
 
     @staticmethod
-    def initialize(settings):
+    def initialize(settings: ExcelSettings, page_settings: PageSettings):
+        """以当前应用配置构造导入器和具有分页边界的导出器。"""
         logger.info("【ExcelStarter】开始装配导入导出能力")
-        reader, writer = ExcelReader(settings), ExcelWriter(settings)
+        reader, writer = ExcelReader(settings), ExcelWriter(settings, page_settings)
         logger.debug(
             "【ExcelStarter】导入行数={} 并发={} 文件上限={} bytes；导出行数={} 列数={} 单元格={}",
             settings.max_import_rows,

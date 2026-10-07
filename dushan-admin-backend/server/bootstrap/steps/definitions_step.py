@@ -22,8 +22,8 @@ from framework.starter_module.starter.module_starter import ModuleStarter
 from framework.starter_scanner.starter.scanner_starter import ScannerStarter
 from framework.starter_web.exception.validation_error_mapper import ValidationErrorMapper
 from framework.starter_web.response.file_result import FileResult
+from server.bootstrap.app_bootstrap_context import AppBootstrapContext
 from server.bootstrap.application_definitions import ApplicationDefinitions
-from server.bootstrap.context import AppBootstrapContext
 
 
 class DefinitionsStep:
@@ -110,7 +110,9 @@ class DefinitionsStep:
                 }
                 if ExcelSettings in configuration.model_classes:
                     instances.update(
-                        ExcelStarter.initialize(configuration.get_config(ExcelSettings))
+                        ExcelStarter.initialize(
+                            configuration.get_config(ExcelSettings), ctx.page_settings
+                        )
                     )
                 application_context = await di_starter.open(
                     result.get_components(component_type=ComponentTypeEnum.COMPONENT),

@@ -45,7 +45,7 @@ from module_system.api.social.dto.social_wxa_order_upload_shipping_info_req_dto 
 from module_system.api.social.dto.social_wxa_subscribe_message_send_req_dto import (
     SocialWxaSubscribeMessageSendReqDTO,
 )
-from module_system.controller.admin.auth.vo.auth_social_provider_resp_vo import (
+from module_system.controller.admin.auth.vo.auth.auth_social_provider_resp_vo import (
     AuthSocialProviderRespVO,
 )
 from module_system.controller.admin.social.vo.client.social_client_page_req_vo import (
@@ -54,7 +54,7 @@ from module_system.controller.admin.social.vo.client.social_client_page_req_vo i
 from module_system.controller.admin.social.vo.client.social_client_save_req_vo import (
     SocialClientSaveReqVO,
 )
-from module_system.dal.cache.cache_key_constants import SystemCacheKeys
+from module_system.dal.cache.system_cache_key_constants import SystemCacheKeyConstants
 from module_system.dal.dataobject.social.social_client_do import SocialClientDO
 from module_system.dal.mapper.social.social_client_mapper import SocialClientMapper
 from module_system.definitions.constants.error_code_constants import ErrorCodeConstants
@@ -130,7 +130,7 @@ class SocialClientServiceImpl(SocialClientService):
             return result.get("ticket")
 
         return await self.cache_handler.get_or_load(
-            SystemCacheKeys.SOCIAL_CLIENT, cache_key, ticket_loader, ttl_seconds=7200
+            SystemCacheKeyConstants.SOCIAL_CLIENT, cache_key, ticket_loader, ttl_seconds=7200
         )
 
     async def _get_access_token(self, client_config: SocialClientDO) -> str:
@@ -149,7 +149,7 @@ class SocialClientServiceImpl(SocialClientService):
             return result.get("access_token")
 
         return await self.cache_handler.get_or_load(
-            SystemCacheKeys.SOCIAL_CLIENT, cache_key, token_loader, ttl_seconds=7200
+            SystemCacheKeyConstants.SOCIAL_CLIENT, cache_key, token_loader, ttl_seconds=7200
         )
 
     @override
@@ -389,7 +389,21 @@ class SocialClientServiceImpl(SocialClientService):
         )
         if create_req_vo.auth_config is not None:
             self._validate_auth_config(create_req_vo.auth_config)
-        client_do = SocialClientDO(**create_req_vo.model_dump(exclude_unset=True, by_alias=False))
+        client_do = SocialClientDO(
+            **create_req_vo.to_write_dict(
+                fields={
+                    "id",
+                    "name",
+                    "social_type",
+                    "user_type",
+                    "client_id",
+                    "client_secret",
+                    "agent_id",
+                    "auth_config",
+                    "status",
+                }
+            )
+        )
         inserted_client = await self.social_client_mapper.insert(client_do)
         return inserted_client.id
 
@@ -400,7 +414,19 @@ class SocialClientServiceImpl(SocialClientService):
         await self._validate_social_client_unique(
             update_req_vo.id, update_req_vo.user_type, update_req_vo.social_type
         )
-        values = update_req_vo.model_dump(exclude_unset=True, by_alias=False)
+        values = update_req_vo.to_write_dict(
+            fields={
+                "id",
+                "name",
+                "social_type",
+                "user_type",
+                "client_id",
+                "client_secret",
+                "agent_id",
+                "auth_config",
+                "status",
+            }
+        )
         if update_req_vo.client_secret is None:
             values.pop("client_secret", None)
         if "auth_config" in values:
@@ -520,14 +546,14 @@ class SocialClientServiceImpl(SocialClientService):
             )
         authorization = await self.auth.begin(application, source, binding=binding)
         await self.cache_handler.set(
-            SystemCacheKeys.SOCIAL_LOGIN_TENANT,
+            SystemCacheKeyConstants.SOCIAL_LOGIN_TENANT,
             hashlib.sha256(binding.encode()).hexdigest(),
             self.tenant_context.get_required_tenant_id(),
             ttl_seconds=authorization.expires_in,
         )
         if config.frontend_redirect_uri is not None:
             await self.cache_handler.set(
-                SystemCacheKeys.SOCIAL_CALLBACK_RELAY,
+                SystemCacheKeyConstants.SOCIAL_CALLBACK_RELAY,
                 hashlib.sha256(authorization.state.encode()).hexdigest(),
                 SocialCallbackRelay(
                     redirect_uri=redirect_uri, code_parameter=self.auth.callback_parameter(source)
@@ -538,12 +564,15 @@ class SocialClientServiceImpl(SocialClientService):
 
     @override
     async def relay_callback(self, parameters: list[tuple[str, str]]) -> str:
-        """转交厂商 GET/form_post 回调；此处不认证，最终仍校验浏览器 Cookie 与一次性 state。"""
+        """转交厂商回调（GET 查询参数或 form_post）；此处不认证，最终仍校验浏览器 Cookie 与一次性 state。"""
         states = [value for key, value in parameters if key == "state"]
-        if len(states) != 1 or len(states[0]) != 64:
+        if len(states) != 1:
             raise SecurityException(SecurityErrorCodes.INVALID)
-        key = hashlib.sha256(states[0].encode()).hexdigest()
-        cached = await self.cache_handler.get(SystemCacheKeys.SOCIAL_CALLBACK_RELAY, key)
+        (state,) = states
+        if len(state) != 64:
+            raise SecurityException(SecurityErrorCodes.INVALID)
+        key = hashlib.sha256(state.encode()).hexdigest()
+        cached = await self.cache_handler.get(SystemCacheKeyConstants.SOCIAL_CALLBACK_RELAY, key)
         if not cached.hit:
             raise SecurityException(SecurityErrorCodes.INVALID)
         relay = SocialCallbackRelay.model_validate(cached.value)
@@ -554,7 +583,7 @@ class SocialClientServiceImpl(SocialClientService):
         ]
         if len({name for name, _ in forwarded}) != len(forwarded) or len(forwarded) != 2:
             raise SecurityException(SecurityErrorCodes.INVALID)
-        await self.cache_handler.delete(SystemCacheKeys.SOCIAL_CALLBACK_RELAY, key)
+        await self.cache_handler.delete(SystemCacheKeyConstants.SOCIAL_CALLBACK_RELAY, key)
         return relay.redirect_uri + "?" + urlencode(forwarded)
 
     async def get_auth_user(self, social_type, user_type, code, state) -> AuthResult:
@@ -562,7 +591,7 @@ class SocialClientServiceImpl(SocialClientService):
         if binding is None:
             raise SecurityException(SecurityErrorCodes.INVALID)
         key = hashlib.sha256(binding.encode()).hexdigest()
-        found = await self.cache_handler.get(SystemCacheKeys.SOCIAL_LOGIN_TENANT, key)
+        found = await self.cache_handler.get(SystemCacheKeyConstants.SOCIAL_LOGIN_TENANT, key)
         if not found.hit or found.value != self.tenant_context.get_required_tenant_id():
             raise SecurityException(
                 SecurityErrorCodes.INVALID, detail="社交授权流程与当前租户不一致"
@@ -575,5 +604,5 @@ class SocialClientServiceImpl(SocialClientService):
             [(self.auth.callback_parameter(source), code), ("state", state)],
             binding=binding,
         )
-        await self.cache_handler.delete(SystemCacheKeys.SOCIAL_LOGIN_TENANT, key)
+        await self.cache_handler.delete(SystemCacheKeyConstants.SOCIAL_LOGIN_TENANT, key)
         return result

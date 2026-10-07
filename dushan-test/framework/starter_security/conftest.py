@@ -21,7 +21,7 @@ from framework.starter_security.model.login_session import LoginSession
 from framework.starter_security.model.permission_snapshot import PermissionSnapshot
 from framework.starter_web.routing.route_policy import RoutePolicy
 from framework.starter_web.routing.router_registration import RouterRegistration
-from server.starter_server import create_app
+from server.starter_server import StarterServer
 
 from .providers import metadata, permissions, sessions
 
@@ -252,7 +252,7 @@ def security_factory(config_dir, tmp_path, security_module, module_package):
         values["modules"]["enabled"].append(optional)
         from fixtures.starter_steps import StarterSteps
 
-        app = create_app(
+        app = StarterServer.create_app(
             steps=StarterSteps.without_tenant(),
             base_dir=config_dir(values),
             environ={},

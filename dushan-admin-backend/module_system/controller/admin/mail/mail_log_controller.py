@@ -1,14 +1,12 @@
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 
-from framework.common.page import PageResult, PageSettings
+from framework.common.page import PageResult
 from framework.common.schemas.request import IdReqVO
 from framework.starter_di.public import (
     DiDependency,
 )
 from framework.starter_excel.public import (
-    DictDataProvider,
-    ExcelProviders,
     ExcelWriter,
 )
 from framework.starter_security.public import (
@@ -19,13 +17,11 @@ from framework.starter_web.public import (
     Result,
     RoutePolicy,
 )
-from module_system.controller.admin.mail.vo.log.log_export_req_vo import MailLogExportReqVO
-from module_system.controller.admin.mail.vo.log.log_page_req_vo import MailLogPageReqVO
-from module_system.controller.admin.mail.vo.log.log_resp_vo import MailLogRespVO
+from module_system.controller.admin.mail.vo.log.mail_log_export_req_vo import MailLogExportReqVO
+from module_system.controller.admin.mail.vo.log.mail_log_page_req_vo import MailLogPageReqVO
+from module_system.controller.admin.mail.vo.log.mail_log_resp_vo import MailLogRespVO
 from module_system.dal.dataobject.mail.mail_log_do import MailLogDO
 from module_system.service.mail.mail_log_service import MailLogService
-from module_system.spi.dept.dept_info_provider_adapter import DeptInfoProviderAdapter
-from module_system.spi.dept.post_info_provider_adapter import PostInfoProviderAdapter
 
 mail_log_controller = APIRouter(prefix="/mail/log", tags=["System - 邮箱日志管理"])
 
@@ -78,22 +74,13 @@ class MailLogController:
         mail_log_service: MailLogService = Depends(DiDependency(MailLogService)),
         excel_writer: ExcelWriter = Depends(DiDependency(ExcelWriter)),
         files: FileResult = Depends(DiDependency(FileResult)),
-        dictionaries: DictDataProvider = Depends(DiDependency(DictDataProvider)),
-        departments: DeptInfoProviderAdapter = Depends(DiDependency(DeptInfoProviderAdapter)),
-        posts: PostInfoProviderAdapter = Depends(DiDependency(PostInfoProviderAdapter)),
-        page_settings: PageSettings = Depends(DiDependency(PageSettings)),
     ) -> StreamingResponse:
-        excel_providers = ExcelProviders(
-            dictionaries=dictionaries, departments=departments, posts=posts
-        )
-        page_req_vo.enable_fetch_all(
-            max_rows=min(excel_writer.settings.max_export_rows, page_settings.fetch_all_max_rows)
-        )
+        excel_writer.prepare_export_query(page_req_vo)
         page_result: PageResult[MailLogDO] = await mail_log_service.get_mail_log_page(page_req_vo)
         list_data = page_result.items
         resp_list: list[MailLogRespVO] = [MailLogRespVO.model_validate(item) for item in list_data]
         filename = "邮箱日志数据"
         file_data = await excel_writer.write(
-            "数据", MailLogRespVO, resp_list, providers=excel_providers, fields=page_req_vo.fields
+            "数据", MailLogRespVO, resp_list, fields=page_req_vo.fields
         )
         return files.excel_stream(file_data, file_name=f"{filename}.xlsx")

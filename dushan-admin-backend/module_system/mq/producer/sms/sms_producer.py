@@ -10,29 +10,24 @@ from framework.starter_mq.public import (
     MQService,
     PublishCommand,
 )
-from framework.starter_security.public import (
-    SecurityService,
-)
 from module_system.mq.message.sms.sms_send_message import SmsSendMessage
 from module_system.mq.producer.sms.sms_producer_protocol import SmsProducerProtocol
 
 
 @service(interface=SmsProducerProtocol)
 class SmsProducer(SmsProducerProtocol):
-    security: SecurityService = Inject()
     mq_service: MQService = Inject()
 
     @transactional
     async def send_sms_message(self, message: SmsSendMessage) -> None:
+        """在事务提交后发布短信消息，由框架选择可信身份。"""
         await self.mq_service.publish_after_commit(
             PublishCommand(
-                destination="sms:send",
+                destination=SmsSendMessage.stream_key,
                 mode=MessageMode.STREAM,
                 message=message,
                 message_id=message.message_id,
-                capability="system.sms.send"
-                if self.security.context.current_workload() is not None
-                else None,
+                workload_capability="system.sms.send",
             )
         )
 

@@ -1,9 +1,8 @@
 from typing import Any, ClassVar
 
-from pydantic import Field, field_validator
+from pydantic import Field
 
 from framework.common.schemas import BaseBO
-from framework.common.validator import NotNull
 
 
 class SmsSendMessage(BaseBO):
@@ -20,29 +19,3 @@ class SmsSendMessage(BaseBO):
         default_factory=dict, description="短信模板参数 (字典形式)"
     )
     stream_key: ClassVar[str] = "sms:send"
-
-    @field_validator("log_id", mode="before")
-    @classmethod
-    def _validate_log_id(cls, v: int) -> int:
-        NotNull.require_not_null(field_name="log_id", value=v, error_msg="短信日志编号不能为空")
-        return v
-
-    @field_validator("mobile", mode="before")
-    @classmethod
-    def _validate_mobile(cls, v: str) -> str:
-        NotNull.require_not_null(field_name="mobile", value=v, error_msg="手机号不能为空")
-        return v
-
-    @field_validator("channel_id", mode="before")
-    @classmethod
-    def _validate_channel_id(cls, v: int) -> int:
-        NotNull.require_not_null(field_name="channel_id", value=v, error_msg="短信渠道编号不能为空")
-        return v
-
-    @field_validator("api_template_id", mode="before")
-    @classmethod
-    def _validate_api_template_id(cls, v: str) -> str:
-        NotNull.require_not_null(
-            field_name="api_template_id", value=v, error_msg="短信 API 的模板编号不能为空"
-        )
-        return v

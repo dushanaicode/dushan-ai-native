@@ -10,7 +10,7 @@ from framework.starter_database.public import (
 from framework.starter_di.public import (
     mapper,
 )
-from module_system.controller.admin.mail.vo.log.log_page_req_vo import MailLogPageReqVO
+from module_system.controller.admin.mail.vo.log.mail_log_page_req_vo import MailLogPageReqVO
 from module_system.dal.dataobject.mail.mail_log_do import MailLogDO
 
 
@@ -27,7 +27,7 @@ class MailLogMapper(BaseMapper[MailLogDO]):
             stmt = stmt.where(MailLogDO.user_type == req_vo.user_type)
         if req_vo.to_mail:
             escaped = StrUtils.escape_like(req_vo.to_mail)
-            stmt = stmt.where(MailLogDO.to_mail.ilike(f"%{escaped}%"))
+            stmt = stmt.where(MailLogDO.to_mail.ilike(f"%{escaped}%", escape="\\"))
         if req_vo.account_id is not None:
             stmt = stmt.where(MailLogDO.account_id == req_vo.account_id)
         if req_vo.template_id is not None:

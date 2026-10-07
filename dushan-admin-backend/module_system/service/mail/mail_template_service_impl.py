@@ -14,14 +14,14 @@ from framework.starter_di.public import (
     Inject,
     service,
 )
-from module_system.controller.admin.mail.vo.template.template_page_req_vo import (
+from module_system.controller.admin.mail.vo.template.mail_template_page_req_vo import (
     MailTemplatePageReqVO,
 )
-from module_system.controller.admin.mail.vo.template.template_save_req_vo import (
+from module_system.controller.admin.mail.vo.template.mail_template_save_req_vo import (
     MailTemplateSaveReqVO,
 )
-from module_system.dal.cache.cache_key_constants import SystemCacheKeys
 from module_system.dal.cache.mail.dto.mail_template_cache_dto import MailTemplateCacheDTO
+from module_system.dal.cache.system_cache_key_constants import SystemCacheKeyConstants
 from module_system.dal.dataobject.mail.mail_template_do import MailTemplateDO
 from module_system.dal.mapper.mail.mail_template_mapper import MailTemplateMapper
 from module_system.definitions.constants.error_code_constants import ErrorCodeConstants
@@ -48,7 +48,23 @@ class MailTemplateServiceImpl(MailTemplateService):
     @transactional
     async def create_mail_template(self, create_req_vo: MailTemplateSaveReqVO) -> int:
         await self._validate_code_unique(None, create_req_vo.code)
-        template = MailTemplateDO(**create_req_vo.model_dump(by_alias=False))
+        template = MailTemplateDO(
+            **create_req_vo.to_write_dict(
+                fields={
+                    "id",
+                    "name",
+                    "code",
+                    "account_id",
+                    "nickname",
+                    "title",
+                    "content",
+                    "params",
+                    "status",
+                    "remark",
+                },
+                exclude_unset=False,
+            )
+        )
         template.params = self.parse_template_content_params(create_req_vo.content)
         await self.mail_template_mapper.insert(template)
         return template.id
@@ -57,13 +73,29 @@ class MailTemplateServiceImpl(MailTemplateService):
     @transactional
     async def update_mail_template(self, update_req_vo: MailTemplateSaveReqVO) -> None:
         self.database.after_commit(
-            lambda: self.cache_handler.delete_all(SystemCacheKeys.MAIL_TEMPLATE),
+            lambda: self.cache_handler.delete_all(SystemCacheKeyConstants.MAIL_TEMPLATE),
             required=True,
             name="system-cache",
         )
         await self._validate_exists(update_req_vo.id)
         await self._validate_code_unique(update_req_vo.id, update_req_vo.code)
-        update_obj = MailTemplateDO(**update_req_vo.model_dump(by_alias=False))
+        update_obj = MailTemplateDO(
+            **update_req_vo.to_write_dict(
+                fields={
+                    "id",
+                    "name",
+                    "code",
+                    "account_id",
+                    "nickname",
+                    "title",
+                    "content",
+                    "params",
+                    "status",
+                    "remark",
+                },
+                exclude_unset=False,
+            )
+        )
         update_obj.params = self.parse_template_content_params(update_req_vo.content)
         await self.mail_template_mapper.update_by_id(update_obj)
 
@@ -79,7 +111,7 @@ class MailTemplateServiceImpl(MailTemplateService):
     @transactional
     async def delete_mail_template(self, template_id: int) -> None:
         self.database.after_commit(
-            lambda: self.cache_handler.delete_all(SystemCacheKeys.MAIL_TEMPLATE),
+            lambda: self.cache_handler.delete_all(SystemCacheKeyConstants.MAIL_TEMPLATE),
             required=True,
             name="system-cache",
         )
@@ -90,7 +122,7 @@ class MailTemplateServiceImpl(MailTemplateService):
     @transactional
     async def delete_mail_template_batch(self, ids: list[int]) -> int:
         self.database.after_commit(
-            lambda: self.cache_handler.delete_all(SystemCacheKeys.MAIL_TEMPLATE),
+            lambda: self.cache_handler.delete_all(SystemCacheKeyConstants.MAIL_TEMPLATE),
             required=True,
             name="system-cache",
         )
@@ -103,15 +135,13 @@ class MailTemplateServiceImpl(MailTemplateService):
     async def get_mail_template(self, id: int) -> MailTemplateDO:
         return await self.mail_template_mapper.select_by_id(id)
 
+    @override
     @cache(
-        SystemCacheKeys.MAIL_TEMPLATE,
+        SystemCacheKeyConstants.MAIL_TEMPLATE,
         key="code:{{code}}",
         ttl_seconds=default_ttl,
-        unless=lambda result, *_, **__: (
-            not (result is not None and (not isinstance(result, Exception)))
-        ),
+        unless=lambda result, *_, **__: result is None,
     )
-    @override
     async def get_mail_template_by_code_from_cache(self, code: str) -> MailTemplateCacheDTO | None:
         loaded = await self.mail_template_mapper.select_by_code(code)
         return None if loaded is None else MailTemplateCacheDTO.model_validate(loaded)
@@ -146,8 +176,9 @@ class MailTemplateServiceImpl(MailTemplateService):
         if id is None or id != template.id:
             raise ServiceException(ErrorCodeConstants.MAIL_TEMPLATE_CODE_EXISTS)
 
-    async def _validate_exists(self, id: int) -> None:
+    async def _validate_exists(self, id: int) -> MailTemplateDO:
         """校验邮件模板是否存在"""
         template = await self.mail_template_mapper.select_by_id(id)
         if template is None:
             raise ServiceException(ErrorCodeConstants.MAIL_TEMPLATE_NOT_EXISTS)
+        return template

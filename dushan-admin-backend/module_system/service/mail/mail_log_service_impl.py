@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import override
 
 from framework.common.dates import DateUtils
@@ -12,13 +11,12 @@ from framework.starter_di.public import (
     Inject,
     service,
 )
-from module_system.controller.admin.mail.vo.log.log_page_req_vo import MailLogPageReqVO
+from module_system.controller.admin.mail.vo.log.mail_log_page_req_vo import MailLogPageReqVO
 from module_system.dal.dataobject.mail.mail_log_do import MailLogDO
 from module_system.dal.mapper.mail.mail_log_mapper import MailLogMapper
 from module_system.definitions.enums.mail.mail_send_status_enum import MailSendStatusEnum
 from module_system.service.mail.bo.mail_batch_log_create_bo import MailBatchLogCreateBO
 from module_system.service.mail.bo.mail_log_create_bo import MailLogCreateBO
-from module_system.service.mail.bo.mail_send_result_bo import MailSendResultBO
 from module_system.service.mail.mail_log_service import MailLogService
 
 
@@ -58,26 +56,6 @@ class MailLogServiceImpl(MailLogService):
         mail_log.send_status = send_status
         await self.mail_log_mapper.insert(mail_log)
         return mail_log.id
-
-    @override
-    @transactional
-    async def update_mail_send_result(self, req: MailSendResultBO) -> None:
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
-        if req.exception is None:
-            update_obj = MailLogDO(
-                id=req.log_id,
-                send_time=now,
-                send_status=MailSendStatusEnum.SUCCESS.code,
-                send_message_id=req.message_id,
-            )
-        else:
-            update_obj = MailLogDO(
-                id=req.log_id,
-                send_time=now,
-                send_status=MailSendStatusEnum.FAILURE.code,
-                send_exception=str(req.exception),
-            )
-        await self.mail_log_mapper.update_by_id(update_obj)
 
     @override
     @transactional

@@ -3,9 +3,9 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from framework.common.page import PageResult
-from module_infra.controller.admin.config.vo.type.type_page_req_vo import ConfigTypePageReqVO
-from module_infra.controller.admin.config.vo.type.type_save_req_vo import ConfigTypeSaveReqVO
-from module_infra.dal.dataobject.config.config_type_do import InfraConfigTypeDO
+from module_infra.controller.admin.config.vo.type.config_type_page_req_vo import ConfigTypePageReqVO
+from module_infra.controller.admin.config.vo.type.config_type_save_req_vo import ConfigTypeSaveReqVO
+from module_infra.dal.dataobject.config.infra_config_type_do import InfraConfigTypeDO
 
 
 @runtime_checkable

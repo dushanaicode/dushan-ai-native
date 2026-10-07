@@ -69,7 +69,7 @@ async def test_multiple_declared_consumers_receive_only_their_destination(mq_cas
                 "other",
                 case.module.definition.mode,
                 case.module.Payload(value=2),
-                capability="mq:test",
+                workload_capability="mq:test",
             )
         ),
         capability="mq:test",

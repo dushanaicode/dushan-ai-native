@@ -19,3 +19,9 @@ class DataExemptionProvider(Protocol):
         operation: DataOperation,
         reason: str,
     ) -> bool: ...
+
+    async def workload_resources(
+        self, identity: WorkloadIdentity, capability: str
+    ) -> dict[str, frozenset[DataOperation]]:
+        """列出本次能力所需的记录范围豁免，不汇总来源的其他能力。"""
+        ...

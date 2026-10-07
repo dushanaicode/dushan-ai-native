@@ -8,6 +8,9 @@ from fastapi import Depends, Request
 from pydantic import BaseModel
 
 from fixtures.public_web_app import create_public_app
+from framework.common.page.config.page_settings import PageSettings
+from framework.common.page.core.data_paginator import DataPaginator
+from framework.common.page.schemas.page_query import PageQuery
 from framework.starter_di.decorators.di_dependency import DiDependency
 from framework.starter_excel.converter.area_converter import AreaConverter
 from framework.starter_excel.model.excel_column import ExcelColumn
@@ -23,9 +26,49 @@ from framework.starter_ip.exception.ip_exception import IpException
 from framework.starter_ip.model.area import Area
 from framework.starter_ip.service.area_service import AreaService
 from framework.starter_ip.service.ip_location_service import IpLocationService
-from server.bootstrap.bootstrapper import BootstrapError
+from server.bootstrap.bootstrap_error import BootstrapError
 
 pytestmark = pytest.mark.unit
+
+
+async def test_export_query_limits_follow_each_application_without_scanning(config_dir):
+    """关闭扫描的两个应用分别使用自身分页配置，关闭其中一个不影响另一个。"""
+    root = config_dir({"scanner": {"enabled": False}})
+    first, second = (
+        create_public_app(
+            base_dir=root,
+            environ={"PAGE_FETCH_ALL_ENABLED": "true", "PAGE_FETCH_ALL_MAX_ROWS": "3"},
+        ),
+        create_public_app(
+            base_dir=root,
+            environ={"PAGE_FETCH_ALL_ENABLED": "true", "PAGE_FETCH_ALL_MAX_ROWS": "5"},
+        ),
+    )
+    async with second.router.lifespan_context(second):
+        second_runtime = second.state.application_context
+        with second_runtime.execution():
+            second_writer = second_runtime.get_bean(ExcelWriter)
+        async with first.router.lifespan_context(first):
+            first_runtime = first.state.application_context
+            with first_runtime.execution():
+                first_writer = first_runtime.get_bean(ExcelWriter)
+            assert first_writer is not second_writer
+            for runtime, writer, expected_limit in (
+                (first_runtime, first_writer, 3),
+                (second_runtime, second_writer, 5),
+            ):
+                with runtime.execution():
+                    assert writer.page_settings is runtime.get_bean(PageSettings)
+                    query = PageQuery(page_size=1)
+                    writer.prepare_export_query(query)
+                    assert query.fetch_all_max_rows == expected_limit
+                    result = runtime.get_bean(DataPaginator).paginate_list(
+                        list(range(expected_limit)), query
+                    )
+                    assert result.total == len(result.items) == expected_limit
+        query = PageQuery()
+        second_writer.prepare_export_query(query)
+        assert query.fetch_all_max_rows == 5
 
 
 class AreaRow(BaseModel):

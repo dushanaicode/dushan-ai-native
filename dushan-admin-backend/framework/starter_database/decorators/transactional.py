@@ -2,7 +2,7 @@ import inspect
 from functools import wraps
 
 from framework.starter_database.session.session_provider import SessionProvider
-from framework.starter_di.context.get_bean import get_bean
+from framework.starter_di.context.application_context import ApplicationContext
 
 
 def transactional(function=None, *, propagation="required", source=None):
@@ -14,7 +14,7 @@ def transactional(function=None, *, propagation="required", source=None):
 
         @wraps(target)
         async def invoke(*args, **kwargs):
-            database = get_bean(SessionProvider)
+            database = ApplicationContext.lookup(SessionProvider)
             async with database.transaction(source=source, propagation=propagation):
                 return await target(*args, **kwargs)
 

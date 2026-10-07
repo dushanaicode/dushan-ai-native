@@ -6,9 +6,9 @@ from framework.starter_di.public import (
     Inject,
     service,
 )
-from module_system.api.sms.dto.code.code_sms_code_send_req_dto import SmsCodeSendReqDTO
-from module_system.api.sms.dto.code.code_sms_code_use_req_dto import SmsCodeUseReqDTO
-from module_system.api.sms.dto.code.code_sms_code_validate_req_dto import SmsCodeValidateReqDTO
+from module_system.api.sms.dto.code.sms_code_send_req_dto import SmsCodeSendReqDTO
+from module_system.api.sms.dto.code.sms_code_use_req_dto import SmsCodeUseReqDTO
+from module_system.api.sms.dto.code.sms_code_validate_req_dto import SmsCodeValidateReqDTO
 from module_system.api.sms.sms_code_api import SmsCodeApi
 from module_system.service.sms.sms_code_service import SmsCodeService
 

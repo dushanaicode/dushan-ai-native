@@ -29,17 +29,16 @@ class DataSourceConfigMapper(BaseMapper[DataSourceConfigDO]):
         stmt = select(DataSourceConfigDO)
         if req_vo.name:
             escaped = StrUtils.escape_like(req_vo.name)
-            stmt = stmt.where(DataSourceConfigDO.name.ilike(f"%{escaped}%"))
+            stmt = stmt.where(DataSourceConfigDO.name.ilike(f"%{escaped}%", escape="\\"))
         if req_vo.status is not None:
             stmt = stmt.where(DataSourceConfigDO.status == req_vo.status)
         if req_vo.db_type:
             stmt = stmt.where(DataSourceConfigDO.db_type == req_vo.db_type)
         if req_vo.source_type is not None:
             stmt = stmt.where(DataSourceConfigDO.source_type == req_vo.source_type)
-        if req_vo.create_time and len(req_vo.create_time) >= 2:
-            stmt = stmt.where(
-                DataSourceConfigDO.create_time.between(req_vo.create_time[0], req_vo.create_time[1])
-            )
+        if req_vo.create_time is not None:
+            start_time, end_time = req_vo.create_time
+            stmt = stmt.where(DataSourceConfigDO.create_time.between(start_time, end_time))
         stmt = stmt.order_by(DataSourceConfigDO.create_time.desc())
         return await self.paginate_query(stmt, req_vo)
 

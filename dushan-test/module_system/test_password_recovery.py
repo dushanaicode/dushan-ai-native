@@ -12,7 +12,7 @@ from httpx import ASGITransport, AsyncClient
 from framework.starter_cache.public import CacheHandler
 from framework.starter_security.public import SecurityRealm, SecurityService
 from framework.starter_web.public import RoutePolicy
-from module_system.dal.cache.cache_key_constants import SystemCacheKeys
+from module_system.dal.cache.system_cache_key_constants import SystemCacheKeyConstants
 from module_system.dal.dataobject.mail.mail_account_do import MailAccountDO
 from module_system.dal.dataobject.mail.mail_template_do import MailTemplateDO
 from module_system.dal.dataobject.sms.sms_channel_do import SmsChannelDO
@@ -118,10 +118,10 @@ async def cache_state(system_app, email, updates=None, tenant_id="1"):
         async with application.container.get(SystemWorkloadService).scope("system.auth", tenant_id):
             cache = application.container.get(CacheHandler)
             identifier = hashlib.sha256(email.casefold().encode()).hexdigest()
-            found = await cache.get(SystemCacheKeys.EMAIL_PASSWORD_RESET, identifier)
+            found = await cache.get(SystemCacheKeyConstants.EMAIL_PASSWORD_RESET, identifier)
             if updates is not None:
                 value = {**found.value, **updates}
-                await cache.set(SystemCacheKeys.EMAIL_PASSWORD_RESET, identifier, value)
+                await cache.set(SystemCacheKeyConstants.EMAIL_PASSWORD_RESET, identifier, value)
                 return value
             return found
 
@@ -472,7 +472,7 @@ async def test_sms_code_attempts_are_counted_atomically(
     with application.execution(), database.scope():
         async with application.container.get(SystemWorkloadService).scope("system.auth", "1"):
             attempts = await application.container.get(CacheHandler).get(
-                SystemCacheKeys.SMS_CODE_ATTEMPTS, code_id
+                SystemCacheKeyConstants.SMS_CODE_ATTEMPTS, code_id
             )
     assert attempts.hit and attempts.value == 8
     exhausted = await request(

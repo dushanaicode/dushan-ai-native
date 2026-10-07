@@ -1,3 +1,3 @@
-from server.starter_server import create_app
+from server.starter_server import StarterServer
 
-app = create_app()
+app = StarterServer.create_app()

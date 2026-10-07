@@ -13,7 +13,7 @@ from framework.starter_database.public import (
 from framework.starter_di.public import (
     mapper,
 )
-from module_system.controller.admin.dict.vo.data.data_page_req_vo import DictDataPageReqVO
+from module_system.controller.admin.dict.vo.data.dict_data_page_req_vo import DictDataPageReqVO
 from module_system.dal.dataobject.dict.dict_data_do import DictDataDO
 
 
@@ -45,11 +45,6 @@ class DictDataMapper(BaseMapper[DictDataDO]):
         result = await self.read(stmt)
         return list(result.scalars().all())
 
-    async def delete_by_dict_type(self, dict_type: str) -> int:
-        stmt = select(func.count()).select_from(DictDataDO).where(DictDataDO.dict_type == dict_type)
-        result = await self.read(stmt)
-        return result.scalar_one()
-
     async def select_count_by_dict_type(self, dict_type: str) -> int:
         stmt = select(func.count(DictDataDO.id)).where(DictDataDO.dict_type == dict_type)
         result = await self.read(stmt)
@@ -60,15 +55,14 @@ class DictDataMapper(BaseMapper[DictDataDO]):
         stmt = select(DictDataDO)
         if req_vo.label:
             escaped = StrUtils.escape_like(req_vo.label)
-            stmt = stmt.where(DictDataDO.label.ilike(f"%{escaped}%"))
+            stmt = stmt.where(DictDataDO.label.ilike(f"%{escaped}%", escape="\\"))
         if req_vo.dict_type:
             stmt = stmt.where(DictDataDO.dict_type == req_vo.dict_type)
         if req_vo.status is not None:
             stmt = stmt.where(DictDataDO.status == req_vo.status)
-        if req_vo.create_time and len(req_vo.create_time) >= 2:
-            stmt = stmt.where(
-                DictDataDO.create_time.between(req_vo.create_time[0], req_vo.create_time[1])
-            )
+        if req_vo.create_time is not None:
+            start_time, end_time = req_vo.create_time
+            stmt = stmt.where(DictDataDO.create_time.between(start_time, end_time))
         stmt = stmt.order_by(DictDataDO.dict_type.desc(), DictDataDO.sort.desc())
         return await self.paginate_query(stmt, req_vo)
 

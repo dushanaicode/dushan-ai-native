@@ -13,6 +13,9 @@ from framework.common.exception import (
     IllegalArgumentException,
 )
 from framework.common.utils import CleanupUtils
+from framework.starter_database.public import (
+    DatabaseSettings,
+)
 from framework.starter_di.public import (
     Inject,
 )
@@ -22,7 +25,9 @@ from framework.starter_job.public import (
 )
 from module_infra.config.infra_backup_settings import InfraBackupSettings
 from module_infra.job.data_source.database_backup_parameters import DatabaseBackupParameters
-from module_infra.service.data_source.data_source_config_store import DataSourceConfigStore
+from module_infra.service.data_source.data_source_runtime_service import (
+    DataSourceRuntimeService,
+)
 
 
 @job(
@@ -33,14 +38,18 @@ from module_infra.service.data_source.data_source_config_store import DataSource
 )
 class DatabaseBackupJob(JobHandler):
     settings: InfraBackupSettings = Inject()
-    sources: DataSourceConfigStore = Inject()
+    database_settings: DatabaseSettings = Inject()
+    runtime_sources: DataSourceRuntimeService = Inject()
 
     async def execute(self, parameters, context):
         if not self.settings.enabled:
             raise IllegalArgumentException(msg="数据库备份未启用")
         sources = {
             source.name: source
-            for source in (*self.sources.settings.sources, *await self.sources.load_sources())
+            for source in (
+                *self.database_settings.sources,
+                *await self.runtime_sources.load_sources(),
+            )
         }
         url = make_url(sources[self.settings.data_source].url.get_secret_value())
         if url.get_backend_name() not in {"mysql", "mariadb"}:

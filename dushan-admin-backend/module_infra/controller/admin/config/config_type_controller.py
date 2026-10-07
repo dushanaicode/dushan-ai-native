@@ -1,17 +1,15 @@
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 
 from framework.common.contracts import SnowflakeIdStr
 from framework.common.exception import ServiceException
-from framework.common.page import PageResult, PageSettings
+from framework.common.page import PageResult
 from framework.common.schemas.request import IdListReqVO, IdReqVO, UpdateStatusReqVO
 from framework.common.utils import ConversionUtils
 from framework.starter_di.public import (
     DiDependency,
 )
 from framework.starter_excel.public import (
-    DictDataProvider,
-    ExcelProviders,
     ExcelWriter,
 )
 from framework.starter_security.public import (
@@ -19,16 +17,22 @@ from framework.starter_security.public import (
 )
 from framework.starter_web.public import (
     FileResult,
-    RequestUtils,
     Result,
     RoutePolicy,
 )
-from module_infra.controller.admin.config.vo.type.type_module_req_vo import ConfigTypeModuleReqVO
-from module_infra.controller.admin.config.vo.type.type_page_req_vo import ConfigTypePageReqVO
-from module_infra.controller.admin.config.vo.type.type_resp_vo import ConfigTypeRespVO
-from module_infra.controller.admin.config.vo.type.type_save_req_vo import ConfigTypeSaveReqVO
-from module_infra.controller.admin.config.vo.type.type_simple_resp_vo import ConfigTypeSimpleRespVO
-from module_infra.dal.dataobject.config.config_type_do import InfraConfigTypeDO
+from module_infra.controller.admin.config.vo.type.config_type_export_req_vo import (
+    ConfigTypeExportReqVO,
+)
+from module_infra.controller.admin.config.vo.type.config_type_module_req_vo import (
+    ConfigTypeModuleReqVO,
+)
+from module_infra.controller.admin.config.vo.type.config_type_page_req_vo import ConfigTypePageReqVO
+from module_infra.controller.admin.config.vo.type.config_type_resp_vo import ConfigTypeRespVO
+from module_infra.controller.admin.config.vo.type.config_type_save_req_vo import ConfigTypeSaveReqVO
+from module_infra.controller.admin.config.vo.type.config_type_simple_resp_vo import (
+    ConfigTypeSimpleRespVO,
+)
+from module_infra.dal.dataobject.config.infra_config_type_do import InfraConfigTypeDO
 from module_infra.definitions.constants.error_code_constants import ErrorCodeConstants
 from module_infra.service.config.config_type_service import ConfigTypeService
 
@@ -102,10 +106,9 @@ class ConfigTypeController:
         permissions=("infra:config:type:query",), tenant_required=True, realm=SecurityRealm.TENANT
     )
     async def page_config_types(
-        request: Request,
+        page_req_vo: ConfigTypePageReqVO = Query(),
         config_type_service: ConfigTypeService = Depends(DiDependency(ConfigTypeService)),
     ) -> Result[PageResult[ConfigTypeRespVO]]:
-        page_req_vo = RequestUtils.validate_with_auto_list_params(request, ConfigTypePageReqVO)
         page_result: PageResult[InfraConfigTypeDO] = await config_type_service.get_config_type_page(
             page_req_vo
         )
@@ -128,14 +131,12 @@ class ConfigTypeController:
         return Result.success(data=resp)
 
     @staticmethod
-    @config_type_controller.get(
-        "/list-all-simple", summary="获得全部配置类型列表", include_in_schema=True
-    )
+    @config_type_controller.get("/simple-list", summary="获得全部配置类型列表")
     @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT)
     async def get_simple_config_type_list(
         req_vo: ConfigTypeModuleReqVO = Query(),
         config_type_service: ConfigTypeService = Depends(DiDependency(ConfigTypeService)),
-    ) -> Result[list]:
+    ) -> Result[list[ConfigTypeSimpleRespVO]]:
         if req_vo.module:
             list_do = await config_type_service.get_config_types_by_module(req_vo.module.code)
         else:
@@ -160,18 +161,12 @@ class ConfigTypeController:
         permissions=("infra:config:type:export",), tenant_required=True, realm=SecurityRealm.TENANT
     )
     async def export_config_type_excel(
-        request: Request,
+        page_req_vo: ConfigTypeExportReqVO = Query(),
         config_type_service: ConfigTypeService = Depends(DiDependency(ConfigTypeService)),
         excel_writer: ExcelWriter = Depends(DiDependency(ExcelWriter)),
-        page_settings: PageSettings = Depends(DiDependency(PageSettings)),
         files: FileResult = Depends(DiDependency(FileResult)),
-        dictionaries: DictDataProvider = Depends(DiDependency(DictDataProvider)),
     ) -> StreamingResponse:
-        excel_providers = ExcelProviders(dictionaries=dictionaries)
-        page_req_vo = RequestUtils.validate_with_auto_list_params(request, ConfigTypePageReqVO)
-        page_req_vo.enable_fetch_all(
-            max_rows=min(excel_writer.settings.max_export_rows, page_settings.fetch_all_max_rows)
-        )
+        excel_writer.prepare_export_query(page_req_vo)
         page_result: PageResult[InfraConfigTypeDO] = await config_type_service.get_config_type_page(
             page_req_vo
         )
@@ -183,7 +178,6 @@ class ConfigTypeController:
             "数据",
             ConfigTypeRespVO,
             excel_list,
-            providers=excel_providers,
             fields=page_req_vo.fields,
         )
         return files.excel_stream(file_data, file_name=f"{filename}.xlsx")

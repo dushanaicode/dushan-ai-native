@@ -5,7 +5,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from framework.common.exception.exceptions.base_business_exception import BaseBusinessException
 from framework.starter_web.context.http_observation import HttpObservation
-from framework.starter_web.exception.exception_handler import GlobalExceptionHandler
+from framework.starter_web.exception.global_exception_handler import GlobalExceptionHandler
 from framework.starter_web.exception.reported_http_failure import ReportedHttpFailure
 
 

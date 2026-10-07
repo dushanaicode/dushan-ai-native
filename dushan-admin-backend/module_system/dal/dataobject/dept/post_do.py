@@ -1,4 +1,4 @@
-from sqlalchemy import Computed, Index, Integer, SmallInteger, String, UniqueConstraint
+from sqlalchemy import Index, Integer, SmallInteger, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from framework.common.enums import StatusEnum
@@ -28,6 +28,6 @@ class PostDO(TenantBaseDO):
 
     active_key: Mapped[int | None] = mapped_column(
         SmallInteger,
-        Computed("CASE WHEN deleted = 0 THEN 1 ELSE NULL END"),
+        TenantBaseDO.active_key_computed(),
         comment="仅有效记录参与业务唯一约束",
     )

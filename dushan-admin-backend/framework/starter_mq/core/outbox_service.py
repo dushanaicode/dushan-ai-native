@@ -56,6 +56,7 @@ class OutboxService:
         return record_id
 
     async def dispatch(self, *, record_id=None, limit=None):
+        """发送持久化的原始消息；重发使用 record_id，不再次 prepare 同一消息 ID。"""
         runtime, provider = self._resources()
         settings = runtime.settings
         selected_limit = settings.outbox_batch_size if limit is None else limit

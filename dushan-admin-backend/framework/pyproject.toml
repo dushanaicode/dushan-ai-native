@@ -4,9 +4,9 @@ version = "0.0.0"
 description = "dushan-ai-native 公共框架与基础组件"
 requires-python = ">=3.12,<3.13"
 license = "MIT"
+# FastAPI、Pydantic、Loguru 由根项目声明，此处只列组件额外需要的库。
 dependencies = [
     # 公共异常处理与响应直接使用的 Web 类型。
-    "fastapi==0.137.1",
     "starlette==1.3.1",
     # 原生 Form/UploadFile 解析，以及显式富文本净化。
     "python-multipart==0.0.32",
@@ -18,10 +18,8 @@ dependencies = [
     # MySQL 主线与 PostgreSQL 辅线；rsa 支持 MySQL 8 的完整认证交换。
     "aiomysql[rsa]==0.3.2",
     "asyncpg==0.31.0",
-    # 配置加载、校验与日志组件。
-    "pydantic==2.13.4",
+    # 配置加载。
     "PyYAML==6.0.3",
-    "loguru==0.7.3",
     # 追踪 API、SDK 与 OTLP 导出器使用同一发布版本。
     "opentelemetry-api==1.44.0",
     "opentelemetry-sdk==1.44.0",
@@ -62,9 +60,9 @@ opengauss = ["opengauss-sqlalchemy==2.4.0"]
 dameng = ["dmSQLAlchemy==2.0.17", "dmAsync==1.0.0", "dmPython==2.5.38", "async-timeout==5.0.1"]
 
 [project.entry-points."sqlalchemy.dialects"]
-"kingbase.asyncpg" = "framework.starter_database.dialects.kingbase_asyncpg:KingbaseAsyncpgDialect"
+"kingbase.asyncpg" = "framework.starter_database.dialects.kingbase_asyncpg_dialect:KingbaseAsyncpgDialect"
 "dm.dushan_async" = "framework.starter_database.dialects.dm_async_dialect:DmAsyncDialect"
-"oceanbase.aiomysql" = "framework.starter_database.dialects.oceanbase_aiomysql:OceanBaseAiomysqlDialect"
+"oceanbase.aiomysql" = "framework.starter_database.dialects.oceanbase_aiomysql_dialect:OceanBaseAiomysqlDialect"
 
 [tool.poetry]
 packages = [{ include = "framework", from = ".." }]

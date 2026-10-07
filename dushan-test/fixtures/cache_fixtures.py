@@ -1,5 +1,3 @@
-"""starter_cache 用例共用的真实实例配置与清理工具，按项目约定放在测试根目录。"""
-
 import json
 import os
 from collections import namedtuple
@@ -21,7 +19,7 @@ requires_redis = pytest.mark.skipif(REDIS_TARGET is None, reason="需要真实 R
 KEY_CONTAINER_SOURCE = """
 from framework.starter_cache.model.cache_key import CacheKey
 from framework.starter_cache.model.cache_key_container import CacheKeyContainer
-from framework.starter_scanner.annotation.scanner_decorator import scanner
+from framework.starter_scanner.decorators.scanner_decorator import scanner
 
 
 @scanner
@@ -49,7 +47,7 @@ def cache_settings(**overrides) -> CacheSettings:
 
 
 def app_values(cache: dict, **extra) -> dict:
-    """组装 create_app 需要的配置层，默认关闭横幅减少噪声。"""
+    """组装 StarterServer.create_app 需要的配置层，默认关闭横幅减少噪声。"""
     values = {"config": {"models": {"cache": cache}}, "banner": {"enabled": False}}
     values.update(extra)
     return values

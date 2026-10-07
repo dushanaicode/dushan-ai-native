@@ -24,14 +24,13 @@ class MqDefinitionMapper(BaseMapper[MqDO]):
         stmt = select(MqDO)
         if req_vo.topic:
             escaped_topic = StrUtils.escape_like(req_vo.topic)
-            stmt = stmt.where(MqDO.topic.ilike(f"%{escaped_topic}%"))
+            stmt = stmt.where(MqDO.topic.ilike(f"%{escaped_topic}%", escape="\\"))
         if req_vo.consumer:
             escaped_consumer = StrUtils.escape_like(req_vo.consumer)
-            stmt = stmt.where(MqDO.consumer.ilike(f"%{escaped_consumer}%"))
-        if req_vo.create_time and len(req_vo.create_time) >= 2:
-            stmt = stmt.where(
-                MqDO.create_time.between(req_vo.create_time[0], req_vo.create_time[1])
-            )
+            stmt = stmt.where(MqDO.consumer.ilike(f"%{escaped_consumer}%", escape="\\"))
+        if req_vo.create_time is not None:
+            start_time, end_time = req_vo.create_time
+            stmt = stmt.where(MqDO.create_time.between(start_time, end_time))
         return await self.paginate_query(stmt, req_vo)
 
     async def select_by_topic(self, topic: str) -> MqDO | None:

@@ -12,7 +12,7 @@ from framework.starter_database.public import (
 from framework.starter_di.public import (
     mapper,
 )
-from module_infra.controller.admin.logger.vo.apiaccesslog.apiaccesslog_api_access_log_page_req_vo import (
+from module_infra.controller.admin.logger.vo.api_access_log.api_access_log_page_req_vo import (
     ApiAccessLogPageReqVO,
 )
 from module_infra.dal.dataobject.logger.api_access_log_do import ApiAccessLogDO
@@ -34,11 +34,10 @@ class ApiAccessLogMapper(BaseMapper[ApiAccessLogDO]):
             stmt = stmt.where(ApiAccessLogDO.application_name == req_vo.application_name)
         if req_vo.request_url:
             escaped = StrUtils.escape_like(req_vo.request_url)
-            stmt = stmt.where(ApiAccessLogDO.request_url.ilike(f"%{escaped}%"))
-        if req_vo.begin_time and len(req_vo.begin_time) >= 2:
-            stmt = stmt.where(
-                ApiAccessLogDO.create_time.between(req_vo.begin_time[0], req_vo.begin_time[1])
-            )
+            stmt = stmt.where(ApiAccessLogDO.request_url.ilike(f"%{escaped}%", escape="\\"))
+        if req_vo.begin_time is not None:
+            start_time, end_time = req_vo.begin_time
+            stmt = stmt.where(ApiAccessLogDO.begin_time.between(start_time, end_time))
         if req_vo.duration is not None:
             stmt = stmt.where(ApiAccessLogDO.duration >= req_vo.duration)
         if req_vo.result_code is not None:
@@ -47,6 +46,7 @@ class ApiAccessLogMapper(BaseMapper[ApiAccessLogDO]):
         return await self.paginate_query(stmt, req_vo)
 
     async def delete_by_create_time_lt(self, create_time: datetime, limit: int) -> int:
-        return await self.purge_limited_by_condition(
+        """按每批上限清理到期访问日志，返回累计条数。"""
+        return await self.purge_in_batches_by_condition(
             ApiAccessLogDO.create_time < create_time, limit=limit
         )

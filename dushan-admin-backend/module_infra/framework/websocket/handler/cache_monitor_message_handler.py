@@ -25,7 +25,9 @@ from module_infra.service.cache.cache_service import CacheService
         type="get-cache-monitor-data",
         payload=InfraSocketRequest,
         policy=RoutePolicy(
-            permissions=("infra:cache:query",), tenant_required=True, realm=SecurityRealm.TENANT
+            permissions=("infra:cache:get-monitor-info",),
+            tenant_required=True,
+            realm=SecurityRealm.TENANT,
         ),
     )
 )

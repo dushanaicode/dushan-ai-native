@@ -8,7 +8,7 @@ import yaml
 from httpx import ASGITransport, AsyncClient
 
 from server.routing.application_health import ApplicationHealth
-from server.starter_server import create_app
+from server.starter_server import StarterServer
 
 pytestmark = pytest.mark.asyncio(loop_scope="module")
 
@@ -27,7 +27,7 @@ async def health_app(infra_app, tmp_path_factory):
     (folder / "application.yaml").write_text(
         yaml.safe_dump(values, allow_unicode=True), encoding="utf-8"
     )
-    app = create_app(base_dir=folder, app_env="dev", environ={})
+    app = StarterServer.create_app(base_dir=folder, app_env="dev", environ={})
     async with app.router.lifespan_context(app):
         await wait_ready(app)
         yield app
@@ -95,14 +95,23 @@ async def test_paused_scheduler_is_unhealthy(health_app):
 
 
 async def test_job_standby_and_owner_are_both_healthy(health_app):
-    other = create_app(base_dir=health_app.state.bootstrap.base_dir, environ={})
+    """等待选主收敛，校验实际一主一备及 Redis 租约，不绑定固定进程归属。"""
+    other = StarterServer.create_app(base_dir=health_app.state.bootstrap.base_dir, environ={})
     async with other.router.lifespan_context(other):
-        assert health_app.state.job.owner and not other.state.job.owner
         for app in (health_app, other):
             await wait_ready(app)
             response = await health(app)
             assert response.status_code == 200, response.text
             assert response.json()["data"]["components"]["job"] == "ready"
+        runtimes = (health_app.state.job, other.state.job)
+        assert sum(runtime.owner for runtime in runtimes) == 1
+        owner = next(runtime for runtime in runtimes if runtime.owner)
+        standby = next(runtime for runtime in runtimes if not runtime.owner)
+        assert owner.lease.is_valid and not standby.lease.is_valid
+        assert owner.lease.key == standby.lease.key
+        with owner.application.execution():
+            client = owner.cache.get_client(owner.settings.owner_key())
+        assert await client.get(owner.lease.key) == owner.lease.owner_token
 
 
 async def test_mq_consumer_exit_and_hold_are_unhealthy(health_app):

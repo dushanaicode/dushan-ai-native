@@ -40,6 +40,8 @@ class BootstrapConfigProvider:
         self._environ = dict(environ)
         self._sources = dict(sources)
         self._loaded_files = loaded_files
+        self._bound_values: dict[str, object] = {}
+        self._bound_sources: dict[str, str] = {}
 
     @classmethod
     def load(
@@ -175,15 +177,21 @@ class BootstrapConfigProvider:
                 if field in result or nested:
                     result[field] = nested
             elif key in self._environ:
-                result[field] = self._environment_scalar(
+                result[field] = self._environment_value(
                     info.annotation, self._environ[key], key, field_path
                 )
                 sources[field_path] = f"环境变量 {key}"
+            elif field in result:
+                result[field] = ConfigValues.parse_collection(
+                    result[field],
+                    info.annotation,
+                    f"{field_path}（来源：{sources[field_path]}）",
+                )
         return result
 
     @staticmethod
-    def _environment_scalar(annotation, value: str, key: str, field_path: str):
-        """环境标量按已声明类型解析；模型的严格范围约束仍由后续校验执行。"""
+    def _environment_value(annotation, value: str, key: str, field_path: str):
+        """环境值按声明解析标量与集合，模型随后执行字段和业务约束。"""
         types = (
             get_args(annotation) if get_origin(annotation) in {Union, UnionType} else (annotation,)
         )
@@ -196,7 +204,9 @@ class BootstrapConfigProvider:
                 raise BootstrapConfigError(
                     f"环境变量类型无效：{field_path}（来源：环境变量 {key}）"
                 ) from None
-        return value
+        return ConfigValues.parse_collection(
+            value, annotation, f"{field_path}（来源：环境变量 {key}）"
+        )
 
     def _resolve_input(self, settings_type: type[BaseModel], prefix: str):
         """准备同一份校验输入与来源快照，不写回原配置。"""
@@ -227,6 +237,10 @@ class BootstrapConfigProvider:
         """为模型配置提供启动 YAML 的独立值/来源快照，不再次读取磁盘。"""
         return deepcopy(self._values), dict(self._sources)
 
+    def get_bound_snapshot(self) -> tuple[dict[str, object], dict[str, str]]:
+        """返回已成功校验的启动配置快照，供模型字段映射复用最终值。"""
+        return deepcopy(self._bound_values), dict(self._bound_sources)
+
     def get_group_prefixes(self) -> dict[str, str]:
         """启动配置各顶层分组占用的环境前缀，例如 log → LOG_；模型前缀不得与之重叠。"""
         return {f"{group.upper()}_": group for group in self._values}
@@ -249,7 +263,7 @@ class BootstrapConfigProvider:
         """返回校验后的配置；缺项或无效值报告字段及来源，不补代码默认值。"""
         values, sources = self._resolve_input(settings_type, prefix)
         try:
-            return settings_type.model_validate(values)
+            settings = settings_type.model_validate(values)
         except ValidationError as error:
             fields = []
             for detail in error.errors(include_input=False, include_url=False):
@@ -278,3 +292,9 @@ class BootstrapConfigProvider:
                 )
                 fields.append(f"{path or '整体配置'}（来源：{origin}）：{reason}")
             raise BootstrapConfigError("配置校验失败：" + "；".join(fields)) from None
+        bound_values = settings.model_dump()
+        if prefix:
+            bound_values = {prefix.rstrip("_").lower(): bound_values}
+        self._bound_values = ConfigValues.merge(self._bound_values, bound_values)
+        self._bound_sources.update(sources)
+        return settings

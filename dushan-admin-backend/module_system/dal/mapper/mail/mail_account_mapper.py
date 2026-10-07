@@ -10,7 +10,9 @@ from framework.starter_database.public import (
 from framework.starter_di.public import (
     mapper,
 )
-from module_system.controller.admin.mail.vo.account.account_page_req_vo import MailAccountPageReqVO
+from module_system.controller.admin.mail.vo.account.mail_account_page_req_vo import (
+    MailAccountPageReqVO,
+)
 from module_system.dal.dataobject.mail.mail_account_do import MailAccountDO
 
 
@@ -23,10 +25,10 @@ class MailAccountMapper(BaseMapper[MailAccountDO]):
         stmt = select(MailAccountDO)
         if req_vo.mail:
             escaped_mail = StrUtils.escape_like(req_vo.mail)
-            stmt = stmt.where(MailAccountDO.mail.ilike(f"%{escaped_mail}%"))
+            stmt = stmt.where(MailAccountDO.mail.ilike(f"%{escaped_mail}%", escape="\\"))
         if req_vo.username:
             escaped_user = StrUtils.escape_like(req_vo.username)
-            stmt = stmt.where(MailAccountDO.username.ilike(f"%{escaped_user}%"))
+            stmt = stmt.where(MailAccountDO.username.ilike(f"%{escaped_user}%", escape="\\"))
         return await self.paginate_query(stmt, req_vo)
 
     async def exists(self, mail_account_id: int) -> bool:

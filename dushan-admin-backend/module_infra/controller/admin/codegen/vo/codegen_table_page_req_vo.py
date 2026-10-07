@@ -2,6 +2,7 @@ from typing import Annotated
 
 from pydantic import Field
 
+from framework.common.contracts import DateTimeRangeInput
 from framework.common.page import PageQuery
 
 
@@ -10,7 +11,7 @@ class CodegenTablePageReqVO(PageQuery):
 
     table_name: Annotated[str | None, Field(None, description="表名称")]
     table_comment: Annotated[str | None, Field(None, description="表描述")]
-    create_time: Annotated[list[str] | None, Field(None, description="创建时间")]
+    create_time: Annotated[DateTimeRangeInput | None, Field(None, description="创建时间")]
     model_config = {
         "json_schema_extra": {
             "examples": [

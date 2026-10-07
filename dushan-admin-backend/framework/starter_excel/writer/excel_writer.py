@@ -15,6 +15,8 @@ from openpyxl.workbook.defined_name import DefinedName
 from openpyxl.worksheet.datavalidation import DataValidation
 from pydantic import BaseModel
 
+from framework.common.page.config.page_settings import PageSettings
+from framework.common.page.schemas.page_query import PageQuery
 from framework.common.utils.asyncio_utils import AsyncioUtils
 from framework.starter_di.decorators.components import framework
 from framework.starter_excel.config.excel_settings import ExcelSettings
@@ -34,8 +36,16 @@ T = TypeVar("T", bound=BaseModel)
 class ExcelWriter:
     """生成 XLSX 内存流；成功后流归调用方，失败和取消会关闭本次所有资源。"""
 
-    def __init__(self, settings: ExcelSettings) -> None:
+    def __init__(self, settings: ExcelSettings, page_settings: PageSettings) -> None:
+        """保存本应用的导出配置与分页边界。"""
         self.settings = settings
+        self.page_settings = page_settings
+
+    def prepare_export_query(self, query: PageQuery) -> None:
+        """按导出与分页上限的交集声明全量查询，开关和实际数量仍由分页器校验。"""
+        query.enable_fetch_all(
+            max_rows=min(self.settings.max_export_rows, self.page_settings.fetch_all_max_rows)
+        )
 
     @staticmethod
     def export_fields(model: type[BaseModel]) -> list[dict[str, str]]:

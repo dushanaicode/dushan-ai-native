@@ -1,8 +1,8 @@
-from datetime import datetime
 from typing import Annotated
 
 from pydantic import Field
 
+from framework.common.contracts import DateTimeRangeInput
 from framework.common.page import PageQuery
 
 
@@ -15,7 +15,7 @@ class SocialClientPageReqVO(PageQuery):
     client_id: Annotated[str | None, Field(None, description="客户端编号")]
     status: Annotated[int | None, Field(None, description="状态")]
     create_time: Annotated[
-        list[datetime] | None, Field(None, exclude=True, description="创建时间范围")
+        DateTimeRangeInput | None, Field(None, exclude=True, description="创建时间范围")
     ]
     model_config = {
         "json_schema_extra": {

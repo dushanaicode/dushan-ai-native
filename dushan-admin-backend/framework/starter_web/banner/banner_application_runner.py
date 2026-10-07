@@ -4,7 +4,7 @@ from importlib.resources import files
 
 from framework.common.security.sanitizer import Sanitizer
 from framework.starter_web.banner.banner_runtime_info import BannerRuntimeInfo
-from framework.starter_web.banner.cat_mascot import CatMascotTUI
+from framework.starter_web.banner.cat_mascot_tui import CatMascotTUI
 from framework.starter_web.config.banner_settings import BannerSettings
 
 _RESET = "\033[0m"

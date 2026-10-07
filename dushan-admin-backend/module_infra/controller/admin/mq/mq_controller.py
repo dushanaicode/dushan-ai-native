@@ -1,17 +1,15 @@
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 
 from framework.common.contracts import SnowflakeIdStr
 from framework.common.exception import ServiceException
-from framework.common.page import PageResult, PageSettings
+from framework.common.page import PageResult
 from framework.common.schemas.request import IdReqVO
 from framework.common.utils import ConversionUtils
 from framework.starter_di.public import (
     DiDependency,
 )
 from framework.starter_excel.public import (
-    DictDataProvider,
-    ExcelProviders,
     ExcelWriter,
 )
 from framework.starter_security.public import (
@@ -19,7 +17,6 @@ from framework.starter_security.public import (
 )
 from framework.starter_web.public import (
     FileResult,
-    RequestUtils,
     Result,
     RoutePolicy,
 )
@@ -108,10 +105,9 @@ class MqController:
     @mq_controller.get("/page", summary="获得消息定义分页")
     @RoutePolicy(permissions=("infra:mq:query",), tenant_required=True, realm=SecurityRealm.TENANT)
     async def get_mq_definition_page(
-        request: Request,
+        page_req_vo: MqPageReqVO = Query(),
         mq_definition_service: MqDefinitionService = Depends(DiDependency(MqDefinitionService)),
     ) -> Result[PageResult[MqRespVO]]:
-        page_req_vo = RequestUtils.validate_with_auto_list_params(request, MqPageReqVO)
         page_result: PageResult[MqDO] = await mq_definition_service.get_mq_definition_page(
             page_req_vo
         )
@@ -140,20 +136,15 @@ class MqController:
         page_req_vo: MqExportReqVO = Query(),
         mq_definition_service: MqDefinitionService = Depends(DiDependency(MqDefinitionService)),
         excel_writer: ExcelWriter = Depends(DiDependency(ExcelWriter)),
-        page_settings: PageSettings = Depends(DiDependency(PageSettings)),
         files: FileResult = Depends(DiDependency(FileResult)),
-        dictionaries: DictDataProvider = Depends(DiDependency(DictDataProvider)),
     ) -> StreamingResponse:
-        excel_providers = ExcelProviders(dictionaries=dictionaries)
-        page_req_vo.enable_fetch_all(
-            max_rows=min(excel_writer.settings.max_export_rows, page_settings.fetch_all_max_rows)
-        )
+        excel_writer.prepare_export_query(page_req_vo)
         page_result: PageResult[MqDO] = await mq_definition_service.get_mq_definition_page(
             page_req_vo
         )
         excel_list: list[MqRespVO] = ConversionUtils.list_to_vo_list(page_result.items, MqRespVO)
         filename = "消息定义数据"
         file_data = await excel_writer.write(
-            "数据", MqRespVO, excel_list, providers=excel_providers, fields=page_req_vo.fields
+            "数据", MqRespVO, excel_list, fields=page_req_vo.fields
         )
         return files.excel_stream(file_data, file_name=f"{filename}.xlsx")

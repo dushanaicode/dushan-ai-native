@@ -13,7 +13,7 @@ from framework.common.exception.constants.global_error_code_constants import (
     GlobalErrorCodeConstants,
 )
 from framework.common.exception.exceptions.base_business_exception import BaseBusinessException
-from framework.starter_di.context.get_bean import get_bean
+from framework.starter_di.context.application_context import ApplicationContext
 from framework.starter_security.bizlog.biz_log_service import BizLogService
 from framework.starter_security.bizlog.diff_field import DiffField
 from framework.starter_security.bizlog.log_record import log_record
@@ -204,7 +204,7 @@ async def test_unknown_domain_fails_before_ready(security_factory):
 
 @pytest.mark.parametrize("kind", ["method", "mro"])
 async def test_controller_and_mro_policy_conflicts(config_dir, module_package, kind):
-    from server.starter_server import create_app
+    from server.starter_server import StarterServer
 
     source = """
 from framework.starter_web.routing.decorators import controller, route
@@ -219,7 +219,7 @@ class Base:
         source += "\n@controller('/child', policy=RoutePolicy.public())\nclass Child(Base): pass\n"
     package = "security_controller_" + kind
     module_package(package, files={"controllers.py": source})
-    app = create_app(
+    app = StarterServer.create_app(
         base_dir=config_dir(
             {"modules": {"packages": ["framework", package], "enabled": ["framework", package]}}
         ),
@@ -436,7 +436,9 @@ async def test_diff_and_request_projection_reach_persistent_audit(security_facto
 
     @log_record(LogRecordSpec("item", "update", "{{ diff }}", "42"))
     async def endpoint(identifier: str):
-        await get_bean(BizLogService).record_diff(Item(value="old"), Item(value="new"))
+        await ApplicationContext.lookup(BizLogService).record_diff(
+            Item(value="old"), Item(value="new")
+        )
         return {"updated": True}
 
     router.add_api_route("/items/{identifier}", RoutePolicy()(endpoint))

@@ -1,9 +1,9 @@
-from datetime import datetime
 from typing import Annotated
 
 from pydantic import Field
 
 from framework.common.contracts import (
+    DateTimeRangeInput,
     SnowflakeIdInput,
 )
 from framework.common.page import PageQuery
@@ -18,7 +18,7 @@ class NoticeMessagePageReqVO(PageQuery):
     read_status: Annotated[bool | None, Field(None, description="是否已读")]
     notice_title: Annotated[str | None, Field(None, description="标题")]
     notice_type: Annotated[int | None, Field(None, description="通知类型")]
-    create_time: Annotated[list[datetime] | None, Field(None, description="创建时间")]
+    create_time: Annotated[DateTimeRangeInput | None, Field(None, description="创建时间")]
     model_config = {
         "json_schema_extra": {
             "examples": [

@@ -24,16 +24,15 @@ class FileMapper(BaseMapper[FileDO]):
         stmt = select(FileDO)
         if req_vo.path:
             escaped_path = StrUtils.escape_like(req_vo.path)
-            stmt = stmt.where(FileDO.path.ilike(f"%{escaped_path}%"))
+            stmt = stmt.where(FileDO.path.ilike(f"%{escaped_path}%", escape="\\"))
         if req_vo.file_type:
             escaped_type = StrUtils.escape_like(req_vo.file_type)
-            stmt = stmt.where(FileDO.type.ilike(f"%{escaped_type}%"))
+            stmt = stmt.where(FileDO.type.ilike(f"%{escaped_type}%", escape="\\"))
         if req_vo.config_id:
             stmt = stmt.where(FileDO.config_id == req_vo.config_id)
-        if req_vo.create_time and len(req_vo.create_time) >= 2:
-            stmt = stmt.where(
-                FileDO.create_time.between(req_vo.create_time[0], req_vo.create_time[1])
-            )
+        if req_vo.create_time is not None:
+            start_time, end_time = req_vo.create_time
+            stmt = stmt.where(FileDO.create_time.between(start_time, end_time))
         stmt = stmt.order_by(FileDO.id.desc())
         return await self.paginate_query(stmt, req_vo)
 
@@ -63,7 +62,7 @@ class FileMapper(BaseMapper[FileDO]):
         """按 config_id + storage_path 前缀查询（用于目录浏览时补充 DB 信息）"""
         stmt = select(FileDO).where(
             FileDO.config_id == config_id,
-            FileDO.storage_path.like(StrUtils.escape_like(storage_path_prefix) + "%"),
+            FileDO.storage_path.like(StrUtils.escape_like(storage_path_prefix) + "%", escape="\\"),
         )
         result = await self.read(stmt)
         return list(result.scalars().all())
@@ -80,12 +79,16 @@ class FileMapper(BaseMapper[FileDO]):
         """搜索文件（模糊/前缀）"""
         stmt = select(FileDO).where(FileDO.config_id == config_id)
         if prefix:
-            stmt = stmt.where(FileDO.storage_path.like(StrUtils.escape_like(prefix) + "%"))
+            stmt = stmt.where(
+                FileDO.storage_path.like(StrUtils.escape_like(prefix) + "%", escape="\\")
+            )
         if keyword:
             if search_mode == "prefix":
-                stmt = stmt.where(FileDO.name.like(StrUtils.escape_like(keyword) + "%"))
+                stmt = stmt.where(
+                    FileDO.name.like(StrUtils.escape_like(keyword) + "%", escape="\\")
+                )
             else:
                 escaped_kw = StrUtils.escape_like(keyword)
-                stmt = stmt.where(FileDO.name.ilike(f"%{escaped_kw}%"))
+                stmt = stmt.where(FileDO.name.ilike(f"%{escaped_kw}%", escape="\\"))
         stmt = stmt.order_by(FileDO.create_time.desc())
         return await self.paginate_query(stmt, PageQuery(page=page_no, page_size=page_size))

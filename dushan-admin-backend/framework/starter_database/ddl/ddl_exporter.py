@@ -1,5 +1,11 @@
 from sqlalchemy import MetaData
-from sqlalchemy.schema import CreateIndex, CreateTable
+from sqlalchemy.schema import (
+    AddConstraint,
+    CreateIndex,
+    CreateTable,
+    SetColumnComment,
+    SetTableComment,
+)
 
 from framework.starter_database.ddl.ddl_dialects import DdlDialects
 
@@ -32,10 +38,30 @@ class DdlExporter:
         )
 
     def _table(self, table) -> str:
-        """一张表的建表语句与其全部索引。"""
+        """输出建表、索引及方言要求独立执行的注释语句。"""
         statements = [str(CreateTable(table).compile(dialect=self.dialect)).strip()]
+        if self.dialect_name == "dm":
+            # 达梦驱动属于可选依赖（dameng），只在导出达梦 DDL 时导入，不影响其他方言导出。
+            from framework.starter_database.ddl.dm_ddl_compiler import DmDdlCompiler
+
+            statements.extend(
+                str(
+                    AddConstraint(constraint, isolate_from_table=False).compile(
+                        dialect=self.dialect
+                    )
+                ).strip()
+                for constraint in DmDdlCompiler.computed_unique_constraints(table)
+            )
         for index in sorted(table.indexes, key=lambda item: item.name):
             statements.append(str(CreateIndex(index).compile(dialect=self.dialect)).strip())
+        if self.dialect.supports_comments and not self.dialect.inline_comments:
+            comments = [SetTableComment(table)] if table.comment is not None else []
+            comments.extend(
+                SetColumnComment(column) for column in table.columns if column.comment is not None
+            )
+            statements.extend(
+                str(comment.compile(dialect=self.dialect)).strip() for comment in comments
+            )
         body = ";\n".join(statements)
         return f"\n-- {table.name}{self._comment(table)}\n{body};\n"
 

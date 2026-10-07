@@ -4,7 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class MessageEnvelope(BaseModel):
-    """JSON 传输信封，关键字段及扩展追踪头全部由 HMAC 覆盖。"""
+    """消息 ID 仅接受 32 位小写十六进制；信封关键字段及追踪头全部由 HMAC 覆盖。"""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
     version: Literal[1]

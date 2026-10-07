@@ -5,7 +5,7 @@ import pytest
 from fixtures.cache_fixtures import app_values, redis_values, requires_redis
 from framework.starter_cache.core.cache_handler import CacheHandler
 from framework.starter_cache.exception.cache_exception import CacheException
-from server.starter_server import create_app
+from server.starter_server import StarterServer
 
 pytestmark = requires_redis
 
@@ -72,7 +72,7 @@ async def test_null_result_is_cached_with_the_null_value_ttl(cache_case):
 async def test_null_result_is_not_cached_when_protection_is_disabled(
     config_dir, module_values, key_module
 ):
-    app = create_app(
+    app = StarterServer.create_app(
         base_dir=config_dir(app_values(redis_values(null_value_enabled=False), **module_values)),
         environ={},
     )
@@ -166,7 +166,9 @@ async def test_two_applications_share_one_redis_lock_for_the_same_key(
     config_dir, module_values, key_module
 ):
     apps = [
-        create_app(base_dir=config_dir(app_values(redis_values(), **module_values)), environ={})
+        StarterServer.create_app(
+            base_dir=config_dir(app_values(redis_values(), **module_values)), environ={}
+        )
         for _ in range(2)
     ]
     calls = []
@@ -245,7 +247,7 @@ async def test_manual_publish_skips_null_when_protection_is_disabled(
     config_dir, module_values, key_module
 ):
     """空值防穿透关闭时，手动发布同样不写入空值，并如实返回 False。"""
-    app = create_app(
+    app = StarterServer.create_app(
         base_dir=config_dir(app_values(redis_values(null_value_enabled=False), **module_values)),
         environ={},
     )

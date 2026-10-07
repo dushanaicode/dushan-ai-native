@@ -11,7 +11,7 @@ from framework.starter_di.public import (
 from framework.starter_mq.public import (
     MessageState,
 )
-from module_infra.controller.admin.mq.vo.log.log_page_req_vo import MqLogPageReqVO
+from module_infra.controller.admin.mq.vo.log.mq_log_page_req_vo import MqLogPageReqVO
 from module_infra.dal.dataobject.mq.mq_log_do import MqLogDO
 from module_infra.dal.mapper.mq.mq_log_mapper import MqLogMapper
 from module_infra.service.mq.mq_log_service import MqLogService

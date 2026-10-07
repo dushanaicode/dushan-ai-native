@@ -2,14 +2,12 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 
 from framework.common.contracts import SnowflakeIdStr
-from framework.common.page import PageResult, PageSettings
+from framework.common.page import PageResult
 from framework.common.schemas.request import IdListReqVO, IdReqVO, UpdateStatusReqVO
 from framework.starter_di.public import (
     DiDependency,
 )
 from framework.starter_excel.public import (
-    DictDataProvider,
-    ExcelProviders,
     ExcelWriter,
 )
 from framework.starter_security.public import (
@@ -21,28 +19,26 @@ from framework.starter_web.public import (
     Result,
     RoutePolicy,
 )
-from module_system.controller.admin.mail.vo.template.template_export_req_vo import (
+from module_system.controller.admin.mail.vo.template.mail_template_export_req_vo import (
     MailTemplateExportReqVO,
 )
-from module_system.controller.admin.mail.vo.template.template_page_req_vo import (
+from module_system.controller.admin.mail.vo.template.mail_template_page_req_vo import (
     MailTemplatePageReqVO,
 )
-from module_system.controller.admin.mail.vo.template.template_resp_vo import MailTemplateRespVO
-from module_system.controller.admin.mail.vo.template.template_save_req_vo import (
+from module_system.controller.admin.mail.vo.template.mail_template_resp_vo import MailTemplateRespVO
+from module_system.controller.admin.mail.vo.template.mail_template_save_req_vo import (
     MailTemplateSaveReqVO,
 )
-from module_system.controller.admin.mail.vo.template.template_send_req_vo import (
+from module_system.controller.admin.mail.vo.template.mail_template_send_req_vo import (
     MailTemplateSendReqVO,
 )
-from module_system.controller.admin.mail.vo.template.template_simple_resp_vo import (
+from module_system.controller.admin.mail.vo.template.mail_template_simple_resp_vo import (
     MailTemplateSimpleRespVO,
 )
 from module_system.dal.dataobject.mail.mail_template_do import MailTemplateDO
 from module_system.service.mail.bo.mail_batch_send_bo import MailBatchSendBO
 from module_system.service.mail.mail_send_service import MailSendService
 from module_system.service.mail.mail_template_service import MailTemplateService
-from module_system.spi.dept.dept_info_provider_adapter import DeptInfoProviderAdapter
-from module_system.spi.dept.post_info_provider_adapter import PostInfoProviderAdapter
 
 mail_template_controller = APIRouter(prefix="/mail/template", tags=["System - 邮件模版管理"])
 
@@ -175,17 +171,8 @@ class MailTemplateController:
         mail_template_service: MailTemplateService = Depends(DiDependency(MailTemplateService)),
         excel_writer: ExcelWriter = Depends(DiDependency(ExcelWriter)),
         files: FileResult = Depends(DiDependency(FileResult)),
-        dictionaries: DictDataProvider = Depends(DiDependency(DictDataProvider)),
-        departments: DeptInfoProviderAdapter = Depends(DiDependency(DeptInfoProviderAdapter)),
-        posts: PostInfoProviderAdapter = Depends(DiDependency(PostInfoProviderAdapter)),
-        page_settings: PageSettings = Depends(DiDependency(PageSettings)),
     ) -> StreamingResponse:
-        excel_providers = ExcelProviders(
-            dictionaries=dictionaries, departments=departments, posts=posts
-        )
-        page_req_vo.enable_fetch_all(
-            max_rows=min(excel_writer.settings.max_export_rows, page_settings.fetch_all_max_rows)
-        )
+        excel_writer.prepare_export_query(page_req_vo)
         page_result: PageResult[
             MailTemplateDO
         ] = await mail_template_service.get_mail_template_page(page_req_vo)
@@ -198,7 +185,6 @@ class MailTemplateController:
             "数据",
             MailTemplateRespVO,
             resp_list,
-            providers=excel_providers,
             fields=page_req_vo.fields,
         )
         return files.excel_stream(file_data, file_name=f"{filename}.xlsx")

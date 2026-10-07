@@ -3,13 +3,13 @@ from typing import Any
 from sqlalchemy import (
     JSON,
     Boolean,
-    Computed,
     Index,
     Integer,
     SmallInteger,
     String,
     Text,
     UniqueConstraint,
+    true,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -39,6 +39,6 @@ class FileConfigDO(TenantBaseDO):
     config: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, comment="文件客户端配置")
     master_active: Mapped[int | None] = mapped_column(
         SmallInteger,
-        Computed("CASE WHEN deleted = 0 AND master = 1 THEN 1 ELSE NULL END"),
+        TenantBaseDO.active_key_computed(master == true()),
         comment="有效默认配置唯一标记",
     )

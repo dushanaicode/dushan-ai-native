@@ -211,7 +211,8 @@
       "weixin_mini_app_subscribe_template_error": "微信小程序获取订阅模板失败：{}",
       "weixin_mini_app_subscribe_message_error": "微信小程序发送订阅消息失败：{}",
       "platform_not_exist": "社交平台【{}】不存在",
-      "client_auth_config_invalid": "社交客户端认证配置结构无效：{}"
+      "client_auth_config_invalid": "社交客户端认证配置结构无效：{}",
+      "user_already_bound": "该社交身份已绑定其他账号"
     }
   }
 }

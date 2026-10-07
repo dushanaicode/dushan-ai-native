@@ -459,7 +459,7 @@ di:
   enabled: true # false 不评估 DI 条件、不创建组件；配置模型与错误码仍独立可用
   default_scope: singleton # 未在装饰器显式指定时使用；可选 singleton、transient
   hook_timeout_seconds: 30.0 # 异步生命周期协作取消期限，不能强制终止阻塞用户代码
-  lookup_enabled: true # 开放 get_bean；关闭后注入仍可用，但 system 模块的服务身份作用域依赖 get_bean，启用 system 时必须保持开启
+  lookup_enabled: true # 开放 ApplicationContext.lookup；关闭后注入仍可用，但 system 模块的服务身份作用域依赖 lookup，启用 system 时必须保持开启
   automatic_context_binding: true # HTTP/WebSocket 入口自动绑定上下文；关闭后须显式建立执行边界
   drain_timeout_seconds: 30.0 # 超时后协作取消受管任务，仍等实际执行结束再释放依赖
   metrics_enabled: true # 关闭可选解析计时和计数，不关闭必要错误与资源检查

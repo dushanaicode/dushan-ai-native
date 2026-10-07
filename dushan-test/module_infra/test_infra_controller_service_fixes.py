@@ -8,6 +8,7 @@ from framework.starter_security.public import SecurityRealm, SecurityService
 from framework.starter_web.public import RoutePolicy
 from module_infra.api.file.file_api import FileApi
 from module_infra.dal.mapper.file.file_mapper import FileMapper
+from module_infra.definitions.enums.file.file_visibility_enum import FileVisibilityEnum
 from module_infra.service.file.file_config_service import FileConfigService
 from module_infra.service.file.file_service import FileService
 
@@ -70,7 +71,11 @@ async def test_batch_keys_preserve_comma_whitespace_and_repeated_query(
         service = container.get(FileService)
         for key in keys:
             await service.create_file(
-                content=key.encode(), name=key, path=key, config_id=identifier
+                content=key.encode(),
+                visibility=FileVisibilityEnum.PRIVATE,
+                name=key,
+                path=key,
+                config_id=identifier,
             )
     for selected in ([keys[0]], [keys[3]], keys[4:]):
         result = (
@@ -108,7 +113,11 @@ async def test_file_identity_includes_configuration(
         service = container.get(FileService)
         for identifier in identifiers:
             await service.create_file(
-                content=str(identifier).encode(), name=key, path=key, config_id=identifier
+                content=str(identifier).encode(),
+                visibility=FileVisibilityEnum.PRIVATE,
+                name=key,
+                path=key,
+                config_id=identifier,
             )
         if operation == "path_api":
             api = container.get(FileApi)
@@ -152,7 +161,11 @@ async def test_unregistered_objects_and_storage_failure(
         with pytest.raises(FileNotFoundError):
             await client.get_content("renamed.txt")
         await service.create_file(
-            content=b"keep", name="keep.txt", path="keep.txt", config_id=identifier
+            content=b"keep",
+            visibility=FileVisibilityEnum.PRIVATE,
+            name="keep.txt",
+            path="keep.txt",
+            config_id=identifier,
         )
 
         async def fail(*args):
@@ -184,7 +197,12 @@ async def test_listing_uses_complete_key_and_allows_missing_metadata(
         ]
         for key, name, mime in reversed(rows) if reverse else rows:
             await service.create_file(
-                content=b"content", name=name, path=key, type_hint=mime, config_id=identifier
+                content=b"content",
+                visibility=FileVisibilityEnum.PRIVATE,
+                name=name,
+                path=key,
+                type_hint=mime,
+                config_id=identifier,
             )
         client = await container.get(FileConfigService).get_file_client(identifier)
         await client.upload("orphan.txt", b"orphan", "text/plain")
@@ -197,7 +215,7 @@ async def test_listing_uses_complete_key_and_allows_missing_metadata(
 
 @pytest.mark.asyncio(loop_scope="module")
 @pytest.mark.parametrize(
-    "path, code", [("job", 1001001000), ("job/log", 404), ("config/type", 1001010004)]
+    "path, code", [("job", 1001001000), ("job/log", 1001001013), ("config/type", 1001010004)]
 )
 async def test_missing_details_are_business_results(path, code, admin_client):
     result = (
@@ -226,6 +244,10 @@ async def test_normal_and_deleted_config_and_log_details(admin_client, infra_dat
         await admin_client.get("/admin-api/infra/config/type/get", params={"id": identifier})
     ).json()["code"] == 1001010004
     with infra_database[2].cursor() as cursor:
+        # 日志通过所属任务判断租户可见性，先准备属于当前租户的任务。
+        cursor.execute(
+            "INSERT INTO infra_job (id,name,status,handler_name,handler_param,cron_expression,retry_count,retry_interval,monitor_timeout,creator,create_time,updater,update_time,deleted,parameters,revision,effective_at,tenant_id,fan_out,max_instances,timeout_seconds,retry_backoff,stop_after_failure) VALUES (991002,'Detail fixture',2,'fixture.detail','{}','0 2 * * *',0,0,NULL,'1',NOW(),'1',NOW(),0,'{}','fixture',UTC_TIMESTAMP(),'1',0,1,300,1,0)"
+        )
         cursor.execute(
             "INSERT INTO infra_job_log (id,job_id,handler_name,execute_index,status,request_id,state,creator,updater,create_time,update_time,begin_time,deleted) VALUES (991001,991002,'fixture',1,1,'fixture','succeeded','1','1',NOW(),NOW(),NOW(),0)"
         )
@@ -237,4 +259,4 @@ async def test_normal_and_deleted_config_and_log_details(admin_client, infra_dat
         cursor.execute("UPDATE infra_job_log SET deleted=1 WHERE id=991001")
     assert (await admin_client.get("/admin-api/infra/job/log/get", params={"id": "991001"})).json()[
         "code"
-    ] == 404
+    ] == 1001001013

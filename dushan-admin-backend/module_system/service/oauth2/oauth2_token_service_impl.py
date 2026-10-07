@@ -33,8 +33,8 @@ from framework.starter_tenant.public import (
 )
 from framework.starter_web.public import RequestContext
 from module_system.api.oauth2.dto.oauth2_access_token_resp_dto import OAuth2AccessTokenRespDTO
-from module_system.dal.cache.cache_key_constants import SystemCacheKeys
 from module_system.dal.cache.oauth2.oauth2_access_token_redis_dao import OAuth2AccessTokenRedisDAO
+from module_system.dal.cache.system_cache_key_constants import SystemCacheKeyConstants
 from module_system.dal.dataobject.oauth2.oauth2_access_token_do import OAuth2AccessTokenDO
 from module_system.dal.dataobject.oauth2.oauth2_refresh_token_do import OAuth2RefreshTokenDO
 from module_system.dal.mapper.auth.system_authentication_mapper import SystemAuthenticationMapper
@@ -392,7 +392,7 @@ class OAuth2TokenServiceImpl(OAuth2TokenService):
     async def create_socket_ticket(self, identity: LoginSession) -> str:
         ticket = OpaqueToken.generate()
         await self.ticket_cache.set(
-            SystemCacheKeys.WEBSOCKET_TICKET,
+            SystemCacheKeyConstants.WEBSOCKET_TICKET,
             OpaqueToken.digest(ticket),
             {
                 "digest": identity.token_digest,
@@ -406,7 +406,7 @@ class OAuth2TokenServiceImpl(OAuth2TokenService):
         self, ticket: str, *, application_id: str, domain: str
     ) -> LoginSession:
         result = await self.ticket_cache.get_and_delete(
-            SystemCacheKeys.WEBSOCKET_TICKET, OpaqueToken.digest(ticket)
+            SystemCacheKeyConstants.WEBSOCKET_TICKET, OpaqueToken.digest(ticket)
         )
         if (
             not result.hit

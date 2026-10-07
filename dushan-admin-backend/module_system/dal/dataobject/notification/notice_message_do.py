@@ -45,7 +45,7 @@ class NoticeMessageDO(TenantBaseDO):
     notice_title: Mapped[str] = mapped_column(String(100), nullable=False, comment="通知标题")
     notice_content: Mapped[str] = mapped_column(Text, nullable=False, comment="通知内容")
     notice_type: Mapped[int] = mapped_column(Integer, nullable=False, comment="通知类型")
-    publisher_info: Mapped[dict] = mapped_column(
+    publisher_info: Mapped[dict | None] = mapped_column(
         JSON, default=dict, nullable=True, comment="发布者信息"
     )
     sent_channels: Mapped[list] = mapped_column(

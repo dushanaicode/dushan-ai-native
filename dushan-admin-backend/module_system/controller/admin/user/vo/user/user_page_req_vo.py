@@ -1,9 +1,9 @@
-from datetime import datetime
 from typing import Annotated
 
 from pydantic import Field, field_validator
 
 from framework.common.contracts import (
+    DateTimeRangeInput,
     SnowflakeIdInput,
 )
 from framework.common.enums import StatusEnum
@@ -18,11 +18,10 @@ class UserPageReqVO(PageQuery):
     mobile: Annotated[str | None, Field(None, description="手机号码，模糊匹配")]
     status: Annotated[int | None, Field(None, description="展示状态，参见 StatusEnum 枚举类")]
     create_time: Annotated[
-        list[datetime] | None, Field(None, exclude=True, description="创建时间范围")
+        DateTimeRangeInput | None, Field(None, exclude=True, description="创建时间范围")
     ]
     dept_id: Annotated[SnowflakeIdInput | None, Field(None, description="部门编号，同时筛选子部门")]
     role_id: Annotated[SnowflakeIdInput | None, Field(None, description="角色编号")]
-    fields: Annotated[list[str] | None, Field(None, description="导出的字段列表")]
     model_config = {
         "json_schema_extra": {
             "examples": [
@@ -34,7 +33,6 @@ class UserPageReqVO(PageQuery):
                     "deptId": "1024",
                     "roleId": "1024",
                     "pageSize": 10,
-                    "fields": ["username", "mobile", "status", "createTime"],
                     "page": 1,
                 }
             ]

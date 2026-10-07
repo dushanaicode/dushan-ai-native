@@ -17,7 +17,7 @@
     "bad_gateway": "Bad gateway",
     "service_unavailable": "Service temporarily unavailable",
     "repeated_requests": "Repeated request, please try again later",
-    "demo_deny": "Demo mode: write operations are disabled",
+    "demo_deny": "Demo accounts can only view data, not modify it",
     "signature_mismatch": "Signature mismatch"
   },
   "validation": {

@@ -194,7 +194,7 @@ def test_memory_download_preserves_buffer_and_enforces_policy():
         )
     ).from_bytes(b"x", "a.txt")
     assert inline.headers["cache-control"] == "private, max-age=60"
-    assert inline.headers["content-disposition"].startswith("inline;")
+    assert inline.headers["content-disposition"].startswith("attachment;")
     assert result.excel(b"sheet", "a.xlsx").media_type.endswith("spreadsheetml.sheet")
 
 

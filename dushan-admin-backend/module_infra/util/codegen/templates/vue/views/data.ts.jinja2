@@ -1,0 +1,244 @@
+import type { VbenFormSchema } from '#/adapter/form';
+import type { VxeTableGridOptions } from '#/adapter/vxe-table';
+{% set has_dict = [] %}
+{% for column in columns %}{% if column.dict_type %}{% if has_dict.append(1) %}{% endif %}{% endif %}{% endfor %}
+{% if has_dict %}
+
+import { useDictionary } from '#/services/dictionary/context';
+{% endif %}
+
+/** 新增/修改的表单 schema */
+export function useFormSchema(): VbenFormSchema[] {
+  {% if writable_columns | selectattr('dict_type') | list %}
+  const dictionary = useDictionary();
+  {% endif %}
+  return [
+    {
+      component: 'Input',
+      fieldName: 'id',
+      dependencies: {
+        triggerFields: [],
+        resolve: () => ({ show: false }),
+      },
+    },
+    {% for column in writable_columns %}
+    {% if column.field_name not in ['creator', 'create_time', 'updater', 'update_time', 'deleted', 'tenant_id'] %}
+    {
+      fieldName: '{{ column.field_name | camel_case }}',
+      label: {{ column.column_comment | jsrepr }},
+      {% if column.dict_type %}
+      component: '{{ 'RadioGroup' if column.html_type == 'radio' else 'CheckboxGroup' if column.html_type == 'checkbox' else 'Select' }}',
+      componentProps: () => ({
+        placeholder: {{ ('请选择' ~ column.column_comment) | jsrepr }},
+        {{ 'clearable' if table.front_type == 0 else 'allowClear' }}: true,
+        options: dictionary.getDictOptions({{ column.dict_type | jsrepr }}{% if column.field_type == 'int' %}, 'number'{% endif %}),
+      }),
+      {% elif column.field_name.endswith('_id') and column.field_type == 'int' %}
+      component: 'Input',
+      {% elif column.html_type == 'select' %}
+      component: 'Select',
+      componentProps: {
+        placeholder: {{ ('请选择' ~ column.column_comment) | jsrepr }},
+        {{ 'clearable' if table.front_type == 0 else 'allowClear' }}: true,
+      },
+      {% elif column.html_type == 'radio' %}
+      component: 'RadioGroup',
+      componentProps: {
+        options: [],
+        buttonStyle: 'solid',
+        optionType: 'button',
+      },
+      {% elif column.html_type == 'datetime' %}
+      {% if column.field_type == 'time' %}
+      component: 'TimePicker',
+      componentProps: {
+        format: 'HH:mm:ss',
+        valueFormat: 'HH:mm:ss',
+        placeholder: {{ ('请选择' ~ column.column_comment) | jsrepr }},
+      },
+      {% else %}
+      component: 'DatePicker',
+      componentProps: {
+        valueFormat: '{{ 'YYYY-MM-DD' if column.field_type == 'date' else 'YYYY-MM-DD HH:mm:ss' }}',
+        {% if table.front_type == 0 %}
+        type: '{{ 'date' if column.field_type == 'date' else 'datetime' }}',
+        {% elif column.field_type != 'date' %}
+        showTime: true,
+        {% endif %}
+        placeholder: {{ ('请选择' ~ column.column_comment) | jsrepr }},
+      },
+      {% endif %}
+      {% elif column.html_type == 'textarea' %}
+      component: 'Textarea',
+      componentProps: {
+        placeholder: {{ ('请输入' ~ column.column_comment) | jsrepr }},
+      },
+      {% elif column.field_type in ['int', 'float'] %}
+      component: 'InputNumber',
+      componentProps: {
+        placeholder: {{ ('请输入' ~ column.column_comment) | jsrepr }},
+      },
+      {% else %}
+      component: 'Input',
+      componentProps: {
+        placeholder: {{ ('请输入' ~ column.column_comment) | jsrepr }},
+      },
+      {% endif %}
+      {% if not column.nullable %}
+      rules: 'required',
+      {% endif %}
+    },
+    {% endif %}
+    {% endfor %}
+  ];
+}
+{% if not is_tree %}
+
+/** 搜索表单 schema */
+export function useGridFormSchema(): VbenFormSchema[] {
+  {% if list_columns | selectattr('dict_type') | list %}
+  const dictionary = useDictionary();
+  {% endif %}
+  return [
+    {% for column in list_columns %}
+    {% if column.field_name not in ['id', 'creator', 'create_time', 'updater', 'update_time', 'deleted', 'tenant_id'] %}
+    {
+      fieldName: '{{ column.field_name | camel_case }}',
+      label: {{ column.column_comment | jsrepr }},
+      {% if column.dict_type %}
+      {# 有字典类型，优先用 Select #}
+      component: 'Select',
+      componentProps: () => ({
+        placeholder: {{ ('请选择' ~ column.column_comment) | jsrepr }},
+        {{ 'clearable' if table.front_type == 0 else 'allowClear' }}: true,
+        options: dictionary.getDictOptions({{ column.dict_type | jsrepr }}{% if column.field_type == 'int' %}, 'number'{% endif %}),
+      }),
+      {% elif column.field_name.endswith('_id') and column.field_type == 'int' %}
+      component: 'Input',
+      {% elif column.html_type == 'select' %}
+      component: 'Select',
+      componentProps: {
+        placeholder: {{ ('请选择' ~ column.column_comment) | jsrepr }},
+        clearable: true,
+      },
+      {% elif column.html_type == 'datetime' %}
+      {% if column.field_type == 'time' %}
+      component: '{{ 'RangePicker' if column.list_operation_condition == 'BETWEEN' and table.front_type == 1 else 'TimePicker' }}',
+      componentProps: {
+        format: 'HH:mm:ss',
+        valueFormat: 'HH:mm:ss',
+        {% if column.list_operation_condition == 'BETWEEN' %}
+        {% if table.front_type == 0 %}
+        isRange: true,
+        {% else %}
+        picker: 'time',
+        {% endif %}
+        {% endif %}
+      },
+      {% elif column.list_operation_condition == 'BETWEEN' %}
+      component: 'RangePicker',
+      componentProps: {
+        valueFormat: '{{ 'YYYY-MM-DD' if column.field_type == 'date' else 'YYYY-MM-DD HH:mm:ss' }}',
+        {% if table.front_type == 0 %}
+        type: '{{ 'daterange' if column.field_type == 'date' else 'datetimerange' }}',
+        {% elif column.field_type != 'date' %}
+        showTime: true,
+        {% endif %}
+      },
+      {% else %}
+      component: 'DatePicker',
+      componentProps: {
+        valueFormat: '{{ 'YYYY-MM-DD' if column.field_type == 'date' else 'YYYY-MM-DD HH:mm:ss' }}',
+        {% if table.front_type == 0 %}
+        type: '{{ 'date' if column.field_type == 'date' else 'datetime' }}',
+        {% elif column.field_type != 'date' %}
+        showTime: true,
+        {% endif %}
+      },
+      {% endif %}
+      {% else %}
+      component: 'Input',
+      componentProps: {
+        placeholder: {{ ('请输入' ~ column.column_comment) | jsrepr }},
+        clearable: true,
+      },
+      {% endif %}
+    },
+    {% endif %}
+    {% endfor %}
+  ];
+}
+{% endif %}
+
+/** 表格列 */
+export function useGridColumns(): VxeTableGridOptions['columns'] {
+  return [
+    { type: 'checkbox', width: 40 },
+    {% for column in list_result_columns %}
+    {% if column.field_name not in ['id', 'creator', 'create_time', 'updater', 'update_time', 'deleted', 'tenant_id'] %}
+    {
+      field: '{{ column.field_name | camel_case }}',
+      title: {{ column.column_comment | jsrepr }},
+      minWidth: 120,
+      {% if is_tree and tree_name_column and column.field_name == tree_name_column.field_name %}
+      treeNode: true,
+      align: 'left',
+      fixed: 'left',
+      {% endif %}
+      {% if column.dict_type %}
+      cellRender: { name: 'CellDict', props: { type: {{ column.dict_type | jsrepr }} } },
+      {% endif %}
+      {% if column.field_type == 'datetime' %}
+      formatter: 'formatDateTime',
+      {% endif %}
+    },
+    {% endif %}
+    {% endfor %}
+    {
+      field: 'createTime',
+      title: '创建时间',
+      minWidth: 180,
+      formatter: 'formatDateTime',
+    },
+    {
+      title: '操作',
+      width: 220,
+      fixed: 'right',
+      slots: { default: 'actions' },
+    },
+  ];
+}
+{% if is_sub %}
+
+{% for sub in sub_tables %}
+/** {{ sub.table.class_comment or sub.table.table_comment }} 子表列 */
+export function useSub{{ sub.table.class_name }}GridColumns(): VxeTableGridOptions['columns'] {
+  return [
+    {% for column in sub.columns %}
+    {% if column.field_name not in ['id', 'creator', 'create_time', 'updater', 'update_time', 'deleted', 'tenant_id'] %}
+    {% if sub.sub_join_column and column.field_name == sub.sub_join_column.field_name %}
+    {% else %}
+    {
+      field: '{{ column.field_name | camel_case }}',
+      title: {{ column.column_comment | jsrepr }},
+      minWidth: 120,
+      {% if column.dict_type %}
+      cellRender: { name: 'CellDict', props: { type: {{ column.dict_type | jsrepr }} } },
+      {% endif %}
+      {% if column.field_type == 'datetime' %}
+      formatter: 'formatDateTime',
+      {% endif %}
+    },
+    {% endif %}
+    {% endif %}
+    {% endfor %}
+    {
+      field: 'createTime',
+      title: '创建时间',
+      minWidth: 180,
+      formatter: 'formatDateTime',
+    },
+  ];
+}
+{% endfor %}
+{% endif %}

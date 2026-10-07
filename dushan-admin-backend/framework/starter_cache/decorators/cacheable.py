@@ -14,7 +14,7 @@ from framework.starter_cache.exception.cache_exception import CacheException
 from framework.starter_cache.lock.distributed_lock import DistributedLock
 from framework.starter_cache.model.cache_key import CacheKey
 from framework.starter_cache.model.cache_read_result import CacheReadResult
-from framework.starter_di.context.get_bean import get_bean
+from framework.starter_di.context.application_context import ApplicationContext
 
 
 class Cacheable:
@@ -22,14 +22,17 @@ class Cacheable:
 
     用法：
 
-        @cache(SystemCacheKeys.ROLE, key="id:{{role_id}}", ttl_seconds=3600)
-        async def get_role(self, role_id: int) -> RoleDO | None: ...
+        @cache(SystemCacheKeyConstants.ROLE, key="id:{{role_id}}", ttl_seconds=3600)
+        async def get_role(self, role_id: int) -> RoleCacheDTO | None:
+            role = await self.role_mapper.select_by_id(role_id)
+            return RoleCacheDTO.model_validate(role) if role is not None else None
 
     被装饰函数必须声明可解析的返回类型：缓存里存的是 JSON，读回后要按声明的类型
     重新校验，否则调用方会拿到 dict 而不是模型对象。只有来自缓存的值才做这次校验，
-    刚回源得到的对象原样返回。校验失败按缓存内容损坏处理，删除后重新回源。
+    刚回源得到的对象原样返回，因此回源方法必须显式把 ORM DO 转为声明的 DTO。
+    校验失败按缓存内容损坏处理，删除后重新回源。
 
-    组件每次调用都通过 get_bean 从当前应用解析，绝不在类上缓存实例；
+    组件每次调用都通过 ApplicationContext.lookup 从当前应用解析，绝不在类上缓存实例；
     否则第一个应用创建的 CacheHandler 会被之后所有应用共用，跨应用串数据。
     """
 
@@ -71,8 +74,8 @@ class Cacheable:
             @wraps(func)
             async def wrapper(*args: Any, **kwargs: Any) -> Any:
                 identifier = KeyBuilder.build_identifier(key, func, signature, args, kwargs)
-                handler = get_bean(CacheHandler)
-                return await get_bean(CacheLoadThroughCoordinator).get_or_load(
+                handler = ApplicationContext.lookup(CacheHandler)
+                return await ApplicationContext.lookup(CacheLoadThroughCoordinator).get_or_load(
                     full_key=handler.build_full_key(cache_key, identifier),
                     read=lambda: cls._read_validated(handler, cache_key, identifier, adapter),
                     delete_corrupted=lambda: handler.delete(cache_key, identifier),

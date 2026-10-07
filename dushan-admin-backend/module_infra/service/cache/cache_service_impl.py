@@ -45,7 +45,6 @@ class CacheServiceImpl(CacheService):
             "system:social_client",
             "system:tenant_package",
             "infra:monitor_redis_info",
-            "infra:file_config_cache",
             "security:permissions",
         }
     )

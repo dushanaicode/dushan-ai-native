@@ -13,7 +13,7 @@ from fixtures.config_factory import ConfigFactory
 from fixtures.database_fixtures import TARGETS
 from framework.starter_job.core.job_service import JobService
 from framework.starter_job.model.job_definition import JobDefinition
-from server.starter_server import create_app
+from server.starter_server import StarterServer
 
 SOURCE = """
 import asyncio
@@ -38,7 +38,7 @@ from framework.starter_job.spi.job_record_provider import JobRecordProvider
 from framework.starter_job.spi.tenant_job_target_provider import TenantJobTargetProvider
 from framework.starter_job.model.tenant_job_lease import TenantJobLease
 from framework.starter_job.exception.job_result_unknown import JobResultUnknown
-from framework.starter_di.context.get_bean import get_bean
+from framework.starter_di.context.application_context import ApplicationContext
 from framework.starter_tenant.context.tenant_context import TenantContext
 from framework.starter_security.spi.token_provider import TokenProvider
 from framework.starter_security.spi.permission_provider import PermissionProvider
@@ -122,7 +122,7 @@ class Controlled(JobHandler):
         self.probe.peak=max(self.probe.peak,self.probe.active)
         self.probe.runs.append((context.request_id,context.attempt))
         self.probe.tenants.append(context.tenant_id)
-        if context.tenant_id is not None: assert get_bean(TenantContext).get_required_tenant_id()==context.tenant_id
+        if context.tenant_id is not None: assert ApplicationContext.lookup(TenantContext).get_required_tenant_id()==context.tenant_id
         self.probe.entered.set()
         try:
             if parameters.mode=="wait": await self.probe.release.wait()
@@ -398,7 +398,7 @@ async def job_case(job_target, config_dir, module_package, tmp_path, request):
             configuration["modules"]["packages"].append(tenant_package)
             configuration["modules"]["enabled"].append(tenant_package)
         path = config_dir(configuration)
-        app = create_app(base_dir=path, environ={})
+        app = StarterServer.create_app(base_dir=path, environ={})
         async with app.router.lifespan_context(app):
             with app.state.application_context.execution():
                 service = app.state.application_context.container.get(JobService)

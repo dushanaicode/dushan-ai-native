@@ -14,5 +14,6 @@ class DataAccessProviderAdapter(DataAccessProvider):
     def __init__(self, service: DataPermissionService):
         self.service = service
 
-    def enter(self, identity):
-        return self.service.enter(identity)
+    def enter(self, identity, *, capability=None):
+        """传递本次执行能力，由数据权限服务建立并释放资源豁免。"""
+        return self.service.enter(identity, capability=capability)

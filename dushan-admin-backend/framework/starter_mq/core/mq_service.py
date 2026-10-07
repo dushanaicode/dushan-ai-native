@@ -27,6 +27,7 @@ class MQService:
         return self.runtime
 
     async def prepare(self, command) -> PreparedMessage:
+        """按当前可信身份签发消息，能力声明只约束工作负载发布。"""
         runtime = self.require_runtime()
         try:
             BackendCapabilities.for_mode(runtime.settings.backend, command.mode)
@@ -40,14 +41,14 @@ class MQService:
         workload = runtime.security.context.current_workload()
         if workload is not None:
             authority, tenant_id = "workload", workload.tenant_id
+            capability = command.workload_capability
             proof = await runtime.security.issue_workload_message(
-                payload, audience=command.destination, capability=command.capability
+                payload, audience=command.destination, capability=capability
             )
         else:
-            if command.capability is not None:
-                raise MQException(MQErrorCodes.AUTHENTICATION)
             identity = runtime.security.context.require()
             authority, tenant_id = "session", identity.tenant_id
+            capability = None
             proof = await runtime.security.issue_message(payload, audience=command.destination)
         if tenant_id is not None:
             if (
@@ -61,7 +62,7 @@ class MQService:
             message_id=command.id(),
             destination=command.destination,
             authority=authority,
-            capability=command.capability,
+            capability=capability,
             tenant_id=tenant_id,
             proof=base64.b64encode(proof).decode(),
             payload=base64.b64encode(payload).decode(),

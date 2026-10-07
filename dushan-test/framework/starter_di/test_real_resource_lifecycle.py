@@ -20,14 +20,14 @@ from framework.starter_config.provider.bootstrap_config_error import BootstrapCo
 from framework.starter_database.exception.database_exception import DatabaseException
 from framework.starter_database.session.session_provider import SessionProvider
 from framework.starter_database.starter.database_starter import DatabaseStarter
+from framework.starter_di.context.application_context import ApplicationContext
 from framework.starter_di.context.application_state_enum import ApplicationStateEnum
-from framework.starter_di.context.get_bean import get_bean
 from framework.starter_di.decorators.di_dependency import DiDependency
 from framework.starter_di.definitions.constants.di_error_codes import DiErrorCodes
 from framework.starter_di.definitions.enums.container_state_enum import ContainerStateEnum
 from framework.starter_di.exception.di_exception import DiException
-from server.bootstrap.bootstrapper import BootstrapError
-from server.bootstrap.step_registry import BootstrapStepSpec
+from server.bootstrap.bootstrap_error import BootstrapError
+from server.bootstrap.bootstrap_step_spec import BootstrapStepSpec
 from server.bootstrap.steps.cache_step import CacheStep
 
 pytestmark = requires_redis
@@ -132,7 +132,9 @@ def assert_closed(app, resources):
 
 
 async def roundtrip(database, cache):
-    assert database is get_bean(SessionProvider) and cache is get_bean(CacheManager)
+    assert database is ApplicationContext.lookup(
+        SessionProvider
+    ) and cache is ApplicationContext.lookup(CacheManager)
     async with database.read_session() as session:
         value = await session.scalar(select(literal(7)))
     client = cache.get_default_client()

@@ -13,9 +13,9 @@ from framework.starter_di.public import (
     Inject,
     service,
 )
-from module_infra.controller.admin.config.vo.type.type_page_req_vo import ConfigTypePageReqVO
-from module_infra.controller.admin.config.vo.type.type_save_req_vo import ConfigTypeSaveReqVO
-from module_infra.dal.dataobject.config.config_type_do import InfraConfigTypeDO
+from module_infra.controller.admin.config.vo.type.config_type_page_req_vo import ConfigTypePageReqVO
+from module_infra.controller.admin.config.vo.type.config_type_save_req_vo import ConfigTypeSaveReqVO
+from module_infra.dal.dataobject.config.infra_config_type_do import InfraConfigTypeDO
 from module_infra.dal.mapper.config.config_data_mapper import ConfigDataMapper
 from module_infra.dal.mapper.config.config_type_mapper import ConfigTypeMapper
 from module_infra.definitions.constants.error_code_constants import ErrorCodeConstants
@@ -50,7 +50,11 @@ class ConfigTypeServiceImpl(ConfigTypeService):
         """创建配置类型"""
         await self._validate_config_type_name_unique(None, create_req_vo.name)
         await self._validate_config_type_code_unique(None, create_req_vo.code)
-        config_type = InfraConfigTypeDO(**create_req_vo.model_dump(by_alias=False))
+        config_type = InfraConfigTypeDO(
+            **create_req_vo.to_write_dict(
+                fields={"id", "module", "name", "code", "status", "remark"}, exclude_unset=False
+            )
+        )
         await self.config_type_mapper.insert(config_type)
         return config_type.id
 
@@ -60,7 +64,11 @@ class ConfigTypeServiceImpl(ConfigTypeService):
         await self._validate_config_type_exists(update_req_vo.id)
         await self._validate_config_type_name_unique(update_req_vo.id, update_req_vo.name)
         await self._validate_config_type_code_unique(update_req_vo.id, update_req_vo.code)
-        update_obj = InfraConfigTypeDO(**update_req_vo.model_dump(by_alias=False))
+        update_obj = InfraConfigTypeDO(
+            **update_req_vo.to_write_dict(
+                fields={"id", "module", "name", "code", "status", "remark"}, exclude_unset=False
+            )
+        )
         await self.config_type_mapper.update_by_id(update_obj)
 
     @override
@@ -118,10 +126,8 @@ class ConfigTypeServiceImpl(ConfigTypeService):
         if id is None or config_type.id != id:
             raise ServiceException(ErrorCodeConstants.CONFIG_TYPE_CODE_DUPLICATE)
 
-    async def _validate_config_type_exists(self, id: int | None) -> InfraConfigTypeDO | None:
+    async def _validate_config_type_exists(self, id: int) -> InfraConfigTypeDO:
         """校验配置类型是否存在"""
-        if id is None:
-            return None
         config_type = await self.config_type_mapper.select_by_id(id)
         if config_type is None:
             raise ServiceException(ErrorCodeConstants.CONFIG_TYPE_NOT_EXISTS)

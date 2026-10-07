@@ -10,7 +10,7 @@ from framework.starter_web.public import (
     Result,
     RoutePolicy,
 )
-from module_infra.controller.admin.server.vo.server_resp_vo import ServerMonitorRespVO
+from module_infra.controller.admin.server.vo.server_monitor_resp_vo import ServerMonitorRespVO
 from module_infra.service.server.server_service import ServerService
 
 server_controller = APIRouter(prefix="/server", tags=["Infra - 服务器信息管理"])

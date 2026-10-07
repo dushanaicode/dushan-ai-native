@@ -1,9 +1,13 @@
 from typing import Protocol, runtime_checkable
 
-from module_system.controller.admin.auth.vo.auth_login_resp_vo import AuthLoginRespVO
-from module_system.controller.admin.auth.vo.auth_qr_create_resp_vo import AuthQrCreateRespVO
-from module_system.controller.admin.auth.vo.auth_qr_scan_resp_vo import AuthQrScanRespVO
-from module_system.controller.admin.auth.vo.auth_qr_status_resp_vo import AuthQrStatusRespVO
+from module_system.controller.admin.auth.vo.auth.auth_login_resp_vo import AuthLoginRespVO
+from module_system.controller.admin.auth.vo.qr_login.auth_qr_create_resp_vo import (
+    AuthQrCreateRespVO,
+)
+from module_system.controller.admin.auth.vo.qr_login.auth_qr_scan_resp_vo import AuthQrScanRespVO
+from module_system.controller.admin.auth.vo.qr_login.auth_qr_status_resp_vo import (
+    AuthQrStatusRespVO,
+)
 
 
 @runtime_checkable

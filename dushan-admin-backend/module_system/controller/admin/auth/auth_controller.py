@@ -1,6 +1,7 @@
 import secrets
 
-from fastapi import APIRouter, Depends, Query, Request, Response
+from fastapi import APIRouter, Depends, Query, Request, Response, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from starlette.responses import RedirectResponse
 
 from framework.starter_di.public import (
@@ -21,31 +22,43 @@ from framework.starter_tenant.public import (
 )
 from framework.starter_web.public import (
     AccessLogPolicy,
+    ResponseHeaders,
     Result,
     RoutePolicy,
 )
 from module_system.config.system_settings import SystemSettings
 from module_system.controller.admin.auth.auth_cookies import AuthCookies
-from module_system.controller.admin.auth.vo.auth_bind_mobile_req_vo import AuthBindMobileReqVO
-from module_system.controller.admin.auth.vo.auth_login_req_vo import AuthLoginReqVO
-from module_system.controller.admin.auth.vo.auth_login_resp_vo import AuthLoginRespVO
-from module_system.controller.admin.auth.vo.auth_permission_info_resp_vo import (
+from module_system.controller.admin.auth.vo.auth.auth_bind_mobile_req_vo import AuthBindMobileReqVO
+from module_system.controller.admin.auth.vo.auth.auth_bind_mobile_sms_send_req_vo import (
+    AuthBindMobileSmsSendReqVO,
+)
+from module_system.controller.admin.auth.vo.auth.auth_login_req_vo import AuthLoginReqVO
+from module_system.controller.admin.auth.vo.auth.auth_login_resp_vo import AuthLoginRespVO
+from module_system.controller.admin.auth.vo.auth.auth_permission_info_resp_vo import (
     AuthPermissionInfoRespVO,
 )
-from module_system.controller.admin.auth.vo.auth_recovery_send_req_vo import AuthRecoverySendReqVO
-from module_system.controller.admin.auth.vo.auth_register_req_vo import AuthRegisterReqVO
-from module_system.controller.admin.auth.vo.auth_reset_password_req_vo import AuthResetPasswordReqVO
-from module_system.controller.admin.auth.vo.auth_sms_login_req_vo import AuthSmsLoginReqVO
-from module_system.controller.admin.auth.vo.auth_sms_send_req_vo import AuthSmsSendReqVO
-from module_system.controller.admin.auth.vo.auth_social_auth_redirect_req_vo import (
+from module_system.controller.admin.auth.vo.auth.auth_recovery_send_req_vo import (
+    AuthRecoverySendReqVO,
+)
+from module_system.controller.admin.auth.vo.auth.auth_register_req_vo import AuthRegisterReqVO
+from module_system.controller.admin.auth.vo.auth.auth_reset_password_req_vo import (
+    AuthResetPasswordReqVO,
+)
+from module_system.controller.admin.auth.vo.auth.auth_sms_login_req_vo import AuthSmsLoginReqVO
+from module_system.controller.admin.auth.vo.auth.auth_sms_send_req_vo import AuthSmsSendReqVO
+from module_system.controller.admin.auth.vo.auth.auth_social_auth_redirect_req_vo import (
     AuthSocialAuthRedirectReqVO,
 )
-from module_system.controller.admin.auth.vo.auth_social_login_req_vo import AuthSocialLoginReqVO
-from module_system.controller.admin.auth.vo.auth_social_provider_resp_vo import (
+from module_system.controller.admin.auth.vo.auth.auth_social_login_req_vo import (
+    AuthSocialLoginReqVO,
+)
+from module_system.controller.admin.auth.vo.auth.auth_social_provider_resp_vo import (
     AuthSocialProviderRespVO,
 )
-from module_system.controller.admin.auth.vo.auth_tenant_config_resp_vo import AuthTenantConfigRespVO
-from module_system.definitions.constants.public_contexts import PublicContexts
+from module_system.controller.admin.auth.vo.auth.auth_tenant_config_resp_vo import (
+    AuthTenantConfigRespVO,
+)
+from module_system.definitions.constants.public_context_constants import PublicContextConstants
 from module_system.definitions.enums.logger.login_log_type_enum import LoginLogTypeEnum
 from module_system.service.auth.auth_admin_auth_service import AuthAdminAuthService
 from module_system.service.oauth2.oauth2_token_service import OAuth2TokenService
@@ -65,6 +78,10 @@ class AuthController:
         request: Request,
         clients: SocialClientService = Depends(DiDependency(SocialClientService)),
     ) -> RedirectResponse:
+        """OAuth 授权码回调：查询参数方式由第三方 GET 重定向，form_post 方式由第三方 POST 表单。
+
+        按一次性 state 消费中转记录，只把 state 与授权码转交前端，不修改任何账号数据。
+        """
         parameters = (
             request.query_params
             if request.method == "GET"
@@ -73,13 +90,13 @@ class AuthController:
         url = await clients.relay_callback(list(parameters.multi_items()))
         return RedirectResponse(
             url,
-            status_code=303,
-            headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"},
+            status_code=status.HTTP_303_SEE_OTHER,
+            headers=ResponseHeaders.with_no_store({"Referrer-Policy": "no-referrer"}),
         )
 
     @staticmethod
     @auth_controller.get("/social-providers")
-    @RoutePolicy.public(context=PublicContexts.TENANT_SELECTION)
+    @RoutePolicy.public(context=PublicContextConstants.TENANT_SELECTION)
     @AccessLogPolicy(enabled=False)
     async def social_providers(
         clients: SocialClientService = Depends(DiDependency(SocialClientService)),
@@ -112,7 +129,7 @@ class AuthController:
 
     @staticmethod
     @auth_controller.post("/login")
-    @RoutePolicy.public(context=PublicContexts.TENANT_SELECTION)
+    @RoutePolicy.public(context=PublicContextConstants.TENANT_SELECTION)
     @AccessLogPolicy(enabled=False)
     @rate_limit(
         "system.auth.login", rules=(RateLimitRule(algorithm="fixed", capacity=5, window_ms=60000),)
@@ -130,7 +147,7 @@ class AuthController:
 
     @staticmethod
     @auth_controller.post("/register")
-    @RoutePolicy.public(context=PublicContexts.TENANT_SELECTION)
+    @RoutePolicy.public(context=PublicContextConstants.TENANT_SELECTION)
     @AccessLogPolicy(enabled=False)
     @rate_limit(
         "system.auth.register",
@@ -149,7 +166,7 @@ class AuthController:
 
     @staticmethod
     @auth_controller.post("/sms-login")
-    @RoutePolicy.public(context=PublicContexts.TENANT_SELECTION)
+    @RoutePolicy.public(context=PublicContextConstants.TENANT_SELECTION)
     @AccessLogPolicy(enabled=False)
     @rate_limit(
         "system.auth.sms_login",
@@ -168,7 +185,7 @@ class AuthController:
 
     @staticmethod
     @auth_controller.post("/social-login")
-    @RoutePolicy.public(context=PublicContexts.SOCIAL_LOGIN)
+    @RoutePolicy.public(context=PublicContextConstants.SOCIAL_LOGIN)
     @AccessLogPolicy(enabled=False)
     @rate_limit(
         "system.auth.social_login",
@@ -187,7 +204,7 @@ class AuthController:
 
     @staticmethod
     @auth_controller.post("/send-sms-code")
-    @RoutePolicy.public(context=PublicContexts.TENANT_SELECTION)
+    @RoutePolicy.public(context=PublicContextConstants.TENANT_SELECTION)
     @AccessLogPolicy(enabled=False)
     @rate_limit(
         "system.auth.send_sms_code",
@@ -203,7 +220,7 @@ class AuthController:
 
     @staticmethod
     @auth_controller.post("/send-password-reset-code")
-    @RoutePolicy.public(context=PublicContexts.TENANT_SELECTION)
+    @RoutePolicy.public(context=PublicContextConstants.TENANT_SELECTION)
     @AccessLogPolicy(enabled=False)
     @rate_limit(
         "system.auth.send_reset_code",
@@ -218,7 +235,7 @@ class AuthController:
 
     @staticmethod
     @auth_controller.post("/reset-password")
-    @RoutePolicy.public(context=PublicContexts.TENANT_SELECTION)
+    @RoutePolicy.public(context=PublicContextConstants.TENANT_SELECTION)
     @AccessLogPolicy(enabled=False)
     @rate_limit(
         "system.auth.reset_password",
@@ -242,7 +259,8 @@ class AuthController:
         auth: AuthAdminAuthService = Depends(DiDependency(AuthAdminAuthService)),
         settings: SystemSettings = Depends(DiDependency(SystemSettings)),
     ) -> Result[AuthLoginRespVO]:
-        AuthCookies.check_origin(request, settings, required=True)
+        """校验请求来源后用刷新 Cookie 换取新的登录凭据。"""
+        AuthCookies.require_origin(request, settings)
         secret = request.cookies.get(settings.refresh_cookie_name)
         if secret is None:
             raise SecurityException(SecurityErrorCodes.MISSING)
@@ -259,13 +277,15 @@ class AuthController:
         response: Response,
         auth: AuthAdminAuthService = Depends(DiDependency(AuthAdminAuthService)),
         settings: SystemSettings = Depends(DiDependency(SystemSettings)),
+        credentials: HTTPAuthorizationCredentials | None = Depends(HTTPBearer(auto_error=False)),
     ) -> Result[bool]:
-        AuthCookies.check_origin(
-            request, settings, required=settings.refresh_cookie_name in request.cookies
-        )
-        scheme, _, secret = request.headers.get("authorization", "").partition(" ")
-        if scheme.lower() == "bearer" and secret:
-            await auth.logout(secret, LoginLogTypeEnum.LOGOUT_SELF.code)
+        """注销已有 Bearer 凭据并清除刷新 Cookie，允许无凭据重复登出。"""
+        if settings.refresh_cookie_name in request.cookies:
+            AuthCookies.require_origin(request, settings)
+        else:
+            AuthCookies.check_origin(request, settings)
+        if credentials is not None:
+            await auth.logout(credentials.credentials, LoginLogTypeEnum.LOGOUT_SELF.code)
         AuthCookies.clear_refresh(response, settings)
         return Result.success(True)
 
@@ -289,6 +309,21 @@ class AuthController:
         return Result.success(info.permissions)
 
     @staticmethod
+    @auth_controller.post("/send-bind-mobile-code")
+    @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT)
+    @AccessLogPolicy(enabled=False)
+    @rate_limit(
+        "system.auth.send_bind_mobile_code",
+        rules=(RateLimitRule(algorithm="fixed", capacity=5, window_ms=60000),),
+    )
+    async def send_bind_mobile_code(
+        request: Request,
+        req_vo: AuthBindMobileSmsSendReqVO,
+        auth: AuthAdminAuthService = Depends(DiDependency(AuthAdminAuthService)),
+    ) -> Result[int]:
+        return Result.success(await auth.send_bind_mobile_code(req_vo))
+
+    @staticmethod
     @auth_controller.post("/bind-mobile")
     @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT)
     async def bind_mobile(
@@ -300,8 +335,8 @@ class AuthController:
         return Result.success(True)
 
     @staticmethod
-    @auth_controller.get("/social-auth-redirect")
-    @RoutePolicy.public(context=PublicContexts.TENANT_SELECTION)
+    @auth_controller.post("/social-auth-redirect")
+    @RoutePolicy.public(context=PublicContextConstants.TENANT_SELECTION)
     async def social_auth_redirect(
         response: Response,
         req_vo: AuthSocialAuthRedirectReqVO = Query(),

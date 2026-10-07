@@ -2,7 +2,7 @@ from fastapi import Request
 
 from framework.starter_security.definitions.constants.security_error_codes import SecurityErrorCodes
 from framework.starter_security.exception.security_exception import SecurityException
-from framework.starter_web.exception.exception_handler import GlobalExceptionHandler
+from framework.starter_web.exception.global_exception_handler import GlobalExceptionHandler
 
 
 class SecurityExceptionHandler:

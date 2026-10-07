@@ -1,5 +1,7 @@
 from module_system.api.social.dto.social_user_bind_req_dto import SocialUserBindReqDTO
-from module_system.controller.admin.social.vo.user.user_bind_req_vo import SocialUserBindReqVO
+from module_system.controller.admin.social.vo.user.social_user_bind_req_vo import (
+    SocialUserBindReqVO,
+)
 
 
 class SocialUserConvert:

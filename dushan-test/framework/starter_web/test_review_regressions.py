@@ -16,8 +16,8 @@ from framework.starter_web.response.file_result import FileResult
 from framework.starter_web.response.result import Result
 from framework.starter_web.routing.route_policy import RoutePolicy
 from framework.starter_web.routing.router_registration import RouterRegistration
-from server.bootstrap.bootstrapper import BootstrapError
-from server.starter_server import create_app
+from server.bootstrap.bootstrap_error import BootstrapError
+from server.starter_server import StarterServer
 
 
 def test_custom_value_error_has_no_pydantic_english_prefix():
@@ -38,18 +38,20 @@ def test_custom_value_error_has_no_pydantic_english_prefix():
 
 
 def public_app(config_dir, **kwargs):
-    app = create_app(base_dir=config_dir(), environ={"SERVER_ENGINE": "uvicorn"}, **kwargs)
+    app = StarterServer.create_app(
+        base_dir=config_dir(), environ={"SERVER_ENGINE": "uvicorn"}, **kwargs
+    )
     RoutePolicy.public()(app.router)
     return app
 
 
 def test_unclassified_is_rejected_and_public_is_explicit(config_dir):
-    app = create_app(base_dir=config_dir(), environ={})
+    app = StarterServer.create_app(base_dir=config_dir(), environ={})
     app.get("/unclassified")(lambda: {})
     with pytest.raises(BootstrapError, match="Web 路由") as result, TestClient(app):
         pass
     assert "尚未声明" in str(result.value.__cause__)
-    app = create_app(base_dir=config_dir(), environ={})
+    app = StarterServer.create_app(base_dir=config_dir(), environ={})
     app.get("/public")(RoutePolicy.public()(lambda: {}))
     with TestClient(app) as client:
         assert client.get("/public").json() == {}
@@ -208,7 +210,7 @@ def test_protection_uses_verified_ip_for_subject_and_key(config_dir):
         pass
 
     invocation = ProtectionInvocation(protected, (), None)
-    app = create_app(
+    app = StarterServer.create_app(
         base_dir=config_dir(
             {"config": {"models": {"ip": {"trusted_proxy_cidrs": ["127.0.0.1/32"]}}}}
         ),

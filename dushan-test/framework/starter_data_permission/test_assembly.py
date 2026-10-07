@@ -21,7 +21,7 @@ from framework.starter_security.spi.data_access_provider import DataAccessProvid
 from framework.starter_security.spi.token_provider import TokenProvider
 from framework.starter_web.routing.route_policy import RoutePolicy
 from framework.starter_web.routing.router_registration import RouterRegistration
-from server.starter_server import create_app
+from server.starter_server import StarterServer
 
 SOURCE = """
 from contextlib import asynccontextmanager
@@ -105,7 +105,7 @@ async def test_scanner_di_http_and_resource_close(config_dir, module_package, tm
         async with request.app.state.database.read_session() as session:
             return (await session.scalars(select(module.Record.id))).all()
 
-    app = create_app(
+    app = StarterServer.create_app(
         steps=StarterSteps.without_tenant(),
         base_dir=config_dir(
             {

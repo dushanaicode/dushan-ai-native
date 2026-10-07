@@ -12,8 +12,8 @@ from framework.starter_di.public import (
     Inject,
     service,
 )
-from module_system.controller.admin.dict.vo.data.data_page_req_vo import DictDataPageReqVO
-from module_system.controller.admin.dict.vo.data.data_save_req_vo import DictDataSaveReqVO
+from module_system.controller.admin.dict.vo.data.dict_data_page_req_vo import DictDataPageReqVO
+from module_system.controller.admin.dict.vo.data.dict_data_save_req_vo import DictDataSaveReqVO
 from module_system.dal.dataobject.dict.dict_data_do import DictDataDO
 from module_system.dal.dataobject.dict.dict_type_do import DictTypeDO
 from module_system.dal.mapper.dict.dict_data_mapper import DictDataMapper
@@ -50,7 +50,23 @@ class DictDataServiceImpl(DictDataService):
     async def create_dict_data(self, create_req_vo: DictDataSaveReqVO) -> int:
         await self._validate_dict_type_exists(create_req_vo.dict_type)
         await self._validate_value_unique(None, create_req_vo.dict_type, create_req_vo.value)
-        dict_data = DictDataDO(**create_req_vo.model_dump(by_alias=False))
+        dict_data = DictDataDO(
+            **create_req_vo.to_write_dict(
+                fields={
+                    "id",
+                    "sort",
+                    "label",
+                    "value",
+                    "dict_type",
+                    "status",
+                    "color_type",
+                    "tag_style",
+                    "permission",
+                    "remark",
+                },
+                exclude_unset=False,
+            )
+        )
         await self.dict_data_mapper.insert(dict_data)
         return dict_data.id
 
@@ -62,7 +78,23 @@ class DictDataServiceImpl(DictDataService):
         await self._validate_value_unique(
             update_req_vo.id, update_req_vo.dict_type, update_req_vo.value
         )
-        dict_data = DictDataDO(**update_req_vo.model_dump(by_alias=False))
+        dict_data = DictDataDO(
+            **update_req_vo.to_write_dict(
+                fields={
+                    "id",
+                    "sort",
+                    "label",
+                    "value",
+                    "dict_type",
+                    "status",
+                    "color_type",
+                    "tag_style",
+                    "permission",
+                    "remark",
+                },
+                exclude_unset=False,
+            )
+        )
         await self.dict_data_mapper.update_by_id(dict_data)
 
     @override
@@ -136,18 +168,18 @@ class DictDataServiceImpl(DictDataService):
         if id is None or dict_data.id != id:
             raise ServiceException(ErrorCodeConstants.DICT_DATA_VALUE_DUPLICATE)
 
-    async def _validate_exists(self, id: int | None) -> None:
+    async def _validate_exists(self, id: int) -> DictDataDO:
         """校验字典数据是否存在"""
-        if id is None:
-            return
         dict_data = await self.dict_data_mapper.select_by_id(id)
         if dict_data is None:
             raise ServiceException(ErrorCodeConstants.DICT_DATA_NOT_EXISTS)
+        return dict_data
 
-    async def _validate_dict_type_exists(self, type_str: str) -> None:
+    async def _validate_dict_type_exists(self, type_str: str) -> DictTypeDO:
         """校验字典类型是否存在且有效"""
         dict_type: DictTypeDO | None = await self.dict_type_service.get_dict_type_by_type(type_str)
         if dict_type is None:
             raise ServiceException(ErrorCodeConstants.DICT_TYPE_NOT_EXISTS)
         if dict_type.status != StatusEnum.ENABLE.code:
             raise ServiceException(ErrorCodeConstants.DICT_TYPE_NOT_ENABLE)
+        return dict_type

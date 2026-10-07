@@ -3,18 +3,27 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from framework.starter_security.public import LoginSession
-from module_system.controller.admin.auth.vo.auth_bind_mobile_req_vo import AuthBindMobileReqVO
-from module_system.controller.admin.auth.vo.auth_login_req_vo import AuthLoginReqVO
-from module_system.controller.admin.auth.vo.auth_login_resp_vo import AuthLoginRespVO
-from module_system.controller.admin.auth.vo.auth_permission_info_resp_vo import (
+from module_system.controller.admin.auth.vo.auth.auth_bind_mobile_req_vo import AuthBindMobileReqVO
+from module_system.controller.admin.auth.vo.auth.auth_bind_mobile_sms_send_req_vo import (
+    AuthBindMobileSmsSendReqVO,
+)
+from module_system.controller.admin.auth.vo.auth.auth_login_req_vo import AuthLoginReqVO
+from module_system.controller.admin.auth.vo.auth.auth_login_resp_vo import AuthLoginRespVO
+from module_system.controller.admin.auth.vo.auth.auth_permission_info_resp_vo import (
     AuthPermissionInfoRespVO,
 )
-from module_system.controller.admin.auth.vo.auth_recovery_send_req_vo import AuthRecoverySendReqVO
-from module_system.controller.admin.auth.vo.auth_register_req_vo import AuthRegisterReqVO
-from module_system.controller.admin.auth.vo.auth_reset_password_req_vo import AuthResetPasswordReqVO
-from module_system.controller.admin.auth.vo.auth_sms_login_req_vo import AuthSmsLoginReqVO
-from module_system.controller.admin.auth.vo.auth_sms_send_req_vo import AuthSmsSendReqVO
-from module_system.controller.admin.auth.vo.auth_social_login_req_vo import AuthSocialLoginReqVO
+from module_system.controller.admin.auth.vo.auth.auth_recovery_send_req_vo import (
+    AuthRecoverySendReqVO,
+)
+from module_system.controller.admin.auth.vo.auth.auth_register_req_vo import AuthRegisterReqVO
+from module_system.controller.admin.auth.vo.auth.auth_reset_password_req_vo import (
+    AuthResetPasswordReqVO,
+)
+from module_system.controller.admin.auth.vo.auth.auth_sms_login_req_vo import AuthSmsLoginReqVO
+from module_system.controller.admin.auth.vo.auth.auth_sms_send_req_vo import AuthSmsSendReqVO
+from module_system.controller.admin.auth.vo.auth.auth_social_login_req_vo import (
+    AuthSocialLoginReqVO,
+)
 
 
 @runtime_checkable
@@ -24,6 +33,8 @@ class AuthAdminAuthService(Protocol):
     async def qr_login(self, identity: LoginSession) -> AuthLoginRespVO: ...
 
     async def send_sms_code(self, req_vo: AuthSmsSendReqVO) -> int: ...
+
+    async def send_bind_mobile_code(self, req_vo: AuthBindMobileSmsSendReqVO) -> int: ...
 
     async def sms_login(self, req_vo: AuthSmsLoginReqVO) -> AuthLoginRespVO: ...
 

@@ -11,7 +11,6 @@ from pydantic import BaseModel
 
 from fixtures.di_reference_cases import SOURCES
 from framework.starter_di.context.application_context import ApplicationContext
-from framework.starter_di.context.get_bean import get_bean
 from framework.starter_di.decorators.components import service
 
 pytestmark = pytest.mark.unit
@@ -25,7 +24,6 @@ def load_case(name, tmp_path, **values):
         "Callable": Callable,
         "functools": functools,
         "ApplicationContext": ApplicationContext,
-        "get_bean": get_bean,
         "json": json,
         **values,
     }
@@ -59,14 +57,14 @@ async def test_reference_transaction_decorators_resolve_the_current_app(contexts
 
     @case["transactional"]
     async def operation(*, fail=False):
-        provider = get_bean(SessionProvider)
+        provider = ApplicationContext.lookup(SessionProvider)
         if fail:
             raise ValueError("business failure")
         return provider
 
     @case["transactional_requires_new"]
     async def independent():
-        return get_bean(SessionProvider)
+        return ApplicationContext.lookup(SessionProvider)
 
     first, second = contexts([SessionProvider]), contexts([SessionProvider])
     await first.startup()
@@ -119,7 +117,7 @@ async def test_reference_job_and_ai_tool_use_real_task_context(contexts, tmp_pat
         {"name": "real DI lookup"}
     ]
     with current.execution():
-        assert get_bean(JobOrchestratorService).calls == [
+        assert ApplicationContext.lookup(JobOrchestratorService).calls == [
             {"job_id": 7, "handler_name": "handler", "handler_param": None}
         ]
     await current.shutdown()
@@ -140,18 +138,18 @@ async def test_reference_cache_requires_removing_class_level_service_cache(conte
     with first.execution():
         original = legacy._get_cache_handler()
     with second.execution():
-        # 原类级缓存跨应用复用了 A；仅改 get_bean 的导入不能修复这个旧用法。
+        # 原类级缓存跨应用复用了 A；仅改 lookup 的导入不能修复这个旧用法。
         assert legacy._get_cache_handler() is original
-        assert get_bean(CacheHandler) is not original
+        assert ApplicationContext.lookup(CacheHandler) is not original
 
     tree = ast.parse(SOURCES["cache"])
     owner = tree.body[0]
     method = next(node for node in owner.body if isinstance(node, ast.FunctionDef))
-    method.body = ast.parse("return get_bean(bean_type=CacheHandler)").body
+    method.body = ast.parse("return ApplicationContext.lookup(bean_type=CacheHandler)").body
     owner.body = [method]
     migrated_path = tmp_path / "migrated_cache_access.py"
     migrated_path.write_text(ast.unparse(ast.fix_missing_locations(tree)), encoding="utf-8")
-    namespace = {"CacheHandler": CacheHandler, "get_bean": get_bean}
+    namespace = {"CacheHandler": CacheHandler, "ApplicationContext": ApplicationContext}
     exec(compile(migrated_path.read_text(encoding="utf-8"), str(migrated_path), "exec"), namespace)
     migrated = namespace["Cacheable"]
     with first.execution():

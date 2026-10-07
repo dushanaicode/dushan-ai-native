@@ -14,6 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field, PlainSerializer
 
 from fixtures.config_factory import ConfigFactory
 from framework.common.enums.base_enum import BaseEnum
+from framework.common.page.config.page_settings import PageSettings
 from framework.starter_excel.config.excel_settings import ExcelSettings
 from framework.starter_excel.converter.area_converter import AreaConverter
 from framework.starter_excel.converter.dict_converter import DictConverter
@@ -140,7 +141,9 @@ async def test_real_xlsx_roundtrip_all_converters_and_lookup_scope(tmp_path):
         instant=datetime(2026, 9, 12, 12, 30),
         precise=Decimal("1234567890123456.789"),
     )
-    output = await ExcelWriter(settings()).write("数据", FullRow, [row, row], providers=providers)
+    output = await ExcelWriter(settings(), ConfigFactory.build(PageSettings, "page")).write(
+        "数据", FullRow, [row, row], providers=providers
+    )
     path = tmp_path / "roundtrip.xlsx"
     path.write_bytes(output.getvalue())
     with path.open("rb") as source:
@@ -175,7 +178,7 @@ async def test_template_dropdowns_and_formula_text():
     class OptionsRow(BaseModel):
         text: Annotated[str, ExcelColumn("文本", options=values)]
 
-    writer = ExcelWriter(settings())
+    writer = ExcelWriter(settings(), ConfigFactory.build(PageSettings, "page"))
     output = await writer.write("_excel_options", OptionsRow, [OptionsRow(text=v) for v in values])
     workbook = load_workbook(output, data_only=False)
     try:
@@ -264,7 +267,9 @@ async def test_field_serializers_are_preserved():
     class Row(BaseModel):
         text: Annotated[str, PlainSerializer(lambda _: "***"), ExcelColumn("文本")]
 
-    result = await ExcelWriter(settings()).write("数据", Row, [Row(text="private")])
+    result = await ExcelWriter(settings(), ConfigFactory.build(PageSettings, "page")).write(
+        "数据", Row, [Row(text="private")]
+    )
     assert (await ExcelReader(settings()).read(upload(result.getvalue()), TextRow))[0].text == "***"
     result.close()
 
@@ -313,7 +318,9 @@ async def test_business_provider_missing_failure_and_duplicate_labels():
         value: Annotated[str, ExcelColumn("字典", converter=DictConverter("language"))]
 
     with pytest.raises(ExcelException) as raised:
-        await ExcelWriter(settings()).write("数据", DictRow, [DictRow(value="zh")])
+        await ExcelWriter(settings(), ConfigFactory.build(PageSettings, "page")).write(
+            "数据", DictRow, [DictRow(value="zh")]
+        )
     assert raised.value.issues[0].field == "value"
 
     class Broken:
@@ -406,7 +413,9 @@ async def test_actual_iteration_and_text_limits():
     with pytest.raises(ExcelException):
         await ExcelReader(settings(max_cell_text_length=3)).read(upload(normal), TextRow)
     with pytest.raises(ExcelException):
-        await ExcelWriter(settings(max_cells=1)).write("数据", TextRow, [TextRow(text="x")])
+        await ExcelWriter(settings(max_cells=1), ConfigFactory.build(PageSettings, "page")).write(
+            "数据", TextRow, [TextRow(text="x")]
+        )
     with pytest.raises(ExcelException):
         await ExcelReader(settings(max_cells=1)).read(upload(normal), TextRow)
 
@@ -448,7 +457,9 @@ async def test_reader_writer_cancellation_closes_owned_resources(monkeypatch):
     monkeypatch.setattr(writer_module, "Workbook", track_workbook)
     monkeypatch.setattr(writer_module, "io", SimpleNamespace(BytesIO=track_buffer))
     task = asyncio.create_task(
-        ExcelWriter(settings()).write("数据", DictRow, [DictRow(value="zh")], providers=providers)
+        ExcelWriter(settings(), ConfigFactory.build(PageSettings, "page")).write(
+            "数据", DictRow, [DictRow(value="zh")], providers=providers
+        )
     )
     await started.wait()
     task.cancel()
@@ -483,7 +494,9 @@ async def test_timezone_aware_datetime_is_not_silently_changed():
         at: Annotated[datetime, ExcelColumn("时间")]
 
     with pytest.raises(ExcelException) as raised:
-        await ExcelWriter(settings()).write("数据", Row, [Row(at=datetime.now(timezone.utc))])
+        await ExcelWriter(settings(), ConfigFactory.build(PageSettings, "page")).write(
+            "数据", Row, [Row(at=datetime.now(timezone.utc))]
+        )
     assert raised.value.issues[0].field == "at"
 
 
@@ -503,8 +516,12 @@ async def test_provider_custom_failure_keeps_position_and_cause():
         ExcelReader(settings()).read(
             upload(xlsx([["字典"], ["中文"]])), DictRow, providers=providers
         ),
-        ExcelWriter(settings()).write("数据", DictRow, [DictRow(value="zh")], providers=providers),
-        ExcelWriter(settings()).template("模板", DictRow, providers=providers),
+        ExcelWriter(settings(), ConfigFactory.build(PageSettings, "page")).write(
+            "数据", DictRow, [DictRow(value="zh")], providers=providers
+        ),
+        ExcelWriter(settings(), ConfigFactory.build(PageSettings, "page")).template(
+            "模板", DictRow, providers=providers
+        ),
     ):
         with pytest.raises(ExcelException) as raised:
             await operation
@@ -545,7 +562,9 @@ async def test_dropdowns_share_total_cell_budget_and_error_cleanup(monkeypatch):
         text: Annotated[str, ExcelColumn("文本", options=("a", "b", "c"))]
 
     with pytest.raises(ExcelException) as raised:
-        await ExcelWriter(settings(max_cells=4)).write("数据", OptionsRow, [OptionsRow(text="a")])
+        await ExcelWriter(settings(max_cells=4), ConfigFactory.build(PageSettings, "page")).write(
+            "数据", OptionsRow, [OptionsRow(text="a")]
+        )
     assert raised.value.error_code == ExcelErrorCodes.LIMIT
     closed = []
     original = Workbook.close
@@ -556,7 +575,9 @@ async def test_dropdowns_share_total_cell_budget_and_error_cleanup(monkeypatch):
 
     monkeypatch.setattr(Workbook, "close", close)
     with pytest.raises(ExcelException):
-        await ExcelWriter(settings()).write("数据", TextRow, [TextRow(text="invalid\x01")])
+        await ExcelWriter(settings(), ConfigFactory.build(PageSettings, "page")).write(
+            "数据", TextRow, [TextRow(text="invalid\x01")]
+        )
     assert len(closed) == 1
 
 
@@ -583,8 +604,12 @@ async def test_operation_lookup_state_does_not_cross_applications():
     first = ExcelProviders(dictionaries=Dictionaries("一"))
     second = ExcelProviders(dictionaries=Dictionaries("二"))
     outputs = await asyncio.gather(
-        ExcelWriter(settings()).write("数据", DictRow, [DictRow(value="zh")], providers=first),
-        ExcelWriter(settings()).write("数据", DictRow, [DictRow(value="zh")], providers=second),
+        ExcelWriter(settings(), ConfigFactory.build(PageSettings, "page")).write(
+            "数据", DictRow, [DictRow(value="zh")], providers=first
+        ),
+        ExcelWriter(settings(), ConfigFactory.build(PageSettings, "page")).write(
+            "数据", DictRow, [DictRow(value="zh")], providers=second
+        ),
     )
     for output, expected in zip(outputs, ("一", "二"), strict=True):
         workbook = load_workbook(output)

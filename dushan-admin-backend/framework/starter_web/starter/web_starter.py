@@ -14,7 +14,8 @@ class WebStarter:
         self.app = routes.app
         self._created = set()
 
-    def open(self, *, components, application, configuration):
+    def open(self, *, components, application, configuration, routers):
+        """先登记宿主解析的模块路由，再注册活动 Controller；关闭时一并撤销。"""
         controllers = [item for item in components if ControllerMetadata.ATTRIBUTE in vars(item)]
         if controllers and application is None:
             raise ValueError("注册控制器要求启用 DI")
@@ -32,10 +33,14 @@ class WebStarter:
             self.app.state.web_trusted_proxies = configuration.get_config(
                 IpSettings
             ).trusted_proxy_cidrs
-        self.routes.register_controllers(
-            item for item in controllers if CandidateSelection.qualified_name(item) in selected
-        )
-        self._created = {id(route) for route in self.app.routes if id(route) not in before}
+        try:
+            for registration in routers:
+                self.routes.include(registration)
+            self.routes.register_controllers(
+                item for item in controllers if CandidateSelection.qualified_name(item) in selected
+            )
+        finally:
+            self._created = {id(route) for route in self.app.routes if id(route) not in before}
         self.routes.seal()
         logger.debug("【WebStarter】可信代理配置已装配，Controller 候选 {} 个", len(controllers))
 

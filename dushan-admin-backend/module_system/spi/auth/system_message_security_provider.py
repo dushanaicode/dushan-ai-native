@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 from datetime import datetime, timezone
+from typing import override
 from uuid import uuid4
 
 from joserfc import jwt
@@ -14,6 +15,7 @@ from framework.starter_di.public import (
     service,
 )
 from framework.starter_security.public import (
+    LoginSession,
     MessageSecurityProvider,
     SecurityErrorCodes,
     SecurityException,
@@ -80,7 +82,8 @@ class SystemMessageSecurityProvider(MessageSecurityProvider):
             raise SecurityException(SecurityErrorCodes.INVALID)
         return claims
 
-    async def issue(self, session, payload, *, audience):
+    @override
+    async def issue(self, session: LoginSession, payload: bytes, *, audience: str) -> bytes:
         return self._issue(
             session,
             payload,
@@ -90,7 +93,10 @@ class SystemMessageSecurityProvider(MessageSecurityProvider):
             family=session.family_id,
         )
 
-    async def verify(self, proof, payload, *, application_id, domain, audience):
+    @override
+    async def verify(
+        self, proof: bytes, payload: bytes, *, application_id: str, domain: str, audience: str
+    ) -> LoginSession:
         claims = self._verify(proof, payload, application_id, domain, audience)
         if claims["kind"] != "session":
             raise SecurityException(SecurityErrorCodes.INVALID)
@@ -101,7 +107,10 @@ class SystemMessageSecurityProvider(MessageSecurityProvider):
             raise SecurityException(SecurityErrorCodes.INVALID)
         return session
 
-    async def issue_workload(self, identity, payload, *, audience, capability):
+    @override
+    async def issue_workload(
+        self, identity: WorkloadIdentity, payload: bytes, *, audience: str, capability: str
+    ) -> bytes:
         if capability not in identity.capabilities:
             raise SecurityException(
                 SecurityErrorCodes.DENIED, detail=f"服务身份缺少该能力：{capability}"
@@ -116,7 +125,10 @@ class SystemMessageSecurityProvider(MessageSecurityProvider):
             tenant=identity.tenant_id,
         )
 
-    async def verify_workload(self, proof, payload, *, application_id, domain, audience):
+    @override
+    async def verify_workload(
+        self, proof: bytes, payload: bytes, *, application_id: str, domain: str, audience: str
+    ) -> WorkloadMessage:
         claims = self._verify(proof, payload, application_id, domain, audience)
         if claims["kind"] != "workload":
             raise SecurityException(SecurityErrorCodes.INVALID)

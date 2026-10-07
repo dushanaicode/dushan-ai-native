@@ -1,28 +1,27 @@
 from datetime import datetime, timezone
 
-from framework.common.dates import DateUtils
 from module_system.api.oauth2.dto.oauth2_access_token_resp_dto import OAuth2AccessTokenRespDTO
 from module_system.api.oauth2.dto.oauth2_client_dto import OAuth2ClientDTO
-from module_system.controller.admin.oauth2.vo.open.client import Client
-from module_system.controller.admin.oauth2.vo.open.open_access_token_resp_vo import (
+from module_system.controller.admin.oauth2.vo.open.oauth2_open_access_token_resp_vo import (
     OAuth2OpenAccessTokenRespVO,
 )
-from module_system.controller.admin.oauth2.vo.open.open_authorize_info_resp_vo import (
+from module_system.controller.admin.oauth2.vo.open.oauth2_open_authorize_info_resp_vo import (
     OAuth2OpenAuthorizeInfoRespVO,
 )
-from module_system.controller.admin.oauth2.vo.open.open_check_token_resp_vo import (
+from module_system.controller.admin.oauth2.vo.open.oauth2_open_check_token_resp_vo import (
     OAuth2OpenCheckTokenRespVO,
 )
-from module_system.controller.admin.oauth2.vo.open.scope_key_value import ScopeKeyValue
+from module_system.controller.admin.oauth2.vo.open.open_client_vo import OpenClientVO
+from module_system.controller.admin.oauth2.vo.open.open_scope_key_value_vo import (
+    OpenScopeKeyValueVO,
+)
 from module_system.dal.dataobject.oauth2.oauth2_access_token_do import OAuth2AccessTokenDO
 from module_system.dal.dataobject.oauth2.oauth2_approve_do import OAuth2ApproveDO
 
 
 class OAuth2OpenConvert:
     @staticmethod
-    def convert(
-        oauth: OAuth2AccessTokenRespDTO, date_utils: DateUtils
-    ) -> OAuth2OpenAccessTokenRespVO:
+    def convert(oauth: OAuth2AccessTokenRespDTO) -> OAuth2OpenAccessTokenRespVO:
         """将 OAuth2AccessTokenDO 转换为 OAuth2OpenAccessTokenRespVO"""
         expires_in = max(
             0,
@@ -60,16 +59,14 @@ class OAuth2OpenConvert:
         client: OAuth2ClientDTO, approves: list[OAuth2ApproveDO]
     ) -> OAuth2OpenAuthorizeInfoRespVO:
         """将 OAuth2ClientCacheDTO 和 OAuth2ApproveDO 列表转换为 OAuth2OpenAuthorizeInfoRespVO"""
-        approve_map: dict[str, OAuth2ApproveDO] = {approve.scope: approve for approve in approves}
+        approved_by_scope = {approve.scope: approve.approved for approve in approves}
         scopes = [
-            ScopeKeyValue(
+            OpenScopeKeyValueVO(
                 key=scope,
-                value=str(
-                    approve_map.get(scope, OAuth2ApproveDO(scope=scope, approved=False)).approved
-                ),
+                value=str(approved_by_scope.get(scope, False)),
             )
             for scope in client.scopes
         ]
         return OAuth2OpenAuthorizeInfoRespVO(
-            client=Client(name=client.name, logo=client.logo), scopes=scopes
+            client=OpenClientVO(name=client.name, logo=client.logo), scopes=scopes
         )

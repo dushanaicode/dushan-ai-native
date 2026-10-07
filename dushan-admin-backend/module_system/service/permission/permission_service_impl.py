@@ -3,7 +3,7 @@ from __future__ import annotations
 from sqlalchemy import select
 
 from framework.common.enums import StatusEnum
-from framework.common.exception import ServiceException
+from framework.common.exception import GlobalErrorCodeConstants, ServiceException
 from framework.starter_cache.public import cache
 from framework.starter_data_permission.public import (
     DataScope,
@@ -31,16 +31,16 @@ from module_system.api.permission.dto.dept_data_permission_resp_dto import DeptD
 from module_system.controller.admin.permission.vo.permission.permission_assign_role_data_scope_req_vo import (
     PermissionAssignRoleDataScopeReqVO,
 )
-from module_system.dal.cache.cache_key_constants import SystemCacheKeys
+from module_system.dal.cache.system_cache_key_constants import SystemCacheKeyConstants
 from module_system.dal.dataobject.dept.dept_do import DeptDO
 from module_system.dal.dataobject.oauth2.oauth2_client_do import OAuth2ClientDO
 from module_system.dal.dataobject.permission.authorization_revision_do import (
     AuthorizationRevisionDO,
 )
 from module_system.dal.dataobject.permission.menu_do import MenuDO
-from module_system.dal.dataobject.permission.permission_user_role_do import UserRoleDO
 from module_system.dal.dataobject.permission.role_do import RoleDO
 from module_system.dal.dataobject.permission.role_menu_do import RoleMenuDO
+from module_system.dal.dataobject.permission.user_role_do import UserRoleDO
 from module_system.dal.mapper.auth.system_authentication_mapper import SystemAuthenticationMapper
 from module_system.dal.mapper.dept.dept_mapper import DeptMapper
 from module_system.dal.mapper.permission.menu_mapper import MenuMapper
@@ -59,7 +59,9 @@ from module_system.service.permission.permission_cache_service import (
     PermissionCacheService,
 )
 from module_system.service.permission.permission_service import PermissionService
-from module_system.service.permission.system_access_policy import SystemAccessPolicy
+from module_system.service.permission.system_access_policy_service import (
+    SystemAccessPolicyService,
+)
 
 
 @service(interface=PermissionService)
@@ -76,7 +78,7 @@ class PermissionServiceImpl(PermissionService):
     events: PermissionCacheService = Inject()
     tenant: TenantContext = Inject()
     security: SecurityContext = Inject()
-    access_policy: SystemAccessPolicy = Inject()
+    access_policy: SystemAccessPolicyService = Inject()
 
     async def _roles(self, user_id):
         result = await self.roles.read_from_primary(
@@ -122,6 +124,11 @@ class PermissionServiceImpl(PermissionService):
             granted.add(RoleCodeEnum.SUPER_ADMIN.code)
         return not roles or bool(set(roles) & granted)
 
+    async def require_user_writable(self, user_id: int) -> None:
+        """公开认证写入按目标账号的当前角色校验，不能依赖调用者的登录态。"""
+        if await self.has_any_roles(user_id, RoleCodeEnum.READONLY.code):
+            raise ServiceException(GlobalErrorCodeConstants.DEMO_DENY)
+
     async def get_role_menu_list_by_role_id(self, role_id: int) -> set[int]:
         return await self.get_role_menu_list_by_role_ids({role_id})
 
@@ -143,7 +150,7 @@ class PermissionServiceImpl(PermissionService):
             )
         } & allowed
 
-    @cache(SystemCacheKeys.MENU_ROLE_ID_LIST, key="{{menu_id}}", ttl_seconds=3600)
+    @cache(SystemCacheKeyConstants.MENU_ROLE_ID_LIST, key="{{menu_id}}", ttl_seconds=3600)
     async def get_menu_role_id_list_by_menu_id_from_cache(self, menu_id: int) -> set[int]:
         return {row.role_id for row in await self.role_menu_mapper.select_list_by_menu_id(menu_id)}
 
@@ -174,7 +181,7 @@ class PermissionServiceImpl(PermissionService):
     async def get_user_role_id_list_by_user_id(self, user_id: int) -> set[int]:
         return {row.role_id for row in await self.user_role_mapper.select_list_by_user_id(user_id)}
 
-    @cache(SystemCacheKeys.USER_ROLE_ID_LIST, key="{{user_id}}", ttl_seconds=3600)
+    @cache(SystemCacheKeyConstants.USER_ROLE_ID_LIST, key="{{user_id}}", ttl_seconds=3600)
     async def get_user_role_id_list_by_user_id_from_cache(self, user_id: int) -> set[int]:
         return await self.get_user_role_id_list_by_user_id(user_id)
 
@@ -236,6 +243,7 @@ class PermissionServiceImpl(PermissionService):
 
     @transactional
     async def assign_role_menu(self, role_id: int, menu_ids: set[int]) -> None:
+        """校验角色和菜单授权范围后同步关系，并更新权限版本及缓存。"""
         role = await self.roles.select_by_id(role_id)
         if role is None:
             raise ServiceException(ErrorCodeConstants.ROLE_NOT_EXISTS)
@@ -252,12 +260,7 @@ class PermissionServiceImpl(PermissionService):
         current = {
             row.menu_id for row in await self.role_menu_mapper.select_list_by_role_id(role_id)
         }
-        for menu_id in menu_ids - current:
-            await self.role_menu_mapper.insert(RoleMenuDO(role_id=role_id, menu_id=menu_id))
-        if current - menu_ids:
-            await self.role_menu_mapper.delete_list_by_role_id_and_menu_ids(
-                role_id, current - menu_ids
-            )
+        await self.role_menu_mapper.sync_menu_ids(role_id, current, menu_ids)
         await self.revisions.advance()
         await self.events.invalidate_all()
 
@@ -285,7 +288,7 @@ class PermissionServiceImpl(PermissionService):
             row.user_id for row in await self.user_role_mapper.select_list_by_role_ids(role_ids)
         }
 
-    @cache(SystemCacheKeys.USER_MENU_LIST, key="{{user_id}}", ttl_seconds=3600)
+    @cache(SystemCacheKeyConstants.USER_MENU_LIST, key="{{user_id}}", ttl_seconds=3600)
     async def get_user_menu_list_by_user_id_from_cache(self, user_id: int) -> set[int]:
         return await self.get_role_menu_list_by_role_ids(
             await self.get_user_role_id_list_by_user_id(user_id)

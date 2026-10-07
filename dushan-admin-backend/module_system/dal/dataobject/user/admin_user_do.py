@@ -3,7 +3,6 @@ from datetime import datetime
 from sqlalchemy import (
     JSON,
     BigInteger,
-    Computed,
     DateTime,
     ForeignKeyConstraint,
     Index,
@@ -58,7 +57,7 @@ class AdminUserDO(TenantBaseDO):
     mobile: Mapped[str | None] = mapped_column(
         String(11), nullable=True, default="", comment="手机号码"
     )
-    sex: Mapped[int] = mapped_column(
+    sex: Mapped[int | None] = mapped_column(
         SmallInteger, nullable=True, default=CommonSexEnum.UNKNOWN.code, comment="用户性别"
     )
     avatar: Mapped[str | None] = mapped_column(
@@ -76,7 +75,7 @@ class AdminUserDO(TenantBaseDO):
 
     active_key: Mapped[int | None] = mapped_column(
         SmallInteger,
-        Computed("CASE WHEN deleted = 0 THEN 1 ELSE NULL END"),
+        TenantBaseDO.active_key_computed(),
         comment="仅有效记录参与业务唯一约束",
     )
 

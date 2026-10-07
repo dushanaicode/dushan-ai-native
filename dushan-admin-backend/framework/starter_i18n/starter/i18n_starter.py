@@ -4,11 +4,11 @@ from loguru import logger
 
 from framework.starter_i18n.config.i18n_locale_root import I18nLocaleRoot
 from framework.starter_i18n.config.i18n_options import I18nOptions
-from framework.starter_i18n.core.loader import I18nLoader
-from framework.starter_i18n.core.parser import AcceptLanguageParser
-from framework.starter_i18n.core.reloader import I18nReloader
-from framework.starter_i18n.core.translator import I18nTranslator
-from framework.starter_i18n.core.validator import I18nValidator
+from framework.starter_i18n.core.accept_language_parser import AcceptLanguageParser
+from framework.starter_i18n.core.i18n_loader import I18nLoader
+from framework.starter_i18n.core.i18n_reloader import I18nReloader
+from framework.starter_i18n.core.i18n_translator import I18nTranslator
+from framework.starter_i18n.core.i18n_validator import I18nValidator
 
 
 class I18nStarter:

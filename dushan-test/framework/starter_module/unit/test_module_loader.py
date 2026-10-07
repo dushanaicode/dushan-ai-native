@@ -1,6 +1,7 @@
 import os
 import subprocess
 import sys
+from graphlib import CycleError
 
 import pytest
 
@@ -24,6 +25,27 @@ def test_ids_are_independent_of_package_names_and_dependencies_are_ordered(modul
     result = load(["scan_dependent", "scan_required"], ["app", "core"])
     assert [item.definition.name for item in result] == ["core", "app"]
     assert "scan_dependent" not in sys.modules and "scan_required" not in sys.modules
+
+
+def test_cycle_diagnostic_reports_only_the_closed_cycle_and_keeps_cause(module_package):
+    """循环诊断保留真实闭环及异常链，不混入无关的启用模块。"""
+    module_package("scan_cycle_a", name="demo_a", requires=("demo_b",))
+    module_package("scan_cycle_b", name="demo_b", requires=("demo_a",))
+    module_package("scan_cycle_unrelated", name="framework")
+
+    with pytest.raises(ConfigurationException) as caught:
+        load(
+            ["scan_cycle_a", "scan_cycle_b", "scan_cycle_unrelated"],
+            ["demo_a", "demo_b", "framework"],
+        )
+
+    assert str(caught.value) == "模块依赖存在循环: demo_a -> demo_b -> demo_a"
+    assert isinstance(caught.value.__cause__, CycleError)
+    assert not {
+        "scan_cycle_a",
+        "scan_cycle_b",
+        "scan_cycle_unrelated",
+    }.intersection(sys.modules)
 
 
 @pytest.mark.parametrize(
@@ -55,6 +77,7 @@ def test_invalid_module_relationships_fail_before_import(module_package, case, e
         ("scan_roots", '["."]', '["../outside"]'),
         ("package", '"scan_bad_decl"', '"other"'),
         ("requires", "[]", '["x", "x"]'),
+        ("routers", "[]", '["router"]'),
         ("required_message_keys", "[]", '[""]'),
         ("resource_roots", "[]", '[{path = "../outside", scope = "x", required = true}]'),
     ],

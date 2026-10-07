@@ -1,5 +1,3 @@
-"""手动运行的短样本测量；输出目录必须显式位于当前 cwd/Temp 内。"""
-
 import argparse
 import asyncio
 import base64
@@ -49,9 +47,10 @@ def memory():
 
 
 async def main(output, samples):
+    """手动运行的短样本测量；输出目录必须显式位于当前 cwd/Temp 内。"""
     from framework.starter_captcha.core.captcha_service import CaptchaService
-    from framework.starter_di.context.get_bean import get_bean
-    from server.starter_server import create_app
+    from framework.starter_di.context.application_context import ApplicationContext
+    from server.starter_server import StarterServer
 
     scenarios = []
     for provider in ("block_puzzle", "click_word"):
@@ -76,10 +75,10 @@ async def main(output, samples):
             (config / "application.yaml").write_text(
                 yaml.safe_dump(values, allow_unicode=True), encoding="utf-8"
             )
-            app = create_app(base_dir=config, environ={})
+            app = StarterServer.create_app(base_dir=config, environ={})
             async with app.router.lifespan_context(app):
                 with app.state.application_context.execution():
-                    service = get_bean(CaptchaService)
+                    service = ApplicationContext.lookup(CaptchaService)
                     gate = asyncio.Semaphore(concurrency)
                     measurements = []
                     rss_start, rss_peak = memory(), memory()

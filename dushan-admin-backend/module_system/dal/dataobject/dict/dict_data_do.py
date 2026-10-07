@@ -1,4 +1,4 @@
-from sqlalchemy import JSON, Integer, SmallInteger, String
+from sqlalchemy import JSON, Integer, SmallInteger, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from framework.common.enums import StatusEnum
@@ -11,7 +11,10 @@ from framework.starter_tenant.public import (
 @global_model
 class DictDataDO(GlobalControlDO):
     __tablename__ = "system_dict_data"
-    __table_args__ = ({**GlobalControlDO.__table_args__, **{"comment": "字典数据表"}},)
+    __table_args__ = (
+        UniqueConstraint("dict_type", "value", "active_key", name="uq_system_dict_data_active_0"),
+        {**GlobalControlDO.__table_args__, **{"comment": "字典数据表"}},
+    )
 
     sort: Mapped[int] = mapped_column(Integer, default=0, comment="字典排序")
     label: Mapped[str] = mapped_column(String(100), nullable=False, default="", comment="字典标签")
@@ -23,7 +26,7 @@ class DictDataDO(GlobalControlDO):
         SmallInteger, default=StatusEnum.ENABLE.code, comment="开启状态（1-启用，0-禁用）"
     )
     color_type: Mapped[str | None] = mapped_column(String(100), default="", comment="颜色类型")
-    tag_style: Mapped[dict | str | None] = mapped_column(JSON, default="", comment="按钮样式")
+    tag_style: Mapped[dict | None] = mapped_column(JSON, nullable=True, comment="按钮样式")
     permission: Mapped[str | None] = mapped_column(
         String(100),
         nullable=True,
@@ -31,3 +34,9 @@ class DictDataDO(GlobalControlDO):
         comment="权限标识（该选项所需的权限码，NULL表示无需权限）",
     )
     remark: Mapped[str | None] = mapped_column(String(500), nullable=True, comment="备注")
+
+    active_key: Mapped[int | None] = mapped_column(
+        SmallInteger,
+        GlobalControlDO.active_key_computed(),
+        comment="仅有效记录参与业务唯一约束",
+    )

@@ -1,0 +1,32 @@
+from datetime import date, datetime, time
+from decimal import Decimal
+
+from sqlalchemy import BigInteger, Boolean, Computed, Date, DateTime, Float, Index, Integer, JSON, LargeBinary, Numeric, SmallInteger, String, Time, Text, Unicode, UnicodeText, CHAR, BINARY, VARBINARY, Double, NCHAR, NVARCHAR, TIMESTAMP
+from sqlalchemy.dialects import mysql
+from sqlalchemy.orm import Mapped, mapped_column
+
+{% if tenant_aware %}
+from framework.starter_tenant.public import TenantBaseDO
+{% else %}
+from framework.starter_tenant.public import GlobalControlDO
+from framework.starter_tenant.public import global_model
+{% endif %}
+
+
+{% if not tenant_aware %}
+@global_model
+{% endif %}
+class {{ class_name }}DO({{ 'TenantBaseDO' if tenant_aware else 'GlobalControlDO' }}):
+    {{ (class_comment) | pyrepr }}
+    __tablename__ = {{ table_name | pyrepr }}
+    __table_args__ = ({% if tenant_aware %}Index({{ ('ix_' + table_name + '_tenant') | pyrepr }}, 'tenant_id'), {% endif %}{**{{ 'TenantBaseDO' if tenant_aware else 'GlobalControlDO' }}.__table_args__, 'comment': {{ class_comment | pyrepr }}},)
+
+    {% for column in normal_columns %}
+    {% if column.computed_expression %}
+    {{ column.field_name }}: Mapped[{{ column | storage_type }} | None] = mapped_column({{ column.column_name | pyrepr }},{{ column | computed_type }},Computed({{ column.computed_expression | pyrepr }},persisted={{ column.computed_persisted }}),comment={{ column.column_comment | pyrepr }})
+    {% else %}
+    {{ column.field_name }}: Mapped[{{ column | storage_type }}{{ ' | None' if column.nullable else '' }}] = mapped_column({{ column.column_name | pyrepr }},
+        {{ column | computed_type }}, nullable={{ column.nullable }}, comment={{ column.column_comment | pyrepr }}
+    )
+    {% endif %}
+    {% endfor %}

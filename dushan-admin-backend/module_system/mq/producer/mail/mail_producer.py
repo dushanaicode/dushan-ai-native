@@ -10,29 +10,24 @@ from framework.starter_mq.public import (
     MQService,
     PublishCommand,
 )
-from framework.starter_security.public import (
-    SecurityService,
-)
 from module_system.mq.message.mail.mail_send_message import MailSendMessage
 from module_system.mq.producer.mail.mail_producer_protocol import MailProducerProtocol
 
 
 @service(interface=MailProducerProtocol)
 class MailProducer(MailProducerProtocol):
-    security: SecurityService = Inject()
     mq_service: MQService = Inject()
 
     @transactional
     async def send_mail_message(self, message: MailSendMessage) -> None:
+        """在事务提交后发布邮件消息，由框架选择可信身份。"""
         await self.mq_service.publish_after_commit(
             PublishCommand(
-                destination="mail:send",
+                destination=MailSendMessage.stream_key,
                 mode=MessageMode.STREAM,
                 message=message,
                 message_id=message.message_id,
-                capability="system.mail.send"
-                if self.security.context.current_workload() is not None
-                else None,
+                workload_capability="system.mail.send",
             )
         )
 

@@ -1,4 +1,3 @@
-import json
 from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -44,21 +43,6 @@ class I18nOptions(BaseModel):
         """缓存条数和检查间隔不接受布尔值。"""
         if isinstance(value, bool):
             raise ValueError("国际化数值配置不能是布尔值")
-        return value
-
-    @field_validator(
-        "supported_locales", "resource_roots", "scopes", "required_message_keys", mode="before"
-    )
-    @classmethod
-    def parse_environment_array(cls, value: object) -> object:
-        """将环境变量中的 JSON 数组交给相应字段校验，不接受逗号字符串。"""
-        if isinstance(value, str):
-            try:
-                value = json.loads(value)
-            except json.JSONDecodeError:
-                raise ValueError("i18n 列表配置必须是 JSON 数组") from None
-            if not isinstance(value, list):
-                raise ValueError("i18n 列表配置必须是 JSON 数组")
         return value
 
     @model_validator(mode="after")

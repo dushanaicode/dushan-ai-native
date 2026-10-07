@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from contextvars import Context
 from datetime import datetime, timezone
 
+from fastapi import Request
 from loguru import logger
 
 from framework.common.exception.exceptions.base_business_exception import BaseBusinessException
@@ -16,6 +17,7 @@ from framework.starter_di.context.application_context import ApplicationContext
 from framework.starter_di.decorators.components import framework
 from framework.starter_di.decorators.conditional import conditional
 from framework.starter_di.definitions.enums.component_scope_enum import ComponentScopeEnum
+from framework.starter_logging.context.log_context import LogContext
 from framework.starter_security.config.security_settings import SecuritySettings
 from framework.starter_security.context.security_context import SecurityContext
 from framework.starter_security.core.opaque_token import OpaqueToken
@@ -33,9 +35,11 @@ from framework.starter_security.model.workload_message import WorkloadMessage
 from framework.starter_security.spi.data_access_provider import DataAccessProvider
 from framework.starter_security.spi.message_security_provider import MessageSecurityProvider
 from framework.starter_security.spi.permission_provider import PermissionProvider
+from framework.starter_security.spi.request_access_provider import RequestAccessProvider
 from framework.starter_security.spi.tenant_access_provider import TenantAccessProvider
 from framework.starter_security.spi.token_provider import TokenProvider
 from framework.starter_security.spi.workload_provider import WorkloadProvider
+from framework.starter_web.context.http_observation import HttpObservation
 from framework.starter_web.routing.route_policy import RoutePolicy
 
 
@@ -66,6 +70,7 @@ class SecurityService:
         self._messages: MessageSecurityProvider | None = None
         self._workloads: WorkloadProvider | None = None
         self._data_access: DataAccessProvider | None = None
+        self._request_access: RequestAccessProvider | None = None
         self._phase = "new"
         self._active = 0
         self._idle = asyncio.Event()
@@ -79,6 +84,7 @@ class SecurityService:
         messages: MessageSecurityProvider | None = None,
         workloads: WorkloadProvider | None = None,
         data_access: DataAccessProvider | None = None,
+        request_access: RequestAccessProvider | None = None,
     ):
         if self._phase != "new" or not self.settings.enabled:
             raise SecurityException(SecurityErrorCodes.CLOSED)
@@ -87,6 +93,7 @@ class SecurityService:
         self._tenant, self._messages = tenant, messages
         self._workloads = workloads
         self._data_access = data_access
+        self._request_access = request_access
         logger.info(
             "【SecurityStarter】身份与授权提供器已绑定：租户={}，消息={}，工作负载={}，数据权限={}",
             tenant is not None,
@@ -257,7 +264,21 @@ class SecurityService:
         ):
             raise SecurityException(SecurityErrorCodes.CONFIGURATION)
 
-    async def _check_policy(self, session: LoginSession, policy: RoutePolicy, *, snapshot=None):
+    async def _check_policy(
+        self,
+        session: LoginSession,
+        policy: RoutePolicy,
+        *,
+        snapshot=None,
+        request: Request | None = None,
+    ):
+        if (
+            request is not None
+            and self._request_access is not None
+            and self._request_access.requires_check(request)
+        ):
+            snapshot = await self._snapshot(session) if snapshot is None else snapshot
+            self._request_access.check(request, snapshot)
         self.validate_policy(policy)
         if not policy.requires_identity:
             raise SecurityException(SecurityErrorCodes.CONFIGURATION)
@@ -317,27 +338,35 @@ class SecurityService:
         )
 
     @asynccontextmanager
-    async def _authorized_session(self, session: LoginSession, policy: RoutePolicy):
+    async def _authorized_session(
+        self, session: LoginSession, policy: RoutePolicy, *, request: Request | None = None
+    ):
         # 身份已通过 _resolve 验证；先建立租户准入，再读取租户内的权限规则。
         self.context._install(session)
+        if request is not None:
+            observation = HttpObservation.find(request.scope)
+            if observation is not None:
+                # 依赖进入失败时授权作用域会撤销身份，日志仅保留已验证的字段快照。
+                observation.log_context = LogContext.current()
         if session.tenant_id is not None:
             if self._tenant is None:
                 raise SecurityException(SecurityErrorCodes.CONFIGURATION)
             async with self._tenant_scope(self._tenant.enter(session, policy)):
-                await self._check_policy(session, policy)
+                await self._check_policy(session, policy, request=request)
                 async with self._data_scope(session):
                     yield session
         else:
-            await self._check_policy(session, policy)
+            await self._check_policy(session, policy, request=request)
             async with self._data_scope(session):
                 yield session
 
     @asynccontextmanager
-    async def _data_scope(self, identity):
+    async def _data_scope(self, identity, *, capability=None):
+        """传递当前执行能力，并保护数据权限作用域完整退出。"""
         if self._data_access is None:
             yield
         else:
-            manager = self._data_access.enter(identity)
+            manager = self._data_access.enter(identity, capability=capability)
             await manager.__aenter__()
             primary = None
             try:
@@ -385,12 +414,17 @@ class SecurityService:
 
     @asynccontextmanager
     async def authorized(
-        self, token: str, policy: RoutePolicy, *, request_audit: RequestAudit | None = None
+        self,
+        token: str,
+        policy: RoutePolicy,
+        *,
+        request_audit: RequestAudit | None = None,
+        request: Request | None = None,
     ):
         async with self._operation():
             with self.context._scope(request_audit):
                 session = await self._resolve(token, self._domain(policy))
-                async with self._authorized_session(session, policy):
+                async with self._authorized_session(session, policy, request=request):
                     yield session
 
     async def run(self, token: str, policy: RoutePolicy, callback, *args, **kwargs):
@@ -697,13 +731,13 @@ class SecurityService:
     async def _workload_scope(self, identity, capability):
         self.context._install_workload(identity)
         if identity.tenant_id is None:
-            async with self._data_scope(identity):
+            async with self._data_scope(identity, capability=capability):
                 yield
         else:
             if self._tenant is None:
                 raise SecurityException(SecurityErrorCodes.CONFIGURATION)
             async with self._tenant_scope(self._tenant.enter_workload(identity, capability)):
-                async with self._data_scope(identity):
+                async with self._data_scope(identity, capability=capability):
                     yield
 
     @asynccontextmanager
@@ -777,6 +811,7 @@ class SecurityService:
     async def _close(self):
         await self._idle.wait()
         self._tenant = self._messages = self._workloads = self._data_access = None
+        self._request_access = None
         self._phase = "closed"
 
     def resources(self) -> dict:

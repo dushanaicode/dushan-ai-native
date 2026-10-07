@@ -12,11 +12,11 @@ from framework.starter_captcha.definitions.constants.captcha_error_codes import 
     CaptchaErrorCodes as Codes,
 )
 from framework.starter_captcha.exception.captcha_exception import CaptchaException
-from framework.starter_di.context.get_bean import get_bean
+from framework.starter_di.context.application_context import ApplicationContext
 from framework.starter_di.decorators.di_dependency import DiDependency
 from framework.starter_di.exception.di_exception import DiException
-from framework.starter_web.exception.response_builder import ExceptionResponseBuilder
-from server.starter_server import create_app
+from framework.starter_web.exception.exception_response_builder import ExceptionResponseBuilder
+from server.starter_server import StarterServer
 
 
 @pytest.mark.parametrize(
@@ -40,10 +40,10 @@ def test_config_validation(settings, overrides):
 
 
 async def test_disabled_app_starts_without_resources(config_dir):
-    app = create_app(base_dir=config_dir({"banner": {"enabled": False}}), environ={})
+    app = StarterServer.create_app(base_dir=config_dir({"banner": {"enabled": False}}), environ={})
     async with app.router.lifespan_context(app):
         with app.state.application_context.execution():
-            service = get_bean(CaptchaService)
+            service = ApplicationContext.lookup(CaptchaService)
             assert service.configuration()["enabled"] is False
             assert service._pool is None and service._http is None
             with pytest.raises(CaptchaException) as error:
@@ -52,7 +52,7 @@ async def test_disabled_app_starts_without_resources(config_dir):
 
 
 async def test_enabled_without_cache_fails_startup(config_dir):
-    app = create_app(
+    app = StarterServer.create_app(
         base_dir=config_dir(
             {"banner": {"enabled": False}, "config": {"models": {"captcha": {"enabled": True}}}}
         ),
@@ -73,11 +73,11 @@ async def test_multiple_workers_share_one_challenge_without_routing_affinity(
     """
     a, b = await captcha_app(), await captcha_app()
     with a.state.application_context.execution():
-        first = get_bean(CaptchaService)
+        first = ApplicationContext.lookup(CaptchaService)
         challenge = await first.create("login")
         answer = await stored_answer(first, challenge)
     with b.state.application_context.execution():
-        second = get_bean(CaptchaService)
+        second = ApplicationContext.lookup(CaptchaService)
         assert first is not second
         assert first.store.key.key == second.store.key.key
         # 在另一个实例上校验通过，并由它签发凭证。
@@ -94,12 +94,12 @@ async def test_challenge_state_survives_service_restart(captcha_app, stored_answ
     """实例重启不应作废仍在 TTL 内的挑战：状态属于 Cache，不属于进程。"""
     app = await captcha_app()
     with app.state.application_context.execution():
-        service = get_bean(CaptchaService)
+        service = ApplicationContext.lookup(CaptchaService)
         challenge = await service.create("login")
         answer = await stored_answer(service, challenge)
     restarted = await captcha_app()
     with restarted.state.application_context.execution():
-        fresh = get_bean(CaptchaService)
+        fresh = ApplicationContext.lookup(CaptchaService)
         proof = await fresh.check(challenge.token, "login", answer)
         await fresh.consume(proof.verification, "login")
 
@@ -109,7 +109,7 @@ async def test_http_di_lookup_and_shutdown(captcha_app, stored_answer):
 
     @router.get("/captcha-test")
     async def endpoint(service=Depends(DiDependency(CaptchaService))):
-        assert service is get_bean(CaptchaService)
+        assert service is ApplicationContext.lookup(CaptchaService)
         return (await service.create("login")).model_dump()
 
     app = await captcha_app(routers=[router])
@@ -122,7 +122,7 @@ async def test_http_di_lookup_and_shutdown(captcha_app, stored_answer):
     context = app.state.application_context
 
     async def resolve():
-        return get_bean(CaptchaService)
+        return ApplicationContext.lookup(CaptchaService)
 
     assert await context.tasks.run(resolve) is app.state.captcha
 
@@ -154,10 +154,10 @@ class Consumer:
         }
     )
     with app.state.application_context.execution():
-        consumer = get_bean(consumer_type)
-        assert consumer.captcha is get_bean(CaptchaService)
+        consumer = ApplicationContext.lookup(consumer_type)
+        assert consumer.captcha is ApplicationContext.lookup(CaptchaService)
     with pytest.raises(DiException):
-        get_bean(CaptchaService)
+        ApplicationContext.lookup(CaptchaService)
 
 
 async def test_closing_one_application_leaves_other_usable(captcha_app):
@@ -165,10 +165,12 @@ async def test_closing_one_application_leaves_other_usable(captcha_app):
     context = a.state.application_context
     await a.state.captcha.close()
     with b.state.application_context.execution():
-        assert (await get_bean(CaptchaService).create("login")).provider == "block_puzzle"
+        assert (
+            await ApplicationContext.lookup(CaptchaService).create("login")
+        ).provider == "block_puzzle"
     with context.execution():
         with pytest.raises(CaptchaException):
-            await get_bean(CaptchaService).create("login")
+            await ApplicationContext.lookup(CaptchaService).create("login")
 
 
 def test_sensitive_exception_projection_and_debug():
@@ -248,8 +250,8 @@ async def test_cache_prefix_participates_in_cache_startup_validation(captcha_app
 
     app = await captcha_app()
     with app.state.application_context.execution():
-        registry = get_bean(CacheKeyRegistry)
-        service = get_bean(CaptchaService)
+        registry = ApplicationContext.lookup(CacheKeyRegistry)
+        service = ApplicationContext.lookup(CaptchaService)
         declared = CaptchaCacheKeys.state(service.settings.client_name)
         assert registry.find(declared.key) == service.store.key == declared
 
@@ -258,9 +260,9 @@ async def test_store_keys_do_not_depend_on_the_application_instance(captcha_app)
     """同一挑战在任意实例上算出的缓存键必须一致，否则多 worker 无法接续。"""
     a, b = await captcha_app(), await captcha_app()
     with a.state.application_context.execution():
-        first = get_bean(CaptchaService)
+        first = ApplicationContext.lookup(CaptchaService)
     with b.state.application_context.execution():
-        second = get_bean(CaptchaService)
+        second = ApplicationContext.lookup(CaptchaService)
     token = "t" * 43
     for kind in ("challenge", "verification"):
         assert first.store.identifier("login", kind, token) == second.store.identifier(
@@ -288,11 +290,11 @@ async def test_named_cache_client_without_default_starts(captcha_app, stored_ans
     )
     with app.state.application_context.execution():
         assert await app.state.cache.get_default_client().ping()
-        registry = get_bean(CacheKeyRegistry)
+        registry = ApplicationContext.lookup(CacheKeyRegistry)
         if not enabled:
             assert registry.find("captcha") is None
             return
-        service = get_bean(CaptchaService)
+        service = ApplicationContext.lookup(CaptchaService)
         assert registry.find("captcha") == service.store.key
         assert service.store.key.client_name == "isolated"
         challenge = await service.create("login")
@@ -308,18 +310,18 @@ async def test_cache_key_clients_are_resolved_per_application(captcha_app, store
     a = await captcha_app()
     b = await captcha_app(client_name="second")
     with a.state.application_context.execution():
-        first = get_bean(CaptchaService)
-        first_key = get_bean(CacheKeyRegistry).find("captcha")
+        first = ApplicationContext.lookup(CaptchaService)
+        first_key = ApplicationContext.lookup(CacheKeyRegistry).find("captcha")
         challenge = await first.create("login")
         answer = await stored_answer(first, challenge)
     with b.state.application_context.execution():
-        second = get_bean(CaptchaService)
-        assert get_bean(CacheKeyRegistry).find("captcha").client_name == "second"
+        second = ApplicationContext.lookup(CaptchaService)
+        assert ApplicationContext.lookup(CacheKeyRegistry).find("captcha").client_name == "second"
         with pytest.raises(CaptchaException) as error:
             await second.check(challenge.token, "login", answer)
         assert error.value.error_code == Codes.EXPIRED
     with a.state.application_context.execution():
-        assert get_bean(CacheKeyRegistry).find("captcha") is first_key
+        assert ApplicationContext.lookup(CacheKeyRegistry).find("captcha") is first_key
         assert first_key.client_name == "default"
         proof = await first.check(challenge.token, "login", answer)
         await first.consume(proof.verification, "login")

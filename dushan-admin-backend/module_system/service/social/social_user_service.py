@@ -5,7 +5,9 @@ from typing import Protocol, runtime_checkable
 from framework.common.page import PageResult
 from module_system.api.social.dto.social_user_bind_req_dto import SocialUserBindReqDTO
 from module_system.api.social.dto.social_user_resp_dto import SocialUserRespDTO
-from module_system.controller.admin.social.vo.user.user_page_req_vo import SocialUserPageReqVO
+from module_system.controller.admin.social.vo.user.social_user_page_req_vo import (
+    SocialUserPageReqVO,
+)
 from module_system.dal.dataobject.social.social_user_do import SocialUserDO
 
 

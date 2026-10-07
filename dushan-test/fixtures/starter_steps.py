@@ -1,4 +1,4 @@
-from server.bootstrap.step_registry import APP_BOOTSTRAP_STEPS
+from server.bootstrap.bootstrap_step_spec import APP_BOOTSTRAP_STEPS
 from server.bootstrap.steps.tenant_step import TenantStep
 
 

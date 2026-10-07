@@ -11,9 +11,9 @@ from fixtures.public_web_app import create_public_app
 from framework.starter_excel.reader.excel_reader import ExcelReader
 from framework.starter_excel.writer.excel_writer import ExcelWriter
 from framework.starter_logging.starter.logging_starter import LoggingStarter
-from server.bootstrap.bootstrapper import BootstrapError
-from server.bootstrap.step_registry import BootstrapStepSpec
-from server.bootstrap.steps.logging_step import configure_logging
+from server.bootstrap.bootstrap_error import BootstrapError
+from server.bootstrap.bootstrap_step_spec import BootstrapStepSpec
+from server.bootstrap.steps.logging_step import LoggingStep
 
 
 def test_health_and_docs_after_startup(config_dir):
@@ -252,7 +252,7 @@ async def test_logging_cleanup_failure_does_not_replace_startup_error(config_dir
     application = create_public_app(
         base_dir=config_dir(),
         environ={},
-        steps=[BootstrapStepSpec("日志", configure_logging), BootstrapStepSpec("失败步骤", broken)],
+        steps=[BootstrapStepSpec("日志", LoggingStep.run), BootstrapStepSpec("失败步骤", broken)],
     )
     with pytest.raises(BootstrapError) as captured:
         async with application.router.lifespan_context(application):

@@ -2,7 +2,7 @@ from pydantic import Field
 
 from framework.starter_cache.model.cache_key import CacheKey, CacheKeyName
 from framework.starter_config.config.config_model import ConfigModel
-from framework.starter_config.decorator.config_decorator import config_model
+from framework.starter_config.decorators.config_decorator import config_model
 from framework.starter_protection.idempotent.idempotency_rule import IdempotencyRule
 from framework.starter_protection.lock.lock_rule import LockRule
 from framework.starter_protection.ratelimiter.rate_limit_quota import RateLimitQuota

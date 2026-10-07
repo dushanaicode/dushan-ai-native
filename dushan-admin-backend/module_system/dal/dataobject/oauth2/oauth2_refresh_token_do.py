@@ -53,5 +53,5 @@ class OAuth2RefreshTokenDO(TenantBaseDO):
         DateTime, nullable=True, comment="轮换消费时间，保留记录用于重放检测"
     )
 
-    application_id: Mapped[str] = mapped_column(String(64), nullable=False, comment="????")
-    domain: Mapped[str] = mapped_column(String(64), nullable=False, comment="???")
+    application_id: Mapped[str] = mapped_column(String(64), nullable=False, comment="应用编号")
+    domain: Mapped[str] = mapped_column(String(64), nullable=False, comment="认证域")

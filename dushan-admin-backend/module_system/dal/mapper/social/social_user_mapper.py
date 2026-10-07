@@ -10,7 +10,9 @@ from framework.starter_database.public import (
 from framework.starter_di.public import (
     mapper,
 )
-from module_system.controller.admin.social.vo.user.user_page_req_vo import SocialUserPageReqVO
+from module_system.controller.admin.social.vo.user.social_user_page_req_vo import (
+    SocialUserPageReqVO,
+)
 from module_system.dal.dataobject.social.social_user_do import SocialUserDO
 
 
@@ -43,14 +45,13 @@ class SocialUserMapper(BaseMapper[SocialUserDO]):
             stmt = stmt.where(SocialUserDO.type == req_vo.type)
         if req_vo.nickname:
             escaped_nick = StrUtils.escape_like(req_vo.nickname)
-            stmt = stmt.where(SocialUserDO.nickname.ilike(f"%{escaped_nick}%"))
+            stmt = stmt.where(SocialUserDO.nickname.ilike(f"%{escaped_nick}%", escape="\\"))
         if req_vo.openid:
             escaped_oid = StrUtils.escape_like(req_vo.openid)
-            stmt = stmt.where(SocialUserDO.openid.ilike(f"%{escaped_oid}%"))
-        if req_vo.create_time and len(req_vo.create_time) >= 2:
-            stmt = stmt.where(
-                SocialUserDO.create_time.between(req_vo.create_time[0], req_vo.create_time[1])
-            )
+            stmt = stmt.where(SocialUserDO.openid.ilike(f"%{escaped_oid}%", escape="\\"))
+        if req_vo.create_time is not None:
+            start_time, end_time = req_vo.create_time
+            stmt = stmt.where(SocialUserDO.create_time.between(start_time, end_time))
         stmt = stmt.order_by(SocialUserDO.id.desc())
         return await self.paginate_query(stmt, req_vo)
 

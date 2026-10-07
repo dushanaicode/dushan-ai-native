@@ -4,7 +4,7 @@ import pytest
 
 from framework.starter_mq.backend.redis_backend import RedisBackend
 from framework.starter_mq.core.mq_runtime import MQRuntime
-from server.bootstrap.bootstrapper import BootstrapError
+from server.bootstrap.bootstrap_error import BootstrapError
 
 
 @pytest.mark.parametrize("failure", ["connection", "timeout", "cancel"])

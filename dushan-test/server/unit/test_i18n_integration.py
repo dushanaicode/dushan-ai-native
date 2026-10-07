@@ -10,7 +10,7 @@ from framework.common.exception.constants.global_error_code_constants import (
 )
 from framework.common.exception.exceptions.configuration_exception import ConfigurationException
 from framework.starter_config.provider.bootstrap_config_error import BootstrapConfigError
-from server.bootstrap.bootstrapper import BootstrapError
+from server.bootstrap.bootstrap_error import BootstrapError
 
 pytestmark = pytest.mark.unit
 
@@ -264,7 +264,7 @@ def test_configured_http_hot_reload_retains_last_valid_translation(
     config_dir, monkeypatch, hot_reload
 ):
     clock = [100.0]
-    monkeypatch.setattr("framework.starter_i18n.core.reloader.monotonic", lambda: clock[0])
+    monkeypatch.setattr("framework.starter_i18n.core.i18n_reloader.monotonic", lambda: clock[0])
     root = config_dir(
         {
             "i18n": {

@@ -12,14 +12,15 @@ from framework.common.exception.constants.global_error_code_constants import (
 )
 from framework.common.exception.core.error_code import ErrorCode
 from framework.common.exception.exceptions.configuration_exception import ConfigurationException
+from framework.starter_config.provider.bootstrap_config_provider import BootstrapConfigProvider
 from framework.starter_i18n.config.i18n_locale_root import I18nLocaleRoot
 from framework.starter_i18n.config.i18n_options import I18nOptions
-from framework.starter_i18n.core.catalog import I18nCatalog
-from framework.starter_i18n.core.loader import I18nLoader
-from framework.starter_i18n.core.parser import AcceptLanguageParser
-from framework.starter_i18n.core.reloader import I18nReloader
-from framework.starter_i18n.core.translator import I18nTranslator
-from framework.starter_i18n.core.validator import I18nValidator
+from framework.starter_i18n.core.accept_language_parser import AcceptLanguageParser
+from framework.starter_i18n.core.i18n_catalog import I18nCatalog
+from framework.starter_i18n.core.i18n_loader import I18nLoader
+from framework.starter_i18n.core.i18n_reloader import I18nReloader
+from framework.starter_i18n.core.i18n_translator import I18nTranslator
+from framework.starter_i18n.core.i18n_validator import I18nValidator
 from framework.starter_i18n.starter.i18n_starter import I18nStarter
 from framework.starter_web.exception.validation_error_mapper import ValidationErrorMapper
 
@@ -120,14 +121,19 @@ def test_options_reject_unknown_and_invalid_configuration(values):
         ConfigFactory.build(I18nOptions, "i18n", **values)
 
 
-def test_options_parse_environment_arrays_and_are_immutable(tmp_path):
-    values = ConfigFactory.build(
-        I18nOptions,
-        "i18n",
-        supported_locales='["zh-CN", "en-US", "fr-FR"]',
-        scopes='["test"]',
-        resource_roots=json.dumps([{"path": str(tmp_path), "scope": "test", "required": True}]),
+def test_options_parse_environment_arrays_and_are_immutable(config_dir, tmp_path):
+    """环境变量经配置入口解析后保留元组类型、资源路径和不可变约束。"""
+    provider = BootstrapConfigProvider.load(
+        config_dir(),
+        environ={
+            "I18N_SUPPORTED_LOCALES": '["zh-CN", "en-US", "fr-FR"]',
+            "I18N_SCOPES": '["test"]',
+            "I18N_RESOURCE_ROOTS": json.dumps(
+                [{"path": str(tmp_path), "scope": "test", "required": True}]
+            ),
+        },
     )
+    values = provider.get_config(I18nOptions, prefix="I18N_")
     assert values.supported_locales == ("zh-CN", "en-US", "fr-FR")
     assert values.resource_roots[0].path == tmp_path
     assert values.scopes == ("test",)
@@ -455,7 +461,7 @@ def test_validator_checks_configured_languages_without_fallback(messages):
 def test_reloader_tracks_modifications_additions_and_deletions(tmp_path, monkeypatch):
     write_bundle(tmp_path, "en-US", {"hello": "Before"})
     clock = [100.0]
-    monkeypatch.setattr("framework.starter_i18n.core.reloader.monotonic", lambda: clock[0])
+    monkeypatch.setattr("framework.starter_i18n.core.i18n_reloader.monotonic", lambda: clock[0])
     loader = make_loader(tmp_path, hot_reload=True, reload_interval=2, validate_translations=False)
     reloader = I18nReloader(loader)
     assert reloader.get_catalog().resolve("hello", "en-US") == "Before"
@@ -483,7 +489,7 @@ def test_reloader_keeps_last_valid_catalog_after_parse_and_validation_failures(
     write_bundle(tmp_path, "en-US", {"required": "Before"})
     write_bundle(tmp_path, "zh-CN", {"required": "之前"})
     clock = [100.0]
-    monkeypatch.setattr("framework.starter_i18n.core.reloader.monotonic", lambda: clock[0])
+    monkeypatch.setattr("framework.starter_i18n.core.i18n_reloader.monotonic", lambda: clock[0])
     reloader = I18nReloader(make_loader(tmp_path, hot_reload=True), message_keys=("required",))
     original = reloader.get_catalog()
     (tmp_path / "en-US.json").write_text(invalid_json, encoding="utf-8")
@@ -500,7 +506,7 @@ def test_reloader_keeps_last_valid_catalog_after_parse_and_validation_failures(
 def test_reloader_does_not_publish_version_changed_during_load(tmp_path, monkeypatch):
     write_bundle(tmp_path, "en-US", {"message": "Initial"})
     clock = [100.0]
-    monkeypatch.setattr("framework.starter_i18n.core.reloader.monotonic", lambda: clock[0])
+    monkeypatch.setattr("framework.starter_i18n.core.i18n_reloader.monotonic", lambda: clock[0])
     loader = make_loader(tmp_path, hot_reload=True, validate_translations=False)
     reloader = I18nReloader(loader)
     original = reloader.get_catalog()
@@ -525,7 +531,7 @@ def test_reloader_rejects_intermediate_version_when_file_is_changed_then_restore
 ):
     write_bundle(tmp_path, "en-US", {"message": "Original"})
     clock = [100.0]
-    monkeypatch.setattr("framework.starter_i18n.core.reloader.monotonic", lambda: clock[0])
+    monkeypatch.setattr("framework.starter_i18n.core.i18n_reloader.monotonic", lambda: clock[0])
     loader = make_loader(tmp_path, hot_reload=True, validate_translations=False)
     reloader = I18nReloader(loader)
     original = reloader.catalog

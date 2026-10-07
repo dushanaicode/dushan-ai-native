@@ -13,7 +13,7 @@ from framework.starter_job.config.job_settings import JobSettings
 from framework.starter_mq.config.mq_settings import MQSettings
 from framework.starter_websocket.config.websocket_settings import WebSocketSettings
 from module_system.config.system_settings import SystemSettings
-from module_system.controller.admin.auth.vo.auth_login_req_vo import AuthLoginReqVO
+from module_system.controller.admin.auth.vo.auth.auth_login_req_vo import AuthLoginReqVO
 from server.config.application_settings import ApplicationSettings
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -64,6 +64,26 @@ def test_credentials_seed_and_storage_are_consistent(prepared):
     assert "status=0" in seed
     assert "status=1 WHERE id=10100000010001" in seed
     assert len(list((prepared / "mysql-init").glob("*.sql"))) > 8
+
+
+def test_database_initialization_preserves_module_order_and_source(prepared):
+    sources = [
+        "system/00_module_system.sql",
+        "system/01_system_data.sql",
+        "system/02_system_dict_data.sql",
+        "system/03_system_menu_data_system.sql",
+        "infra/00_module_infra.sql",
+        "infra/01_infra_data.sql",
+        "infra/02_system_menu_data_infra.sql",
+        "infra/03_infra_mq_data.sql",
+    ]
+    generated = sorted((prepared / "mysql-init").glob("*.sql"))
+    assert [path.name for path in generated] == [
+        *(f"{index:03d}_{Path(source).name}" for index, source in enumerate(sources)),
+        "999_deployment_credentials.sql",
+    ]
+    for path, source in zip(generated, sources):
+        assert path.read_bytes() == (ROOT / "dushan-admin-backend/sql/mysql" / source).read_bytes()
 
 
 def test_repeat_preparation_does_not_replace_existing_secrets(prepared):

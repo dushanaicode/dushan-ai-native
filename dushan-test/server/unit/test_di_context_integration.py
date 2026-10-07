@@ -12,12 +12,11 @@ from fixtures.public_web_app import create_public_app
 from framework.starter_config.provider.bootstrap_config_error import BootstrapConfigError
 from framework.starter_di.context.application_context import ApplicationContext
 from framework.starter_di.context.application_state_enum import ApplicationStateEnum
-from framework.starter_di.context.get_bean import get_bean
 from framework.starter_di.decorators.di_dependency import DiDependency
 from framework.starter_di.definitions.constants.di_error_codes import DiErrorCodes
 from framework.starter_di.definitions.enums.container_state_enum import ContainerStateEnum
-from server.bootstrap.bootstrapper import BootstrapError
-from server.bootstrap.step_registry import APP_BOOTSTRAP_STEPS, BootstrapStepSpec
+from server.bootstrap.bootstrap_error import BootstrapError
+from server.bootstrap.bootstrap_step_spec import APP_BOOTSTRAP_STEPS, BootstrapStepSpec
 
 pytestmark = pytest.mark.unit
 
@@ -56,12 +55,12 @@ def test_http_and_websocket_parameter_injection_share_lookup(module_package, con
 
     @app.get("/lookup")
     def lookup(resource=Depends(DiDependency(resource_type))):
-        return {"same": resource is get_bean(resource_type)}
+        return {"same": resource is ApplicationContext.lookup(resource_type)}
 
     @app.websocket("/socket")
     async def websocket(socket: WebSocket, resource=Depends(DiDependency(resource_type))):
         await socket.accept()
-        await socket.send_json({"same": resource is get_bean(resource_type)})
+        await socket.send_json({"same": resource is ApplicationContext.lookup(resource_type)})
         await socket.close()
 
     with TestClient(app) as client:
@@ -82,7 +81,7 @@ def test_yaml_switches_control_real_lookup_and_automatic_binding(module_package,
 
     @app.get("/lookup")
     def lookup():
-        return get_bean(resource_type)
+        return ApplicationContext.lookup(resource_type)
 
     with TestClient(app) as client:
         assert client.get("/injected").json() == {"exists": True}
@@ -94,12 +93,12 @@ def test_yaml_switches_control_real_lookup_and_automatic_binding(module_package,
 
     @manual.get("/missing")
     def missing():
-        return get_bean(resource_type)
+        return ApplicationContext.lookup(resource_type)
 
     @manual.get("/manual")
     def explicitly_bound():
         with manual.state.application_context.execution():
-            return {"exists": get_bean(resource_type) is not None}
+            return {"exists": ApplicationContext.lookup(resource_type) is not None}
 
     with TestClient(manual) as client:
         assert client.get("/missing").json()["code"] == DiErrorCodes.CONTEXT_MISSING.code
@@ -113,11 +112,11 @@ async def test_stream_keeps_context_and_drain_waits_until_last_body(module_packa
     @app.get("/stream")
     async def stream():
         async def chunks():
-            initial = get_bean(resource_type)
+            initial = ApplicationContext.lookup(resource_type)
             entered.set()
             yield b"first\n"
             await release.wait()
-            assert get_bean(resource_type) is initial
+            assert ApplicationContext.lookup(resource_type) is initial
             yield b"last\n"
 
         return StreamingResponse(chunks(), media_type="text/event-stream")
@@ -152,13 +151,13 @@ def test_resource_step_uses_context_before_ready_and_cleans_before_container(
     async def resource_step(ctx):
         current = ApplicationContext.current()
         assert current.state is ApplicationStateEnum.STARTING and not ctx.ready
-        resource = get_bean(resource_type)
+        resource = ApplicationContext.lookup(resource_type)
         resource.resource_ready = True
         events.append("resource started")
         try:
             yield
         finally:
-            assert get_bean(resource_type) is resource
+            assert ApplicationContext.lookup(resource_type) is resource
             assert not ctx.ready
             events.append("resource stopped")
 
@@ -167,7 +166,7 @@ def test_resource_step_uses_context_before_ready_and_cleans_before_container(
     with TestClient(app) as client:
         current = app.state.application_context
         with current.execution():
-            resource = get_bean(resource_type)
+            resource = ApplicationContext.lookup(resource_type)
             assert resource.resource_ready
         assert client.get("/health").status_code == 200
     assert events == ["resource started", "resource stopped"] and not resource.resource_ready

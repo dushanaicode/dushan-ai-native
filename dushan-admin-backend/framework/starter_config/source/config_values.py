@@ -1,11 +1,57 @@
+import json
 from collections.abc import Mapping
 from copy import deepcopy
+from types import UnionType
+from typing import Union, get_args, get_origin
+
+from pydantic import BaseModel
 
 from framework.starter_config.provider.bootstrap_config_error import BootstrapConfigError
 
 
 class ConfigValues:
     """统一配置树、点分键与来源；分组只存标记，叶子只复制一次。"""
+
+    @classmethod
+    def parse_collection(cls, value: object, annotation: object, field: str) -> object:
+        """按声明解码集合；字符串联合保持原值，字段约束仍由模型校验。"""
+        if (
+            isinstance(annotation, type)
+            and issubclass(annotation, BaseModel)
+            and isinstance(value, dict)
+        ):
+            return {
+                name: cls.parse_collection(
+                    item, annotation.model_fields[name].annotation, f"{field}.{name}"
+                )
+                if name in annotation.model_fields
+                else item
+                for name, item in value.items()
+            }
+        alternatives = (
+            get_args(annotation) if get_origin(annotation) in {Union, UnionType} else (annotation,)
+        )
+        if not isinstance(value, str) or str in alternatives:
+            return value
+        if value == "null" and type(None) in alternatives:
+            return None
+        containers = {list, tuple, set, frozenset, dict}
+        collection = any(
+            item in containers
+            or get_origin(item) in containers
+            or (
+                get_origin(annotation) in {Union, UnionType}
+                and isinstance(item, type)
+                and issubclass(item, BaseModel)
+            )
+            for item in alternatives
+        )
+        if collection:
+            try:
+                return json.loads(value)
+            except json.JSONDecodeError:
+                raise BootstrapConfigError(f"配置集合字段必须使用 JSON：{field}") from None
+        return value
 
     @classmethod
     def flatten(cls, values: Mapping[str, object], *, max_items: int) -> dict[str, object]:

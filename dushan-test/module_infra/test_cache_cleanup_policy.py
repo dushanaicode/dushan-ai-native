@@ -11,7 +11,7 @@ from httpx import ASGITransport, AsyncClient
 from framework.starter_cache.public import CacheHandler
 from framework.starter_security.public import SecurityRealm, SecurityService
 from framework.starter_web.public import RoutePolicy
-from module_system.dal.cache.cache_key_constants import SystemCacheKeys
+from module_system.dal.cache.system_cache_key_constants import SystemCacheKeyConstants
 
 pytestmark = pytest.mark.asyncio(loop_scope="module")
 PREFIX = "/admin-api/infra/cache/monitor"
@@ -25,9 +25,9 @@ async def seeded_cache(infra_app, admin_client):
             RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT),
         ):
             cache = application.container.get(CacheHandler)
-            client = cache.get_client(SystemCacheKeys.ROLE)
-            key = cache.build_full_key(SystemCacheKeys.ROLE, "cleanup-test")
-            ticket = cache.build_full_key(SystemCacheKeys.QR_LOGIN, "cleanup-test")
+            client = cache.get_client(SystemCacheKeyConstants.ROLE)
+            key = cache.build_full_key(SystemCacheKeyConstants.ROLE, "cleanup-test")
+            ticket = cache.build_full_key(SystemCacheKeyConstants.QR_LOGIN, "cleanup-test")
             foreign = f"__tenant__:t{hashlib.sha256(b'other-tenant').hexdigest()}:system:role:cleanup-test"
             await client.mset({key: "{}", ticket: "{}", foreign: "{}", "custom:keep": "keep"})
             return client, key, ticket, foreign

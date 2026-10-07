@@ -1,7 +1,6 @@
 from sqlalchemy import (
     BigInteger,
     Boolean,
-    Computed,
     ForeignKeyConstraint,
     SmallInteger,
     String,
@@ -36,6 +35,15 @@ class CodegenColumnDO(GlobalControlDO):
     column_comment: Mapped[str] = mapped_column(String(500), default="", comment="字段描述")
     data_type: Mapped[str] = mapped_column(String(100), nullable=False, comment="字段物理类型")
     column_size: Mapped[int | None] = mapped_column(BigInteger, nullable=True, comment="字段长度")
+    numeric_precision: Mapped[int | None] = mapped_column(
+        BigInteger, nullable=True, comment="数值精度"
+    )
+    numeric_scale: Mapped[int | None] = mapped_column(
+        BigInteger, nullable=True, comment="数值小数位数"
+    )
+    type_metadata_synced: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, comment="已同步完整物理类型"
+    )
     field_type: Mapped[str] = mapped_column(String(50), default="str", comment="Python字段类型")
     field_name: Mapped[str] = mapped_column(String(200), default="", comment="Python属性名")
 
@@ -70,7 +78,7 @@ class CodegenColumnDO(GlobalControlDO):
 
     active_key: Mapped[int | None] = mapped_column(
         SmallInteger,
-        Computed("CASE WHEN deleted = 0 THEN 1 ELSE NULL END"),
+        GlobalControlDO.active_key_computed(),
         comment="仅有效记录参与业务唯一约束",
     )
 

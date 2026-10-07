@@ -29,8 +29,8 @@ from framework.starter_database.exception.database_error_translator import Datab
 from framework.starter_database.exception.database_exception import DatabaseException
 from framework.starter_database.session.managed_async_session import ManagedAsyncSession
 from framework.starter_logging.core.logger_configurator import LoggerConfigurator
-from framework.starter_web.exception.exception_handler import GlobalExceptionHandler
-from framework.starter_web.exception.response_builder import ExceptionResponseBuilder
+from framework.starter_web.exception.exception_response_builder import ExceptionResponseBuilder
+from framework.starter_web.exception.global_exception_handler import GlobalExceptionHandler
 
 
 def driver_error(*, state=None, code=None):

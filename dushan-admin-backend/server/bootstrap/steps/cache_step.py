@@ -12,7 +12,7 @@ from framework.starter_data_permission.config.data_permission_settings import Da
 from framework.starter_job.config.job_settings import JobSettings
 from framework.starter_protection.config.protection_settings import ProtectionSettings
 from framework.starter_security.config.security_settings import SecuritySettings
-from server.bootstrap.context import AppBootstrapContext
+from server.bootstrap.app_bootstrap_context import AppBootstrapContext
 
 
 class CacheStep:

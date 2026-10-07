@@ -1,14 +1,16 @@
 from __future__ import annotations
 
-from typing import Any, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
+
+from pydantic import JsonValue
 
 from framework.common.page import PageResult
 from module_infra.api.config.dto.config_group_dto import ConfigGroupDTO
-from module_infra.controller.admin.config.vo.data.data_page_req_vo import ConfigDataPageReqVO
-from module_infra.controller.admin.config.vo.data.data_resp_vo import ConfigDataRespVO
-from module_infra.controller.admin.config.vo.data.data_save_req_vo import ConfigDataSaveReqVO
-from module_infra.dal.dataobject.config.config_data_do import InfraConfigDataDO
-from module_infra.dal.dataobject.config.config_type_do import InfraConfigTypeDO
+from module_infra.controller.admin.config.vo.data.config_data_page_req_vo import ConfigDataPageReqVO
+from module_infra.controller.admin.config.vo.data.config_data_resp_vo import ConfigDataRespVO
+from module_infra.controller.admin.config.vo.data.config_data_save_req_vo import ConfigDataSaveReqVO
+from module_infra.dal.dataobject.config.infra_config_data_do import InfraConfigDataDO
+from module_infra.dal.dataobject.config.infra_config_type_do import InfraConfigTypeDO
 
 
 @runtime_checkable
@@ -79,7 +81,7 @@ class ConfigDataService(Protocol):
         """刷新配置源"""
         ...
 
-    async def get_config_map(self) -> dict[str, Any]:
+    async def get_config_map(self) -> dict[str, JsonValue]:
         """获取所有配置键值映射"""
         ...
 

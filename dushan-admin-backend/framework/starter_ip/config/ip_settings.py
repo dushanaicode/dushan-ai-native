@@ -6,7 +6,7 @@ from urllib.parse import urlsplit
 from pydantic import Field, field_validator, model_validator
 
 from framework.starter_config.config.config_model import ConfigModel
-from framework.starter_config.decorator.config_decorator import config_model
+from framework.starter_config.decorators.config_decorator import config_model
 from framework.starter_config.definitions.enums.config_source_enum import ConfigSourceEnum
 
 

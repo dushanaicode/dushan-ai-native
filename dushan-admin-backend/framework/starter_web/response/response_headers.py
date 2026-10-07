@@ -5,6 +5,13 @@ class ResponseHeaders:
     """合并标准响应头语义，供异常处理器与中间件共用。"""
 
     @staticmethod
+    def with_no_store(headers: Mapping[str, str] | None = None) -> dict[str, str]:
+        """禁止存储响应，并保留调用方的其他响应头。"""
+        result = ResponseHeaders.with_language(headers)
+        result["cache-control"] = "no-store"
+        return result
+
+    @staticmethod
     def with_language(
         headers: Mapping[str, str] | None = None, *, translated: bool = False
     ) -> dict[str, str]:

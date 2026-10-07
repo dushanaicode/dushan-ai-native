@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from framework.common.utils.cleanup_utils import CleanupUtils
 from framework.starter_captcha.config.captcha_settings import CaptchaSettings
 from framework.starter_captcha.starter.captcha_starter import CaptchaStarter
-from server.bootstrap.context import AppBootstrapContext
+from server.bootstrap.app_bootstrap_context import AppBootstrapContext
 
 
 class CaptchaStep:

@@ -2,6 +2,7 @@ name = "web_http_feature"
 package = "fixtures.web_http_feature"
 scan_roots = ["."]
 definitions = []
+routers = []
 requires = ["framework"]
 resource_roots = []
 required_message_keys = []

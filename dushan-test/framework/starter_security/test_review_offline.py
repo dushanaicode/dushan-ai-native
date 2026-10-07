@@ -59,7 +59,7 @@ async def test_data_scope_repeated_cancellation_preserves_async_cleanup_context(
     restored = []
 
     @asynccontextmanager
-    async def enter(identity):
+    async def enter(identity, *, capability=None):
         token = marker.set("data")
         try:
             yield

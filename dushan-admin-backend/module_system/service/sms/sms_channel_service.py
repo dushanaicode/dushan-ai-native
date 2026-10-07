@@ -3,8 +3,12 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from framework.common.page import PageResult
-from module_system.controller.admin.sms.vo.channel.channel_page_req_vo import SmsChannelPageReqVO
-from module_system.controller.admin.sms.vo.channel.channel_save_req_vo import SmsChannelSaveReqVO
+from module_system.controller.admin.sms.vo.channel.sms_channel_page_req_vo import (
+    SmsChannelPageReqVO,
+)
+from module_system.controller.admin.sms.vo.channel.sms_channel_save_req_vo import (
+    SmsChannelSaveReqVO,
+)
 from module_system.dal.dataobject.sms.sms_channel_do import SmsChannelDO
 
 

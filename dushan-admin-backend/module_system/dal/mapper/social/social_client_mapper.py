@@ -40,20 +40,19 @@ class SocialClientMapper(BaseMapper[SocialClientDO]):
         stmt = select(SocialClientDO)
         if req_vo.name:
             escaped = StrUtils.escape_like(req_vo.name)
-            stmt = stmt.where(SocialClientDO.name.ilike(f"%{escaped}%"))
+            stmt = stmt.where(SocialClientDO.name.ilike(f"%{escaped}%", escape="\\"))
         if req_vo.social_type is not None:
             stmt = stmt.where(SocialClientDO.social_type == req_vo.social_type)
         if req_vo.user_type is not None:
             stmt = stmt.where(SocialClientDO.user_type == req_vo.user_type)
         if req_vo.client_id:
             escaped_cid = StrUtils.escape_like(req_vo.client_id)
-            stmt = stmt.where(SocialClientDO.client_id.ilike(f"%{escaped_cid}%"))
+            stmt = stmt.where(SocialClientDO.client_id.ilike(f"%{escaped_cid}%", escape="\\"))
         if req_vo.status is not None:
             stmt = stmt.where(SocialClientDO.status == req_vo.status)
-        if req_vo.create_time and len(req_vo.create_time) >= 2:
-            stmt = stmt.where(
-                SocialClientDO.create_time.between(req_vo.create_time[0], req_vo.create_time[1])
-            )
+        if req_vo.create_time is not None:
+            start_time, end_time = req_vo.create_time
+            stmt = stmt.where(SocialClientDO.create_time.between(start_time, end_time))
         stmt = stmt.order_by(SocialClientDO.id.desc())
         return await self.paginate_query(stmt, req_vo)
 

@@ -45,16 +45,15 @@ class AdminUserMapper(BaseMapper[AdminUserDO]):
         stmt = select(AdminUserDO)
         if req_vo.username:
             escaped = StrUtils.escape_like(req_vo.username)
-            stmt = stmt.where(AdminUserDO.username.ilike(f"%{escaped}%"))
+            stmt = stmt.where(AdminUserDO.username.ilike(f"%{escaped}%", escape="\\"))
         if req_vo.mobile:
             escaped_m = StrUtils.escape_like(req_vo.mobile)
-            stmt = stmt.where(AdminUserDO.mobile.ilike(f"%{escaped_m}%"))
+            stmt = stmt.where(AdminUserDO.mobile.ilike(f"%{escaped_m}%", escape="\\"))
         if req_vo.status is not None:
             stmt = stmt.where(AdminUserDO.status == req_vo.status)
-        if req_vo.create_time:
-            stmt = stmt.where(
-                AdminUserDO.create_time.between(req_vo.create_time[0], req_vo.create_time[1])
-            )
+        if req_vo.create_time is not None:
+            start_time, end_time = req_vo.create_time
+            stmt = stmt.where(AdminUserDO.create_time.between(start_time, end_time))
         if dept_ids:
             stmt = stmt.where(AdminUserDO.dept_id.in_(dept_ids))
         if user_ids:
@@ -64,7 +63,9 @@ class AdminUserMapper(BaseMapper[AdminUserDO]):
 
     async def select_list_by_nickname(self, nickname: str) -> list[AdminUserDO]:
         escaped = StrUtils.escape_like(nickname)
-        stmt = select(AdminUserDO).where(AdminUserDO.nickname.ilike("%" + escaped + "%"))
+        stmt = select(AdminUserDO).where(
+            AdminUserDO.nickname.ilike("%" + escaped + "%", escape="\\")
+        )
         result = await self.read(stmt)
         return list(result.scalars().all())
 
@@ -74,7 +75,12 @@ class AdminUserMapper(BaseMapper[AdminUserDO]):
         pattern = f"%{escaped}%"
         stmt = (
             select(AdminUserDO)
-            .where(or_(AdminUserDO.nickname.ilike(pattern), AdminUserDO.mobile.ilike(pattern)))
+            .where(
+                or_(
+                    AdminUserDO.nickname.ilike(pattern, escape="\\"),
+                    AdminUserDO.mobile.ilike(pattern, escape="\\"),
+                )
+            )
             .limit(limit)
         )
         result = await self.read(stmt)

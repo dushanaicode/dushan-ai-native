@@ -12,7 +12,7 @@ from framework.starter_database.public import (
 from framework.starter_di.public import (
     mapper,
 )
-from module_infra.controller.admin.logger.vo.apierrorlog.apierrorlog_api_error_log_page_req_vo import (
+from module_infra.controller.admin.logger.vo.api_error_log.api_error_log_page_req_vo import (
     ApiErrorLogPageReqVO,
 )
 from module_infra.dal.dataobject.logger.api_error_log_do import ApiErrorLogDO
@@ -34,19 +34,17 @@ class ApiErrorLogMapper(BaseMapper[ApiErrorLogDO]):
             stmt = stmt.where(ApiErrorLogDO.application_name == req_vo.application_name)
         if req_vo.request_url:
             escaped = StrUtils.escape_like(req_vo.request_url)
-            stmt = stmt.where(ApiErrorLogDO.request_url.ilike(f"%{escaped}%"))
-        if req_vo.exception_time and len(req_vo.exception_time) >= 2:
-            stmt = stmt.where(
-                ApiErrorLogDO.exception_time.between(
-                    req_vo.exception_time[0], req_vo.exception_time[1]
-                )
-            )
+            stmt = stmt.where(ApiErrorLogDO.request_url.ilike(f"%{escaped}%", escape="\\"))
+        if req_vo.exception_time is not None:
+            start_time, end_time = req_vo.exception_time
+            stmt = stmt.where(ApiErrorLogDO.exception_time.between(start_time, end_time))
         if req_vo.process_status is not None:
             stmt = stmt.where(ApiErrorLogDO.process_status == req_vo.process_status)
         stmt = stmt.order_by(ApiErrorLogDO.id.desc())
         return await self.paginate_query(stmt, req_vo)
 
     async def delete_by_create_time_lt(self, create_time: datetime, limit: int) -> int:
-        return await self.purge_limited_by_condition(
+        """按每批上限清理到期错误日志，返回累计条数。"""
+        return await self.purge_in_batches_by_condition(
             ApiErrorLogDO.create_time < create_time, limit=limit
         )

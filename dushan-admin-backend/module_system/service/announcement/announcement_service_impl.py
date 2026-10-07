@@ -53,7 +53,23 @@ class AnnouncementServiceImpl(AnnouncementService):
     @override
     @transactional
     async def create_announcement(self, req_vo: AnnouncementSaveReqVO) -> int:
-        announcement = AnnouncementDO(**req_vo.model_dump(by_alias=False))
+        announcement = AnnouncementDO(
+            **req_vo.to_write_dict(
+                fields={
+                    "id",
+                    "title",
+                    "content",
+                    "is_top",
+                    "status",
+                    "sort",
+                    "publisher",
+                    "category",
+                    "publish_time",
+                    "expire_time",
+                },
+                exclude_unset=False,
+            )
+        )
         await self.announcement_mapper.insert(announcement)
         return announcement.id
 
@@ -61,7 +77,23 @@ class AnnouncementServiceImpl(AnnouncementService):
     @transactional
     async def update_announcement(self, req_vo: AnnouncementSaveReqVO) -> bool:
         await self._validate_exists(req_vo.id)
-        update_obj = AnnouncementDO(**req_vo.model_dump(by_alias=False))
+        update_obj = AnnouncementDO(
+            **req_vo.to_write_dict(
+                fields={
+                    "id",
+                    "title",
+                    "content",
+                    "is_top",
+                    "status",
+                    "sort",
+                    "publisher",
+                    "category",
+                    "publish_time",
+                    "expire_time",
+                },
+                exclude_unset=False,
+            )
+        )
         await self.announcement_mapper.update_by_id(update_obj)
         return True
 
@@ -113,10 +145,14 @@ class AnnouncementServiceImpl(AnnouncementService):
         return True
 
     @override
-    async def get_wait_publish_announcements(self) -> list[AnnouncementDO]:
-        return await self.announcement_mapper.select_list_by_status(
-            AnnouncementStatusEnum.WAIT_PUBLISH.code
-        )
+    async def publish_due_announcements(self, current_time: datetime) -> int:
+        """查询到期公告并逐条按原发布事务执行，重复发布不计数。"""
+        published = 0
+        for announcement in await self.announcement_mapper.select_pending_announcements(
+            current_time
+        ):
+            published += int(await self.publish_announcement(announcement.id))
+        return published
 
     @override
     @transactional

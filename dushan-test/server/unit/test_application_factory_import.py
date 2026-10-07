@@ -37,8 +37,8 @@ from pathlib import Path
 import server.starter_server as factory
 assert not hasattr(factory, "app")
 assert "server.asgi" not in sys.modules
-first = factory.create_app(base_dir=Path(sys.argv[1]), app_env="test", environ={})
-second = factory.create_app(base_dir=Path(sys.argv[1]), app_env="test", environ={})
+first = factory.StarterServer.create_app(base_dir=Path(sys.argv[1]), app_env="test", environ={})
+second = factory.StarterServer.create_app(base_dir=Path(sys.argv[1]), app_env="test", environ={})
 assert first is not second and first.state.bootstrap is not second.state.bootstrap
 assert first.title == "explicit-factory" and first.state.bootstrap.settings.port == 41234
 assert first.state.application_context is None and second.state.application_context is None

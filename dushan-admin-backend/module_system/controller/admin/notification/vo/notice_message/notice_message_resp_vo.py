@@ -9,7 +9,7 @@ from framework.common.contracts import (
 from framework.common.enums import UserTypeEnum
 from framework.common.schemas import BaseVO
 from framework.common.validator import InEnum, NotNull
-from module_system.controller.admin.notification.vo.notice_log.notice_log_notice_publisher_info_vo import (
+from module_system.controller.admin.notification.vo.notice_log.notice_publisher_info_vo import (
     NoticePublisherInfoVO,
 )
 

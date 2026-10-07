@@ -32,8 +32,8 @@ class AdminUserRespDTO(BaseDTO):
                     "username": "admin",
                     "nickname": "管理员",
                     "status": 0,
-                    "deptId": 100,
-                    "postIds": [1, 2],
+                    "dept_id": 100,
+                    "post_ids": [1, 2],
                     "mobile": "13800138000",
                     "avatar": "https://www.example.com/avatar.jpg",
                 }

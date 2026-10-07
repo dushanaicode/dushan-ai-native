@@ -79,7 +79,7 @@ class WebSocketServiceImpl(WebSocketService):
             )
         )
 
-    async def get_statistics(self):
+    async def get_statistics(self) -> dict[str, int]:
         entries = await self.get_session_list()
         return {
             "total": len(entries),
@@ -87,7 +87,7 @@ class WebSocketServiceImpl(WebSocketService):
             "instances": len({entry.instance for entry in entries}),
         }
 
-    async def get_status_info(self):
+    async def get_status_info(self) -> dict[str, bool | str | int]:
         if not self.convert.settings.enabled:
             return self.convert.build_status_info(0)
         return self.convert.build_status_info(len(await self.get_session_list()))

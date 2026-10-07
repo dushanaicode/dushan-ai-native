@@ -2,7 +2,7 @@ import inspect
 from functools import wraps
 
 from framework.starter_database.session.session_provider import SessionProvider
-from framework.starter_di.context.get_bean import get_bean
+from framework.starter_di.context.application_context import ApplicationContext
 
 
 def include_deleted(function):
@@ -12,7 +12,7 @@ def include_deleted(function):
 
     @wraps(function)
     async def invoke(*args, **kwargs):
-        with get_bean(SessionProvider).options(include_deleted=True):
+        with ApplicationContext.lookup(SessionProvider).options(include_deleted=True):
             return await function(*args, **kwargs)
 
     return invoke

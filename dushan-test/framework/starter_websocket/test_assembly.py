@@ -6,8 +6,8 @@ from pydantic import ValidationError
 from fixtures.config_factory import ConfigFactory
 from framework.starter_websocket.config.websocket_settings import WebSocketSettings
 from framework.starter_websocket.core.websocket_runtime import WebSocketRuntime
-from server.bootstrap.bootstrapper import BootstrapError
-from server.starter_server import create_app
+from server.bootstrap.bootstrap_error import BootstrapError
+from server.starter_server import StarterServer
 from starter_websocket.provider_source import SOURCE
 
 
@@ -32,7 +32,7 @@ async def test_disabled_websocket_registers_no_endpoint(config_dir, monkeypatch)
         raise AssertionError("disabled websocket acquired resources")
 
     monkeypatch.setattr(WebSocketRuntime, "open", unexpected)
-    app = create_app(base_dir=config_dir({"banner": {"enabled": False}}), environ={})
+    app = StarterServer.create_app(base_dir=config_dir({"banner": {"enabled": False}}), environ={})
     async with app.router.lifespan_context(app):
         assert app.state.websocket is None
         assert not any(route.path == "/api/ws" for route in app.routes)
@@ -71,7 +71,7 @@ async def test_invalid_assembly_fails_before_endpoint(scenario, config_dir, modu
     if scenario == "multi_worker":
         config["uvicorn"] = {"workers": 2}
         config["server"] = {"reload": False, "engine": "uvicorn"}
-    app = create_app(base_dir=config_dir(config), environ={})
+    app = StarterServer.create_app(base_dir=config_dir(config), environ={})
     with pytest.raises(BootstrapError):
         async with app.router.lifespan_context(app):
             pytest.fail("invalid websocket started")
@@ -100,7 +100,7 @@ async def test_resource_startup_failure_cleans_owned_lease(config_dir, module_pa
 
     monkeypatch.setattr(WebSocketRuntime, "__init__", capture)
     monkeypatch.setattr(RedisSocketTransport, "open", fail)
-    app = create_app(
+    app = StarterServer.create_app(
         base_dir=config_dir(
             {
                 "banner": {"enabled": False},

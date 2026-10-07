@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import func, select
 
 from framework.starter_job.cron.cron_schedule import CronSchedule
-from server.starter_server import create_app
+from server.starter_server import StarterServer
 
 
 async def wait_runs(case, count):
@@ -62,7 +62,7 @@ async def test_startup_rebuild_coalesces_once_and_checkpoint_survives(job_case, 
         await case.runtime.reconcile()
         await case.runtime.reconcile()
     await case.runtime.close()
-    other = create_app(base_dir=case.config_path, environ={})
+    other = StarterServer.create_app(base_dir=case.config_path, environ={})
     async with other.router.lifespan_context(other):
         assert other.state.job.owner
         with other.state.application_context.execution():

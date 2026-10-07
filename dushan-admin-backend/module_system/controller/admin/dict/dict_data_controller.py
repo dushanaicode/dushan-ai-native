@@ -3,15 +3,13 @@ from fastapi.responses import StreamingResponse
 
 from framework.common.contracts import SnowflakeIdStr
 from framework.common.enums import StatusEnum
-from framework.common.page import PageResult, PageSettings
+from framework.common.page import PageResult
 from framework.common.schemas.request import IdListReqVO, IdReqVO, UpdateStatusReqVO
 from framework.common.utils import ConversionUtils
 from framework.starter_di.public import (
     DiDependency,
 )
 from framework.starter_excel.public import (
-    DictDataProvider,
-    ExcelProviders,
     ExcelWriter,
 )
 from framework.starter_security.public import (
@@ -23,15 +21,15 @@ from framework.starter_web.public import (
     Result,
     RoutePolicy,
 )
-from module_system.controller.admin.dict.vo.data.data_export_req_vo import DictDataExportReqVO
-from module_system.controller.admin.dict.vo.data.data_page_req_vo import DictDataPageReqVO
-from module_system.controller.admin.dict.vo.data.data_resp_vo import DictDataRespVO
-from module_system.controller.admin.dict.vo.data.data_save_req_vo import DictDataSaveReqVO
-from module_system.controller.admin.dict.vo.data.data_simple_resp_vo import DictDataSimpleRespVO
+from module_system.controller.admin.dict.vo.data.dict_data_export_req_vo import DictDataExportReqVO
+from module_system.controller.admin.dict.vo.data.dict_data_page_req_vo import DictDataPageReqVO
+from module_system.controller.admin.dict.vo.data.dict_data_resp_vo import DictDataRespVO
+from module_system.controller.admin.dict.vo.data.dict_data_save_req_vo import DictDataSaveReqVO
+from module_system.controller.admin.dict.vo.data.dict_data_simple_resp_vo import (
+    DictDataSimpleRespVO,
+)
 from module_system.dal.dataobject.dict.dict_data_do import DictDataDO
 from module_system.service.dict.dict_data_service import DictDataService
-from module_system.spi.dept.dept_info_provider_adapter import DeptInfoProviderAdapter
-from module_system.spi.dept.post_info_provider_adapter import PostInfoProviderAdapter
 
 dict_data_controller = APIRouter(prefix="/dict/data", tags=["System - 字典数据管理"])
 
@@ -100,11 +98,11 @@ class DictDataController:
     @dict_data_controller.get(
         "/simple-list", summary="获得全部字典数据列表", include_in_schema=True
     )
-    @AccessLogPolicy(enabled=False)
     @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT)
+    @AccessLogPolicy(enabled=False)
     async def get_simple_dict_data_list(
         dict_data_service: DictDataService = Depends(DiDependency(DictDataService)),
-    ) -> Result[list]:
+    ) -> Result[list[DictDataSimpleRespVO]]:
         list_data = await dict_data_service.get_dict_data_list(StatusEnum.ENABLE.code, None)
         simple_list = [DictDataSimpleRespVO.model_validate(item) for item in list_data]
         return Result.success(data=simple_list)
@@ -134,6 +132,8 @@ class DictDataController:
         dict_data_service: DictDataService = Depends(DiDependency(DictDataService)),
     ) -> Result[DictDataRespVO]:
         dict_data = await dict_data_service.get_dict_data(req_vo.id)
+        if dict_data is None:
+            return Result.success(data=None)
         return Result.success(data=DictDataRespVO.model_validate(dict_data))
 
     @staticmethod
@@ -157,17 +157,8 @@ class DictDataController:
         dict_data_service: DictDataService = Depends(DiDependency(DictDataService)),
         excel_writer: ExcelWriter = Depends(DiDependency(ExcelWriter)),
         files: FileResult = Depends(DiDependency(FileResult)),
-        dictionaries: DictDataProvider = Depends(DiDependency(DictDataProvider)),
-        departments: DeptInfoProviderAdapter = Depends(DiDependency(DeptInfoProviderAdapter)),
-        posts: PostInfoProviderAdapter = Depends(DiDependency(PostInfoProviderAdapter)),
-        page_settings: PageSettings = Depends(DiDependency(PageSettings)),
     ) -> StreamingResponse:
-        excel_providers = ExcelProviders(
-            dictionaries=dictionaries, departments=departments, posts=posts
-        )
-        page_req_vo.enable_fetch_all(
-            max_rows=min(excel_writer.settings.max_export_rows, page_settings.fetch_all_max_rows)
-        )
+        excel_writer.prepare_export_query(page_req_vo)
         page_result: PageResult[DictDataDO] = await dict_data_service.get_dict_data_page(
             page_req_vo
         )
@@ -176,6 +167,6 @@ class DictDataController:
         )
         filename = "字典数据"
         file_data = await excel_writer.write(
-            "数据", DictDataRespVO, excel_list, providers=excel_providers, fields=page_req_vo.fields
+            "数据", DictDataRespVO, excel_list, fields=page_req_vo.fields
         )
         return files.excel_stream(file_data, file_name=f"{filename}.xlsx")

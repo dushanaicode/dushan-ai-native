@@ -11,7 +11,7 @@ from framework.starter_database.public import (
 from framework.starter_di.public import (
     mapper,
 )
-from module_system.controller.admin.oauth2.vo.token.token_access_token_page_req_vo import (
+from module_system.controller.admin.oauth2.vo.token.oauth2_access_token_page_req_vo import (
     OAuth2AccessTokenPageReqVO,
 )
 from module_system.dal.dataobject.oauth2.oauth2_access_token_do import OAuth2AccessTokenDO
@@ -55,12 +55,9 @@ class OAuth2AccessTokenMapper(BaseMapper[OAuth2AccessTokenDO]):
             stmt = stmt.where(OAuth2AccessTokenDO.user_type == req_vo.user_type)
         if req_vo.client_id:
             stmt = stmt.where(OAuth2AccessTokenDO.client_id == req_vo.client_id)
-        if req_vo.create_time and len(req_vo.create_time) >= 2:
-            stmt = stmt.where(
-                OAuth2AccessTokenDO.create_time.between(
-                    req_vo.create_time[0], req_vo.create_time[1]
-                )
-            )
+        if req_vo.create_time is not None:
+            start_time, end_time = req_vo.create_time
+            stmt = stmt.where(OAuth2AccessTokenDO.create_time.between(start_time, end_time))
         stmt = stmt.where(
             OAuth2AccessTokenDO.expires_time > datetime.now(timezone.utc).replace(tzinfo=None)
         )

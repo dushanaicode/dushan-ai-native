@@ -8,12 +8,12 @@ import pytest
 from sqlalchemy import select
 
 from framework.starter_tenant.exception.tenant_exception import TenantException
-from server.starter_server import create_app
+from server.starter_server import StarterServer
 
 
 async def test_two_applications_do_not_share_tenant_context(tenant_case):
     case = tenant_case
-    other = create_app(base_dir=case.config_path, environ={})
+    other = StarterServer.create_app(base_dir=case.config_path, environ={})
     async with other.router.lifespan_context(other):
         assert case.tenant.context is not other.state.tenant.context
         async with case.enter():

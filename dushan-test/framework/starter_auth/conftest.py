@@ -11,7 +11,7 @@ from framework.starter_auth.starter.auth_starter import AuthStarter
 from framework.starter_cache.core.cache_handler import CacheHandler
 from framework.starter_cache.lock.distributed_lock import DistributedLock
 from framework.starter_monitor.spi.monitor_provider import MonitorProvider
-from server.starter_server import create_app
+from server.starter_server import StarterServer
 
 from .support import client_config, settings
 
@@ -34,7 +34,7 @@ async def harness(config_dir):
             }
         },
     }
-    app = create_app(base_dir=config_dir(values), environ={})
+    app = StarterServer.create_app(base_dir=config_dir(values), environ={})
     starters = []
     namespaces = []
     async with app.router.lifespan_context(app):

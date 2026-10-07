@@ -29,7 +29,7 @@ class DeptMapper(BaseMapper[DeptDO]):
         stmt = select(DeptDO)
         if req_vo.name:
             escaped = StrUtils.escape_like(req_vo.name)
-            stmt = stmt.where(DeptDO.name.ilike(f"%{escaped}%"))
+            stmt = stmt.where(DeptDO.name.ilike(f"%{escaped}%", escape="\\"))
         if req_vo.status is not None:
             stmt = stmt.where(DeptDO.status == req_vo.status)
         result = await self.read(stmt)
@@ -39,6 +39,10 @@ class DeptMapper(BaseMapper[DeptDO]):
         stmt = select(DeptDO).where(DeptDO.status == status)
         result = await self.read(stmt)
         return list(result.scalars().all())
+
+    async def select_list_by_names(self, names: Collection[str]) -> list[DeptDO]:
+        """批量精确查询部门名称，保留不同父部门下的同名记录。"""
+        return await self.select_list(DeptDO.name.in_(names))
 
     async def select_by_parent_id_and_name(self, parent_id: int, name: str) -> DeptDO | None:
         stmt = select(DeptDO).where(DeptDO.parent_id == parent_id, DeptDO.name == name)

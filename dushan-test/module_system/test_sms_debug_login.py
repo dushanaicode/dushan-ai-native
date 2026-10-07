@@ -9,7 +9,7 @@ from framework.common.enums import ApplicationEnvironmentEnum
 from module_system.definitions.constants.error_code_constants import ErrorCodeConstants
 from module_system.service.sms.sms_code_service import SmsCodeService
 from module_system.service.sms.sms_send_service_impl import SmsSendServiceImpl
-from server.starter_server import create_app
+from server.starter_server import StarterServer
 
 pytestmark = pytest.mark.asyncio(loop_scope="module")
 MOBILES = ("13800001001", "13800001002", "13800001003")
@@ -122,7 +122,7 @@ async def test_debug_sms_requires_development_whitelist_send_and_single_use(
         (folder / "application.yaml").write_text(yaml.safe_dump(values), encoding="utf-8")
         if environment == "prod":
             (folder / "application-prod.yaml").write_text("{}\n", encoding="utf-8")
-        other = create_app(base_dir=folder, app_env=environment, environ={})
+        other = StarterServer.create_app(base_dir=folder, app_env=environment, environ={})
         async with other.router.lifespan_context(other):
             async with AsyncClient(
                 transport=ASGITransport(app=other, client=(f"127.0.0.{90 + offset}", 10000)),

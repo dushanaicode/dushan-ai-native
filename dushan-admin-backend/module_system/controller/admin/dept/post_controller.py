@@ -3,15 +3,13 @@ from fastapi.responses import StreamingResponse
 
 from framework.common.contracts import SnowflakeIdStr
 from framework.common.enums import StatusEnum
-from framework.common.page import PageResult, PageSettings
+from framework.common.page import PageResult
 from framework.common.schemas.request import IdListReqVO, IdReqVO, UpdateStatusReqVO
 from framework.common.utils import ConversionUtils
 from framework.starter_di.public import (
     DiDependency,
 )
 from framework.starter_excel.public import (
-    DictDataProvider,
-    ExcelProviders,
     ExcelWriter,
 )
 from framework.starter_security.public import (
@@ -29,8 +27,6 @@ from module_system.controller.admin.dept.vo.post.post_save_req_vo import PostSav
 from module_system.controller.admin.dept.vo.post.post_simple_resp_vo import PostSimpleRespVO
 from module_system.dal.dataobject.dept.post_do import PostDO
 from module_system.service.dept.post_service import PostService
-from module_system.spi.dept.dept_info_provider_adapter import DeptInfoProviderAdapter
-from module_system.spi.dept.post_info_provider_adapter import PostInfoProviderAdapter
 
 post_controller = APIRouter(prefix="/dept/post", tags=["System - 岗位管理"])
 
@@ -150,23 +146,14 @@ class PostController:
         post_service: PostService = Depends(DiDependency(PostService)),
         excel_writer: ExcelWriter = Depends(DiDependency(ExcelWriter)),
         files: FileResult = Depends(DiDependency(FileResult)),
-        dictionaries: DictDataProvider = Depends(DiDependency(DictDataProvider)),
-        departments: DeptInfoProviderAdapter = Depends(DiDependency(DeptInfoProviderAdapter)),
-        posts: PostInfoProviderAdapter = Depends(DiDependency(PostInfoProviderAdapter)),
-        page_settings: PageSettings = Depends(DiDependency(PageSettings)),
     ) -> StreamingResponse:
-        excel_providers = ExcelProviders(
-            dictionaries=dictionaries, departments=departments, posts=posts
-        )
-        page_req_vo.enable_fetch_all(
-            max_rows=min(excel_writer.settings.max_export_rows, page_settings.fetch_all_max_rows)
-        )
+        excel_writer.prepare_export_query(page_req_vo)
         page_result: PageResult[PostDO] = await post_service.get_post_page(page_req_vo)
         excel_list: list[PostRespVO] = ConversionUtils.list_to_vo_list(
             page_result.items, PostRespVO
         )
         filename = "岗位数据"
         file_data = await excel_writer.write(
-            "数据", PostRespVO, excel_list, providers=excel_providers, fields=page_req_vo.fields
+            "数据", PostRespVO, excel_list, fields=page_req_vo.fields
         )
         return files.excel_stream(file_data, file_name=f"{filename}.xlsx")

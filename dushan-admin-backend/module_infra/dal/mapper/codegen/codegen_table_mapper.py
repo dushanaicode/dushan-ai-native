@@ -24,14 +24,13 @@ class CodegenTableMapper(BaseMapper[CodegenTableDO]):
         stmt = select(CodegenTableDO)
         if req_vo.table_name:
             escaped_tn = StrUtils.escape_like(req_vo.table_name)
-            stmt = stmt.where(CodegenTableDO.table_name.ilike(f"%{escaped_tn}%"))
+            stmt = stmt.where(CodegenTableDO.table_name.ilike(f"%{escaped_tn}%", escape="\\"))
         if req_vo.table_comment:
             escaped_tc = StrUtils.escape_like(req_vo.table_comment)
-            stmt = stmt.where(CodegenTableDO.table_comment.ilike(f"%{escaped_tc}%"))
-        if req_vo.create_time and len(req_vo.create_time) >= 2:
-            stmt = stmt.where(
-                CodegenTableDO.create_time.between(req_vo.create_time[0], req_vo.create_time[1])
-            )
+            stmt = stmt.where(CodegenTableDO.table_comment.ilike(f"%{escaped_tc}%", escape="\\"))
+        if req_vo.create_time is not None:
+            start_time, end_time = req_vo.create_time
+            stmt = stmt.where(CodegenTableDO.create_time.between(start_time, end_time))
         stmt = stmt.order_by(CodegenTableDO.update_time.desc())
         return await self.paginate_query(stmt, req_vo)
 

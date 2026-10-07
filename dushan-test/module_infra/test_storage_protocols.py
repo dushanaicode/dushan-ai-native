@@ -31,7 +31,7 @@ class StorageClient:
 
     def generate_presigned_url(self, operation, *, Params, ExpiresIn, HttpMethod):
         assert Params["Bucket"] == "test-bucket"
-        assert (operation, HttpMethod) in {("get_object", "GET"), ("put_object", "PUT")}
+        assert (operation, HttpMethod) == ("get_object", "GET")
         assert ExpiresIn > 0
         return "https://files.example.test/signed"
 
@@ -81,7 +81,6 @@ async def test_s3_protocol_variants_and_resource_cleanup(monkeypatch, endpoint):
     )
     assert await storage.get_content("folder/a b.txt") == b"contents"
     assert sdk.body.closed
-    assert (await storage.get_presigned_object_url("upload.txt")).upload_url.endswith("signed")
     assert (await storage.presign_get_url("download.txt", 30)).endswith("signed")
     sdk.fail_delete = True
     with pytest.raises(OSError, match="provider-delete-failed"):

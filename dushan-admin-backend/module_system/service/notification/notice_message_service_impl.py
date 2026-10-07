@@ -69,6 +69,12 @@ class NoticeMessageServiceImpl(NoticeMessageService):
         return await self.notice_message_mapper.select_by_id(id)
 
     @override
+    async def get_my_notice_message(
+        self, id: int, user_id: int, user_type: int
+    ) -> NoticeMessageDO | None:
+        return await self.notice_message_mapper.select_my(id, user_id, user_type)
+
+    @override
     async def get_unread_notice_message_list(
         self, user_id: int, user_type: int, size: int
     ) -> list[NoticeMessageDO]:

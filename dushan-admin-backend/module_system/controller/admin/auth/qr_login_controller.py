@@ -7,18 +7,24 @@ from framework.common.exception import ServiceException
 from framework.starter_di.public import DiDependency
 from framework.starter_protection.public import RateLimitRule, rate_limit
 from framework.starter_security.public import SecurityRealm
-from framework.starter_web.public import AccessLogPolicy, Result, RoutePolicy
+from framework.starter_web.public import AccessLogPolicy, ResponseHeaders, Result, RoutePolicy
 from module_system.config.qr_login_settings import QrLoginSettings
 from module_system.config.system_settings import SystemSettings
 from module_system.controller.admin.auth.auth_cookies import AuthCookies
-from module_system.controller.admin.auth.vo.auth_login_resp_vo import AuthLoginRespVO
-from module_system.controller.admin.auth.vo.auth_qr_confirm_req_vo import AuthQrConfirmReqVO
-from module_system.controller.admin.auth.vo.auth_qr_create_resp_vo import AuthQrCreateRespVO
-from module_system.controller.admin.auth.vo.auth_qr_scan_resp_vo import AuthQrScanRespVO
-from module_system.controller.admin.auth.vo.auth_qr_status_resp_vo import AuthQrStatusRespVO
-from module_system.controller.admin.auth.vo.auth_qr_ticket_req_vo import AuthQrTicketReqVO
+from module_system.controller.admin.auth.vo.auth.auth_login_resp_vo import AuthLoginRespVO
+from module_system.controller.admin.auth.vo.qr_login.auth_qr_confirm_req_vo import (
+    AuthQrConfirmReqVO,
+)
+from module_system.controller.admin.auth.vo.qr_login.auth_qr_create_resp_vo import (
+    AuthQrCreateRespVO,
+)
+from module_system.controller.admin.auth.vo.qr_login.auth_qr_scan_resp_vo import AuthQrScanRespVO
+from module_system.controller.admin.auth.vo.qr_login.auth_qr_status_resp_vo import (
+    AuthQrStatusRespVO,
+)
+from module_system.controller.admin.auth.vo.qr_login.auth_qr_ticket_req_vo import AuthQrTicketReqVO
 from module_system.definitions.constants.error_code_constants import ErrorCodeConstants
-from module_system.definitions.constants.public_contexts import PublicContexts
+from module_system.definitions.constants.public_context_constants import PublicContextConstants
 from module_system.service.auth.qr_login_service import QrLoginService
 
 qr_login_controller = APIRouter(prefix="/auth/qr-login", tags=["System - 扫码登录"])
@@ -46,7 +52,7 @@ class QrLoginController:
 
     @staticmethod
     @qr_login_controller.post("/create")
-    @RoutePolicy.public(context=PublicContexts.TENANT_SELECTION)
+    @RoutePolicy.public(context=PublicContextConstants.TENANT_SELECTION)
     @AccessLogPolicy(enabled=False)
     @rate_limit(
         "system.auth.qr.create",
@@ -57,24 +63,26 @@ class QrLoginController:
         response: Response,
         service: QrLoginService = Depends(DiDependency(QrLoginService)),
         settings: SystemSettings = Depends(DiDependency(SystemSettings)),
+        qr_settings: QrLoginSettings = Depends(DiDependency(QrLoginSettings)),
     ) -> Result[AuthQrCreateRespVO]:
-        AuthCookies.check_origin(request, settings, required=True)
+        """创建与当前浏览器和来源绑定的扫码登录票据。"""
+        origin = AuthCookies.require_origin(request, settings)
         binding = (
             secrets.token_urlsafe(32)
             if QrLoginController.COOKIE not in request.cookies
             else QrLoginController._binding(request)
         )
-        value = await service.create(binding, request.headers["origin"])
+        value = await service.create(binding, origin)
         response.set_cookie(
             QrLoginController.COOKIE,
             binding,
-            max_age=service.settings.expire_seconds + 60,
+            max_age=qr_settings.expire_seconds + 60,
             httponly=True,
             secure=settings.refresh_cookie_secure,
             samesite="lax",
             path=QrLoginController.COOKIE_PATH,
         )
-        response.headers["Cache-Control"] = "no-store"
+        response.headers.update(ResponseHeaders.with_no_store())
         return Result.success(value)
 
     @staticmethod
@@ -91,11 +99,10 @@ class QrLoginController:
         service: QrLoginService = Depends(DiDependency(QrLoginService)),
         settings: SystemSettings = Depends(DiDependency(SystemSettings)),
     ) -> Result[AuthQrStatusRespVO]:
-        AuthCookies.check_origin(request, settings, required=True)
+        """查询当前浏览器绑定的扫码登录状态。"""
+        origin = AuthCookies.require_origin(request, settings)
         return Result.success(
-            await service.poll(
-                req.ticket, QrLoginController._binding(request), request.headers["origin"]
-            )
+            await service.poll(req.ticket, QrLoginController._binding(request), origin)
         )
 
     @staticmethod
@@ -143,10 +150,9 @@ class QrLoginController:
         service: QrLoginService = Depends(DiDependency(QrLoginService)),
         settings: SystemSettings = Depends(DiDependency(SystemSettings)),
     ) -> Result[bool]:
-        AuthCookies.check_origin(request, settings, required=True)
-        await service.cancel(
-            req.ticket, QrLoginController._binding(request), request.headers["origin"]
-        )
+        """取消当前浏览器绑定的扫码登录票据。"""
+        origin = AuthCookies.require_origin(request, settings)
+        await service.cancel(req.ticket, QrLoginController._binding(request), origin)
         return Result.success(True)
 
     @staticmethod
@@ -164,10 +170,9 @@ class QrLoginController:
         service: QrLoginService = Depends(DiDependency(QrLoginService)),
         settings: SystemSettings = Depends(DiDependency(SystemSettings)),
     ) -> Result[AuthLoginRespVO]:
-        AuthCookies.check_origin(request, settings, required=True)
-        value = await service.consume(
-            req.ticket, QrLoginController._binding(request), request.headers["origin"]
-        )
+        """兑换当前浏览器的扫码登录票据并设置刷新 Cookie。"""
+        origin = AuthCookies.require_origin(request, settings)
+        value = await service.consume(req.ticket, QrLoginController._binding(request), origin)
         AuthCookies.set_refresh(response, value, settings)
-        response.headers["Cache-Control"] = "no-store"
+        response.headers.update(ResponseHeaders.with_no_store())
         return Result.success(value)

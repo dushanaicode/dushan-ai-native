@@ -11,18 +11,25 @@ from framework.starter_security.model.request_audit import RequestAudit
 from framework.starter_security.spi.public_request_context_provider import (
     PublicRequestContextProvider,
 )
+from framework.starter_security.spi.request_access_provider import RequestAccessProvider
 from framework.starter_web.routing.route_guard import RouteGuard
 from framework.starter_web.routing.route_policy import RoutePolicy
 
 
 class SecurityAccess(RouteGuard):
-    """供 create_app(access_provider=SecurityAccess()) 使用的原生 FastAPI 依赖。"""
+    """供 StarterServer.create_app(access_provider=SecurityAccess()) 使用的原生 FastAPI 依赖。"""
 
     VERIFIED = "security_verified_policy"
 
-    def __init__(self, public_contexts: PublicRequestContextProvider | None = None, service=None):
+    def __init__(
+        self,
+        public_contexts: PublicRequestContextProvider | None = None,
+        service=None,
+        request_access: RequestAccessProvider | None = None,
+    ):
         self.public_contexts = public_contexts
         self.service = service
+        self.request_access = request_access
 
     def validate_policy(self, policy: RoutePolicy) -> None:
         self.service.validate_policy(policy)
@@ -33,6 +40,23 @@ class SecurityAccess(RouteGuard):
 
     @asynccontextmanager
     async def guard(self, request: Request, policy: RoutePolicy):
+        if (
+            not policy.requires_identity
+            and self.request_access is not None
+            and self.request_access.requires_check(request)
+            and any(
+                header.partition(" ")[0].lower() == "bearer"
+                for header in request.headers.getlist("authorization")
+            )
+        ):
+            token = self._bearer(request)
+            async with self.service.authorized(
+                token,
+                RoutePolicy(),
+                request_audit=RequestAudit.from_request(request, token),
+                request=request,
+            ):
+                pass
         if policy.public_context is not None:
             if self.public_contexts is None:
                 raise SecurityException(SecurityErrorCodes.CONFIGURATION)
@@ -49,7 +73,7 @@ class SecurityAccess(RouteGuard):
             raise SecurityException(SecurityErrorCodes.CONFIGURATION)
         token = self._bearer(request)
         async with service.authorized(
-            token, policy, request_audit=RequestAudit.from_request(request, token)
+            token, policy, request_audit=RequestAudit.from_request(request, token), request=request
         ) as session:
             request.scope["state"][self.VERIFIED] = policy
             try:

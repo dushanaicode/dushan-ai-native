@@ -5,7 +5,6 @@ from datetime import datetime
 from sqlalchemy import or_, select, update
 
 from framework.common.page import PageResult
-from framework.common.utils import StrUtils
 from framework.starter_database.public import (
     BaseMapper,
 )
@@ -27,11 +26,11 @@ class AnnouncementMapper(BaseMapper[AnnouncementDO]):
         super().__init__(AnnouncementDO)
 
     async def select_for_update(self, identifier: int) -> AnnouncementDO | None:
-        async with self._get_session_scope(for_write=True) as session:
-            result = await session.execute(
-                select(AnnouncementDO).where(AnnouncementDO.id == identifier).with_for_update()
-            )
-            return result.scalar_one_or_none()
+        """在当前写事务中锁定公告，供发布操作检查并更新。"""
+        result = await self.execute(
+            select(AnnouncementDO).where(AnnouncementDO.id == identifier).with_for_update()
+        )
+        return result.scalar_one_or_none()
 
     async def expire_published(self, current_time: datetime) -> int:
         result = await self.write(
@@ -47,18 +46,18 @@ class AnnouncementMapper(BaseMapper[AnnouncementDO]):
     async def select_page(self, req_vo: AnnouncementPageReqVO) -> PageResult[AnnouncementDO]:
         stmt = select(AnnouncementDO)
         if req_vo.title:
-            escaped = StrUtils.escape_like(req_vo.title)
-            stmt = stmt.where(AnnouncementDO.title.ilike(f"%{escaped}%"))
+            stmt = stmt.where(
+                AnnouncementDO.title.icontains(req_vo.title, autoescape=True, escape="\\")
+            )
         if req_vo.status is not None:
             stmt = stmt.where(AnnouncementDO.status == req_vo.status)
         if req_vo.is_top is not None:
             stmt = stmt.where(AnnouncementDO.is_top == req_vo.is_top)
         if req_vo.category is not None:
             stmt = stmt.where(AnnouncementDO.category == req_vo.category)
-        if req_vo.create_time and len(req_vo.create_time) >= 2:
-            stmt = stmt.where(
-                AnnouncementDO.create_time.between(req_vo.create_time[0], req_vo.create_time[1])
-            )
+        if req_vo.create_time is not None:
+            start_time, end_time = req_vo.create_time
+            stmt = stmt.where(AnnouncementDO.create_time.between(start_time, end_time))
         stmt = stmt.order_by(
             AnnouncementDO.is_top.desc(), AnnouncementDO.sort.asc(), AnnouncementDO.id.desc()
         )

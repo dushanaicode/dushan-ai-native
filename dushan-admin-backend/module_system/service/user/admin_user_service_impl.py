@@ -7,14 +7,14 @@ from pydantic import ValidationError
 
 from framework.common.dates import DateUtils
 from framework.common.enums import StatusEnum
-from framework.common.exception import ServiceException
+from framework.common.exception import IllegalArgumentException, ServiceException
 from framework.common.page import PageResult
 from framework.starter_database.public import (
     transactional,
 )
 from framework.starter_di.public import (
+    ApplicationContext,
     Inject,
-    get_bean,
     service,
 )
 from framework.starter_security.public import (
@@ -29,8 +29,8 @@ from framework.starter_security.public import (
 )
 from framework.starter_tenant.public import TenantContext
 from module_system.config.system_settings import SystemSettings
-from module_system.controller.admin.auth.vo.auth_register_req_vo import AuthRegisterReqVO
-from module_system.controller.admin.user.vo.profile.profile_update_req_vo import (
+from module_system.controller.admin.auth.vo.auth.auth_register_req_vo import AuthRegisterReqVO
+from module_system.controller.admin.user.vo.profile.user_profile_update_req_vo import (
     UserProfileUpdateReqVO,
 )
 from module_system.controller.admin.user.vo.user.user_import_excel_vo import UserImportExcelVO
@@ -55,9 +55,8 @@ from module_system.service.permission.permission_cache_service import (
     PermissionCacheService,
 )
 from module_system.service.permission.permission_service import PermissionService
-from module_system.service.permission.system_access_policy import SystemAccessPolicy
-from module_system.service.tenant.handler.function_tenant_info_handler import (
-    FunctionTenantInfoHandler,
+from module_system.service.permission.system_access_policy_service import (
+    SystemAccessPolicyService,
 )
 from module_system.service.tenant.tenant_service import TenantService
 from module_system.service.user.admin_user_service import AdminUserService
@@ -65,7 +64,7 @@ from module_system.service.user.admin_user_service import AdminUserService
 
 @service(interface=AdminUserService)
 class AdminUserServiceImpl(AdminUserService):
-    access_policy: SystemAccessPolicy = Inject()
+    access_policy: SystemAccessPolicyService = Inject()
     tenant: TenantContext = Inject()
     log_context: LogRecordContext = Inject()
     user_mapper: AdminUserMapper = Inject()
@@ -81,6 +80,7 @@ class AdminUserServiceImpl(AdminUserService):
     security_settings: SecuritySettings = Inject()
     revisions: AuthorizationRevisionService = Inject()
 
+    @override
     @log_record(
         LogRecordSpec(
             sub_type=LogRecordConstants.SYSTEM_USER_CREATE_SUB_TYPE,
@@ -90,12 +90,10 @@ class AdminUserServiceImpl(AdminUserService):
             capture=(),
         )
     )
-    @override
     @transactional
     async def create_user(self, create_req_vo: UserSaveReqVO) -> int:
         await self.revisions.advance()
-        handler = FunctionTenantInfoHandler(lambda tenant: self._check_account_count(tenant))
-        await self.tenant_service.handle_tenant_info(handler)
+        await self._check_account_count(await self.tenant_service.get_current_tenant())
         await self._validate_user_for_create_or_update(
             id=None,
             username=create_req_vo.username,
@@ -104,7 +102,24 @@ class AdminUserServiceImpl(AdminUserService):
             dept_id=create_req_vo.dept_id,
             post_ids=create_req_vo.post_ids,
         )
-        user = AdminUserDO(**create_req_vo.model_dump(by_alias=False))
+        user = AdminUserDO(
+            **create_req_vo.to_write_dict(
+                fields={
+                    "id",
+                    "username",
+                    "nickname",
+                    "remark",
+                    "dept_id",
+                    "post_ids",
+                    "email",
+                    "mobile",
+                    "sex",
+                    "avatar",
+                    "password",
+                },
+                exclude_unset=False,
+            )
+        )
         user.status = StatusEnum.ENABLE.code
         user.password = await self._encode_password(create_req_vo.password)
         await self.user_mapper.insert(user)
@@ -121,8 +136,7 @@ class AdminUserServiceImpl(AdminUserService):
         await self.revisions.advance()
         if not self.settings.user_register_enabled:
             raise ServiceException(ErrorCodeConstants.USER_REGISTER_DISABLED)
-        handler = FunctionTenantInfoHandler(lambda tenant: self._check_account_count(tenant))
-        await self.tenant_service.handle_tenant_info(handler)
+        await self._check_account_count(await self.tenant_service.get_current_tenant())
         await self._validate_user_for_create_or_update(
             id=None,
             username=register_req_vo.username,
@@ -142,6 +156,7 @@ class AdminUserServiceImpl(AdminUserService):
         await self.user_mapper.insert(user)
         return user.id
 
+    @override
     @log_record(
         LogRecordSpec(
             sub_type=LogRecordConstants.SYSTEM_USER_UPDATE_SUB_TYPE,
@@ -151,7 +166,6 @@ class AdminUserServiceImpl(AdminUserService):
             capture=(),
         )
     )
-    @override
     @transactional
     async def update_user(self, update_req_vo: UserSaveReqVO) -> None:
         self.access_policy.protect_owner_account(
@@ -159,7 +173,8 @@ class AdminUserServiceImpl(AdminUserService):
         )
         await self.revisions.advance()
         update_req_vo.password = None
-        user = await self._validate_user_for_create_or_update(
+        user = await self._validate_user_exists(update_req_vo.id)
+        await self._validate_user_for_create_or_update(
             id=update_req_vo.id,
             username=update_req_vo.username,
             mobile=update_req_vo.mobile,
@@ -171,16 +186,29 @@ class AdminUserServiceImpl(AdminUserService):
         old_dept_id = user.dept_id
         if self.security_settings.bizlog_enabled:
             self.log_context.put("user", {"id": user.id, "nickname": user.nickname})
-        update_obj = AdminUserDO(
-            **update_req_vo.model_dump(exclude_unset=True, exclude={"password"}, by_alias=False)
+        update_values = update_req_vo.to_write_dict(
+            fields={
+                "id",
+                "username",
+                "nickname",
+                "remark",
+                "dept_id",
+                "post_ids",
+                "email",
+                "mobile",
+                "sex",
+                "avatar",
+            }
         )
+        update_obj = AdminUserDO(**update_values)
         updated_user = await self.user_mapper.update_by_id(update_obj)
         if "post_ids" in update_req_vo.model_fields_set:
             await self._update_user_post(update_req_vo, updated_user)
         if self.security_settings.bizlog_enabled:
-            await get_bean(BizLogService).record_diff(
+            # BizLogService 仅在 bizlog_enabled 时注册（@conditional），不能字段注入，开启时再查找。
+            await ApplicationContext.lookup(BizLogService).record_diff(
                 old_user_vo,
-                update_req_vo,
+                old_user_vo.model_copy(update=update_values),
                 formatters=(
                     ("get_dept_by_id", self._dept_label),
                     ("get_post_by_id", self._post_label),
@@ -201,15 +229,22 @@ class AdminUserServiceImpl(AdminUserService):
     @override
     @transactional
     async def update_user_profile(self, id: int, req_vo: UserProfileUpdateReqVO) -> None:
+        """按提交字段更新基本资料，保留省略与显式清空的区别。"""
         self.access_policy.protect_owner_account(id, self.tenant.get_required_tenant_id())
         await self.revisions.advance()
         await self._validate_user_exists(id)
+        if "nickname" in req_vo.model_fields_set and req_vo.nickname is None:
+            raise IllegalArgumentException(msg="用户昵称不能为空")
         await self._validate_email_unique(id, req_vo.email)
         await self._validate_mobile_unique(id, req_vo.mobile)
-        update_obj = UserConvert.convert_update_req_to_admin_user(id, req_vo)
-        if update_obj:
-            await self.user_mapper.update_by_id(update_obj)
+        values = req_vo.to_write_dict(fields={"nickname", "email", "mobile", "sex", "avatar"})
+        if not values:
+            return
+        if req_vo.avatar is not None:
+            values["avatar"] = str(req_vo.avatar)
+        await self.user_mapper.update_by_id(AdminUserDO(id=id, **values))
 
+    @override
     @log_record(
         LogRecordSpec(
             sub_type=LogRecordConstants.SYSTEM_USER_UPDATE_PASSWORD_SUB_TYPE,
@@ -219,7 +254,6 @@ class AdminUserServiceImpl(AdminUserService):
             capture=(),
         )
     )
-    @override
     @transactional
     async def update_user_password(self, id: int, password: str) -> None:
         self.access_policy.protect_owner_account(id, self.tenant.get_required_tenant_id())
@@ -229,6 +263,7 @@ class AdminUserServiceImpl(AdminUserService):
         if self.security_settings.bizlog_enabled:
             self.log_context.put("user", {"id": user.id, "nickname": user.nickname})
 
+    @override
     @log_record(
         LogRecordSpec(
             sub_type=LogRecordConstants.SYSTEM_USER_DELETE_SUB_TYPE,
@@ -238,7 +273,6 @@ class AdminUserServiceImpl(AdminUserService):
             capture=(),
         )
     )
-    @override
     @transactional
     async def delete_user(self, id: int) -> None:
         if self.access_policy.is_owner(id, self.tenant.get_required_tenant_id()):
@@ -283,6 +317,18 @@ class AdminUserServiceImpl(AdminUserService):
     @override
     async def get_user(self, id: int) -> AdminUserDO | None:
         return await self.user_mapper.select_by_id(id)
+
+    @override
+    async def get_user_list_by_subordinate(self, id: int) -> list[AdminUserDO]:
+        """查询所负责部门及子部门的用户，并排除本人。"""
+        depts = await self.dept_service.get_dept_list_by_leader_user_id(id)
+        if not depts:
+            return []
+        dept_ids = {dept.id for dept in depts}
+        child_depts = await self.dept_service.get_child_dept_list_by_ids(dept_ids)
+        dept_ids.update(dept.id for dept in child_depts)
+        users = await self.get_user_list_by_dept_ids(dept_ids)
+        return [user for user in users if user.id != id]
 
     @override
     async def get_user_list_by_dept_ids(self, dept_ids: Collection[int]) -> list[AdminUserDO]:
@@ -343,11 +389,11 @@ class AdminUserServiceImpl(AdminUserService):
         if not init_password:
             raise ServiceException(ErrorCodeConstants.USER_IMPORT_INIT_PASSWORD)
         resp_vo = UserImportRespVO(create_usernames=[], update_usernames=[], failure_usernames={})
+        import_fields = {"username", "nickname", "dept_id", "email", "mobile", "sex"}
         for row_number, import_user in enumerate(import_users, start=1):
             row_key = import_user.username or f"第 {row_number} 条记录（账号为空）"
             try:
-                source_values = import_user.model_dump(exclude={"status"}, by_alias=False)
-                user_save_vo = UserSaveReqVO(**source_values, password=init_password)
+                user_save_vo = UserConvert.convert_import_to_save_vo(import_user, init_password)
             except ValidationError as ex:
                 resp_vo.failure_usernames[row_key] = "; ".join(
                     error["msg"] for error in ex.errors(include_input=False, include_url=False)
@@ -379,7 +425,7 @@ class AdminUserServiceImpl(AdminUserService):
             except (ServiceException, SecurityException) as ex:
                 resp_vo.failure_usernames[row_key] = ex.msg
                 continue
-            values = user_save_vo.model_dump(include=set(source_values), by_alias=False)
+            values = user_save_vo.to_write_dict(fields=import_fields, exclude_unset=False)
             if import_user.status is not None:
                 if import_user.status not in (StatusEnum.ENABLE.code, StatusEnum.DISABLE.code):
                     resp_vo.failure_usernames[row_key] = "账号状态不正确"
@@ -443,14 +489,12 @@ class AdminUserServiceImpl(AdminUserService):
         email: str | None,
         dept_id: int | None,
         post_ids: list[int] | None,
-    ) -> AdminUserDO:
-        user = await self._validate_user_exists(id) if id is not None else AdminUserDO()
+    ) -> None:
         await self._validate_username_unique(id, username)
         await self._validate_email_unique(id, email)
         await self._validate_mobile_unique(id, mobile)
         await self._validate_dept_list(dept_id)
         await self._validate_post_list(post_ids)
-        return user
 
     async def _validate_dept_list(self, id: int | None) -> None:
         if not id:
@@ -462,16 +506,9 @@ class AdminUserServiceImpl(AdminUserService):
             raise ServiceException(ErrorCodeConstants.DEPT_NOT_ENABLE, dept.name)
 
     async def _validate_post_list(self, ids: Collection[int] | None) -> None:
-        if not ids:
-            return
-        posts = await self.post_service.get_post_list(ids)
-        post_map = {post.id: post for post in posts}
-        for pid in ids:
-            post = post_map.get(pid)
-            if post is None:
-                raise ServiceException(ErrorCodeConstants.POST_NOT_FOUND)
-            if post.status != StatusEnum.ENABLE.code:
-                raise ServiceException(ErrorCodeConstants.POST_NOT_ENABLE, post.name)
+        """仅对已提交的岗位编号复用岗位服务校验。"""
+        if ids is not None:
+            await self.post_service.validate_post_list(ids)
 
     async def _validate_username_unique(self, id: int | None, username: str | None) -> None:
         if not username:

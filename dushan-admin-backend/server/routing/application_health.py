@@ -5,7 +5,7 @@ from framework.starter_database.config.database_settings import DatabaseSettings
 from framework.starter_job.config.job_settings import JobSettings
 from framework.starter_mq.config.mq_settings import MQSettings
 from framework.starter_websocket.config.websocket_settings import WebSocketSettings
-from server.bootstrap.context import AppBootstrapContext
+from server.bootstrap.app_bootstrap_context import AppBootstrapContext
 
 
 class ApplicationHealth:

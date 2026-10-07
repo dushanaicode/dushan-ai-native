@@ -177,15 +177,9 @@ class Prepare:
     def database(root: Path, output: Path, passwords: dict[str, str], origin: str) -> None:
         source = root / "dushan-admin-backend" / "sql" / "mysql"
         files = [
-            source / "system" / "00_module_system.sql",
-            source / "infra" / "00_module_infra.sql",
+            *sorted((source / "system").glob("*.sql")),
+            *sorted((source / "infra").glob("*.sql")),
         ]
-        files += sorted(
-            path
-            for part in ("system", "infra")
-            for path in (source / part).glob("*.sql")
-            if not path.name.startswith("00_")
-        )
         for index, path in enumerate(files):
             shutil.copyfile(path, output / "mysql-init" / f"{index:03d}_{path.name}")
         password_hash = bcrypt.hashpw(

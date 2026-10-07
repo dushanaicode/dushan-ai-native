@@ -1,8 +1,8 @@
-from datetime import datetime
 from typing import Annotated, Any
 
 from pydantic import Field, field_validator
 
+from framework.common.contracts import DateTimeRangeInput
 from framework.common.enums import StatusEnum
 from framework.common.page import PageQuery
 from framework.common.validator import InEnum, Size
@@ -19,7 +19,7 @@ class DataSourceConfigPageReqVO(PageQuery):
         int | None, Field(None, description="数据源类型，参见 DataSourceTypeEnum 枚举类")
     ]
     create_time: Annotated[
-        list[datetime] | None, Field(None, exclude=True, description="创建时间范围")
+        DateTimeRangeInput | None, Field(None, exclude=True, description="创建时间范围")
     ]
     model_config = {
         "json_schema_extra": {

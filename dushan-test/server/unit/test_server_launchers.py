@@ -3,19 +3,19 @@ from importlib.resources import files
 
 import pytest
 
-import app as entry
+import server.launcher.server_launcher as entry
 from fixtures.config_factory import ConfigFactory
 from server.config.granian.granian_settings import GranianSettings
 from server.config.server.server_settings import ServerSettings
 from server.config.uvicorn.uvicorn_settings import UvicornSettings
 from server.enums.server_engine_enum import ServerEngineEnum
-from server.launcher.engine_parser import parse_server_arguments
-from server.launcher.granian_launcher import build_granian_cmd
-from server.launcher.uvicorn_launcher import build_uvicorn_cmd
+from server.launcher.engine_parser import EngineParser
+from server.launcher.granian_launcher import GranianLauncher
+from server.launcher.uvicorn_launcher import UvicornLauncher
 
 
 def test_default_engine_is_granian():
-    assert parse_server_arguments([]).server is None
+    assert EngineParser.parse([]).server is None
     assert ConfigFactory.build(ServerSettings, "server").engine is ServerEngineEnum.GRANIAN
     assert ConfigFactory.build(ServerSettings, "server").name == "dushan-ai-native"
 
@@ -23,8 +23,8 @@ def test_default_engine_is_granian():
 @pytest.mark.parametrize(
     "builder,engine",
     [
-        (build_granian_cmd, ConfigFactory.build(GranianSettings, "granian", workers=3)),
-        (build_uvicorn_cmd, ConfigFactory.build(UvicornSettings, "uvicorn", workers=3)),
+        (GranianLauncher.build_command, ConfigFactory.build(GranianSettings, "granian", workers=3)),
+        (UvicornLauncher.build_command, ConfigFactory.build(UvicornSettings, "uvicorn", workers=3)),
     ],
 )
 def test_reload_uses_one_worker(builder, engine):
@@ -36,10 +36,12 @@ def test_reload_uses_one_worker(builder, engine):
 
 def test_production_engine_parameters_are_explicit():
     server = ConfigFactory.build(ServerSettings, "server", env="prod", docs_enabled=False)
-    granian = build_granian_cmd(
+    granian = GranianLauncher.build_command(
         server, ConfigFactory.build(GranianSettings, "granian", workers=2, threads=3)
     )
-    uvicorn = build_uvicorn_cmd(server, ConfigFactory.build(UvicornSettings, "uvicorn", workers=2))
+    uvicorn = UvicornLauncher.build_command(
+        server, ConfigFactory.build(UvicornSettings, "uvicorn", workers=2)
+    )
     assert granian[granian.index("--runtime-threads") + 1] == "3"
     assert uvicorn[uvicorn.index("--workers") + 1] == "2"
     assert "--no-proxy-headers" in uvicorn
@@ -58,11 +60,14 @@ def test_entry_sends_validated_configuration_to_child(config_dir, monkeypatch):
 
     monkeypatch.setattr(entry.subprocess, "run", run)
     assert (
-        entry.run_server(["--server", "uvicorn", "--env", "test", "--config-dir", str(root)]) == 0
+        entry.ServerLauncher.run(
+            ["--server", "uvicorn", "--env", "test", "--config-dir", str(root)]
+        )
+        == 0
     )
     command, kwargs = calls[0]
     assert command[command.index("--port") + 1] == "40123"
-    assert kwargs["cwd"] == entry.BACKEND_ROOT
+    assert kwargs["cwd"] == entry.ServerLauncher.BACKEND_ROOT
     assert kwargs["env"]["DUSHAN_CONFIG_DIR"] == str(root.resolve())
     assert kwargs["env"]["SERVER_ENV"] == "test"
     assert not any(key.startswith(("UVICORN_", "GRANIAN_")) for key in kwargs["env"])
@@ -74,7 +79,7 @@ def test_invalid_config_does_not_create_a_process(config_dir, monkeypatch):
     monkeypatch.setattr(
         entry.subprocess, "run", lambda *a, **k: pytest.fail("非法配置不应启动子进程")
     )
-    assert entry.run_server(["--config-dir", str(root)]) == 2
+    assert entry.ServerLauncher.run(["--config-dir", str(root)]) == 2
 
 
 @pytest.mark.parametrize("engine", ["granian", "uvicorn"])
@@ -112,7 +117,7 @@ def test_launcher_prints_full_banner_without_early_runtime_details(
         return subprocess.CompletedProcess(command, 0)
 
     monkeypatch.setattr(entry.subprocess, "run", run)
-    assert entry.run_server(["--server", engine, "--config-dir", str(root)]) == 0
+    assert entry.ServerLauncher.run(["--server", engine, "--config-dir", str(root)]) == 0
     assert len(calls) == 1
 
 
@@ -120,7 +125,7 @@ def test_child_failure_is_not_reported_as_success(config_dir, monkeypatch):
     monkeypatch.setattr(
         entry.subprocess, "run", lambda command, **kwargs: subprocess.CompletedProcess(command, 9)
     )
-    assert entry.run_server(["--config-dir", str(config_dir())]) == 9
+    assert entry.ServerLauncher.run(["--config-dir", str(config_dir())]) == 9
 
 
 @pytest.mark.parametrize(
@@ -147,7 +152,7 @@ def test_engine_default_comes_from_yaml_and_explicit_overrides_win(
         return subprocess.CompletedProcess(command, 0)
 
     monkeypatch.setattr(entry.subprocess, "run", run)
-    assert entry.run_server(["--config-dir", str(root), *cli]) == 0
+    assert entry.ServerLauncher.run(["--config-dir", str(root), *cli]) == 0
     command, kwargs = calls[0]
     assert command[command.index("-m") + 1] == expected
     assert kwargs["env"]["SERVER_ENGINE"] == expected

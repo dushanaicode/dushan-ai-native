@@ -34,7 +34,7 @@ from framework.common.validator.range import Range
 from framework.common.validator.size import Size
 from framework.common.validator.unique_items import UniqueItems
 from framework.common.validator.url import URL
-from framework.starter_web.exception.exception_handler import GlobalExceptionHandler
+from framework.starter_web.exception.global_exception_handler import GlobalExceptionHandler
 
 pytestmark = pytest.mark.unit
 

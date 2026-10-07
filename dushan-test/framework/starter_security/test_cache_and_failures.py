@@ -6,7 +6,7 @@ from framework.starter_security.exception.security_exception import SecurityExce
 from framework.starter_security.integration.security_access import SecurityAccess
 from framework.starter_web.routing.route_policy import RoutePolicy
 from framework.starter_web.routing.router_registration import RouterRegistration
-from server.starter_server import create_app
+from server.starter_server import StarterServer
 
 
 async def test_real_cache_versions_disable_and_invalidate(security_factory):
@@ -64,7 +64,7 @@ async def test_dependency_failures_never_allow(security_factory, monkeypatch, de
 
 
 async def test_missing_provider_startup_fails(config_dir):
-    app = create_app(
+    app = StarterServer.create_app(
         base_dir=config_dir({"config": {"models": {"security": {"enabled": True}}}}), environ={}
     )
     with pytest.raises(Exception) as failure:
@@ -77,7 +77,7 @@ async def test_missing_provider_startup_fails(config_dir):
 async def test_security_disabled_protected_route_not_public(config_dir):
     router = APIRouter()
     router.add_api_route("/protected", RoutePolicy()(lambda: {"leak": True}))
-    app = create_app(
+    app = StarterServer.create_app(
         base_dir=config_dir(),
         environ={},
         access_provider=SecurityAccess(),
@@ -118,7 +118,7 @@ def test_conflicting_public_declaration():
 
 
 async def test_bizlog_requires_existing_expression_capability(config_dir, security_module):
-    app = create_app(
+    app = StarterServer.create_app(
         base_dir=config_dir(
             {
                 "modules": {
@@ -142,7 +142,7 @@ async def test_missing_permission_provider_fails_startup(config_dir, module_pack
 
     source = ADAPTERS.replace("@service(interface=PermissionProvider)", "")
     module_package("security_without_permissions", files={"adapters.py": source})
-    app = create_app(
+    app = StarterServer.create_app(
         base_dir=config_dir(
             {
                 "modules": {

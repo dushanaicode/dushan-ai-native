@@ -1,15 +1,14 @@
-from fastapi import APIRouter, Body, Depends, Form, Query, Request
+from fastapi import APIRouter, Body, Depends, Form, Query
 from fastapi.responses import StreamingResponse
 
 from framework.common.contracts import SnowflakeIdStr
 from framework.common.enums import StatusEnum
-from framework.common.page import PageResult, PageSettings
+from framework.common.page import PageResult
 from framework.common.schemas.request import IdListReqVO, IdReqVO
 from framework.starter_di.public import (
     DiDependency,
 )
 from framework.starter_excel.public import (
-    DictDataProvider,
     ExcelProviders,
     ExcelReader,
     ExcelWriter,
@@ -19,10 +18,10 @@ from framework.starter_security.public import (
 )
 from framework.starter_web.public import (
     FileResult,
-    RequestUtils,
     Result,
     RoutePolicy,
 )
+from module_system.controller.admin.user.vo.user.user_export_req_vo import UserExportReqVO
 from module_system.controller.admin.user.vo.user.user_import_excel_vo import UserImportExcelVO
 from module_system.controller.admin.user.vo.user.user_import_req_vo import UserImportReqVO
 from module_system.controller.admin.user.vo.user.user_import_resp_vo import UserImportRespVO
@@ -42,7 +41,6 @@ from module_system.dal.dataobject.user.admin_user_do import AdminUserDO
 from module_system.definitions.enums.common.common_sex_enum import CommonSexEnum
 from module_system.service.dept.dept_service import DeptService
 from module_system.service.user.admin_user_service import AdminUserService
-from module_system.spi.dept.dept_info_provider_adapter import DeptInfoProviderAdapter
 from module_system.spi.dept.post_info_provider_adapter import PostInfoProviderAdapter
 
 user_controller = APIRouter(prefix="/user", tags=["System - 用户管理"])
@@ -133,17 +131,14 @@ class UserController:
         user_service: AdminUserService = Depends(DiDependency(AdminUserService)),
         dept_service: DeptService = Depends(DiDependency(DeptService)),
     ) -> Result[PageResult[UserRespVO]]:
+        """分页查询用户并补充部门名称，保留原查询总数。"""
         page_result: PageResult[AdminUserDO] = await user_service.get_user_page(page_req_vo)
         dept_map: dict[int, DeptDO] = await dept_service.get_dept_map(
             [user.dept_id for user in page_result.items if user.dept_id]
         )
-        converted_list: list[UserRespVO] = [
-            UserConvert.convert(user, dept_map.get(user.dept_id)) for user in page_result.items
-        ]
-        page_result_response: PageResult[UserRespVO] = PageResult[UserRespVO](
-            items=converted_list, total=page_result.total
+        return Result.success(
+            data=page_result.map(lambda user: UserConvert.convert(user, dept_map.get(user.dept_id)))
         )
-        return Result.success(data=page_result_response)
 
     @staticmethod
     @user_controller.get(
@@ -197,33 +192,22 @@ class UserController:
         permissions=("system:user:export",), tenant_required=True, realm=SecurityRealm.TENANT
     )
     async def export_user_list(
-        request: Request,
+        page_req_vo: UserExportReqVO = Query(),
         user_service: AdminUserService = Depends(DiDependency(AdminUserService)),
         dept_service: DeptService = Depends(DiDependency(DeptService)),
         excel_writer: ExcelWriter = Depends(DiDependency(ExcelWriter)),
         files: FileResult = Depends(DiDependency(FileResult)),
-        dictionaries: DictDataProvider = Depends(DiDependency(DictDataProvider)),
-        departments: DeptInfoProviderAdapter = Depends(DiDependency(DeptInfoProviderAdapter)),
         posts: PostInfoProviderAdapter = Depends(DiDependency(PostInfoProviderAdapter)),
-        page_settings: PageSettings = Depends(DiDependency(PageSettings)),
     ) -> StreamingResponse:
-        excel_providers = ExcelProviders(
-            dictionaries=dictionaries, departments=departments, posts=posts
-        )
-        page_req_vo: UserPageReqVO = RequestUtils.validate_with_auto_list_params(
-            request, UserPageReqVO
-        )
-        page_req_vo.enable_fetch_all(
-            max_rows=min(excel_writer.settings.max_export_rows, page_settings.fetch_all_max_rows)
-        )
+        """导出符合筛选条件的用户列表。"""
+        excel_providers = ExcelProviders(posts=posts)
+        excel_writer.prepare_export_query(page_req_vo)
         list_data_page: PageResult[AdminUserDO] = await user_service.get_user_page(page_req_vo)
         list_data: list[AdminUserDO] = list_data_page.items
         dept_map: dict[int, DeptDO] = await dept_service.get_dept_map(
             [user.dept_id for user in list_data if user.dept_id]
         )
-        user_resp_list: list[UserRespVO] = [
-            UserConvert.convert(user, dept_map.get(user.dept_id)) for user in list_data
-        ]
+        user_resp_list = UserConvert.convert_list(list_data, dept_map)
         filename = "用户数据"
         file_data = await excel_writer.write(
             "数据", UserRespVO, user_resp_list, providers=excel_providers, fields=page_req_vo.fields
@@ -236,13 +220,7 @@ class UserController:
     async def import_template(
         excel_writer: ExcelWriter = Depends(DiDependency(ExcelWriter)),
         files: FileResult = Depends(DiDependency(FileResult)),
-        dictionaries: DictDataProvider = Depends(DiDependency(DictDataProvider)),
-        departments: DeptInfoProviderAdapter = Depends(DiDependency(DeptInfoProviderAdapter)),
-        posts: PostInfoProviderAdapter = Depends(DiDependency(PostInfoProviderAdapter)),
     ) -> StreamingResponse:
-        excel_providers = ExcelProviders(
-            dictionaries=dictionaries, departments=departments, posts=posts
-        )
         filename = "用户导入模板"
         list_data: list[UserImportExcelVO] = [
             UserImportExcelVO(
@@ -264,9 +242,7 @@ class UserController:
                 sex=CommonSexEnum.MALE.code,
             ),
         ]
-        file_data = await excel_writer.write(
-            "用户列表", UserImportExcelVO, list_data, providers=excel_providers
-        )
+        file_data = await excel_writer.write("用户列表", UserImportExcelVO, list_data)
         return files.excel_stream(file_data, file_name=f"{filename}.xlsx")
 
     @staticmethod
@@ -278,18 +254,10 @@ class UserController:
         req_vo: UserImportReqVO = Form(media_type="multipart/form-data"),
         user_service: AdminUserService = Depends(DiDependency(AdminUserService)),
         excel_reader: ExcelReader = Depends(DiDependency(ExcelReader)),
-        dictionaries: DictDataProvider = Depends(DiDependency(DictDataProvider)),
-        departments: DeptInfoProviderAdapter = Depends(DiDependency(DeptInfoProviderAdapter)),
-        posts: PostInfoProviderAdapter = Depends(DiDependency(PostInfoProviderAdapter)),
     ) -> Result[UserImportRespVO]:
         file = req_vo.file
         update_support = req_vo.update_support
-        excel_providers = ExcelProviders(
-            dictionaries=dictionaries, departments=departments, posts=posts
-        )
-        import_users: list[UserImportExcelVO] = await excel_reader.read(
-            file, UserImportExcelVO, providers=excel_providers
-        )
+        import_users: list[UserImportExcelVO] = await excel_reader.read(file, UserImportExcelVO)
         import_resp: UserImportRespVO = await user_service.import_user_list(
             import_users, update_support
         )

@@ -9,7 +9,7 @@ from framework.starter_database.public import (
 from framework.starter_di.public import (
     mapper,
 )
-from module_infra.controller.admin.mq.vo.log.log_page_req_vo import MqLogPageReqVO
+from module_infra.controller.admin.mq.vo.log.mq_log_page_req_vo import MqLogPageReqVO
 from module_infra.dal.dataobject.mq.mq_log_do import MqLogDO
 
 

@@ -14,13 +14,13 @@ from framework.starter_di.public import (
     Inject,
     service,
 )
-from module_system.controller.admin.tenant.vo.packages.packages_package_page_req_vo import (
+from module_system.controller.admin.tenant.vo.package.tenant_package_page_req_vo import (
     TenantPackagePageReqVO,
 )
-from module_system.controller.admin.tenant.vo.packages.packages_package_save_req_vo import (
+from module_system.controller.admin.tenant.vo.package.tenant_package_save_req_vo import (
     TenantPackageSaveReqVO,
 )
-from module_system.dal.cache.cache_key_constants import SystemCacheKeys
+from module_system.dal.cache.system_cache_key_constants import SystemCacheKeyConstants
 from module_system.dal.cache.tenant.dto.tenant_package_cache_dto import TenantPackageCacheDTO
 from module_system.dal.dataobject.tenant.tenant_do import TenantDO
 from module_system.dal.dataobject.tenant.tenant_package_do import TenantPackageDO
@@ -46,12 +46,17 @@ class TenantPackageServiceImpl(TenantPackageService):
     @transactional
     async def create_tenant_package(self, create_req_vo: TenantPackageSaveReqVO) -> int:
         self.database.after_commit(
-            lambda: self.cache_handler.delete_all(SystemCacheKeys.TENANT_PACKAGE),
+            lambda: self.cache_handler.delete_all(SystemCacheKeyConstants.TENANT_PACKAGE),
             required=True,
             name="system-cache",
         )
         await self._validate_tenant_package_name_unique(None, create_req_vo.name)
-        tenant_package = TenantPackageDO(**create_req_vo.model_dump(by_alias=False))
+        tenant_package = TenantPackageDO(
+            **create_req_vo.to_write_dict(
+                fields={"id", "name", "status", "remark", "menu_ids", "quota_config"},
+                exclude_unset=False,
+            )
+        )
         await self.tenant_package_mapper.insert(tenant_package)
         return tenant_package.id
 
@@ -59,7 +64,7 @@ class TenantPackageServiceImpl(TenantPackageService):
     @transactional
     async def update_tenant_package(self, update_req_vo: TenantPackageSaveReqVO) -> None:
         self.database.after_commit(
-            lambda: self.cache_handler.delete_all(SystemCacheKeys.TENANT_PACKAGE),
+            lambda: self.cache_handler.delete_all(SystemCacheKeyConstants.TENANT_PACKAGE),
             required=True,
             name="system-cache",
         )
@@ -67,7 +72,12 @@ class TenantPackageServiceImpl(TenantPackageService):
         await self._validate_tenant_package_name_unique(update_req_vo.id, update_req_vo.name)
         menus_changed = set(tenant_package.menu_ids) != set(update_req_vo.menu_ids)
         status_changed = tenant_package.status != update_req_vo.status
-        update_obj = TenantPackageDO(**update_req_vo.model_dump(by_alias=False))
+        update_obj = TenantPackageDO(
+            **update_req_vo.to_write_dict(
+                fields={"id", "name", "status", "remark", "menu_ids", "quota_config"},
+                exclude_unset=False,
+            )
+        )
         await self.tenant_package_mapper.update_by_id(update_obj)
         if menus_changed or status_changed:
             await self.revisions.advance()
@@ -90,7 +100,7 @@ class TenantPackageServiceImpl(TenantPackageService):
     @transactional
     async def update_status(self, package_id: int, status: int) -> None:
         self.database.after_commit(
-            lambda: self.cache_handler.delete_all(SystemCacheKeys.TENANT_PACKAGE),
+            lambda: self.cache_handler.delete_all(SystemCacheKeyConstants.TENANT_PACKAGE),
             required=True,
             name="system-cache",
         )
@@ -104,7 +114,7 @@ class TenantPackageServiceImpl(TenantPackageService):
     @transactional
     async def delete_tenant_package(self, id: int) -> None:
         self.database.after_commit(
-            lambda: self.cache_handler.delete_all(SystemCacheKeys.TENANT_PACKAGE),
+            lambda: self.cache_handler.delete_all(SystemCacheKeyConstants.TENANT_PACKAGE),
             required=True,
             name="system-cache",
         )
@@ -116,7 +126,7 @@ class TenantPackageServiceImpl(TenantPackageService):
     @transactional
     async def delete_tenant_package_batch(self, ids: list[int]) -> int:
         self.database.after_commit(
-            lambda: self.cache_handler.delete_all(SystemCacheKeys.TENANT_PACKAGE),
+            lambda: self.cache_handler.delete_all(SystemCacheKeyConstants.TENANT_PACKAGE),
             required=True,
             name="system-cache",
         )
@@ -125,12 +135,6 @@ class TenantPackageServiceImpl(TenantPackageService):
             await self._validate_tenant_used(package_id)
         return await self.tenant_package_mapper.delete_by_ids(ids)
 
-    @cache(
-        SystemCacheKeys.TENANT_PACKAGE,
-        key="id:{{id}}",
-        ttl_seconds=default_ttl,
-        unless=lambda result, *_, **__: not result is not None,
-    )
     @override
     async def get_tenant_package(self, id: int) -> TenantPackageCacheDTO:
         loaded = await self.tenant_package_mapper.select_by_id(id)
@@ -142,13 +146,13 @@ class TenantPackageServiceImpl(TenantPackageService):
     ) -> PageResult[TenantPackageDO]:
         return await self.tenant_package_mapper.select_page(page_req_vo)
 
+    @override
     @cache(
-        SystemCacheKeys.TENANT_PACKAGE,
+        SystemCacheKeyConstants.TENANT_PACKAGE,
         key="id:{{id}}",
         ttl_seconds=default_ttl,
         unless=lambda result, *_, **__: not result is not None,
     )
-    @override
     async def valid_tenant_package(self, id: int) -> TenantPackageCacheDTO:
         tenant_package = await self.tenant_package_mapper.select_by_id(id)
         if tenant_package is None:

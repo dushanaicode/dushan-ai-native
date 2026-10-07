@@ -19,10 +19,9 @@ from framework.starter_security.public import (
 from module_system.controller.admin.user.vo.profile.profile_online_device_vo import (
     ProfileOnlineDeviceVO,
 )
-from module_system.controller.admin.user.vo.profile.profile_update_req_vo import (
+from module_system.controller.admin.user.vo.profile.user_profile_update_req_vo import (
     UserProfileUpdateReqVO,
 )
-from module_system.convert.user.user_convert import UserConvert
 from module_system.dal.dataobject.user.admin_user_profile_do import AdminUserProfileDO
 from module_system.dal.mapper.oauth2.oauth2_access_token_mapper import OAuth2AccessTokenMapper
 from module_system.dal.mapper.user.admin_user_profile_mapper import AdminUserProfileMapper
@@ -46,9 +45,22 @@ class UserProfileServiceImpl(UserProfileService):
     @override
     @transactional
     async def create_or_update_profile(self, user_id: int, req_vo: UserProfileUpdateReqVO) -> None:
-        profile_do = UserConvert.convert_update_req_to_user_profile(user_id, req_vo)
-        if not profile_do:
+        """按详情字段白名单保存资料，显式空值清空已有内容。"""
+        values = req_vo.to_write_dict(
+            fields={
+                "bio",
+                "tags",
+                "address",
+                "skills",
+                "work_scope",
+                "expertise",
+                "communication_style",
+                "ai_preference",
+            }
+        )
+        if not values:
             return
+        profile_do = AdminUserProfileDO(user_id=user_id, **values)
         existing_profile = await self.get_user_profile(user_id)
         if existing_profile:
             profile_do.id = existing_profile.id

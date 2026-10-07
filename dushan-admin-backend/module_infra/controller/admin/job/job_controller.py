@@ -1,19 +1,17 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query
 from starlette.responses import StreamingResponse
 
 from framework.common.contracts import SnowflakeIdStr
 from framework.common.dates import DateUtils
 from framework.common.exception import ServiceException
-from framework.common.page import PageResult, PageSettings
+from framework.common.page import PageResult
 from framework.common.schemas.request import IdListReqVO, IdReqVO
 from framework.starter_di.public import (
     DiDependency,
 )
 from framework.starter_excel.public import (
-    DictDataProvider,
-    ExcelProviders,
     ExcelWriter,
 )
 from framework.starter_job.public import (
@@ -25,7 +23,6 @@ from framework.starter_security.public import (
 )
 from framework.starter_web.public import (
     FileResult,
-    RequestUtils,
     Result,
     RoutePolicy,
 )
@@ -135,9 +132,9 @@ class JobController:
     @job_controller.get("/page", summary="获得定时任务分页")
     @RoutePolicy(permissions=("infra:job:query",), tenant_required=True, realm=SecurityRealm.TENANT)
     async def get_job_page(
-        request: Request, job_service: JobService = Depends(DiDependency(JobService))
+        page_req_vo: JobPageReqVO = Query(),
+        job_service: JobService = Depends(DiDependency(JobService)),
     ) -> Result[PageResult[JobRespVO]]:
-        page_req_vo = RequestUtils.validate_with_auto_list_params(request, JobPageReqVO)
         page_result: PageResult[JobDO] = await job_service.get_job_page(page_req_vo)
         resp_vo: PageResult[JobRespVO] = page_result.convert(JobRespVO)
         return Result.success(data=resp_vo)
@@ -162,19 +159,14 @@ class JobController:
         page_req_vo: JobExportReqVO = Query(),
         job_service: JobService = Depends(DiDependency(JobService)),
         excel_writer: ExcelWriter = Depends(DiDependency(ExcelWriter)),
-        page_settings: PageSettings = Depends(DiDependency(PageSettings)),
         files: FileResult = Depends(DiDependency(FileResult)),
-        dictionaries: DictDataProvider = Depends(DiDependency(DictDataProvider)),
     ) -> StreamingResponse:
-        excel_providers = ExcelProviders(dictionaries=dictionaries)
-        page_req_vo.enable_fetch_all(
-            max_rows=min(excel_writer.settings.max_export_rows, page_settings.fetch_all_max_rows)
-        )
+        excel_writer.prepare_export_query(page_req_vo)
         page_result: PageResult[JobDO] = await job_service.get_job_page(page_req_vo)
         excel_list: list[JobRespVO] = [JobRespVO.model_validate(row) for row in page_result.items]
         filename = "定时任务"
         file_data = await excel_writer.write(
-            "数据", JobRespVO, excel_list, providers=excel_providers, fields=page_req_vo.fields
+            "数据", JobRespVO, excel_list, fields=page_req_vo.fields
         )
         return files.excel_stream(file_data, file_name=f"{filename}.xlsx")
 

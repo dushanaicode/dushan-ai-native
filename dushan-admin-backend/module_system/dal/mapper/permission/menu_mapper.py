@@ -33,7 +33,7 @@ class MenuMapper(BaseMapper[MenuDO]):
         if req_vo is not None:
             if req_vo.name:
                 escaped = StrUtils.escape_like(req_vo.name)
-                stmt = stmt.where(MenuDO.name.ilike(f"%{escaped}%"))
+                stmt = stmt.where(MenuDO.name.ilike(f"%{escaped}%", escape="\\"))
             if req_vo.status is not None:
                 stmt = stmt.where(MenuDO.status == req_vo.status)
         stmt = stmt.order_by(MenuDO.id.desc())

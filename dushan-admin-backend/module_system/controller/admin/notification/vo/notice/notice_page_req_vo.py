@@ -2,6 +2,7 @@ from typing import Annotated, Any
 
 from pydantic import Field, field_validator
 
+from framework.common.contracts import DateTimeRangeInput
 from framework.common.enums import StatusEnum, UserTypeEnum
 from framework.common.page import PageQuery
 from framework.common.validator import InEnum
@@ -17,7 +18,9 @@ class NoticePageReqVO(PageQuery):
     status: Annotated[int | None, Field(None, description="通知状态，参见 StatusEnum 枚举类")]
     publisher: Annotated[str | None, Field(None, description="发布人，模糊匹配")]
     channels: Annotated[list[str] | None, Field(None, description="推送渠道编码数组")]
-    create_time: Annotated[list | None, Field(None, exclude=True, description="创建时间范围")]
+    create_time: Annotated[
+        DateTimeRangeInput | None, Field(None, exclude=True, description="创建时间范围")
+    ]
     model_config = {
         "json_schema_extra": {
             "examples": [

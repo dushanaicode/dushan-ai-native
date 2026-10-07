@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from framework.common.utils.cleanup_utils import CleanupUtils
 from framework.starter_database.config.database_settings import DatabaseSettings
 from framework.starter_database.starter.database_starter import DatabaseStarter
-from server.bootstrap.context import AppBootstrapContext
+from server.bootstrap.app_bootstrap_context import AppBootstrapContext
 
 
 class DatabaseStep:

@@ -1,14 +1,12 @@
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query
 from starlette.responses import StreamingResponse
 
-from framework.common.page import PageResult, PageSettings
+from framework.common.page import PageResult
 from framework.common.utils import ConversionUtils
 from framework.starter_di.public import (
     DiDependency,
 )
 from framework.starter_excel.public import (
-    DictDataProvider,
-    ExcelProviders,
     ExcelWriter,
 )
 from framework.starter_security.public import (
@@ -17,20 +15,19 @@ from framework.starter_security.public import (
 )
 from framework.starter_web.public import (
     FileResult,
-    RequestUtils,
     Result,
     RoutePolicy,
 )
-from module_infra.controller.admin.logger.vo.apierrorlog.apierrorlog_api_error_log_export_req_vo import (
+from module_infra.controller.admin.logger.vo.api_error_log.api_error_log_export_req_vo import (
     ApiErrorLogExportReqVO,
 )
-from module_infra.controller.admin.logger.vo.apierrorlog.apierrorlog_api_error_log_page_req_vo import (
+from module_infra.controller.admin.logger.vo.api_error_log.api_error_log_page_req_vo import (
     ApiErrorLogPageReqVO,
 )
-from module_infra.controller.admin.logger.vo.apierrorlog.apierrorlog_api_error_log_resp_vo import (
+from module_infra.controller.admin.logger.vo.api_error_log.api_error_log_resp_vo import (
     ApiErrorLogRespVO,
 )
-from module_infra.controller.admin.logger.vo.apierrorlog.apierrorlog_api_error_log_update_status_req_vo import (
+from module_infra.controller.admin.logger.vo.api_error_log.api_error_log_update_status_req_vo import (
     ApiErrorLogUpdateStatusReqVO,
 )
 from module_infra.dal.dataobject.logger.api_error_log_do import ApiErrorLogDO
@@ -70,12 +67,9 @@ class ApiErrorLogController:
         realm=SecurityRealm.TENANT,
     )
     async def get_api_error_log_page(
-        request: Request,
+        page_req_vo: ApiErrorLogPageReqVO = Query(),
         api_error_log_service: ApiErrorLogService = Depends(DiDependency(ApiErrorLogService)),
     ) -> Result[PageResult[ApiErrorLogRespVO]]:
-        page_req_vo: ApiErrorLogPageReqVO = RequestUtils.validate_with_auto_list_params(
-            request, ApiErrorLogPageReqVO
-        )
         page_result: PageResult[ApiErrorLogDO] = await api_error_log_service.get_api_error_log_page(
             page_req_vo
         )
@@ -106,14 +100,9 @@ class ApiErrorLogController:
         page_req_vo: ApiErrorLogExportReqVO = Query(),
         api_error_log_service: ApiErrorLogService = Depends(DiDependency(ApiErrorLogService)),
         excel_writer: ExcelWriter = Depends(DiDependency(ExcelWriter)),
-        page_settings: PageSettings = Depends(DiDependency(PageSettings)),
         files: FileResult = Depends(DiDependency(FileResult)),
-        dictionaries: DictDataProvider = Depends(DiDependency(DictDataProvider)),
     ) -> StreamingResponse:
-        excel_providers = ExcelProviders(dictionaries=dictionaries)
-        page_req_vo.enable_fetch_all(
-            max_rows=min(excel_writer.settings.max_export_rows, page_settings.fetch_all_max_rows)
-        )
+        excel_writer.prepare_export_query(page_req_vo)
         page_result: PageResult[ApiErrorLogDO] = await api_error_log_service.get_api_error_log_page(
             page_req_vo
         )
@@ -125,7 +114,6 @@ class ApiErrorLogController:
             "数据",
             ApiErrorLogRespVO,
             excel_list,
-            providers=excel_providers,
             fields=page_req_vo.fields,
         )
         return files.excel_stream(file_data, file_name=f"{filename}.xlsx")

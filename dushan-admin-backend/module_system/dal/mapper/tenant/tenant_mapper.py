@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from sqlalchemy import JSON, MergedResult, cast, func, insert, select, update
+from sqlalchemy import MergedResult, func, insert, select, update
 
 from framework.common.page import PageResult
-from framework.common.utils import StrUtils
+from framework.starter_database.model.json_array_contains import JsonArrayContains
 from framework.starter_database.public import (
     BaseMapper,
 )
@@ -22,20 +22,22 @@ class TenantMapper(BaseMapper[TenantDO]):
     async def select_page(self, req_vo: TenantPageReqVO) -> PageResult[TenantDO]:
         stmt = select(TenantDO)
         if req_vo.name:
-            escaped = StrUtils.escape_like(req_vo.name)
-            stmt = stmt.where(TenantDO.name.ilike(f"%{escaped}%"))
+            stmt = stmt.where(TenantDO.name.icontains(req_vo.name, autoescape=True, escape="\\"))
         if req_vo.contact_name:
-            escaped_cn = StrUtils.escape_like(req_vo.contact_name)
-            stmt = stmt.where(TenantDO.contact_name.ilike(f"%{escaped_cn}%"))
+            stmt = stmt.where(
+                TenantDO.contact_name.icontains(req_vo.contact_name, autoescape=True, escape="\\")
+            )
         if req_vo.contact_mobile:
-            escaped_cm = StrUtils.escape_like(req_vo.contact_mobile)
-            stmt = stmt.where(TenantDO.contact_mobile.ilike(f"%{escaped_cm}%"))
+            stmt = stmt.where(
+                TenantDO.contact_mobile.icontains(
+                    req_vo.contact_mobile, autoescape=True, escape="\\"
+                )
+            )
         if req_vo.status is not None:
             stmt = stmt.where(TenantDO.status == req_vo.status)
-        if req_vo.create_time and len(req_vo.create_time) >= 2:
-            stmt = stmt.where(
-                TenantDO.create_time.between(req_vo.create_time[0], req_vo.create_time[1])
-            )
+        if req_vo.create_time is not None:
+            start_time, end_time = req_vo.create_time
+            stmt = stmt.where(TenantDO.create_time.between(start_time, end_time))
         stmt = stmt.order_by(TenantDO.id.desc())
         return await self.paginate_query(stmt, req_vo)
 
@@ -45,7 +47,8 @@ class TenantMapper(BaseMapper[TenantDO]):
         return result.scalar_one_or_none()
 
     async def select_by_website(self, website: str) -> TenantDO | None:
-        stmt = select(TenantDO).where(func.json_contains(TenantDO.websites, cast(website, JSON)))
+        """在数据库内精确匹配域名数组，重复绑定保持唯一结果异常。"""
+        stmt = select(TenantDO).where(JsonArrayContains(TenantDO.websites, website))
         result = await self.read(stmt)
         return result.scalar_one_or_none()
 

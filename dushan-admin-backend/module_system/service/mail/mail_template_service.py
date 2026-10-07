@@ -3,10 +3,10 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from framework.common.page import PageResult
-from module_system.controller.admin.mail.vo.template.template_page_req_vo import (
+from module_system.controller.admin.mail.vo.template.mail_template_page_req_vo import (
     MailTemplatePageReqVO,
 )
-from module_system.controller.admin.mail.vo.template.template_save_req_vo import (
+from module_system.controller.admin.mail.vo.template.mail_template_save_req_vo import (
     MailTemplateSaveReqVO,
 )
 from module_system.dal.cache.mail.dto.mail_template_cache_dto import MailTemplateCacheDTO

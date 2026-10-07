@@ -10,9 +10,9 @@ from framework.starter_database.public import (
 from framework.starter_di.public import (
     mapper,
 )
-from module_infra.controller.admin.config.vo.data.data_page_req_vo import ConfigDataPageReqVO
-from module_infra.dal.dataobject.config.config_data_do import InfraConfigDataDO
-from module_infra.dal.dataobject.config.config_type_do import InfraConfigTypeDO
+from module_infra.controller.admin.config.vo.data.config_data_page_req_vo import ConfigDataPageReqVO
+from module_infra.dal.dataobject.config.infra_config_data_do import InfraConfigDataDO
+from module_infra.dal.dataobject.config.infra_config_type_do import InfraConfigTypeDO
 
 
 @mapper()
@@ -35,13 +35,12 @@ class ConfigDataMapper(BaseMapper[InfraConfigDataDO]):
             stmt = stmt.where(InfraConfigDataDO.type_id.in_(module_type_ids))
         if req_vo.name:
             escaped = StrUtils.escape_like(req_vo.name)
-            stmt = stmt.where(InfraConfigDataDO.name.ilike(f"%{escaped}%"))
+            stmt = stmt.where(InfraConfigDataDO.name.ilike(f"%{escaped}%", escape="\\"))
         if req_vo.type_id is not None:
             stmt = stmt.where(InfraConfigDataDO.type_id == req_vo.type_id)
-        if req_vo.create_time and len(req_vo.create_time) >= 2:
-            stmt = stmt.where(
-                InfraConfigDataDO.create_time.between(req_vo.create_time[0], req_vo.create_time[1])
-            )
+        if req_vo.create_time is not None:
+            start_time, end_time = req_vo.create_time
+            stmt = stmt.where(InfraConfigDataDO.create_time.between(start_time, end_time))
         stmt = stmt.order_by(InfraConfigDataDO.id.desc())
         return await self.paginate_query(stmt, req_vo)
 

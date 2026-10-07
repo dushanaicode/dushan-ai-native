@@ -75,11 +75,7 @@ class NoticeMessageController:
 
     @staticmethod
     @notice_message_controller.get("/my-page", summary="获得我的站内信分页")
-    @RoutePolicy(
-        permissions=("system:notification:message:query",),
-        tenant_required=True,
-        realm=SecurityRealm.TENANT,
-    )
+    @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT)
     async def get_my_notice_message_page(
         page_req_vo: NoticeMessageMyPageReqVO = Query(),
         service: NoticeMessageService = Depends(DiDependency(NoticeMessageService)),
@@ -91,6 +87,20 @@ class NoticeMessageController:
         )
         result_page = page_result.convert(NoticeMessageRespVO)
         return Result.success(data=result_page)
+
+    @staticmethod
+    @notice_message_controller.get("/get-my", summary="获得我的站内信")
+    @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT)
+    async def get_my_notice_message(
+        req_vo: IdReqVO = Query(),
+        service: NoticeMessageService = Depends(DiDependency(NoticeMessageService)),
+        security: SecurityContext = Depends(DiDependency(SecurityContext)),
+    ) -> Result[NoticeMessageRespVO]:
+        user_id = int(security.require().account_id)
+        message = await service.get_my_notice_message(req_vo.id, user_id, ADMIN_USER_TYPE)
+        if message is None:
+            return Result.success(data=None)
+        return Result.success(data=NoticeMessageRespVO.model_validate(message))
 
     @staticmethod
     @notice_message_controller.put("/update-read", summary="标记站内信为已读")
@@ -135,8 +145,8 @@ class NoticeMessageController:
 
     @staticmethod
     @notice_message_controller.get("/get-unread-count", summary="获得当前用户的未读站内信数量")
-    @AccessLogPolicy(enabled=False)
     @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT)
+    @AccessLogPolicy(enabled=False)
     async def get_unread_notice_message_count(
         service: NoticeMessageService = Depends(DiDependency(NoticeMessageService)),
         security: SecurityContext = Depends(DiDependency(SecurityContext)),

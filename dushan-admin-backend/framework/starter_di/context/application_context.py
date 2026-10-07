@@ -44,7 +44,7 @@ class ApplicationContext:
     """管理一个应用的容器、执行准入及关闭，不保存进程唯一应用。
 
     startup 完成 DI 初始化，mark_ready 在其他资源就绪后开放业务。
-    普通函数通过 execution 或 tasks 进入所属应用，再使用 get_bean。
+    普通函数通过 execution 或 tasks 进入所属应用，再使用 lookup。
     关闭先排空完整业务执行，再释放容器；不会以超时为由抢先销毁依赖。
     drain/shutdown 只是对共享终态任务的等待，调用方可以取消或限时；
     取消等待不会取消、遗失或加速实际清理，框架所有者需要终态时
@@ -81,6 +81,11 @@ class ApplicationContext:
     @classmethod
     def current(cls) -> "ApplicationContext":
         return cls.current_execution().application
+
+    @classmethod
+    def lookup(cls, bean_type: type[T]) -> T:
+        """在当前执行所属的应用中查找组件，仅供无法注入的位置使用。"""
+        return cls.current().get_bean(bean_type)
 
     @classmethod
     def current_execution(cls) -> ExecutionBinding:

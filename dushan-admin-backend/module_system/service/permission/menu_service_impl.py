@@ -16,7 +16,7 @@ from framework.starter_di.public import (
 )
 from module_system.controller.admin.permission.vo.menu.menu_list_req_vo import MenuListReqVO
 from module_system.controller.admin.permission.vo.menu.menu_save_vo import MenuSaveVO
-from module_system.dal.cache.cache_key_constants import SystemCacheKeys
+from module_system.dal.cache.system_cache_key_constants import SystemCacheKeyConstants
 from module_system.dal.dataobject.permission.menu_do import MenuDO
 from module_system.dal.mapper.permission.menu_mapper import MenuMapper
 from module_system.definitions.constants.error_code_constants import ErrorCodeConstants
@@ -25,7 +25,6 @@ from module_system.service.permission.authorization_revision_service import (
 )
 from module_system.service.permission.menu_service import MenuService
 from module_system.service.permission.permission_service import PermissionService
-from module_system.service.tenant.handler.menu_filter_handler import MenuListFilterHandler
 from module_system.service.tenant.tenant_service import TenantService
 
 
@@ -44,13 +43,35 @@ class MenuServiceImpl(MenuService):
     async def create_menu(self, create_req_vo: MenuSaveVO) -> int:
         await self.revisions.advance()
         self.database.after_commit(
-            lambda: self.cache_handler.delete_all(SystemCacheKeys.PERMISSION_MENU_ID_LIST),
+            lambda: self.cache_handler.delete_all(SystemCacheKeyConstants.PERMISSION_MENU_ID_LIST),
             required=True,
             name="system-cache",
         )
         await self.validate_parent_menu(create_req_vo.parent_id, None)
         await self.validate_menu(create_req_vo.parent_id, create_req_vo.name, None)
-        menu = MenuDO(**create_req_vo.model_dump(by_alias=False))
+        menu = MenuDO(
+            **create_req_vo.to_write_dict(
+                fields={
+                    "id",
+                    "name",
+                    "permission",
+                    "kind",
+                    "sort",
+                    "parent_id",
+                    "path",
+                    "icon",
+                    "component",
+                    "component_name",
+                    "status",
+                    "visible",
+                    "keep_alive",
+                    "always_show",
+                    "url",
+                    "data_permission",
+                },
+                exclude_unset=False,
+            )
+        )
         self.init_menu_property(menu)
         await self.menu_mapper.insert(menu)
         return menu.id
@@ -60,7 +81,7 @@ class MenuServiceImpl(MenuService):
     async def update_menu(self, update_req_vo: MenuSaveVO) -> None:
         await self.revisions.advance()
         self.database.after_commit(
-            lambda: self.cache_handler.delete_all(SystemCacheKeys.PERMISSION_MENU_ID_LIST),
+            lambda: self.cache_handler.delete_all(SystemCacheKeyConstants.PERMISSION_MENU_ID_LIST),
             required=True,
             name="system-cache",
         )
@@ -69,7 +90,29 @@ class MenuServiceImpl(MenuService):
             raise ServiceException(ErrorCodeConstants.MENU_NOT_EXISTS)
         await self.validate_parent_menu(update_req_vo.parent_id, update_req_vo.id)
         await self.validate_menu(update_req_vo.parent_id, update_req_vo.name, update_req_vo.id)
-        update_obj = MenuDO(**update_req_vo.model_dump(by_alias=False))
+        update_obj = MenuDO(
+            **update_req_vo.to_write_dict(
+                fields={
+                    "id",
+                    "name",
+                    "permission",
+                    "kind",
+                    "sort",
+                    "parent_id",
+                    "path",
+                    "icon",
+                    "component",
+                    "component_name",
+                    "status",
+                    "visible",
+                    "keep_alive",
+                    "always_show",
+                    "url",
+                    "data_permission",
+                },
+                exclude_unset=False,
+            )
+        )
         self.init_menu_property(update_obj)
         await self.menu_mapper.update_by_id(update_obj)
 
@@ -89,7 +132,7 @@ class MenuServiceImpl(MenuService):
     async def delete_menu(self, menu_id: int) -> None:
         await self.revisions.advance()
         self.database.after_commit(
-            lambda: self.cache_handler.delete_all(SystemCacheKeys.PERMISSION_MENU_ID_LIST),
+            lambda: self.cache_handler.delete_all(SystemCacheKeyConstants.PERMISSION_MENU_ID_LIST),
             required=True,
             name="system-cache",
         )
@@ -107,7 +150,7 @@ class MenuServiceImpl(MenuService):
     async def delete_menu_batch(self, menu_ids: list[int]) -> int:
         await self.revisions.advance()
         self.database.after_commit(
-            lambda: self.cache_handler.delete_all(SystemCacheKeys.PERMISSION_MENU_ID_LIST),
+            lambda: self.cache_handler.delete_all(SystemCacheKeyConstants.PERMISSION_MENU_ID_LIST),
             required=True,
             name="system-cache",
         )
@@ -149,20 +192,19 @@ class MenuServiceImpl(MenuService):
         all_menus = await self.get_menu_list_by_req(req)
         if not all_menus:
             return []
-        menu_filter_handler = MenuListFilterHandler(all_menus)
-        await self.tenant_service.handle_tenant_menu(menu_filter_handler)
-        return menu_filter_handler.get_filtered_menus()
+        menu_ids = await self.tenant_service.get_current_menu_ids()
+        return [menu for menu in all_menus if menu.id in menu_ids]
 
+    @override
     @cache(
-        SystemCacheKeys.PERMISSION_MENU_ID_LIST,
+        SystemCacheKeyConstants.PERMISSION_MENU_ID_LIST,
         key="permission:{{permission}}",
         ttl_seconds=default_ttl,
-        unless=lambda result, *_, **__: not result is not None,
     )
-    @override
     async def get_menu_id_list_by_permission_from_cache(self, permission: str) -> list[int]:
+        """按权限码查询菜单编号，空列表同样缓存。"""
         menus: list[MenuDO] = await self.menu_mapper.select_list_by_permission(permission)
-        return [menu.id for menu in menus] if menus else []
+        return [menu.id for menu in menus]
 
     @override
     async def get_menu(self, menu_id: int) -> MenuDO | None:
@@ -208,14 +250,14 @@ class MenuServiceImpl(MenuService):
     async def get_menu_list_by_ids(self, ids: set[int]) -> list[MenuDO]:
         return await self.menu_mapper.select_by_ids(ids)
 
+    @override
     @cache(
-        SystemCacheKeys.PERMISSION_MENU_ID_LIST,
+        SystemCacheKeyConstants.PERMISSION_MENU_ID_LIST,
         key="batch-perms:{{permissions}}",
         ttl_seconds=default_ttl,
-        unless=lambda result, *_, **__: not result is not None,
     )
-    @override
     async def get_menu_ids_by_permissions(self, permissions: set[str]) -> dict[str, list[int]]:
+        """按权限码分组查询菜单编号，空映射同样缓存。"""
         if not permissions:
             return {}
         menus = await self.menu_mapper.select_list_by_permissions(permissions)

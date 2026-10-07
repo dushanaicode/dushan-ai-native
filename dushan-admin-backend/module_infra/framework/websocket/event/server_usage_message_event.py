@@ -17,7 +17,7 @@ from module_infra.framework.websocket.infra_socket_payload import InfraSocketPay
         type="get-server-usage-data-response",
         payload=InfraSocketPayload,
         policy=RoutePolicy(
-            permissions=("infra:server:query",), tenant_required=True, realm=SecurityRealm.TENANT
+            permissions=("infra:server:list",), tenant_required=True, realm=SecurityRealm.TENANT
         ),
         projector=None,
     )

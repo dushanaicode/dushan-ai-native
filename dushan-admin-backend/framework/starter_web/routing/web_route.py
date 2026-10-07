@@ -4,6 +4,8 @@ from fastapi.sse import EventSourceResponse
 from starlette.requests import Request
 
 from framework.common.utils.cleanup_utils import CleanupUtils
+from framework.starter_logging.context.log_context import LogContext
+from framework.starter_web.context.http_observation import HttpObservation
 from framework.starter_web.upload.web_request import WebRequest
 
 
@@ -30,6 +32,9 @@ class WebRoute(APIRoute):
                 await request.scope["fastapi_inner_astack"].enter_async_context(
                     self.access_guard(adapted)
                 )
+            request.scope["fastapi_inner_astack"].push_async_callback(
+                self._capture_log_context, adapted
+            )
             # 复用 FastAPI 覆盖完整响应和后台任务的原生退出栈，包含手动 request.form()。
             request.scope["fastapi_inner_astack"].push_async_callback(self._close_request, adapted)
             response = await handler(adapted)
@@ -40,6 +45,13 @@ class WebRoute(APIRoute):
             return response
 
         return handle
+
+    @staticmethod
+    async def _capture_log_context(request: WebRequest) -> None:
+        """在响应与后台任务结束、授权作用域退出前保存日志身份。"""
+        observation = HttpObservation.find(request.scope)
+        if observation is not None:
+            observation.log_context = LogContext.current()
 
     @staticmethod
     async def _close_request(request: WebRequest) -> None:

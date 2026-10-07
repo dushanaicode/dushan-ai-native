@@ -2,10 +2,14 @@ from __future__ import annotations
 
 from typing import override
 
+from pydantic import ValidationError
+
 from framework.common.enums import StatusEnum
-from framework.common.exception import ServiceException
+from framework.common.exception import ConfigurationException, ServiceException
 from framework.common.page import PageResult
 from framework.starter_database.public import (
+    DatabaseErrorCodes,
+    DatabaseException,
     DatabaseStarter,
     SessionProvider,
     transactional,
@@ -14,6 +18,8 @@ from framework.starter_di.public import (
     Inject,
     service,
 )
+from framework.starter_i18n.public import I18nTranslator
+from framework.starter_web.public import RequestContext
 from module_infra.controller.admin.data_source.vo.data_source_config_page_req_vo import (
     DataSourceConfigPageReqVO,
 )
@@ -34,6 +40,7 @@ class DataSourceConfigServiceImpl(DataSourceConfigService):
     data_source_config_mapper: DataSourceConfigMapper = Inject()
     database_starter: DatabaseStarter = Inject()
     data_source_utils: DataSourceUtils = Inject()
+    translator: I18nTranslator = Inject()
 
     @override
     @transactional
@@ -41,13 +48,28 @@ class DataSourceConfigServiceImpl(DataSourceConfigService):
         """创建数据源配置"""
         await self._validate_data_source_config_name_unique(None, create_req_vo.name)
         if not create_req_vo.url:
-            raise ServiceException(
-                ErrorCodeConstants.DATA_SOURCE_CONFIG_TEST_FAILED, msg="数据源连接URL不能为空"
+            raise ServiceException(ErrorCodeConstants.DATA_SOURCE_CONFIG_URL_REQUIRED)
+        data_source_config = DataSourceConfigDO(
+            **create_req_vo.to_write_dict(
+                fields={
+                    "id",
+                    "name",
+                    "url",
+                    "status",
+                    "db_type",
+                    "source_type",
+                    "is_default",
+                    "pool_size",
+                    "max_overflow",
+                    "pool_recycle",
+                    "pool_timeout",
+                    "echo",
+                    "remark",
+                },
+                exclude_unset=False,
             )
-        data_source_config = DataSourceConfigDO(**create_req_vo.model_dump(by_alias=False))
-        success, message = await self.data_source_utils.test_connection(data_source_config)
-        if not success:
-            raise ServiceException(ErrorCodeConstants.DATA_SOURCE_CONFIG_TEST_FAILED, msg=message)
+        )
+        await self._require_connection(data_source_config)
         if create_req_vo.is_default:
             await self._update_default_data_source(create_req_vo.source_type)
         await self.data_source_config_mapper.insert(data_source_config)
@@ -64,15 +86,49 @@ class DataSourceConfigServiceImpl(DataSourceConfigService):
         if update_req_vo.url is None:
             update_req_vo.url = original_config.url
         if update_req_vo.url != original_config.url:
-            test_config = DataSourceConfigDO(**update_req_vo.model_dump(by_alias=False))
-            success, message = await self.data_source_utils.test_connection(test_config)
-            if not success:
-                raise ServiceException(
-                    ErrorCodeConstants.DATA_SOURCE_CONFIG_TEST_FAILED, msg=message
+            test_config = DataSourceConfigDO(
+                **update_req_vo.to_write_dict(
+                    fields={
+                        "id",
+                        "name",
+                        "url",
+                        "status",
+                        "db_type",
+                        "source_type",
+                        "is_default",
+                        "pool_size",
+                        "max_overflow",
+                        "pool_recycle",
+                        "pool_timeout",
+                        "echo",
+                        "remark",
+                    },
+                    exclude_unset=False,
                 )
+            )
+            await self._require_connection(test_config)
         if update_req_vo.is_default:
             await self._update_default_data_source(update_req_vo.source_type)
-        update_do = DataSourceConfigDO(**update_req_vo.model_dump(by_alias=False))
+        update_do = DataSourceConfigDO(
+            **update_req_vo.to_write_dict(
+                fields={
+                    "id",
+                    "name",
+                    "url",
+                    "status",
+                    "db_type",
+                    "source_type",
+                    "is_default",
+                    "pool_size",
+                    "max_overflow",
+                    "pool_recycle",
+                    "pool_timeout",
+                    "echo",
+                    "remark",
+                },
+                exclude_unset=False,
+            )
+        )
         await self.data_source_config_mapper.update_by_id(update_do)
         await self._reload_datasources()
 
@@ -121,10 +177,36 @@ class DataSourceConfigServiceImpl(DataSourceConfigService):
     @override
     async def test_data_source_config(self, id: int) -> tuple[bool, str]:
         """测试数据源配置连接"""
-        data_source_config = await self.get_data_source_config(id)
-        if not data_source_config:
-            return (False, "数据源配置不存在")
-        return await self.data_source_utils.test_connection(data_source_config)
+        accept_language = RequestContext.current().accept_language
+        try:
+            data_source_config = await self._validate_data_source_config_exists(id)
+            await self._require_connection(data_source_config)
+        except ServiceException as error:
+            return False, self.translator.translate_any_scope(
+                error.message_key,
+                accept_language,
+                default=error.msg,
+                args=error.format_args,
+            )
+        return True, self.translator.translate_any_scope(
+            "infra.data_source.test_success", accept_language, default="连接成功"
+        )
+
+    async def _require_connection(self, config: DataSourceConfigDO) -> None:
+        """仅将已知连接与配置失败转换为业务错误，保留原因且不公开凭证。"""
+        try:
+            await self.data_source_utils.test_connection(config)
+        except (ConfigurationException, ValidationError, DatabaseException, OSError) as error:
+            if isinstance(error, DatabaseException) and error.error_code not in (
+                DatabaseErrorCodes.ERROR,
+                DatabaseErrorCodes.CONNECTION_FAILED,
+                DatabaseErrorCodes.POOL_TIMEOUT,
+                DatabaseErrorCodes.STATEMENT_TIMEOUT,
+            ):
+                raise
+            raise ServiceException(
+                ErrorCodeConstants.DATA_SOURCE_CONFIG_TEST_FAILED, type(error).__name__
+            ) from error
 
     @override
     async def get_default_data_source_config(self, source_type: int) -> DataSourceConfigDO | None:

@@ -9,7 +9,7 @@ from granian.server.embed import Server as GranianServer
 
 import framework
 from framework.starter_web.routing.route_policy import RoutePolicy
-from server.starter_server import create_app
+from server.starter_server import StarterServer
 
 
 class NetworkGate:
@@ -34,7 +34,7 @@ class NetworkGate:
 
 
 async def run(arguments):
-    app = create_app(base_dir=arguments.config, engine=arguments.engine)
+    app = StarterServer.create_app(base_dir=arguments.config, engine=arguments.engine)
     transport = NetworkGate(app)
     if arguments.engine == "uvicorn":
         host = uvicorn.Server(

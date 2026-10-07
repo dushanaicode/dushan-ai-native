@@ -2,15 +2,13 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 
 from framework.common.contracts import SnowflakeIdStr
-from framework.common.page import PageResult, PageSettings
+from framework.common.page import PageResult
 from framework.common.schemas.request import IdListReqVO, IdReqVO, UpdateStatusReqVO
 from framework.common.utils import ConversionUtils
 from framework.starter_di.public import (
     DiDependency,
 )
 from framework.starter_excel.public import (
-    DictDataProvider,
-    ExcelProviders,
     ExcelWriter,
 )
 from framework.starter_security.public import (
@@ -21,15 +19,15 @@ from framework.starter_web.public import (
     Result,
     RoutePolicy,
 )
-from module_system.controller.admin.dict.vo.type.type_export_req_vo import DictTypeExportReqVO
-from module_system.controller.admin.dict.vo.type.type_page_req_vo import DictTypePageReqVO
-from module_system.controller.admin.dict.vo.type.type_resp_vo import DictTypeRespVO
-from module_system.controller.admin.dict.vo.type.type_save_req_vo import DictTypeSaveReqVO
-from module_system.controller.admin.dict.vo.type.type_simple_resp_vo import DictTypeSimpleRespVO
+from module_system.controller.admin.dict.vo.type.dict_type_export_req_vo import DictTypeExportReqVO
+from module_system.controller.admin.dict.vo.type.dict_type_page_req_vo import DictTypePageReqVO
+from module_system.controller.admin.dict.vo.type.dict_type_resp_vo import DictTypeRespVO
+from module_system.controller.admin.dict.vo.type.dict_type_save_req_vo import DictTypeSaveReqVO
+from module_system.controller.admin.dict.vo.type.dict_type_simple_resp_vo import (
+    DictTypeSimpleRespVO,
+)
 from module_system.dal.dataobject.dict.dict_type_do import DictTypeDO
 from module_system.service.dict.dict_type_service import DictTypeService
-from module_system.spi.dept.dept_info_provider_adapter import DeptInfoProviderAdapter
-from module_system.spi.dept.post_info_provider_adapter import PostInfoProviderAdapter
 
 dict_type_controller = APIRouter(prefix="/dict/type", tags=["System - 字典类型管理"])
 
@@ -124,13 +122,10 @@ class DictTypeController:
 
     @staticmethod
     @dict_type_controller.get("/simple-list", summary="获得全部字典类型列表")
-    @dict_type_controller.get(
-        "/list-all-simple", summary="获得全部字典类型列表", include_in_schema=True
-    )
     @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT)
     async def get_simple_dict_type_list(
         dict_type_service: DictTypeService = Depends(DiDependency(DictTypeService)),
-    ) -> Result[list]:
+    ) -> Result[list[DictTypeSimpleRespVO]]:
         list_do = await dict_type_service.get_dict_type_list()
         simple_list = [DictTypeSimpleRespVO.model_validate(item) for item in list_do]
         return Result.success(data=simple_list)
@@ -156,17 +151,8 @@ class DictTypeController:
         dict_type_service: DictTypeService = Depends(DiDependency(DictTypeService)),
         excel_writer: ExcelWriter = Depends(DiDependency(ExcelWriter)),
         files: FileResult = Depends(DiDependency(FileResult)),
-        dictionaries: DictDataProvider = Depends(DiDependency(DictDataProvider)),
-        departments: DeptInfoProviderAdapter = Depends(DiDependency(DeptInfoProviderAdapter)),
-        posts: PostInfoProviderAdapter = Depends(DiDependency(PostInfoProviderAdapter)),
-        page_settings: PageSettings = Depends(DiDependency(PageSettings)),
     ) -> StreamingResponse:
-        excel_providers = ExcelProviders(
-            dictionaries=dictionaries, departments=departments, posts=posts
-        )
-        page_req_vo.enable_fetch_all(
-            max_rows=min(excel_writer.settings.max_export_rows, page_settings.fetch_all_max_rows)
-        )
+        excel_writer.prepare_export_query(page_req_vo)
         page_result: PageResult[DictTypeDO] = await dict_type_service.get_dict_type_page(
             page_req_vo
         )
@@ -175,6 +161,6 @@ class DictTypeController:
         )
         filename = "字典类型"
         file_data = await excel_writer.write(
-            "数据", DictTypeRespVO, excel_list, providers=excel_providers, fields=page_req_vo.fields
+            "数据", DictTypeRespVO, excel_list, fields=page_req_vo.fields
         )
         return files.excel_stream(file_data, file_name=f"{filename}.xlsx")

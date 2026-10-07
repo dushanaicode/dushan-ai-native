@@ -1,0 +1,6 @@
+from framework.common.schemas.request import ExportFieldsReqVO
+from {{ vo_package }}.{{ class_file_name }}_page_req_vo import {{ class_name }}PageReqVO
+
+
+class {{ class_name }}ExportReqVO({{ class_name }}PageReqVO, ExportFieldsReqVO):
+    """分页筛选条件与导出列选择。"""

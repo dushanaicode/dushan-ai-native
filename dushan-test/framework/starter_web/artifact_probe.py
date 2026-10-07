@@ -45,9 +45,9 @@ async def verify(arguments):
     import httpx
     import uvicorn
 
-    from server.starter_server import create_app
+    from server.starter_server import StarterServer
 
-    app = create_app()
+    app = StarterServer.create_app()
     server = uvicorn.Server(
         uvicorn.Config(
             app, host="127.0.0.1", port=port, proxy_headers=False, access_log=False, lifespan="on"

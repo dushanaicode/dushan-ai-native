@@ -10,7 +10,7 @@ from framework.starter_ip.public import IpLocation
 from framework.starter_security.bizlog.log_record_operation import LogRecordOperation
 from framework.starter_security.model.request_audit import RequestAudit
 from framework.starter_security.public import SecurityRealm
-from module_system.controller.admin.logger.vo.operatelog.operatelog_operate_log_resp_vo import (
+from module_system.controller.admin.logger.vo.operate_log.operate_log_resp_vo import (
     OperateLogRespVO,
 )
 from module_system.service.logger.operate_log_service_impl import OperateLogServiceImpl

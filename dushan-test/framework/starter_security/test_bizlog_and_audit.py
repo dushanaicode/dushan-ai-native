@@ -7,7 +7,7 @@ from loguru import logger
 from pydantic import BaseModel
 from sqlalchemy import insert, select
 
-from framework.starter_di.context.get_bean import get_bean
+from framework.starter_di.context.application_context import ApplicationContext
 from framework.starter_security.bizlog.biz_log_service import BizLogService
 from framework.starter_security.bizlog.diff_field import DiffField
 from framework.starter_security.bizlog.diff_renderer import DiffRenderer
@@ -37,7 +37,7 @@ async def test_http_bizlog_and_existing_orm_core_audit(security_factory):
             item = AuditItem(value=value)
             db.add(item)
             await db.flush()
-            get_bean(LogRecordContext).put("biz_no", str(item.id))
+            ApplicationContext.lookup(LogRecordContext).put("biz_no", str(item.id))
         return {"created": item.id}
 
     router.add_api_route("/protected", RoutePolicy()(create))
@@ -84,7 +84,7 @@ async def test_log_failure_cannot_reverse_committed_business_result(
                 item = AuditItem(value="committed")
                 db.add(item)
                 await db.flush()
-                get_bean(LogRecordContext).put("biz_no", str(item.id))
+                ApplicationContext.lookup(LogRecordContext).put("biz_no", str(item.id))
             return "business-success"
 
         assert await case.service.run(token, RoutePolicy(), operation) == "business-success"

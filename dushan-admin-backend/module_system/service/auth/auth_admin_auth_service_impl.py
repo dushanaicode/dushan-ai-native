@@ -35,37 +35,47 @@ from framework.starter_web.public import (
     RequestContext,
 )
 from module_system.api.logger.dto.login_log_create_req_dto import LoginLogCreateReqDTO
-from module_system.api.sms.dto.code.code_sms_code_send_req_dto import SmsCodeSendReqDTO
-from module_system.api.sms.dto.code.code_sms_code_use_req_dto import SmsCodeUseReqDTO
+from module_system.api.sms.dto.code.sms_code_send_req_dto import SmsCodeSendReqDTO
+from module_system.api.sms.dto.code.sms_code_use_req_dto import SmsCodeUseReqDTO
 from module_system.api.social.dto.social_user_bind_req_dto import SocialUserBindReqDTO
 from module_system.api.social.dto.social_user_resp_dto import SocialUserRespDTO
 from module_system.config.password_reset_settings import PasswordResetSettings
 from module_system.config.system_settings import SystemSettings
-from module_system.controller.admin.auth.vo.auth_bind_mobile_req_vo import AuthBindMobileReqVO
-from module_system.controller.admin.auth.vo.auth_login_req_vo import AuthLoginReqVO
-from module_system.controller.admin.auth.vo.auth_login_resp_vo import AuthLoginRespVO
-from module_system.controller.admin.auth.vo.auth_permission_info_resp_vo import (
+from module_system.controller.admin.auth.vo.auth.auth_bind_mobile_req_vo import AuthBindMobileReqVO
+from module_system.controller.admin.auth.vo.auth.auth_bind_mobile_sms_send_req_vo import (
+    AuthBindMobileSmsSendReqVO,
+)
+from module_system.controller.admin.auth.vo.auth.auth_login_req_vo import AuthLoginReqVO
+from module_system.controller.admin.auth.vo.auth.auth_login_resp_vo import AuthLoginRespVO
+from module_system.controller.admin.auth.vo.auth.auth_permission_info_resp_vo import (
     AuthPermissionInfoRespVO,
 )
-from module_system.controller.admin.auth.vo.auth_recovery_send_req_vo import AuthRecoverySendReqVO
-from module_system.controller.admin.auth.vo.auth_register_req_vo import AuthRegisterReqVO
-from module_system.controller.admin.auth.vo.auth_reset_password_req_vo import AuthResetPasswordReqVO
-from module_system.controller.admin.auth.vo.auth_sms_login_req_vo import AuthSmsLoginReqVO
-from module_system.controller.admin.auth.vo.auth_sms_send_req_vo import AuthSmsSendReqVO
-from module_system.controller.admin.auth.vo.auth_social_login_req_vo import AuthSocialLoginReqVO
-from module_system.controller.admin.user.vo.profile.profile_update_req_vo import (
+from module_system.controller.admin.auth.vo.auth.auth_recovery_send_req_vo import (
+    AuthRecoverySendReqVO,
+)
+from module_system.controller.admin.auth.vo.auth.auth_register_req_vo import AuthRegisterReqVO
+from module_system.controller.admin.auth.vo.auth.auth_reset_password_req_vo import (
+    AuthResetPasswordReqVO,
+)
+from module_system.controller.admin.auth.vo.auth.auth_sms_login_req_vo import AuthSmsLoginReqVO
+from module_system.controller.admin.auth.vo.auth.auth_sms_send_req_vo import AuthSmsSendReqVO
+from module_system.controller.admin.auth.vo.auth.auth_social_login_req_vo import (
+    AuthSocialLoginReqVO,
+)
+from module_system.controller.admin.user.vo.profile.user_profile_update_req_vo import (
     UserProfileUpdateReqVO,
 )
 from module_system.convert.auth.auth_convert import AuthConvert
-from module_system.dal.cache.cache_key_constants import SystemCacheKeys
+from module_system.dal.cache.system_cache_key_constants import SystemCacheKeyConstants
 from module_system.dal.dataobject.user.admin_user_do import AdminUserDO
 from module_system.dal.mapper.auth.system_authentication_mapper import SystemAuthenticationMapper
 from module_system.definitions.constants.error_code_constants import ErrorCodeConstants
 from module_system.definitions.enums.logger.logger_login_result_enum import LoggerLoginResultEnum
 from module_system.definitions.enums.logger.login_log_type_enum import LoginLogTypeEnum
+from module_system.definitions.enums.permission.role_code_enum import RoleCodeEnum
 from module_system.definitions.enums.sms.sms_scene_enum import SmsSceneEnum
 from module_system.service.auth.auth_admin_auth_service import AuthAdminAuthService
-from module_system.service.auth.bo.email_reset_state import EmailResetState
+from module_system.service.auth.bo.email_reset_state_bo import EmailResetStateBO
 from module_system.service.captcha.captcha_service import CaptchaService
 from module_system.service.logger.login_log_service import LoginLogService
 from module_system.service.mail.bo.mail_dispatch_bo import MailDispatchBO
@@ -133,28 +143,43 @@ class AuthAdminAuthServiceImpl(AuthAdminAuthService):
         )
         if not await self.captcha_service.verification(req_vo, purpose=purpose):
             raise ServiceException(ErrorCodeConstants.AUTH_REGISTER_CAPTCHA_CODE_ERROR)
+        if (
+            req_vo.scene == SmsSceneEnum.ADMIN_MEMBER_REGISTER.code
+            and not self.settings.user_register_enabled
+        ):
+            raise ServiceException(ErrorCodeConstants.USER_REGISTER_DISABLED)
         deliver = True
         if req_vo.scene in (
             SmsSceneEnum.ADMIN_MEMBER_LOGIN.code,
             SmsSceneEnum.ADMIN_MEMBER_RESET_PASSWORD.code,
         ):
-            deliver = (
-                await self.authentication.user_by_mobile(
-                    req_vo.mobile, self.tenant.get_required_tenant_id()
-                )
-                is not None
+            user = await self.authentication.user_by_mobile(
+                req_vo.mobile, self.tenant.get_required_tenant_id()
             )
-        elif req_vo.scene == SmsSceneEnum.ADMIN_MEMBER_UPDATE_MOBILE.code:
-            deliver = (
-                await self.authentication.user_by_mobile(
-                    req_vo.mobile, self.tenant.get_required_tenant_id()
+            deliver = user is not None
+            if user is not None and req_vo.scene == SmsSceneEnum.ADMIN_MEMBER_RESET_PASSWORD.code:
+                deliver = not await self.permission_service.has_any_roles(
+                    user.id, RoleCodeEnum.READONLY.code
                 )
-                is None
-            )
         sms_req_dto = SmsCodeSendReqDTO(
             mobile=req_vo.mobile,
             scene=req_vo.scene,
-            create_ip=(RequestContext.current().client_ip or ""),
+            create_ip=RequestContext.current().require_client_ip(),
+        )
+        return await self.sms_code_service.send_sms_code(sms_req_dto, deliver=deliver)
+
+    @override
+    async def send_bind_mobile_code(self, req_vo: AuthBindMobileSmsSendReqVO) -> int:
+        deliver = (
+            await self.authentication.user_by_mobile(
+                req_vo.mobile, self.tenant.get_required_tenant_id()
+            )
+            is None
+        )
+        sms_req_dto = SmsCodeSendReqDTO(
+            mobile=req_vo.mobile,
+            scene=SmsSceneEnum.ADMIN_MEMBER_UPDATE_MOBILE.code,
+            create_ip=RequestContext.current().require_client_ip(),
         )
         return await self.sms_code_service.send_sms_code(sms_req_dto, deliver=deliver)
 
@@ -179,7 +204,7 @@ class AuthAdminAuthServiceImpl(AuthAdminAuthService):
             mobile=req_vo.mobile,
             code=req_vo.code,
             scene=SmsSceneEnum.ADMIN_MEMBER_LOGIN.code,
-            used_ip=(RequestContext.current().client_ip or ""),
+            used_ip=RequestContext.current().require_client_ip(),
         )
         await self.sms_code_service.use_sms_code(sms_use_dto)
         user = await self.authentication.user_by_mobile(
@@ -200,7 +225,7 @@ class AuthAdminAuthServiceImpl(AuthAdminAuthService):
             code=req_vo.code,
             mobile=req_vo.mobile,
             scene=SmsSceneEnum.ADMIN_MEMBER_UPDATE_MOBILE.code,
-            used_ip=(RequestContext.current().client_ip or ""),
+            used_ip=RequestContext.current().require_client_ip(),
         )
         await self.sms_code_service.use_sms_code(sms_use_dto)
         await self.user_service.update_user_profile(
@@ -228,7 +253,7 @@ class AuthAdminAuthServiceImpl(AuthAdminAuthService):
         access_token = await self.oauth2_token_service.refresh_access_token(
             refresh_token, client_id
         )
-        return AuthConvert.convert_oauth_to_auth_login_resp(access_token, self.date_utils)
+        return AuthConvert.convert_oauth_to_auth_login_resp(access_token)
 
     @override
     async def logout(self, token: str, log_type: int) -> None:
@@ -268,13 +293,16 @@ class AuthAdminAuthServiceImpl(AuthAdminAuthService):
         user = await self.authentication.user_by_mobile(
             req.mobile, self.tenant.get_required_tenant_id()
         )
+        deliver = user is not None and not await self.permission_service.has_any_roles(
+            user.id, RoleCodeEnum.READONLY.code
+        )
         return await self.sms_code_service.send_sms_code(
             SmsCodeSendReqDTO(
                 mobile=req.mobile,
                 scene=SmsSceneEnum.ADMIN_MEMBER_RESET_PASSWORD.code,
-                create_ip=RequestContext.current().client_ip or "",
+                create_ip=RequestContext.current().require_client_ip(),
             ),
-            deliver=user is not None,
+            deliver=deliver,
         )
 
     @transactional
@@ -286,7 +314,7 @@ class AuthAdminAuthServiceImpl(AuthAdminAuthService):
             code=req.code,
             mobile=req.mobile,
             scene=SmsSceneEnum.ADMIN_MEMBER_RESET_PASSWORD.code,
-            used_ip=(RequestContext.current().client_ip or ""),
+            used_ip=RequestContext.current().require_client_ip(),
         )
         try:
             await self.sms_code_service.use_sms_code(sms_req_dto)
@@ -302,6 +330,7 @@ class AuthAdminAuthServiceImpl(AuthAdminAuthService):
             raise
         if user is None:
             raise ServiceException(ErrorCodeConstants.AUTH_RESET_CODE_INVALID)
+        await self.permission_service.require_user_writable(user.id)
         await self.user_service.change_password(user.id, req.password)
 
     @staticmethod
@@ -327,15 +356,19 @@ class AuthAdminAuthServiceImpl(AuthAdminAuthService):
         ).hexdigest()
 
     async def _send_email_reset_code(self, email: str) -> int:
-        """未登记邮箱同样返回位数，不暴露账号是否存在；缓存只保存验证码摘要。"""
+        """未登记或只读目标统一限流且不投递，不绑定可用于改密的账号凭据。"""
         user = await self.authentication.user_by_email(email, self.tenant.get_required_tenant_id())
+        if user is not None and await self.permission_service.has_any_roles(
+            user.id, RoleCodeEnum.READONLY.code
+        ):
+            user = None
         identifier = self._email_identifier(email if user is None else user.email)
         async with self._email_reset_lock(identifier):
             now = datetime.now(timezone.utc)
-            cached = await self.cache.get(SystemCacheKeys.EMAIL_PASSWORD_RESET, identifier)
+            cached = await self.cache.get(SystemCacheKeyConstants.EMAIL_PASSWORD_RESET, identifier)
             count = 1
             if cached.hit:
-                previous = EmailResetState.model_validate(cached.value)
+                previous = EmailResetStateBO.model_validate(cached.value)
                 if now.timestamp() - previous.issued_at < self.reset_settings.resend_seconds:
                     raise ServiceException(ErrorCodeConstants.AUTH_RESET_SEND_LIMIT)
                 issued = datetime.fromtimestamp(previous.issued_at, timezone.utc)
@@ -344,7 +377,7 @@ class AuthAdminAuthServiceImpl(AuthAdminAuthService):
                         raise ServiceException(ErrorCodeConstants.AUTH_RESET_SEND_LIMIT)
                     count = previous.daily_count + 1
             code = str(secrets.randbelow(1_000_000)).zfill(6)
-            state = EmailResetState(
+            state = EmailResetStateBO(
                 code_digest=self._email_code_digest(identifier, code),
                 user_id=None if user is None else user.id,
                 credential_revision=None if user is None else user.credential_revision,
@@ -354,7 +387,7 @@ class AuthAdminAuthServiceImpl(AuthAdminAuthService):
                 daily_count=count,
             )
             await self.cache.set(
-                SystemCacheKeys.EMAIL_PASSWORD_RESET,
+                SystemCacheKeyConstants.EMAIL_PASSWORD_RESET,
                 identifier,
                 state.model_dump(mode="json", by_alias=False),
             )
@@ -386,16 +419,16 @@ class AuthAdminAuthServiceImpl(AuthAdminAuthService):
         user = await self.authentication.user_by_email(email, self.tenant.get_required_tenant_id())
         identifier = self._email_identifier(email if user is None else user.email)
         async with self._email_reset_lock(identifier):
-            cached = await self.cache.get(SystemCacheKeys.EMAIL_PASSWORD_RESET, identifier)
+            cached = await self.cache.get(SystemCacheKeyConstants.EMAIL_PASSWORD_RESET, identifier)
             if not cached.hit:
                 raise ServiceException(ErrorCodeConstants.AUTH_RESET_CODE_INVALID)
-            state = EmailResetState.model_validate(cached.value)
+            state = EmailResetStateBO.model_validate(cached.value)
             now = datetime.now(timezone.utc).timestamp()
             if now >= state.expires_at or state.attempts >= self.reset_settings.max_attempts:
                 raise ServiceException(ErrorCodeConstants.AUTH_RESET_CODE_INVALID)
             state = state.model_copy(update={"attempts": state.attempts + 1})
             await self.cache.set(
-                SystemCacheKeys.EMAIL_PASSWORD_RESET,
+                SystemCacheKeyConstants.EMAIL_PASSWORD_RESET,
                 identifier,
                 state.model_dump(mode="json", by_alias=False),
                 ttl_seconds=math.ceil(state.issued_at + 86400 - now),
@@ -422,6 +455,7 @@ class AuthAdminAuthServiceImpl(AuthAdminAuthService):
                     or current.credential_revision != state.credential_revision
                 ):
                     raise ServiceException(ErrorCodeConstants.AUTH_RESET_CODE_INVALID)
+                await self.permission_service.require_user_writable(current.id)
                 # 提交后的凭据版本变化使此码不可复用，保留缓存以继续执行发送频率/日限额。
                 await self.user_service.change_password(current.id, password)
 
@@ -498,7 +532,7 @@ class AuthAdminAuthServiceImpl(AuthAdminAuthService):
         await self._create_login_log(
             user_id, username, log_type, LoggerLoginResultEnum.SUCCESS.code
         )
-        return AuthConvert.convert_oauth_to_auth_login_resp(access_token, self.date_utils)
+        return AuthConvert.convert_oauth_to_auth_login_resp(access_token)
 
     async def _create_login_log(self, user_id, username, log_type, login_result):
         request = RequestContext.current()
@@ -508,15 +542,15 @@ class AuthAdminAuthServiceImpl(AuthAdminAuthService):
             user_id=0 if user_id is None else user_id,
             user_type=UserTypeEnum.ADMIN.code,
             username=username,
-            user_agent=request.connection.headers.get("user-agent", "")[:512],
-            user_ip=request.client_ip or "",
+            user_agent=request.user_agent,
+            user_ip=request.require_client_ip(),
             result=login_result,
             creator="" if user_id is None else str(user_id),
             tenant_id=self.tenant.get_required_tenant_id(),
         )
         await self.login_log_service.create_login_log(log)
         if user_id is not None and login_result == LoggerLoginResultEnum.SUCCESS.code:
-            await self.user_service.update_user_login(user_id, request.client_ip or "")
+            await self.user_service.update_user_login(user_id, log.user_ip)
 
     async def _create_logout_log(self, user_id, user_type, log_type):
         request = RequestContext.current()
@@ -531,8 +565,8 @@ class AuthAdminAuthServiceImpl(AuthAdminAuthService):
             user_id=user_id,
             user_type=user_type,
             username="" if user is None else user.username,
-            user_agent=request.connection.headers.get("user-agent", "")[:512],
-            user_ip=request.client_ip or "",
+            user_agent=request.user_agent,
+            user_ip=request.require_client_ip(),
             result=LoggerLoginResultEnum.SUCCESS.code,
             creator=str(user_id),
             tenant_id=self.tenant.get_required_tenant_id(),

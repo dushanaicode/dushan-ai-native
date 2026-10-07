@@ -10,8 +10,8 @@ from framework.starter_security.spi.data_access_provider import DataAccessProvid
 from framework.starter_security.spi.security_execution_provider import SecurityExecutionProvider
 from framework.starter_security.spi.tenant_access_provider import TenantAccessProvider
 from framework.starter_tenant.spi.tenant_execution_provider import TenantExecutionProvider
-from server.bootstrap.bootstrapper import BootstrapError
-from server.starter_server import create_app
+from server.bootstrap.bootstrap_error import BootstrapError
+from server.starter_server import StarterServer
 
 pytestmark = pytest.mark.asyncio(loop_scope="module")
 
@@ -60,7 +60,7 @@ async def test_missing_required_spi_prevents_ready(infra_app, monkeypatch, missi
         return original(selection, retained)
 
     monkeypatch.setattr(CandidateSelection, "select", select)
-    app = create_app(base_dir=infra_app.state.bootstrap.base_dir, environ={})
+    app = StarterServer.create_app(base_dir=infra_app.state.bootstrap.base_dir, environ={})
     with pytest.raises(BootstrapError):
         async with app.router.lifespan_context(app):
             pytest.fail("必要 SPI 缺失不应继续启动")

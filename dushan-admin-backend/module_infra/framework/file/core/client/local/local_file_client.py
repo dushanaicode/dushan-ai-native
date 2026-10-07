@@ -8,7 +8,6 @@ from module_infra.framework.file.core.client.abstract_file_client import Abstrac
 class LocalFileClient(AbstractFileClient):
     async def do_init(self):
         self._base_path = Path(self.config.base_path).resolve()
-        await asyncio.to_thread(self._base_path.mkdir, parents=True, exist_ok=True)
 
     def _get_absolute_path(self, key):
         path = (self._base_path / self.key(key)).resolve()
@@ -38,7 +37,10 @@ class LocalFileClient(AbstractFileClient):
 
     def _list(self, target):
         files, directories = [], []
-        for item in sorted(target.iterdir()):
+        entries = (
+            [] if target == self._base_path and not target.exists() else sorted(target.iterdir())
+        )
+        for item in entries:
             if not item.resolve().is_relative_to(self._base_path):
                 continue
             relative = item.relative_to(self._base_path).as_posix()

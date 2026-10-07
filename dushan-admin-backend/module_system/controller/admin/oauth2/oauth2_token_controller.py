@@ -12,13 +12,13 @@ from framework.starter_web.public import (
     Result,
     RoutePolicy,
 )
-from module_system.controller.admin.oauth2.vo.token.token_access_token_delete_req_vo import (
+from module_system.controller.admin.oauth2.vo.token.oauth2_access_token_delete_req_vo import (
     OAuth2AccessTokenDeleteReqVO,
 )
-from module_system.controller.admin.oauth2.vo.token.token_access_token_page_req_vo import (
+from module_system.controller.admin.oauth2.vo.token.oauth2_access_token_page_req_vo import (
     OAuth2AccessTokenPageReqVO,
 )
-from module_system.controller.admin.oauth2.vo.token.token_access_token_resp_vo import (
+from module_system.controller.admin.oauth2.vo.token.oauth2_access_token_resp_vo import (
     OAuth2AccessTokenRespVO,
 )
 from module_system.dal.dataobject.oauth2.oauth2_access_token_do import OAuth2AccessTokenDO

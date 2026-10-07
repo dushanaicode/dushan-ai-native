@@ -13,19 +13,18 @@ from framework.starter_di.public import (
     Inject,
     service,
 )
-from framework.starter_mq.public import (
-    MessageResultUnknown,
-)
 from module_system.dal.dataobject.sms.sms_channel_do import SmsChannelDO
 from module_system.dal.dataobject.sms.sms_template_do import SmsTemplateDO
 from module_system.dal.dataobject.user.admin_user_do import AdminUserDO
 from module_system.definitions.constants.error_code_constants import ErrorCodeConstants
-from module_system.framework.notification.delivery.delivery_cancelled import DeliveryCancelled
-from module_system.framework.notification.delivery.delivery_definite_failure import (
-    DeliveryDefiniteFailure,
+from module_system.definitions.enums.sms.sms_send_status_enum import SmsSendStatusEnum
+from module_system.framework.notification.delivery.delivery_attempt import (
+    DeliveryRequestStartedCallback,
 )
+from module_system.framework.notification.delivery.delivery_cancelled import DeliveryCancelled
 from module_system.framework.sms.factory.sms_client_factory import SmsClientFactory
 from module_system.framework.sms.model.sms_channel_properties import SmsChannelProperties
+from module_system.framework.sms.model.sms_send_resp_dto import SmsSendRespDTO
 from module_system.mq.message.sms.sms_send_message import SmsSendMessage
 from module_system.mq.producer.sms.sms_producer_protocol import SmsProducerProtocol
 from module_system.service.member.member_service import MemberService
@@ -69,8 +68,8 @@ class SmsSendServiceImpl(SmsSendService):
             )
         )
 
-    @transactional
     @override
+    @transactional
     async def send_single_sms(self, req: SmsDispatchBO) -> int:
         mobile = req.mobile
         template = await self._validate_sms_template(req.template_code)
@@ -146,46 +145,37 @@ class SmsSendServiceImpl(SmsSendService):
     members: MemberService = Inject()
 
     async def do_send_sms(self, message: SmsSendMessage) -> None:
+        """提供短信外发和厂商结果映射，投递状态由共享服务管理。"""
         channel_do = await self._validate_sms_channel(message.channel_id)
         channel = self.sms_client_factory.create_or_update_sms_client(
             SmsChannelProperties.model_validate(channel_do)
         )
-        attempt = await self.delivery.claim("sms", message.log_id)
-        if attempt is None:
-            return
-        if channel_do.status != StatusEnum.ENABLE.code:
-            await self.delivery.finish("sms", message.log_id, attempt, send_status=40)
-            return
-        try:
-            result = await channel.send_sms(
+
+        async def send_sms(on_request_started: DeliveryRequestStartedCallback) -> SmsSendRespDTO:
+            """拒绝已停用渠道，并调用客户端的请求开始回调。"""
+            if channel_do.status != StatusEnum.ENABLE.code:
+                raise DeliveryCancelled("短信渠道已停用")
+            return await channel.send_sms(
                 message.log_id,
                 message.mobile,
                 message.api_template_id,
                 message.template_params,
-                on_request_started=lambda: self.delivery.started("sms", message.log_id, attempt),
+                on_request_started=on_request_started,
             )
-        except DeliveryCancelled:
-            await self.delivery.finish("sms", message.log_id, attempt, send_status=40)
-            return
-        except DeliveryDefiniteFailure as error:
-            await self.delivery.finish(
-                "sms", message.log_id, attempt, send_status=20, api_send_msg=type(error).__name__
-            )
-            raise
-        except Exception as error:
-            await self.delivery.finish(
-                "sms", message.log_id, attempt, send_status=5, api_send_msg=type(error).__name__
-            )
-            raise MessageResultUnknown("短信发送结果未知") from error
-        await self.delivery.finish(
+
+        await self.delivery.execute(
             "sms",
             message.log_id,
-            attempt,
-            send_status=10 if result.success else 20,
-            api_send_code=result.api_code,
-            api_send_msg=result.api_msg,
-            api_request_id=result.api_request_id,
-            api_serial_no=result.serial_no,
+            send=send_sms,
+            result_values=lambda result: {
+                "send_status": SmsSendStatusEnum.SUCCESS.code
+                if result.success
+                else SmsSendStatusEnum.FAILURE.code,
+                "api_send_code": result.api_code,
+                "api_send_msg": result.api_msg,
+                "api_request_id": result.api_request_id,
+                "api_serial_no": result.serial_no,
+            },
         )
 
     async def send_single_sms_to_member(self, req: SmsSendBO):

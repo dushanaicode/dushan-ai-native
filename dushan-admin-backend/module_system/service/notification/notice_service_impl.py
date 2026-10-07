@@ -44,8 +44,8 @@ from module_system.service.notification.notice_log_service import (
     NoticeLogService,
 )
 from module_system.service.notification.notice_service import NoticeService
-from module_system.service.notification.notification_dispatcher import (
-    NotificationDispatcher,
+from module_system.service.notification.notification_dispatch_service import (
+    NotificationDispatchService,
 )
 from module_system.service.user.admin_user_service import AdminUserService
 
@@ -57,13 +57,29 @@ class NoticeServiceImpl(NoticeService):
     notice_mapper: NoticeMapper = Inject()
     dept_service: DeptService = Inject()
     admin_user_service: AdminUserService = Inject()
-    notification_dispatcher: NotificationDispatcher = Inject()
+    notification_dispatcher: NotificationDispatchService = Inject()
     notice_log_service: NoticeLogService = Inject()
 
     @override
     @transactional
     async def create_notice(self, create_req_vo: NoticeSaveReqVO) -> int:
-        notice = NoticeDO(**create_req_vo.model_dump(by_alias=False))
+        notice = NoticeDO(
+            **create_req_vo.to_write_dict(
+                fields={
+                    "id",
+                    "title",
+                    "type",
+                    "user_type",
+                    "channels",
+                    "sms_template_code",
+                    "mail_account_id",
+                    "content",
+                    "publisher",
+                    "status",
+                },
+                exclude_unset=False,
+            )
+        )
         await self.notice_mapper.insert(notice)
         return notice.id
 
@@ -71,7 +87,23 @@ class NoticeServiceImpl(NoticeService):
     @transactional
     async def update_notice(self, update_req_vo: NoticeSaveReqVO) -> None:
         await self._validate_for_update(update_req_vo.id)
-        update_obj = NoticeDO(**update_req_vo.model_dump(by_alias=False))
+        update_obj = NoticeDO(
+            **update_req_vo.to_write_dict(
+                fields={
+                    "id",
+                    "title",
+                    "type",
+                    "user_type",
+                    "channels",
+                    "sms_template_code",
+                    "mail_account_id",
+                    "content",
+                    "publisher",
+                    "status",
+                },
+                exclude_unset=False,
+            )
+        )
         await self.notice_mapper.update_by_id(update_obj)
 
     @override
@@ -241,12 +273,11 @@ class NoticeServiceImpl(NoticeService):
         )
         return notice.id
 
-    async def _validate_for_update(self, id: int | None) -> None:
+    async def _validate_for_update(self, id: int) -> NoticeDO:
         """校验通知是否存在且非内置"""
-        if id is None:
-            return
         notice = await self.notice_mapper.select_by_id(id)
         if notice is None:
             raise ServiceException(ErrorCodeConstants.NOTICE_NOT_FOUND)
         if notice.builtin == BuiltinTypeEnum.BUILTIN.code:
             raise ServiceException(ErrorCodeConstants.NOTICE_CAN_NOT_UPDATE_SYSTEM_TYPE)
+        return notice

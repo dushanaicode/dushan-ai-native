@@ -8,7 +8,7 @@ from framework.starter_mq.model.outbox_job_parameters import OutboxJobParameters
     key="mq.outbox.dispatch",
     parameters=OutboxJobParameters,
     source="mq.outbox",
-    capability="mq:dispatch",
+    capability="mq.outbox.dispatch",
 )
 class OutboxJob(JobHandler):
     """由任务定义 SPI 启用公共计划；不绕过 Job owner 或自建后台定时器。"""

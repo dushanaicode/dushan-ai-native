@@ -9,14 +9,14 @@ from framework.starter_job.definitions.constants.job_error_codes import JobError
 from framework.starter_job.definitions.enums.job_trigger_kind import JobTriggerKind
 from framework.starter_job.exception.job_exception import JobException
 from framework.starter_job.model.job_request import JobRequest
-from server.starter_server import create_app
+from server.starter_server import StarterServer
 
 from .test_runtime import wait_state
 
 
 async def test_two_applications_have_one_owner_and_shared_manual_queue(job_case):
     case = job_case
-    other = create_app(base_dir=case.config_path, environ={})
+    other = StarterServer.create_app(base_dir=case.config_path, environ={})
     async with other.router.lifespan_context(other):
         assert case.runtime.owner and not other.state.job.owner
         with case.app.state.application_context.execution():
@@ -125,7 +125,7 @@ async def test_reacquiring_owner_does_not_change_inflight_request_identity(job_c
 
 async def test_standby_automatically_takes_over_released_owner(job_case):
     case = job_case
-    other = create_app(base_dir=case.config_path, environ={})
+    other = StarterServer.create_app(base_dir=case.config_path, environ={})
     async with other.router.lifespan_context(other):
         assert case.runtime.owner and not other.state.job.owner
         with case.app.state.application_context.execution():

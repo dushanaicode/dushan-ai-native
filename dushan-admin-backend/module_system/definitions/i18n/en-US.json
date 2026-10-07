@@ -211,7 +211,8 @@
       "weixin_mini_app_subscribe_template_error": "WeChat Mini Program get subscribe template failed: {}",
       "weixin_mini_app_subscribe_message_error": "WeChat Mini Program send subscribe message failed: {}",
       "platform_not_exist": "Social platform [{}] does not exist",
-      "client_auth_config_invalid": "Invalid social client auth configuration: {}"
+      "client_auth_config_invalid": "Invalid social client auth configuration: {}",
+      "user_already_bound": "This social identity is already bound to another account"
     }
   }
 }

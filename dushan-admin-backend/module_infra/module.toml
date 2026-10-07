@@ -2,6 +2,7 @@ name = "infra"
 package = "module_infra"
 scan_roots = ["config", "definitions.constants", "dal", "convert", "service", "spi", "api", "framework", "job", "util"]
 definitions = []
+routers = ["router:routers"]
 requires = ["framework", "system"]
 required_message_keys = []
 

@@ -24,7 +24,7 @@ async def enqueue(case, value, *, rollback=False):
                     "events",
                     case.module.definition.mode,
                     case.module.Payload(value=value),
-                    capability="mq:test",
+                    workload_capability="mq:test",
                 )
             )
             assert value not in case.probe.finished
@@ -290,7 +290,7 @@ async def test_plain_after_commit_callback_preserves_commit_failure_semantics(
                     "events",
                     case.module.definition.mode,
                     case.module.Payload(value=1),
-                    capability="mq:test",
+                    workload_capability="mq:test",
                 )
             )
 

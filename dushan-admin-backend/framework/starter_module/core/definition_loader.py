@@ -13,6 +13,7 @@ class DefinitionLoader:
 
     @staticmethod
     def load(modules: tuple[ResolvedModule, ...]) -> ScanResult:
+        """加载显式组件定义并记录去重排序后的来源文件。"""
         started = perf_counter()
         requests = []
         for item in modules:
@@ -45,6 +46,6 @@ class DefinitionLoader:
             )
         return ScanResult(
             tuple(definitions),
-            tuple(sorted({row[3] for row in requests})),
+            tuple(sorted({source for _, _, _, source in requests})),
             perf_counter() - started,
         )

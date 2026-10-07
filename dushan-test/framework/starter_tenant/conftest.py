@@ -17,7 +17,7 @@ from framework.starter_security.definitions.enums.tenant_access_mode import Tena
 from framework.starter_security.model.login_session import LoginSession
 from framework.starter_security.spi.token_provider import TokenProvider
 from framework.starter_web.routing.route_policy import RoutePolicy
-from server.starter_server import create_app
+from server.starter_server import StarterServer
 
 SOURCE = """
 from datetime import UTC, datetime, timedelta
@@ -403,7 +403,7 @@ async def tenant_case(tenant_target, config_dir, module_package, tmp_path, reque
         if "profile" in options:
             values["config"]["models"]["tenant"]["profile"] = options["profile"]
         config_path = config_dir(values)
-        app = create_app(base_dir=config_path, environ={})
+        app = StarterServer.create_app(base_dir=config_path, environ={})
         async with app.router.lifespan_context(app):
             case = TenantCase(
                 app=app,

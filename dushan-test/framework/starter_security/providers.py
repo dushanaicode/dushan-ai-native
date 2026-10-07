@@ -1,5 +1,3 @@
-"""测试身份提供者：真实 SQL 查询验证框架契约，不代表 System 登录已经迁入。"""
-
 import asyncio
 import json
 import os
@@ -48,6 +46,7 @@ class AuditItem(BaseDO):
     value = mapped_column(String(64))
 
 
+# 以下测试身份提供者用真实 SQL 查询验证框架契约，不代表 System 登录已经迁入。
 class SqlTokenProvider(TokenProvider):
     def __init__(self, database: SessionProvider):
         self.database = database

@@ -14,8 +14,8 @@ from fixtures.config_factory import ConfigFactory
 from server.config.granian.granian_settings import GranianSettings
 from server.config.server.server_settings import ServerSettings
 from server.config.uvicorn.uvicorn_settings import UvicornSettings
-from server.launcher.granian_launcher import build_granian_cmd
-from server.launcher.uvicorn_launcher import build_uvicorn_cmd
+from server.launcher.granian_launcher import GranianLauncher
+from server.launcher.uvicorn_launcher import UvicornLauncher
 
 BACKEND_ROOT = Path(__file__).resolve().parents[3] / "dushan-admin-backend"
 
@@ -24,9 +24,9 @@ from framework.starter_di.decorators.di_dependency import DiDependency
 from framework.starter_ip.config.ip_settings import IpSettings
 from framework.starter_ip.core.client_ip_resolver import ClientIpResolver
 from framework.starter_web.routing.route_policy import RoutePolicy
-from server.starter_server import create_app
+from server.starter_server import StarterServer
 
-app = create_app(app_env="test")
+app = StarterServer.create_app(app_env="test")
 
 @app.get("/client-ip")
 @RoutePolicy.public()
@@ -61,11 +61,11 @@ def test_real_engine_preserves_peer_and_applies_proxy_policy(engine, trusted, co
     module.write_text(APPLICATION, encoding="utf-8")
     server = ConfigFactory.build(ServerSettings, "server", port=port, reload=False)
     if engine == "uvicorn":
-        command = build_uvicorn_cmd(
+        command = UvicornLauncher.build_command(
             server, ConfigFactory.build(UvicornSettings, "uvicorn", workers=1)
         )
     else:
-        command = build_granian_cmd(
+        command = GranianLauncher.build_command(
             server, ConfigFactory.build(GranianSettings, "granian", workers=1)
         )
     command[command.index("server.asgi:app")] = "client_ip_probe:app"

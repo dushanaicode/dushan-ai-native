@@ -17,7 +17,9 @@ from module_infra.framework.websocket.infra_socket_payload import InfraSocketPay
         type="get-cache-monitor-data-response",
         payload=InfraSocketPayload,
         policy=RoutePolicy(
-            permissions=("infra:cache:query",), tenant_required=True, realm=SecurityRealm.TENANT
+            permissions=("infra:cache:get-monitor-info",),
+            tenant_required=True,
+            realm=SecurityRealm.TENANT,
         ),
         projector=None,
     )

@@ -288,6 +288,15 @@ class BaseMapper(Generic[T]):
                     return 0
                 return (await session.execute(delete(self.model).where(key.in_(ids)))).rowcount
 
+    async def purge_in_batches_by_condition(self, *conditions, limit: int) -> int:
+        """逐批物理清理并累计条数；每批沿用单批事务，失败或取消立即传播。"""
+        count = 0
+        while True:
+            deleted = await self.purge_limited_by_condition(*conditions, limit=limit)
+            count += deleted
+            if deleted < limit:
+                return count
+
     async def select_by_id(self, identifier) -> T | None:
         key = inspect(self.model).primary_key[0]
         return (

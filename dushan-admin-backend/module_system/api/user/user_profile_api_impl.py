@@ -35,22 +35,11 @@ class UserProfileApiImpl(UserProfileApi):
         profile = await self.user_profile_service.get_user_profile(user_id)
         dept_name: str | None = None
         if user.dept_id:
-            try:
-                dept = await self.dept_api.get_dept(user.dept_id)
-                dept_name = dept.name if dept else None
-            except Exception as e:
-                logger.warning(
-                    f"【UserProfileApi】获取部门失败（降级跳过）: dept_id={user.dept_id}, error={e}"
-                )
+            dept_name = (await self.dept_api.get_dept(user.dept_id)).name
         post_names: list[str] = []
         if user.post_ids:
-            try:
-                posts = await self.post_api.get_post_list(user.post_ids)
-                post_names = [p.name for p in posts]
-            except Exception as e:
-                logger.warning(
-                    f"【UserProfileApi】获取岗位失败（降级跳过）: post_ids={user.post_ids}, error={e}"
-                )
+            posts = await self.post_api.get_post_list(user.post_ids)
+            post_names = [post.name for post in posts]
         return UserProfileRespDTO(
             user_id=user.id,
             nickname=user.nickname,

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 from framework.starter_websocket.model.socket_receipt import SocketReceipt
 from framework.starter_websocket.public import (
@@ -61,10 +61,10 @@ class WebSocketService(Protocol):
         """获取符合条件的会话列表"""
         ...
 
-    async def get_statistics(self) -> dict[str, Any]:
+    async def get_statistics(self) -> dict[str, int]:
         """获取WebSocket服务统计信息"""
         ...
 
-    async def get_status_info(self) -> dict[str, Any]:
+    async def get_status_info(self) -> dict[str, bool | str | int]:
         """获取WebSocket服务状态信息（配置 + 运行时）"""
         ...

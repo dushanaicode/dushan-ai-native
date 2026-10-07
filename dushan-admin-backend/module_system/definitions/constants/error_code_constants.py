@@ -790,3 +790,8 @@ class ErrorCodeConstants:
         description="社交客户端认证配置结构无效：{}",
         message_key="system.social.client_auth_config_invalid",
     )
+    SOCIAL_USER_ALREADY_BOUND = ErrorCode(
+        code=1_002_032_015,
+        description="该社交身份已绑定其他账号",
+        message_key="system.social.user_already_bound",
+    )

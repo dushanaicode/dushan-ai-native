@@ -41,16 +41,15 @@ class PostMapper(BaseMapper[PostDO]):
         stmt = select(PostDO)
         if req_vo.code:
             escaped_code = StrUtils.escape_like(req_vo.code)
-            stmt = stmt.where(PostDO.code.ilike(f"%{escaped_code}%"))
+            stmt = stmt.where(PostDO.code.ilike(f"%{escaped_code}%", escape="\\"))
         if req_vo.name:
             escaped = StrUtils.escape_like(req_vo.name)
-            stmt = stmt.where(PostDO.name.ilike(f"%{escaped}%"))
+            stmt = stmt.where(PostDO.name.ilike(f"%{escaped}%", escape="\\"))
         if req_vo.status is not None:
             stmt = stmt.where(PostDO.status == req_vo.status)
-        if req_vo.create_time and len(req_vo.create_time) >= 2:
-            stmt = stmt.where(
-                PostDO.create_time.between(req_vo.create_time[0], req_vo.create_time[1])
-            )
+        if req_vo.create_time is not None:
+            start_time, end_time = req_vo.create_time
+            stmt = stmt.where(PostDO.create_time.between(start_time, end_time))
         stmt = stmt.order_by(PostDO.id.desc())
         return await self.paginate_query(stmt, req_vo)
 
@@ -58,6 +57,10 @@ class PostMapper(BaseMapper[PostDO]):
         stmt = select(PostDO).where(PostDO.name == name)
         result = await self.read(stmt)
         return result.scalar_one_or_none()
+
+    async def select_list_by_names(self, names: Collection[str]) -> list[PostDO]:
+        """批量精确查询岗位名称，不附加状态筛选。"""
+        return await self.select_list(PostDO.name.in_(names))
 
     async def select_by_code(self, code: str) -> PostDO | None:
         stmt = select(PostDO).where(PostDO.code == code)

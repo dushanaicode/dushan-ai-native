@@ -74,6 +74,7 @@ async def test_core_orm_audit_and_generated_ids_share_policy(write_case):
                 insert(Item).values(name=bindparam("business_name")), {"business_name": "bound"}
             )
             await session.execute(insert(Item).values(id=7000001, name="explicit"))
+            await session.execute(insert(Item).values(name="after-explicit"))
         with database.options(include_deleted=True):
             rows = await mapper.select_list()
         assert {row.name for row in rows} == {
@@ -87,6 +88,7 @@ async def test_core_orm_audit_and_generated_ids_share_policy(write_case):
             "values-b",
             "bound",
             "explicit",
+            "after-explicit",
         }
         assert all(row.creator == row.updater == "actor" for row in rows)
         assert {row.name for row in rows if row.deleted} == {"orm", "table"}

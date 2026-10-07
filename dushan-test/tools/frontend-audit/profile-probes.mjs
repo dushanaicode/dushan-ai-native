@@ -105,7 +105,7 @@ export default async function runProfileProbes(api) {
   for (const path of [
     '/system/auth/codes',
     '/system/auth/registration-enabled',
-    '/system/dict/type/list-all-simple',
+    '/system/dict/type/simple-list',
     '/system/mail/template/simple-list',
     '/system/tenant/simple-list',
     '/system/area/get-by-ip?ip=127.0.0.1',

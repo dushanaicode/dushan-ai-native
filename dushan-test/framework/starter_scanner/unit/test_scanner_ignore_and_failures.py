@@ -9,6 +9,7 @@ from pydantic import ValidationError
 
 from fixtures.config_factory import ConfigFactory
 from framework.common.exception.exceptions.configuration_exception import ConfigurationException
+from framework.starter_config.provider.bootstrap_config_provider import BootstrapConfigProvider
 from framework.starter_scanner.config.scanner_config import ScannerConfig
 from framework.starter_scanner.core.scan_root import ScanRoot
 from framework.starter_scanner.core.scanner_engine import ScannerEngine
@@ -16,7 +17,7 @@ from framework.starter_scanner.definitions.constants.scanner_error_codes import 
 from framework.starter_scanner.exception.scanner_exception import ScannerException
 
 pytestmark = pytest.mark.unit
-COMPONENT = "from framework.starter_scanner.annotation.scanner_decorator import scanner\n@scanner\nclass Example: pass\n"
+COMPONENT = "from framework.starter_scanner.decorators.scanner_decorator import scanner\n@scanner\nclass Example: pass\n"
 
 
 def engine(**overrides):
@@ -103,7 +104,7 @@ def test_hidden_entries_are_always_skipped_before_any_validation(module_package,
         (["..\\x"], "单层目录名"),
         ([""], "单层目录名"),
         (["."], "单层目录名"),
-        ("temp", "JSON 数组"),
+        ("temp", "tuple"),
         (None, "tuple"),
     ],
 )
@@ -113,8 +114,11 @@ def test_ignored_directories_configuration_is_validated(value, message):
     assert message in str(caught.value)
 
 
-def test_ignored_directories_accept_environment_json_arrays():
-    config = ConfigFactory.build(ScannerConfig, "scanner", ignored_directories='["Temp", "build"]')
+def test_ignored_directories_accept_environment_json_arrays(config_dir):
+    """配置框架解码环境数组，扫描模型只校验集合内容。"""
+    config = BootstrapConfigProvider.load(
+        config_dir(), environ={"SCANNER_IGNORED_DIRECTORIES": '["Temp", "build"]'}
+    ).get_config(ScannerConfig, prefix="SCANNER_")
     assert config.ignored_directories == ("Temp", "build")
     assert ConfigFactory.build(ScannerConfig, "scanner").ignored_directories == (
         "__pycache__",

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query
 
 from framework.common.contracts import SnowflakeIdStr
 from framework.common.page import PageResult
@@ -10,7 +10,6 @@ from framework.starter_security.public import (
     SecurityRealm,
 )
 from framework.starter_web.public import (
-    RequestUtils,
     Result,
     RoutePolicy,
 )
@@ -106,10 +105,9 @@ class FileConfigController:
         permissions=("infra:file:config:query",), tenant_required=True, realm=SecurityRealm.TENANT
     )
     async def get_file_config_page(
-        request: Request,
+        page_req_vo: FileConfigPageReqVO = Query(),
         file_config_service: FileConfigService = Depends(DiDependency(FileConfigService)),
     ) -> Result[PageResult[FileConfigRespVO]]:
-        page_req_vo = RequestUtils.validate_with_auto_list_params(request, FileConfigPageReqVO)
         page_result: PageResult[FileConfigDO] = await file_config_service.get_file_config_page(
             page_req_vo
         )
@@ -119,7 +117,7 @@ class FileConfigController:
     @staticmethod
     @file_config_controller.get("/simple-list", summary="获取文件配置精简列表")
     @RoutePolicy(
-        permissions=("infra:file:config:query",), tenant_required=True, realm=SecurityRealm.TENANT
+        permissions=("infra:file:query",), tenant_required=True, realm=SecurityRealm.TENANT
     )
     async def get_file_config_simple_list(
         file_config_service: FileConfigService = Depends(DiDependency(FileConfigService)),
@@ -129,9 +127,9 @@ class FileConfigController:
         return Result.success(data=response)
 
     @staticmethod
-    @file_config_controller.get("/test", summary="测试文件配置是否正确")
+    @file_config_controller.post("/test", summary="测试文件配置是否正确")
     @RoutePolicy(
-        permissions=("infra:file:config:query",), tenant_required=True, realm=SecurityRealm.TENANT
+        permissions=("infra:file:config:update",), tenant_required=True, realm=SecurityRealm.TENANT
     )
     async def test_file_config(
         req_vo: IdReqVO = Query(),

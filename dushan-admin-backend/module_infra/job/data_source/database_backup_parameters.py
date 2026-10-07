@@ -1,8 +1,7 @@
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from framework.common.schemas import BaseBO
 
 
-class DatabaseBackupParameters(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+class DatabaseBackupParameters(BaseBO):
     backup_type: Literal["full"] = "full"

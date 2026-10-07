@@ -15,10 +15,14 @@ from framework.starter_di.public import (
     Inject,
     service,
 )
-from module_system.controller.admin.sms.vo.template.template_page_req_vo import SmsTemplatePageReqVO
-from module_system.controller.admin.sms.vo.template.template_save_req_vo import SmsTemplateSaveReqVO
-from module_system.dal.cache.cache_key_constants import SystemCacheKeys
+from module_system.controller.admin.sms.vo.template.sms_template_page_req_vo import (
+    SmsTemplatePageReqVO,
+)
+from module_system.controller.admin.sms.vo.template.sms_template_save_req_vo import (
+    SmsTemplateSaveReqVO,
+)
 from module_system.dal.cache.sms.dto.sms_template_cache_dto import SmsTemplateCacheDTO
+from module_system.dal.cache.system_cache_key_constants import SystemCacheKeyConstants
 from module_system.dal.dataobject.sms.sms_channel_do import SmsChannelDO
 from module_system.dal.dataobject.sms.sms_template_do import SmsTemplateDO
 from module_system.dal.mapper.sms.sms_template_mapper import SmsTemplateMapper
@@ -53,7 +57,22 @@ class SmsTemplateServiceImpl(SmsTemplateService):
         channel_do: SmsChannelDO = await self._validate_sms_channel(create_req_vo.channel_id)
         await self._validate_sms_template_code_duplicate(None, create_req_vo.code)
         await self._validate_api_template(create_req_vo.channel_id, create_req_vo.api_template_id)
-        template = SmsTemplateDO(**create_req_vo.model_dump(by_alias=False))
+        template = SmsTemplateDO(
+            **create_req_vo.to_write_dict(
+                fields={
+                    "id",
+                    "type",
+                    "status",
+                    "code",
+                    "name",
+                    "content",
+                    "remark",
+                    "api_template_id",
+                    "channel_id",
+                },
+                exclude_unset=False,
+            )
+        )
         template.params = self._parse_template_content_params(template.content)
         template.channel_code = channel_do.code
         await self.sms_template_mapper.insert(template)
@@ -63,7 +82,7 @@ class SmsTemplateServiceImpl(SmsTemplateService):
     @transactional
     async def update_sms_template(self, update_req_vo: SmsTemplateSaveReqVO) -> None:
         self.database.after_commit(
-            lambda: self.cache_handler.delete_all(SystemCacheKeys.SMS_TEMPLATE),
+            lambda: self.cache_handler.delete_all(SystemCacheKeyConstants.SMS_TEMPLATE),
             required=True,
             name="system-cache",
         )
@@ -71,7 +90,22 @@ class SmsTemplateServiceImpl(SmsTemplateService):
         channel_do: SmsChannelDO = await self._validate_sms_channel(update_req_vo.channel_id)
         await self._validate_sms_template_code_duplicate(update_req_vo.id, update_req_vo.code)
         await self._validate_api_template(update_req_vo.channel_id, update_req_vo.api_template_id)
-        update_obj = SmsTemplateDO(**update_req_vo.model_dump(by_alias=False))
+        update_obj = SmsTemplateDO(
+            **update_req_vo.to_write_dict(
+                fields={
+                    "id",
+                    "type",
+                    "status",
+                    "code",
+                    "name",
+                    "content",
+                    "remark",
+                    "api_template_id",
+                    "channel_id",
+                },
+                exclude_unset=False,
+            )
+        )
         update_obj.params = self._parse_template_content_params(update_obj.content)
         update_obj.channel_code = channel_do.code
         await self.sms_template_mapper.update_by_id(update_obj)
@@ -84,7 +118,7 @@ class SmsTemplateServiceImpl(SmsTemplateService):
         update_obj = SmsTemplateDO(id=template_id, status=status)
         await self.sms_template_mapper.update_by_id(update_obj)
         self.database.after_commit(
-            lambda: self.cache_handler.delete_all(SystemCacheKeys.SMS_TEMPLATE),
+            lambda: self.cache_handler.delete_all(SystemCacheKeyConstants.SMS_TEMPLATE),
             required=True,
             name="system-cache",
         )
@@ -93,7 +127,7 @@ class SmsTemplateServiceImpl(SmsTemplateService):
     @transactional
     async def delete_sms_template(self, id: int) -> None:
         self.database.after_commit(
-            lambda: self.cache_handler.delete_all(SystemCacheKeys.SMS_TEMPLATE),
+            lambda: self.cache_handler.delete_all(SystemCacheKeyConstants.SMS_TEMPLATE),
             required=True,
             name="system-cache",
         )
@@ -104,7 +138,7 @@ class SmsTemplateServiceImpl(SmsTemplateService):
     @transactional
     async def delete_sms_template_batch(self, ids: list[int]) -> int:
         self.database.after_commit(
-            lambda: self.cache_handler.delete_all(SystemCacheKeys.SMS_TEMPLATE),
+            lambda: self.cache_handler.delete_all(SystemCacheKeyConstants.SMS_TEMPLATE),
             required=True,
             name="system-cache",
         )
@@ -116,13 +150,13 @@ class SmsTemplateServiceImpl(SmsTemplateService):
     async def get_sms_template(self, id: int) -> SmsTemplateDO | None:
         return await self.sms_template_mapper.select_by_id(id)
 
+    @override
     @cache(
-        SystemCacheKeys.SMS_TEMPLATE,
+        SystemCacheKeyConstants.SMS_TEMPLATE,
         key="code:{{code}}",
         ttl_seconds=default_ttl,
         unless=lambda result, *_, **__: not result is not None,
     )
-    @override
     async def get_sms_template_by_code_from_cache(self, code: str) -> SmsTemplateCacheDTO | None:
         loaded = await self.sms_template_mapper.select_by_code(code)
         return None if loaded is None else SmsTemplateCacheDTO.model_validate(loaded)
@@ -150,15 +184,14 @@ class SmsTemplateServiceImpl(SmsTemplateService):
         pattern = re.compile("\\{(.*?)}")
         return re.findall(pattern, content)
 
-    async def _validate_for_update(self, id: int | None) -> None:
+    async def _validate_for_update(self, id: int) -> SmsTemplateDO:
         """校验模板是否存在且非内置"""
-        if id is None:
-            raise ServiceException(ErrorCodeConstants.SMS_TEMPLATE_NOT_EXISTS)
         template = await self.sms_template_mapper.select_by_id(id)
         if template is None:
             raise ServiceException(ErrorCodeConstants.SMS_TEMPLATE_NOT_EXISTS)
         if template.builtin == BuiltinTypeEnum.BUILTIN.code:
             raise ServiceException(ErrorCodeConstants.SMS_TEMPLATE_CAN_NOT_UPDATE_BUILTIN)
+        return template
 
     async def _validate_sms_template_code_duplicate(self, id: int | None, code: str) -> None:
         template = await self.sms_template_mapper.select_by_code(code)

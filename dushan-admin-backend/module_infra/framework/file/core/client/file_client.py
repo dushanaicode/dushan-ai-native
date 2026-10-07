@@ -2,10 +2,6 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from module_infra.framework.file.core.client.s3.s3_file_presigned_url_resp_dto import (
-    FilePresignedUrlRespDTO,
-)
-
 
 @runtime_checkable
 class FileClient(Protocol):
@@ -25,10 +21,6 @@ class FileClient(Protocol):
 
     async def get_content(self, path: str) -> bytes:
         """获得文件内容"""
-        ...
-
-    async def get_presigned_object_url(self, path: str) -> FilePresignedUrlRespDTO:
-        """获得文件预签名地址（上传用）"""
         ...
 
     async def presign_get_url(self, path: str, expiration_seconds: int | None = None) -> str:

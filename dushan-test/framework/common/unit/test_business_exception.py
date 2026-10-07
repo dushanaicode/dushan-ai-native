@@ -40,8 +40,8 @@ from framework.common.exception.exceptions.third_party_exception import ThirdPar
 from framework.common.exception.registry.error_code_decorator import error_code
 from framework.common.exception.registry.error_code_registry import ErrorCodeRegistry
 from framework.common.security.sanitizer import Sanitizer
+from framework.starter_web.exception.exception_response_builder import ExceptionResponseBuilder
 from framework.starter_web.exception.exception_util import ExceptionUtil
-from framework.starter_web.exception.response_builder import ExceptionResponseBuilder
 
 pytestmark = pytest.mark.unit
 
@@ -355,7 +355,7 @@ def test_all_exception_modules_are_importable() -> None:
     modules = (
         "framework.common.exception.constants.global_error_code_constants",
         "framework.common.exception.core.error_code",
-        "framework.starter_web.exception.exception_handler",
+        "framework.starter_web.exception.global_exception_handler",
         "framework.common.exception.core.exception_trace_reporter",
         "framework.common.exception.exceptions.base_business_exception",
         "framework.common.exception.exceptions.configuration_exception",
@@ -375,7 +375,7 @@ def test_all_exception_modules_are_importable() -> None:
         "framework.starter_web.exception.error_log_recorder",
         "framework.starter_web.exception.exception_logger",
         "framework.starter_web.exception.exception_util",
-        "framework.starter_web.exception.response_builder",
+        "framework.starter_web.exception.exception_response_builder",
     )
     for name in modules:
         import_module(name)

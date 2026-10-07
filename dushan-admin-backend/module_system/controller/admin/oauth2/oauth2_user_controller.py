@@ -11,11 +11,15 @@ from framework.starter_web.public import (
     Result,
     RoutePolicy,
 )
-from module_system.controller.admin.oauth2.vo.user.dept import Dept
-from module_system.controller.admin.oauth2.vo.user.post import Post
-from module_system.controller.admin.oauth2.vo.user.user_info_resp_vo import OAuth2UserInfoRespVO
-from module_system.controller.admin.oauth2.vo.user.user_update_req_vo import OAuth2UserUpdateReqVO
-from module_system.controller.admin.user.vo.profile.profile_update_req_vo import (
+from module_system.controller.admin.oauth2.vo.user.oauth2_user_info_resp_vo import (
+    OAuth2UserInfoRespVO,
+)
+from module_system.controller.admin.oauth2.vo.user.oauth2_user_update_req_vo import (
+    OAuth2UserUpdateReqVO,
+)
+from module_system.controller.admin.oauth2.vo.user.user_info_dept_vo import UserInfoDeptVO
+from module_system.controller.admin.oauth2.vo.user.user_info_post_vo import UserInfoPostVO
+from module_system.controller.admin.user.vo.profile.user_profile_update_req_vo import (
     UserProfileUpdateReqVO,
 )
 from module_system.dal.dataobject.user.admin_user_do import AdminUserDO
@@ -50,10 +54,10 @@ class Oauth2UserController:
         if user.dept_id is not None:
             dept = await dept_service.get_dept(user.dept_id)
             if dept:
-                resp.dept = Dept(id=dept.id, name=dept.name)
+                resp.dept = UserInfoDeptVO(id=dept.id, name=dept.name)
         if user.post_ids is not None:
             posts = await post_service.get_post_list(user.post_ids)
-            resp.posts = [Post(id=post.id, name=post.name) for post in posts]
+            resp.posts = [UserInfoPostVO(id=post.id, name=post.name) for post in posts]
         return Result.success(data=resp)
 
     @staticmethod
@@ -64,7 +68,8 @@ class Oauth2UserController:
         admin_user_service: AdminUserService = Depends(DiDependency(AdminUserService)),
         security: SecurityContext = Depends(DiDependency(SecurityContext)),
     ) -> Result[bool]:
+        """只转交 OAuth2 请求实际提交的用户资料字段。"""
         login_user_id = int(security.require().account_id)
-        update_vo = UserProfileUpdateReqVO.model_validate(req_vo.model_dump())
+        update_vo = UserProfileUpdateReqVO.model_validate(req_vo.model_dump(exclude_unset=True))
         await admin_user_service.update_user_profile(login_user_id, update_vo)
         return Result.success(data=True)

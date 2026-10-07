@@ -1,9 +1,9 @@
-from datetime import datetime
 from typing import Annotated
 
 from pydantic import Field
 
 from framework.common.contracts import (
+    DateTimeRangeInput,
     SnowflakeIdInput,
 )
 from framework.common.page import PageQuery
@@ -18,7 +18,8 @@ class FilePageReqVO(PageQuery):
     ]
     config_id: Annotated[SnowflakeIdInput | None, Field(default=None, description="文件配置ID")]
     create_time: Annotated[
-        list[datetime] | None, Field(None, exclude=True, description="创建时间范围 [开始, 结束]")
+        DateTimeRangeInput | None,
+        Field(None, exclude=True, description="创建时间范围 [开始, 结束]"),
     ]
     model_config = {
         "json_schema_extra": {

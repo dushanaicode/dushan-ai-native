@@ -2,14 +2,13 @@ from typing import Annotated
 
 from pydantic import Field
 
-from framework.common.contracts import SnowflakeIdStr
 from framework.common.schemas import BaseDTO
 
 
 class ConfigItemDTO(BaseDTO):
     """配置项 DTO"""
 
-    id: Annotated[SnowflakeIdStr, Field(..., description="配置编号")]
+    id: Annotated[int, Field(..., description="配置编号")]
     name: Annotated[str, Field(..., description="配置名称")]
     config_key: Annotated[str, Field(..., description="配置键")]
     description: Annotated[str | None, Field(default=None, description="配置描述")]

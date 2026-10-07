@@ -1,5 +1,3 @@
-import json
-
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 
 from framework.common.enums.component_type_enum import ComponentTypeEnum
@@ -24,25 +22,6 @@ class ScannerConfig(BaseModel):
     def reject_boolean_limit(cls, value: object) -> object:
         if isinstance(value, bool):
             raise ValueError("诊断条数不能是布尔值")
-        return value
-
-    @field_validator(
-        "component_types",
-        "include_packages",
-        "exclude_packages",
-        "ignored_directories",
-        mode="before",
-    )
-    @classmethod
-    def parse_array(cls, value: object) -> object:
-        """环境变量接受 JSON 数组或 null，字段模型决定是否允许 null。"""
-        if isinstance(value, str):
-            try:
-                value = json.loads(value)
-            except json.JSONDecodeError:
-                raise ValueError("扫描列表必须是 JSON 数组或 null") from None
-            if value is not None and not isinstance(value, list):
-                raise ValueError("扫描列表必须是 JSON 数组或 null")
         return value
 
     @field_validator("include_packages", "exclude_packages", "component_types")

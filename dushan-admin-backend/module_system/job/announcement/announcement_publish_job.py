@@ -26,11 +26,6 @@ class AnnouncementPublishJob(JobHandler):
     async def execute(self, parameters: SystemJobParameters, context: JobContext) -> str:
         """在调度器提供的租户身份内发布到期公告并标记过期公告，失败交给调度器。"""
         now = datetime.now(timezone.utc).replace(tzinfo=None)
-        published = 0
-        for announcement in await self.announcement_service.get_wait_publish_announcements():
-            if announcement.publish_time is not None and announcement.publish_time <= now:
-                published += int(
-                    await self.announcement_service.publish_announcement(announcement.id)
-                )
+        published = await self.announcement_service.publish_due_announcements(now)
         count = await self.announcement_service.expire_announcements(now)
         return f"公告任务完成：发布 {published} 条，过期 {count} 条"

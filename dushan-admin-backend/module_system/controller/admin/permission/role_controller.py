@@ -3,14 +3,13 @@ from fastapi.responses import StreamingResponse
 
 from framework.common.contracts import SnowflakeIdStr
 from framework.common.enums import BuiltinTypeEnum, StatusEnum
-from framework.common.page import PageResult, PageSettings
+from framework.common.page import PageResult
 from framework.common.schemas.request import IdListReqVO, IdReqVO
 from framework.common.utils import ConversionUtils
 from framework.starter_di.public import (
     DiDependency,
 )
 from framework.starter_excel.public import (
-    DictDataProvider,
     ExcelProviders,
     ExcelWriter,
 )
@@ -30,10 +29,8 @@ from module_system.controller.admin.permission.vo.role.role_update_status_req_vo
     RoleUpdateStatusReqVO,
 )
 from module_system.dal.dataobject.permission.role_do import RoleDO
-from module_system.service.dept.dept_service import DeptService
 from module_system.service.permission.role_service import RoleService
 from module_system.spi.dept.dept_info_provider_adapter import DeptInfoProviderAdapter
-from module_system.spi.dept.post_info_provider_adapter import PostInfoProviderAdapter
 
 role_controller = APIRouter(prefix="/permission/role", tags=["System - 角色管理"])
 
@@ -174,20 +171,12 @@ class RoleController:
     async def export_roles_excel(
         page_req_vo: RoleExportReqVO = Query(),
         role_service: RoleService = Depends(DiDependency(RoleService)),
-        dept_service: DeptService = Depends(DiDependency(DeptService)),
         excel_writer: ExcelWriter = Depends(DiDependency(ExcelWriter)),
         files: FileResult = Depends(DiDependency(FileResult)),
-        dictionaries: DictDataProvider = Depends(DiDependency(DictDataProvider)),
         departments: DeptInfoProviderAdapter = Depends(DiDependency(DeptInfoProviderAdapter)),
-        posts: PostInfoProviderAdapter = Depends(DiDependency(PostInfoProviderAdapter)),
-        page_settings: PageSettings = Depends(DiDependency(PageSettings)),
     ) -> StreamingResponse:
-        excel_providers = ExcelProviders(
-            dictionaries=dictionaries, departments=departments, posts=posts
-        )
-        page_req_vo.enable_fetch_all(
-            max_rows=min(excel_writer.settings.max_export_rows, page_settings.fetch_all_max_rows)
-        )
+        excel_providers = ExcelProviders(departments=departments)
+        excel_writer.prepare_export_query(page_req_vo)
         page_result: PageResult[RoleDO] = await role_service.get_role_page(page_req_vo)
         excel_list: list[RoleRespVO] = ConversionUtils.list_to_vo_list(
             page_result.items, RoleRespVO

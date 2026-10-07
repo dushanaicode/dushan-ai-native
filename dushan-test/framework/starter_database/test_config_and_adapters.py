@@ -17,8 +17,8 @@ from framework.starter_database.connection.external_database_operator import (
 from framework.starter_database.exception.database_exception import DatabaseException
 from framework.starter_database.session.session_provider import SessionProvider
 from framework.starter_database.starter.database_starter import DatabaseStarter
-from server.bootstrap.bootstrapper import BootstrapError
-from server.starter_server import create_app
+from server.bootstrap.bootstrap_error import BootstrapError
+from server.starter_server import StarterServer
 
 
 def defaults():
@@ -64,7 +64,7 @@ def test_tls_has_certificate_and_hostname_verification():
 
 
 async def test_invalid_database_environment_fails_without_revealing_url(config_dir):
-    app = create_app(
+    app = StarterServer.create_app(
         base_dir=config_dir(),
         environ={
             "DATABASE_ENABLED": "true",
@@ -163,7 +163,7 @@ async def test_loader_preflight_publication_and_periodic_refresh(database_settin
     for source, actual in zip(values["sources"], database_settings.sources):
         source["url"] = actual.url.get_secret_value()
     values["dynamic_refresh_interval_seconds"] = 0.02
-    app = create_app(
+    app = StarterServer.create_app(
         steps=StarterSteps.without_tenant(),
         base_dir=config_dir(
             {"config": {"models": {"database": values}}, "banner": {"enabled": False}}

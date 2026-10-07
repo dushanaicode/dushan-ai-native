@@ -4,8 +4,8 @@ from fastapi.testclient import TestClient
 from fixtures.config_factory import ConfigFactory
 from fixtures.public_web_app import create_public_app
 from framework.starter_web.banner.banner_application_runner import BannerApplicationRunner
-from server.bootstrap.bootstrapper import BootstrapError
-from server.bootstrap.step_registry import APP_BOOTSTRAP_STEPS
+from server.bootstrap.bootstrap_error import BootstrapError
+from server.bootstrap.bootstrap_step_spec import APP_BOOTSTRAP_STEPS
 
 pytestmark = pytest.mark.unit
 

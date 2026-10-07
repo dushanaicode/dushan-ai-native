@@ -3,7 +3,7 @@ from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from framework.starter_di.exception.di_exception import DiException
-from framework.starter_web.exception.response_builder import ExceptionResponseBuilder
+from framework.starter_web.exception.exception_response_builder import ExceptionResponseBuilder
 
 
 class DiContextMiddleware:

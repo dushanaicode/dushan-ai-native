@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from module_infra.controller.admin.server.vo.server_resp_vo import ServerMonitorRespVO
+from module_infra.controller.admin.server.vo.server_monitor_resp_vo import ServerMonitorRespVO
 from module_infra.controller.admin.server.vo.server_usage_resp_vo import ServerUsageRespVO
 
 

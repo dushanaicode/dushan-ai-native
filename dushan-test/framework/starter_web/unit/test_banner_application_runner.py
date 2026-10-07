@@ -8,7 +8,7 @@ from fixtures.config_factory import ConfigFactory
 from framework.starter_web.banner import banner_application_runner
 from framework.starter_web.banner.banner_application_runner import BannerApplicationRunner
 from framework.starter_web.banner.banner_runtime_info import BannerRuntimeInfo
-from framework.starter_web.banner.cat_mascot import CatMascotTUI
+from framework.starter_web.banner.cat_mascot_tui import CatMascotTUI
 from framework.starter_web.config.banner_settings import BannerSettings
 
 pytestmark = pytest.mark.unit

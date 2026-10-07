@@ -1,6 +1,6 @@
 from framework.common.component.component_metadata import ComponentMetadata
 from framework.common.enums.component_type_enum import ComponentTypeEnum
-from framework.starter_scanner.annotation.scanner_decorator import scanner
+from framework.starter_scanner.decorators.scanner_decorator import scanner
 
 
 class ModelScanner:

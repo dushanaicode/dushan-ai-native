@@ -10,7 +10,7 @@ from framework.starter_database.public import (
 from framework.starter_di.public import (
     mapper,
 )
-from module_system.controller.admin.mail.vo.template.template_page_req_vo import (
+from module_system.controller.admin.mail.vo.template.mail_template_page_req_vo import (
     MailTemplatePageReqVO,
 )
 from module_system.dal.dataobject.mail.mail_template_do import MailTemplateDO
@@ -32,16 +32,15 @@ class MailTemplateMapper(BaseMapper[MailTemplateDO]):
             stmt = stmt.where(MailTemplateDO.status == req_vo.status)
         if req_vo.code:
             escaped_code = StrUtils.escape_like(req_vo.code)
-            stmt = stmt.where(MailTemplateDO.code.ilike(f"%{escaped_code}%"))
+            stmt = stmt.where(MailTemplateDO.code.ilike(f"%{escaped_code}%", escape="\\"))
         if req_vo.name:
             escaped_name = StrUtils.escape_like(req_vo.name)
-            stmt = stmt.where(MailTemplateDO.name.ilike(f"%{escaped_name}%"))
+            stmt = stmt.where(MailTemplateDO.name.ilike(f"%{escaped_name}%", escape="\\"))
         if req_vo.account_id is not None:
             stmt = stmt.where(MailTemplateDO.account_id == req_vo.account_id)
-        if req_vo.create_time and len(req_vo.create_time) >= 2:
-            stmt = stmt.where(
-                MailTemplateDO.create_time.between(req_vo.create_time[0], req_vo.create_time[1])
-            )
+        if req_vo.create_time is not None:
+            start_time, end_time = req_vo.create_time
+            stmt = stmt.where(MailTemplateDO.create_time.between(start_time, end_time))
         stmt = stmt.order_by(MailTemplateDO.id.desc())
         return await self.paginate_query(stmt, req_vo)
 

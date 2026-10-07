@@ -37,7 +37,21 @@ class MqDefinitionServiceImpl(MqDefinitionService):
     async def create_mq_definition(self, create_req_vo: MqSaveReqVO) -> int:
         await self._validate_before_save(None, create_req_vo.topic, create_req_vo.consumer)
         self._validate_declaration(create_req_vo)
-        new_definition = MqDO(**create_req_vo.model_dump(by_alias=False))
+        new_definition = MqDO(
+            **create_req_vo.to_write_dict(
+                fields={
+                    "id",
+                    "topic",
+                    "consumer",
+                    "retry_count",
+                    "description",
+                    "enabled",
+                    "concurrency",
+                    "prefetch",
+                },
+                exclude_unset=False,
+            )
+        )
         await self.mq_mapper.insert(new_definition)
         return new_definition.id
 
@@ -47,7 +61,21 @@ class MqDefinitionServiceImpl(MqDefinitionService):
             update_req_vo.id, update_req_vo.topic, update_req_vo.consumer
         )
         self._validate_declaration(update_req_vo)
-        update_definition = MqDO(**update_req_vo.model_dump(by_alias=False))
+        update_definition = MqDO(
+            **update_req_vo.to_write_dict(
+                fields={
+                    "id",
+                    "topic",
+                    "consumer",
+                    "retry_count",
+                    "description",
+                    "enabled",
+                    "concurrency",
+                    "prefetch",
+                },
+                exclude_unset=False,
+            )
+        )
         await self.mq_mapper.update_by_id(update_definition)
 
     @override

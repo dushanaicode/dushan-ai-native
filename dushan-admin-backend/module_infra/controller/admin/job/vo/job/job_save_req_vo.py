@@ -1,12 +1,14 @@
 from typing import Annotated, Any
 
-from pydantic import Field, field_validator
+from pydantic import Field, Json, TypeAdapter, field_validator
 
 from framework.common.contracts import (
     SnowflakeIdInput,
 )
 from framework.common.schemas import BaseRequestVO
 from framework.common.validator import NotEmpty, NotNull
+
+_PARAMETERS = TypeAdapter(Json[dict[str, Any]])
 
 
 class JobSaveReqVO(BaseRequestVO):
@@ -16,6 +18,7 @@ class JobSaveReqVO(BaseRequestVO):
     name: Annotated[str, Field(..., description="任务名称")]
     handler_name: Annotated[str, Field(..., description="处理器的名字")]
     handler_param: Annotated[str | None, Field(default=None, description="处理器的参数")]
+    fan_out: Annotated[bool, Field(..., strict=True, description="是否对每个有效租户分别执行")]
     cron_expression: Annotated[str, Field(..., description="CRON 表达式")]
     retry_count: Annotated[int, Field(..., description="重试次数")]
     retry_interval: Annotated[int, Field(..., description="重试间隔")]
@@ -27,7 +30,8 @@ class JobSaveReqVO(BaseRequestVO):
                     "id": "1024",
                     "name": "测试任务",
                     "handlerName": "sysUserSessionTimeoutJob",
-                    "handlerParam": "dushan_job",
+                    "handlerParam": "{}",
+                    "fanOut": False,
                     "cronExpression": "0/10 * * * * *",
                     "retryCount": 3,
                     "retryInterval": 1000,
@@ -36,6 +40,14 @@ class JobSaveReqVO(BaseRequestVO):
             ]
         }
     }
+
+    @field_validator("handler_param")
+    @classmethod
+    def _validate_handler_param(cls, value: str | None) -> str | None:
+        """校验任务参数为 JSON 对象，保留未填写参数的既有语义和字符串协议。"""
+        if value is not None and value != "":
+            _PARAMETERS.validate_python(value)
+        return value
 
     @field_validator("name", mode="before")
     @classmethod

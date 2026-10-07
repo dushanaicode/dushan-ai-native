@@ -1,0 +1,20 @@
+from fastapi import APIRouter, Depends, Query
+
+from framework.common.contracts import SnowflakeIdInput
+from framework.starter_di.public import DiDependency
+from framework.starter_security.public import SecurityRealm
+from framework.starter_web.public import Result, RoutePolicy
+from {{ vo_package }}.{{ class_file_name }}_resp_vo import {{ class_name }}RespVO
+from {{ master_package_name }}.service.{{ master_business_name }}.{{ master_class_file_name }}_service import {{ master_class_name }}Service
+
+
+{{ business_name }}_controller = APIRouter(prefix="/{{ business_name | replace('_', '-') }}")
+
+
+class {{ class_name }}Controller:
+    @staticmethod
+    @{{ business_name }}_controller.get("/list-by-{{ master_business_name | replace('_', '-') }}-id")
+    @RoutePolicy(permissions=("{{ master_module_name }}:{{ master_business_name }}:query",), tenant_required=True, realm=SecurityRealm.TENANT)
+    async def get_{{ business_name }}(id: SnowflakeIdInput = Query(...), service: {{ master_class_name }}Service = Depends(DiDependency({{ master_class_name }}Service))) -> Result[list[{{ class_name }}RespVO]]:
+        rows = await service.get_{{ business_name }}_list_by_{{ master_business_name }}_id(id)
+        return Result.success([{{ class_name }}RespVO.model_validate(row) for row in rows])

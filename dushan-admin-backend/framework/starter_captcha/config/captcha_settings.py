@@ -6,12 +6,17 @@ from pydantic import Field, model_validator
 from framework.starter_captcha.config.aliyun_captcha_settings import AliyunCaptchaSettings
 from framework.starter_captcha.config.tencent_captcha_settings import TencentCaptchaSettings
 from framework.starter_config.config.config_model import ConfigModel
-from framework.starter_config.decorator.config_decorator import config_model
+from framework.starter_config.decorators.config_decorator import config_model
+from framework.starter_config.definitions.enums.config_source_enum import ConfigSourceEnum
 
 
-@config_model("captcha", env_prefix="CAPTCHA_")
+@config_model(
+    "captcha",
+    env_prefix="CAPTCHA_",
+    sources=(ConfigSourceEnum.ENVIRONMENT, ConfigSourceEnum.YAML),
+)
 class CaptchaSettings(ConfigModel):
-    """验证码启动快照；默认值由 application.yaml 提供，变更后重启生效。"""
+    """验证码启动快照；凭据与其他配置只接受环境变量和启动 YAML，变更后重启生效。"""
 
     enabled: bool
     provider: Literal["block_puzzle", "click_word", "aliyun", "tencent"]

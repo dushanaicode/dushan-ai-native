@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 
 from framework.common.contracts import SnowflakeIdInput, SnowflakeIdStr
@@ -12,7 +12,6 @@ from framework.starter_security.public import (
 )
 from framework.starter_web.public import (
     FileResult,
-    RequestUtils,
     Result,
     RoutePolicy,
 )
@@ -20,14 +19,14 @@ from module_infra.controller.admin.codegen.vo.codegen_column_resp_vo import Code
 from module_infra.controller.admin.codegen.vo.codegen_create_list_req_vo import (
     CodegenCreateListReqVO,
 )
-from module_infra.controller.admin.codegen.vo.codegen_database_table_resp_vo import (
-    DatabaseTableRespVO,
-)
 from module_infra.controller.admin.codegen.vo.codegen_detail_resp_vo import CodegenDetailRespVO
 from module_infra.controller.admin.codegen.vo.codegen_preview_resp_vo import CodegenPreviewRespVO
 from module_infra.controller.admin.codegen.vo.codegen_table_page_req_vo import CodegenTablePageReqVO
 from module_infra.controller.admin.codegen.vo.codegen_table_resp_vo import CodegenTableRespVO
 from module_infra.controller.admin.codegen.vo.codegen_update_req_vo import CodegenUpdateReqVO
+from module_infra.controller.admin.codegen.vo.database_table_resp_vo import (
+    DatabaseTableRespVO,
+)
 from module_infra.dal.dataobject.codegen.codegen_table_do import CodegenTableDO
 from module_infra.service.codegen.codegen_service import CodegenService
 
@@ -79,9 +78,10 @@ class CodegenController:
     async def delete_codegen_table_list(
         req_vo: IdListReqVO = Query(),
         codegen_service: CodegenService = Depends(DiDependency(CodegenService)),
-    ) -> Result[bool]:
-        await codegen_service.delete_codegen_table_list(req_vo.ids)
-        return Result.success(data=True)
+    ) -> Result[int]:
+        """批量删除代码生成表并返回实际删除数量。"""
+        count = await codegen_service.delete_codegen_table_list(req_vo.ids)
+        return Result.success(data=count)
 
     @staticmethod
     @codegen_controller.get("/table/page", summary="获得代码生成表分页")
@@ -89,9 +89,9 @@ class CodegenController:
         permissions=("infra:codegen:query",), tenant_required=True, realm=SecurityRealm.TENANT
     )
     async def get_codegen_table_page(
-        request: Request, codegen_service: CodegenService = Depends(DiDependency(CodegenService))
+        page_req_vo: CodegenTablePageReqVO = Query(),
+        codegen_service: CodegenService = Depends(DiDependency(CodegenService)),
     ) -> Result[PageResult[CodegenTableRespVO]]:
-        page_req_vo = RequestUtils.validate_with_auto_list_params(request, CodegenTablePageReqVO)
         page_result: PageResult[CodegenTableDO] = await codegen_service.get_codegen_table_page(
             page_req_vo
         )

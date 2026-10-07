@@ -1,8 +1,7 @@
 import re
-import uuid
+from email.headerregistry import Address
 from email.message import EmailMessage
 from email.policy import SMTP as SMTP_POLICY
-from email.utils import parseaddr
 
 import aiosmtplib
 from loguru import logger
@@ -32,7 +31,7 @@ class SmtpMailClient:
         is_html: bool = False,
         *,
         on_request_started: DeliveryRequestStartedCallback,
-    ) -> str:
+    ) -> str | None:
         """发送单封邮件并返回邮件服务器消息编号。"""
         message = SmtpMailClient._build_message(
             mail_account, to_emails, None, None, subject, content, is_html
@@ -52,7 +51,7 @@ class SmtpMailClient:
         is_html: bool = False,
         *,
         on_request_started: DeliveryRequestStartedCallback,
-    ) -> str:
+    ) -> str | None:
         """发送带抄送和密送收件人的邮件。"""
         message = SmtpMailClient._build_message(
             mail_account, to_emails, cc_emails, bcc_emails, subject, content, is_html
@@ -76,7 +75,9 @@ class SmtpMailClient:
     ) -> EmailMessage:
         """根据邮件账号和收件人信息构建标准邮件消息。"""
         message = EmailMessage()
-        message["From"] = mail_account.from_address
+        message["From"] = Address(
+            display_name=mail_account.display_name, addr_spec=mail_account.from_address
+        )
         message["To"] = ", ".join(to_emails)
         if cc_emails:
             message["Cc"] = ", ".join(cc_emails)
@@ -95,7 +96,7 @@ class SmtpMailClient:
         recipients: list[str],
         on_request_started: DeliveryRequestStartedCallback,
         operation_name: str,
-    ) -> str:
+    ) -> str | None:
         """在 SMTP DATA 前完成连接、认证和地址拒绝判定。"""
         smtp = aiosmtplib.SMTP(
             hostname=mail_account.host,
@@ -109,8 +110,7 @@ class SmtpMailClient:
         request_started = False
         try:
             await smtp.connect()
-            sender = parseaddr(mail_account.from_address)[1]
-            await smtp.mail(sender)
+            await smtp.mail(mail_account.from_address)
             for recipient in recipients:
                 await smtp.rcpt(recipient)
             await on_request_started()
@@ -149,14 +149,14 @@ class SmtpMailClient:
         return 60.0
 
     @staticmethod
-    def _extract_message_id(message_sent_str: str) -> str:
-        """从 SMTP 返回文本中提取消息编号。"""
+    def _extract_message_id(message_sent_str: str) -> str | None:
+        """从 SMTP 返回文本中提取消息编号，未提供时返回空值。"""
         message_id_match = re.search(
             "(?:id=|as\\s|queued as\\s)([a-zA-Z0-9\\-._@<>]+)", message_sent_str, re.IGNORECASE
         )
         if message_id_match:
             return message_id_match.group(1)
-        return f"no-id-found-{uuid.uuid4().hex}"
+        return None
 
     @staticmethod
     def _log_send_exception(operation_name: str, mail_account: MailAccount, exc: Exception) -> None:

@@ -9,7 +9,7 @@ from fixtures.public_web_app import create_public_app
 from framework.starter_cache.core.cache_handler import CacheHandler
 from framework.starter_cache.core.cache_manager import CacheManager
 from framework.starter_cache.exception.cache_exception import CacheException
-from framework.starter_di.context.get_bean import get_bean
+from framework.starter_di.context.application_context import ApplicationContext
 from framework.starter_di.decorators.di_dependency import DiDependency
 from framework.starter_di.definitions.enums.container_state_enum import ContainerStateEnum
 from framework.starter_di.exception.di_exception import DiException
@@ -51,7 +51,7 @@ async def test_http_request_and_background_task_share_the_application_cache(
             }
 
         async def from_task():
-            return await get_bean(CacheHandler).get(item, "k1")
+            return await ApplicationContext.lookup(CacheHandler).get(item, "k1")
 
         assert (await context.tasks.run(from_task)).value == {"from": "http"}
         with context.execution():

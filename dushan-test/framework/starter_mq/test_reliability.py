@@ -1,9 +1,13 @@
 import asyncio
 import json
+import time
+from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
 from aiokafka import AIOKafkaConsumer
+
+from framework.starter_mq.core import consumer_runner
 
 
 async def dead_letter(case):
@@ -44,14 +48,33 @@ async def dead_letter(case):
 @pytest.mark.parametrize(
     "mq_options", [{"delay": 0.8, "settings": {"concurrency": 1, "prefetch": 4}}], indirect=True
 )
-async def test_durable_retry_frees_business_slot(mq_case):
+async def test_durable_retry_frees_business_slot(mq_case, monkeypatch):
     case = mq_case
-    await case.publish(1, behavior="retry")
+    retry_messages = []
+    retry = case.runtime.backend.retry
+    prepared = await case.prepare(1, behavior="retry")
+    now = time.time()
+
+    async def hold_retry(definition, envelope, body):
+        """保留重试投递，直到第二条消息证明业务并发名额已经释放。"""
+        retry_messages.append((definition, envelope, body))
+
+    monkeypatch.setattr(case.runtime.backend, "retry", hold_retry)
+    monkeypatch.setattr(
+        consumer_runner, "time", SimpleNamespace(time=lambda: now, monotonic=time.monotonic)
+    )
+    await case.service.send_prepared(prepared)
     await case.until(lambda: len(case.probe.records) >= 1)
+    assert len(retry_messages) == 1
+    assert retry_messages[0][1].ready_at == now + 0.8
+    monkeypatch.setattr(consumer_runner, "time", time)
     await case.publish(2)
+    await case.until(lambda: len(case.probe.records) == 2)
+    assert case.probe.finished == [2]
+    monkeypatch.setattr(case.runtime.backend, "retry", retry)
+    await retry(*retry_messages[0])
     await case.until(lambda: len(case.probe.records) == 3)
     assert [(value, attempt) for value, attempt, *_ in case.probe.runs] == [(1, 0), (2, 0), (1, 1)]
-    assert case.probe.times[2] - case.probe.times[0] >= 0.8
     assert case.probe.peak == 1
     assert case.probe.finished == [2, 1]
 

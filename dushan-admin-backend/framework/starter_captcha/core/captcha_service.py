@@ -36,7 +36,7 @@ class CaptchaService:
     purpose 由业务入口指定且须在配置白名单内；client_ip 由可信服务端入口解析。
     挑战状态只存在于 Cache，不绑定应用实例：多 worker 或多副本可以互相接续，
     部署不需要会话亲和；重启不影响仍在 TTL 内的挑战。
-    受管消费者用 Inject，非受管消费者在 ApplicationContext.execution/tasks 中 get_bean。
+    受管消费者用 Inject，非受管消费者在 execution/tasks 中使用 ApplicationContext.lookup。
     """
 
     def __init__(

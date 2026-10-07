@@ -35,10 +35,14 @@ class UserSaveReqVO(BaseRequestVO):
         Field(default=None, description="岗位编号数组"),
     ]
     email: Annotated[
-        str | None, DiffField(name="用户邮箱"), Field(default=None, description="用户邮箱")
+        str | None,
+        DiffField(name="用户邮箱", formatter="_MASK"),
+        Field(default=None, description="用户邮箱"),
     ]
     mobile: Annotated[
-        str | None, DiffField(name="手机号码"), Field(default=None, description="手机号码")
+        str | None,
+        DiffField(name="手机号码", formatter="_MASK"),
+        Field(default=None, description="手机号码"),
     ]
     sex: Annotated[
         int | None,

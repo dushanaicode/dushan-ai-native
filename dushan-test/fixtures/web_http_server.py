@@ -11,7 +11,7 @@ from granian.server.embed import Server as GranianServer
 
 from framework.common.security.request_identity import RequestIdentity
 from framework.starter_web.routing.route_policy import RoutePolicy
-from server.starter_server import create_app
+from server.starter_server import StarterServer
 
 
 async def run(engine, port, evidence):
@@ -26,7 +26,7 @@ async def run(engine, port, evidence):
             raise HTTPException(403)
         return RequestIdentity(principal_id="fixture-user", tenant_id="fixture-tenant")
 
-    app = create_app(access_provider=authorize, engine=engine)
+    app = StarterServer.create_app(access_provider=authorize, engine=engine)
     if engine == "uvicorn":
         host = uvicorn.Server(
             uvicorn.Config(

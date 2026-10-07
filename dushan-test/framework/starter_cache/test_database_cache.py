@@ -18,7 +18,7 @@ from framework.starter_cache.model.cache_entry_invalidation_command import (
 )
 from framework.starter_database.model.base_do import BaseDO
 from framework.starter_database.session.session_provider import SessionProvider
-from server.starter_server import create_app
+from server.starter_server import StarterServer
 
 # 数据库与缓存的协作语义必须在真实 MySQL 上验证，SQLite 无法代表跨进程提交行为。
 MYSQL = next(
@@ -59,7 +59,9 @@ async def joint_app(config_dir, module_values, key_module, cache_prefix):
     schema = create_async_engine(MYSQL["url"])
     values = app_values(redis_values(), **module_values)
     values["config"]["models"]["database"] = database_values(MYSQL["url"])
-    app = create_app(base_dir=config_dir(values), environ={}, steps=StarterSteps.without_tenant())
+    app = StarterServer.create_app(
+        base_dir=config_dir(values), environ={}, steps=StarterSteps.without_tenant()
+    )
     created = False
     try:
         async with schema.begin() as connection:

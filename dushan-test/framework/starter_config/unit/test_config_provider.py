@@ -4,6 +4,7 @@ import threading
 import traceback
 import uuid
 from pathlib import Path
+from typing import Union
 
 import pytest
 import yaml
@@ -12,7 +13,7 @@ from pydantic import Field, field_validator
 from fixtures.config_factory import ConfigFactory
 from framework.common.enums.application_environment_enum import ApplicationEnvironmentEnum
 from framework.starter_config.config.config_model import ConfigModel
-from framework.starter_config.decorator.config_decorator import config_model
+from framework.starter_config.decorators.config_decorator import config_model
 from framework.starter_config.definitions.enums.config_source_enum import ConfigSourceEnum
 from framework.starter_config.provider.bootstrap_config_error import BootstrapConfigError
 from framework.starter_config.provider.bootstrap_config_provider import BootstrapConfigProvider
@@ -686,6 +687,112 @@ def test_optional_nested_model_environment_json(config_dir, raw, expected):
         assert (None if child is None else child.value) == expected
     finally:
         current.close()
+
+
+@pytest.mark.parametrize("union_style", ["pipe", "typing"])
+@pytest.mark.parametrize("labels", [{"region": "test"}, {}])
+def test_optional_nested_model_replaces_dictionary_and_clears_sources(
+    config_dir, union_style, labels
+):
+    """可空模型逐字段合并，普通字典覆盖同时移除旧键及其来源。"""
+
+    class Child(ConfigModel):
+        labels: dict[str, str]
+        limit: int
+
+    child_type = Child | None if union_style == "pipe" else Union[Child, None]
+
+    class Branch(ConfigModel):
+        child: child_type
+
+    @config_model("optional_tree", env_prefix="OPTIONAL_TREE_")
+    class Settings(ConfigModel):
+        child: child_type
+        branch: Branch | None
+
+    child = {"labels": {"region": "demo", "zone": "a"}, "limit": 3}
+    root = config_dir(
+        {
+            "config": {
+                "models": {"optional_tree": {"child": child, "branch": {"child": child}}},
+                "reload_enabled": True,
+            }
+        }
+    )
+    current = ConfigProvider(BootstrapConfigProvider.load(root, environ={}), [Settings])
+    try:
+        current.replace_memory(
+            {
+                "config.models.optional_tree.child.labels": labels,
+                "config.models.optional_tree.branch.child.labels": labels,
+            }
+        )
+        settings = current.get_config(Settings)
+        assert settings.child.labels == settings.branch.child.labels == labels
+        assert settings.child.limit == settings.branch.child.limit == 3
+        sources = current.get_sources(Settings)
+        for path in ("child", "branch.child"):
+            assert sources[f"{path}.labels"] == "内存配置覆盖"
+            assert sources[f"{path}.limit"] == "application.yaml"
+            assert {name for name in sources if name.startswith(f"{path}.labels.")} == {
+                f"{path}.labels.{name}" for name in labels
+            }
+        current.replace_memory({"config.models.optional_tree.child": None})
+        assert current.get_config(Settings).child is None
+        assert not any(name.startswith("child.") for name in current.get_sources(Settings))
+    finally:
+        current.close()
+
+
+def test_multiple_model_union_retains_existing_merge_semantics(config_dir):
+    """本次可空模型修复不改变多模型联合字段的映射合并合同。"""
+
+    class First(ConfigModel):
+        labels: dict[str, str]
+
+    class Second(ConfigModel):
+        value: int
+
+    @config_model("model_union", env_prefix="MODEL_UNION_")
+    class Settings(ConfigModel):
+        child: First | Second
+
+    root = config_dir(
+        {
+            "config": {
+                "models": {"model_union": {"child": {"labels": {"old": "value"}}}},
+                "reload_enabled": True,
+            }
+        }
+    )
+    current = ConfigProvider(BootstrapConfigProvider.load(root, environ={}), [Settings])
+    try:
+        current.replace_memory({"config.models.model_union.child.labels": {"new": "value"}})
+        assert current.get_config(Settings).child.labels == {"old": "value", "new": "value"}
+    finally:
+        current.close()
+
+
+@pytest.mark.parametrize("source", ["environment", "memory"])
+def test_malformed_collection_json_does_not_echo_input(config_dir, source):
+    """环境与内存集合的 JSON 错误不在异常链中暴露原始输入。"""
+    marker = f"marker-{uuid.uuid4().hex}"
+    raw = f'["{marker}"'
+    if source == "environment":
+        with pytest.raises(BootstrapConfigError) as caught:
+            provider(config_dir, environ={"SAMPLE_NAMES": raw})
+    else:
+        current = provider(config_dir)
+        try:
+            before = current.read(SampleSettings)
+            with pytest.raises(BootstrapConfigError) as caught:
+                current.replace_memory({"config.models.sample.names": raw})
+            assert current.read(SampleSettings) == before
+        finally:
+            current.close()
+    assert "names" in str(caught.value)
+    assert marker not in "".join(traceback.format_exception(caught.value))
+    assert caught.value.__suppress_context__
 
 
 def test_model_union_with_string_keeps_environment_string(config_dir):

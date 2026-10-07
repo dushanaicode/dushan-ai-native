@@ -100,13 +100,15 @@ async def test_two_applications_get_independent_dao_instances(
 ):
     """DAO 是容器管理的单例，不同应用各有一份，不跨应用共享 handler。"""
     from fixtures.cache_fixtures import app_values, redis_values
-    from server.starter_server import create_app
+    from server.starter_server import StarterServer
 
     package = key_module.__name__.split(".")[0]
     dao_type = importlib.import_module(f"{package}.dao").ItemCacheDAO
     instances, clients = [], []
-    first = create_app(base_dir=config_dir(app_values(redis_values(), **module_values)), environ={})
-    second = create_app(
+    first = StarterServer.create_app(
+        base_dir=config_dir(app_values(redis_values(), **module_values)), environ={}
+    )
+    second = StarterServer.create_app(
         base_dir=config_dir(app_values(redis_values(), **module_values)), environ={}
     )
     async with first.router.lifespan_context(first):

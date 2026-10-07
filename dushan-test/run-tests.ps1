@@ -1,11 +1,12 @@
 param(
     [string]$Python = (Join-Path $PSScriptRoot '.venv/Scripts/python.exe'),
     [string[]]$Paths = @('server', 'framework', 'module_system', 'module_infra'),
+    [string]$TempRoot = (Join-Path (Get-Location).Path 'Temp\dushan-tests'),
     [switch]$IncludeSmoke
 )
 
 $ErrorActionPreference = 'Stop'
-$runRoot = Join-Path (Get-Location).Path ('Temp\dushan-tests\' + (Get-Date -Format 'yyyyMMdd-HHmmssfff'))
+$runRoot = Join-Path ($ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($TempRoot)) (Get-Date -Format 'yyyyMMdd-HHmmssfff')
 New-Item -ItemType Directory -Path $runRoot -Force | Out-Null
 $settings = @{
     TEMP = $runRoot

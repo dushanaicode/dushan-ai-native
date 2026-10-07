@@ -1,4 +1,5 @@
-from sqlalchemy import select
+from collections.abc import Mapping, Sequence
+from typing import override
 
 from framework.starter_di.public import (
     Inject,
@@ -7,21 +8,19 @@ from framework.starter_di.public import (
 from framework.starter_excel.public import (
     NameProvider,
 )
-from module_system.dal.dataobject.dept.dept_do import DeptDO
-from module_system.dal.mapper.dept.dept_mapper import DeptMapper
+from module_system.service.dept.dept_service import DeptService
 
 
 @service
 class DeptInfoProviderAdapter(NameProvider):
-    mapper: DeptMapper = Inject()
+    delegate: DeptService = Inject()
 
-    async def names(self, ids):
-        return {entry.id: entry.name for entry in await self.mapper.select_by_ids(ids)}
+    @override
+    async def names(self, ids: Sequence[int]) -> Mapping[int, str]:
+        """委派部门服务批量读取名称。"""
+        return await self.delegate.get_dept_names_by_ids(ids)
 
-    async def ids(self, names):
-        result = await self.mapper.read(select(DeptDO).where(DeptDO.name.in_(names)))
-        entries = result.scalars().all()
-        resolved = {entry.name: entry.id for entry in entries}
-        if len(resolved) != len(entries):
-            raise ValueError("名称重复，不能唯一确定部门或岗位")
-        return resolved
+    @override
+    async def ids(self, names: Sequence[str]) -> Mapping[str, int]:
+        """委派部门服务解析名称并校验歧义。"""
+        return await self.delegate.get_dept_ids_by_names(names)

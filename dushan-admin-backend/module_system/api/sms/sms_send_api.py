@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from module_system.api.sms.dto.send.send_sms_send_single_to_user_req_dto import (
+from module_system.api.sms.dto.send.sms_send_single_to_user_req_dto import (
     SmsSendSingleToUserReqDTO,
 )
 

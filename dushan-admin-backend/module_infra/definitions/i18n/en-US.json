@@ -12,7 +12,10 @@
       "update_fail": "Failed to update scheduler job",
       "status_update_fail": "Failed to update scheduler job status",
       "trigger_fail": "Failed to manually trigger job execution",
-      "sync_fail_scheduler": "Unable to retrieve scheduler job list"
+      "sync_fail_scheduler": "Unable to retrieve scheduler job list",
+      "fan_out_default_tenant_only": "Only the default tenant can manage jobs that run for every tenant",
+      "log_not_exists": "Scheduled job log does not exist",
+      "parameters_mismatch": "Manual execution uses saved parameters; update the job definition to change them"
     },
     "log": {
       "error_log_not_found": "API error log does not exist",
@@ -22,6 +25,8 @@
       "path_exists": "File path already exists",
       "not_exists": "File does not exist",
       "is_empty": "File is empty",
+      "upload_type_not_allowed": "The file type is not allowed for this upload usage",
+      "upload_size_exceeded": "The file size exceeds the limit for this upload usage",
       "node_not_exists": "File node does not exist",
       "node_already_exists": "A file node with the same name already exists",
       "node_parent_not_exists": "Parent node does not exist",
@@ -49,6 +54,8 @@
       "not_exists": "Data source configuration does not exist",
       "name_duplicate": "A data source named [{}] already exists",
       "test_failed": "Data source connection test failed: {}",
+      "test_success": "Connection successful",
+      "url_required": "Data source connection URL is required",
       "delete_default": "Cannot delete the default data source",
       "activate_failed": "Failed to activate data source: {}"
     },

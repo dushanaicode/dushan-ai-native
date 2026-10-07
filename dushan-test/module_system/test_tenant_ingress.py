@@ -14,8 +14,8 @@ from framework.starter_security.public import SecurityErrorCodes, SecurityExcept
 from framework.starter_tenant.public import TenantContext, TenantException
 from framework.starter_web.public import RoutePolicy
 from framework.starter_web.routing.router_registration import RouterRegistration
-from module_system.dal.cache.cache_key_constants import SystemCacheKeys
-from module_system.definitions.constants.public_contexts import PublicContexts
+from module_system.dal.cache.system_cache_key_constants import SystemCacheKeyConstants
+from module_system.definitions.constants.public_context_constants import PublicContextConstants
 from module_system.definitions.enums.social.social_type_enum import SocialTypeEnum
 from module_system.service.auth.auth_admin_auth_service_impl import AuthAdminAuthServiceImpl
 
@@ -32,7 +32,7 @@ def system_routers(probes):
     router = APIRouter(prefix="/test/tenant")
 
     @router.get("/lifecycle")
-    @RoutePolicy.public(context=PublicContexts.TENANT_SELECTION)
+    @RoutePolicy.public(context=PublicContextConstants.TENANT_SELECTION)
     async def lifecycle(
         request: Request, context: TenantContext = Depends(DiDependency(TenantContext))
     ):
@@ -122,7 +122,7 @@ async def test_tenant_header_is_only_accepted_by_declared_routes(system_app, adm
             for method, operation in methods.items()
             if path.startswith("/admin-api/system/auth/")
             and operation.get("x-route-access", {}).get("public_context")
-            == PublicContexts.TENANT_SELECTION
+            == PublicContextConstants.TENANT_SELECTION
         }
         assert listed == {
             ("post", "/admin-api/system/auth/" + name)
@@ -136,7 +136,7 @@ async def test_tenant_header_is_only_accepted_by_declared_routes(system_app, adm
                 "qr-login/create",
             )
         } | {
-            ("get", "/admin-api/system/auth/social-auth-redirect"),
+            ("post", "/admin-api/system/auth/social-auth-redirect"),
             ("get", "/admin-api/system/auth/social-providers"),
         }
         parameters = document["paths"]["/admin-api/system/auth/login"]["post"]["parameters"]
@@ -205,7 +205,7 @@ async def test_social_completion_restores_tenant_from_server_binding(
     application = system_app.state.application_context
     with application.execution():
         await application.container.get(CacheHandler).set(
-            SystemCacheKeys.SOCIAL_LOGIN_TENANT,
+            SystemCacheKeyConstants.SOCIAL_LOGIN_TENANT,
             hashlib.sha256(binding.encode()).hexdigest(),
             tenant_b,
         )

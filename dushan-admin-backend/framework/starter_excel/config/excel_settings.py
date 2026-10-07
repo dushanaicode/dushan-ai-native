@@ -3,7 +3,7 @@ from typing import Literal, Self
 from pydantic import Field, model_validator
 
 from framework.starter_config.config.config_model import ConfigModel
-from framework.starter_config.decorator.config_decorator import config_model
+from framework.starter_config.decorators.config_decorator import config_model
 
 
 @config_model("excel", env_prefix="EXCEL_")

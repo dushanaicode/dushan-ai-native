@@ -1,21 +1,18 @@
 from __future__ import annotations
 
-from typing import Any, Collection, override
+from typing import Collection, override
 
 from framework.common.enums import BuiltinTypeEnum, StatusEnum
 from framework.common.exception import ServiceException
 from framework.common.page import PageResult
-from framework.starter_cache.public import CacheHandler, cache
+from framework.starter_cache.public import cache
 from framework.starter_data_permission.public import (
     DataScope,
 )
-from framework.starter_database.public import (
-    SessionProvider,
-    transactional,
-)
+from framework.starter_database.public import transactional
 from framework.starter_di.public import (
+    ApplicationContext,
     Inject,
-    get_bean,
     service,
 )
 from framework.starter_security.public import (
@@ -28,8 +25,8 @@ from framework.starter_security.public import (
 from module_system.config.system_settings import SystemSettings
 from module_system.controller.admin.permission.vo.role.role_page_req_vo import RolePageReqVO
 from module_system.controller.admin.permission.vo.role.role_save_req_vo import RoleSaveReqVO
-from module_system.dal.cache.cache_key_constants import SystemCacheKeys
 from module_system.dal.cache.permission.dto.role_cache_dto import RoleCacheDTO
+from module_system.dal.cache.system_cache_key_constants import SystemCacheKeyConstants
 from module_system.dal.dataobject.permission.role_do import RoleDO
 from module_system.dal.mapper.permission.role_mapper import RoleMapper
 from module_system.definitions.constants.error_code_constants import ErrorCodeConstants
@@ -45,13 +42,13 @@ from module_system.service.permission.permission_cache_service import (
 )
 from module_system.service.permission.permission_service import PermissionService
 from module_system.service.permission.role_service import RoleService
-from module_system.service.permission.system_access_policy import SystemAccessPolicy
+from module_system.service.permission.system_access_policy_service import (
+    SystemAccessPolicyService,
+)
 
 
 @service(interface=RoleService)
 class RoleServiceImpl(RoleService):
-    cache_handler: CacheHandler = Inject()
-    database: SessionProvider = Inject()
     log_context: LogRecordContext = Inject()
     role_mapper: RoleMapper = Inject()
     permission_service: PermissionService = Inject()
@@ -60,8 +57,9 @@ class RoleServiceImpl(RoleService):
     revisions: AuthorizationRevisionService = Inject()
     permission_cache: PermissionCacheService = Inject()
     default_ttl: int = 3600
-    access_policy: SystemAccessPolicy = Inject()
+    access_policy: SystemAccessPolicyService = Inject()
 
+    @override
     @log_record(
         LogRecordSpec(
             sub_type=LogRecordConstants.SYSTEM_ROLE_CREATE_SUB_TYPE,
@@ -71,12 +69,15 @@ class RoleServiceImpl(RoleService):
             capture=(),
         )
     )
-    @override
     @transactional
     async def create_role(self, create_req_vo: RoleSaveReqVO, builtin: int | None = None) -> int:
         await self.revisions.advance()
         await self.validate_role_duplicate(create_req_vo.name, create_req_vo.code, None)
-        role = RoleDO(**create_req_vo.model_dump(by_alias=False))
+        role = RoleDO(
+            **create_req_vo.to_write_dict(
+                fields={"id", "name", "code", "sort", "remark"}, exclude_unset=False
+            )
+        )
         role.builtin = builtin if builtin is not None else BuiltinTypeEnum.CUSTOM.code
         role.status = StatusEnum.ENABLE.code
         role.data_scope = DataScope.ALL.code
@@ -86,6 +87,7 @@ class RoleServiceImpl(RoleService):
             self.log_context.put("role", {"id": role.id, "name": role.name})
         return role.id
 
+    @override
     @log_record(
         LogRecordSpec(
             sub_type=LogRecordConstants.SYSTEM_ROLE_UPDATE_SUB_TYPE,
@@ -95,15 +97,10 @@ class RoleServiceImpl(RoleService):
             capture=(),
         )
     )
-    @override
     @transactional
     async def update_role(self, update_req_vo: RoleSaveReqVO) -> None:
+        """更新角色，并在提交后统一失效权限缓存。"""
         await self.revisions.advance()
-        self.database.after_commit(
-            lambda: self.cache_handler.delete_all(SystemCacheKeys.ROLE),
-            required=True,
-            name="system-cache",
-        )
         old_role = await self.validate_role_for_update(update_req_vo.id)
         old_role_vo = RoleSaveReqVO(
             id=str(old_role.id),
@@ -112,15 +109,20 @@ class RoleServiceImpl(RoleService):
             sort=old_role.sort,
             remark=old_role.remark,
         )
+        update_values = update_req_vo.to_write_dict(fields={"id", "name", "code", "sort", "remark"})
         if self.security_settings.bizlog_enabled:
-            await get_bean(BizLogService).record_diff(old_role_vo, update_req_vo)
+            # BizLogService 仅在 bizlog_enabled 时注册（@conditional），不能字段注入，开启时再查找。
+            await ApplicationContext.lookup(BizLogService).record_diff(
+                old_role_vo, old_role_vo.model_copy(update=update_values)
+            )
         await self.validate_role_duplicate(update_req_vo.name, update_req_vo.code, update_req_vo.id)
-        role = RoleDO(**update_req_vo.model_dump(by_alias=False))
+        role = RoleDO(**update_values)
         await self.role_mapper.update_by_id(role)
         await self.permission_cache.invalidate_role_caches()
         if self.security_settings.bizlog_enabled:
             self.log_context.put("role", {"id": role.id, "name": role.name})
 
+    @override
     @log_record(
         LogRecordSpec(
             sub_type=LogRecordConstants.SYSTEM_ROLE_DELETE_SUB_TYPE,
@@ -130,31 +132,21 @@ class RoleServiceImpl(RoleService):
             capture=(),
         )
     )
-    @override
     @transactional
     async def delete_role(self, id: int) -> None:
+        """删除角色，由关联权限清理统一登记缓存失效。"""
         await self.revisions.advance()
-        self.database.after_commit(
-            lambda: self.cache_handler.delete_all(SystemCacheKeys.ROLE),
-            required=True,
-            name="system-cache",
-        )
         role = await self.validate_role_for_update(id)
         await self.role_mapper.delete_by_id(id)
         await self.permission_service.process_role_deleted(id)
-        await self.permission_cache.invalidate_role_caches()
         if self.security_settings.bizlog_enabled:
             self.log_context.put("role", {"id": role.id, "name": role.name})
 
     @override
     @transactional
     async def delete_role_batch(self, ids: list[int]) -> int:
+        """逐条删除角色，保留每个角色的校验、关联清理与日志。"""
         await self.revisions.advance()
-        self.database.after_commit(
-            lambda: self.cache_handler.delete_all(SystemCacheKeys.ROLE),
-            required=True,
-            name="system-cache",
-        )
         deleted_count = 0
         for role_id in ids:
             await self.delete_role(role_id)
@@ -172,7 +164,7 @@ class RoleServiceImpl(RoleService):
             if role_by_code is not None and (role_id is None or role_by_code.id != role_id):
                 raise ServiceException(ErrorCodeConstants.ROLE_CODE_DUPLICATE, code)
 
-    async def validate_role_for_update(self, role_id: int) -> Any:
+    async def validate_role_for_update(self, role_id: int) -> RoleDO:
         role = await self.role_mapper.select_by_id(role_id)
         if role is None:
             raise ServiceException(ErrorCodeConstants.ROLE_NOT_EXISTS)
@@ -184,16 +176,16 @@ class RoleServiceImpl(RoleService):
         return role
 
     @override
-    async def get_role(self, role_id: int) -> Any:
+    async def get_role(self, role_id: int) -> RoleDO | None:
         return await self.role_mapper.select_by_id(role_id)
 
+    @override
     @cache(
-        SystemCacheKeys.ROLE,
+        SystemCacheKeyConstants.ROLE,
         key="id:{{role_id}}",
         ttl_seconds=default_ttl,
         unless=lambda result, *_, **__: not result is not None,
     )
-    @override
     async def get_role_from_cache(self, role_id: int) -> RoleCacheDTO | None:
         loaded = await self.role_mapper.select_by_id(role_id)
         return None if loaded is None else RoleCacheDTO.model_validate(loaded)
@@ -212,7 +204,7 @@ class RoleServiceImpl(RoleService):
         return await self.role_mapper.select_by_ids(ids)
 
     @override
-    async def get_role_list_from_cache(self, ids: Collection[int]) -> list[RoleDO]:
+    async def get_role_list_from_cache(self, ids: Collection[int]) -> list[RoleCacheDTO]:
         if not ids:
             return []
         roles = [await self.get_role_from_cache(rid) for rid in ids]
@@ -240,12 +232,8 @@ class RoleServiceImpl(RoleService):
     async def update_role_data_scope(
         self, role_id: int, data_scope: int, data_scope_dept_ids: set[int]
     ) -> None:
+        """更新角色数据范围，并在提交后统一失效权限缓存。"""
         await self.revisions.advance()
-        self.database.after_commit(
-            lambda: self.cache_handler.delete_all(SystemCacheKeys.ROLE),
-            required=True,
-            name="system-cache",
-        )
         role = await self.validate_role_for_update(role_id)
         role.data_scope = data_scope
         role.data_scope_dept_ids = (
@@ -268,12 +256,8 @@ class RoleServiceImpl(RoleService):
     @override
     @transactional
     async def update_role_status(self, id: int, status: int) -> None:
+        """更新角色状态，并在提交后统一失效权限缓存。"""
         await self.revisions.advance()
-        self.database.after_commit(
-            lambda: self.cache_handler.delete_all(SystemCacheKeys.ROLE),
-            required=True,
-            name="system-cache",
-        )
         await self.validate_role_for_update(id)
         update_obj = RoleDO(id=id, status=status)
         await self.role_mapper.update_by_id(update_obj)

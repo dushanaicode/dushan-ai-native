@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from framework.common.page import PageResult
-from module_infra.controller.admin.logger.vo.apierrorlog.apierrorlog_api_error_log_page_req_vo import (
+from module_infra.controller.admin.logger.vo.api_error_log.api_error_log_page_req_vo import (
     ApiErrorLogPageReqVO,
 )
 from module_infra.dal.dataobject.logger.api_error_log_do import ApiErrorLogDO

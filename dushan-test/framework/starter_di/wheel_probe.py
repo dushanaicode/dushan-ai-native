@@ -1,5 +1,3 @@
-"""从安装的两个 wheel 验证配置、扫描、DI 和 FastAPI 的实际消费链。"""
-
 import importlib
 import json
 import sys
@@ -7,6 +5,7 @@ from pathlib import Path
 
 
 def main():
+    """从安装的两个 wheel 验证配置、扫描、DI 和 FastAPI 的实际消费链。"""
     installation, dependencies, application_root, output = map(Path, sys.argv[1:])
     sys.path[:0] = [str(installation), str(application_root)]
     sys.path.append(str(dependencies))
@@ -18,10 +17,10 @@ def main():
     from foundation_probe.probe_settings import ProbeSettings
 
     import framework
-    from framework.starter_di.context.get_bean import get_bean
+    from framework.starter_di.context.application_context import ApplicationContext
     from framework.starter_di.decorators.di_dependency import DiDependency
     from framework.starter_di.definitions.enums.container_state_enum import ContainerStateEnum
-    from server.starter_server import create_app
+    from server.starter_server import StarterServer
 
     imported = []
     for package in ("framework", "foundation_probe"):
@@ -32,7 +31,7 @@ def main():
             module = importlib.import_module(name)
             assert Path(module.__file__).resolve() == path.resolve(), name
             imported.append(name)
-    app = create_app(
+    app = StarterServer.create_app(
         base_dir=application_root,
         environ={
             "LOG_ENABLE_FILE_OVERALL": "false",
@@ -44,7 +43,7 @@ def main():
 
     @app.get("/probe")
     def probe(service=Depends(DiDependency(ProbeInterface))):
-        assert service is get_bean(ProbeInterface)
+        assert service is ApplicationContext.lookup(ProbeInterface)
         return {"code": 0, "message": "ok", "data": service.describe(), "error": None}
 
     with TestClient(app) as client:
@@ -60,8 +59,8 @@ def main():
             )
 
         async def task_probe():
-            assert get_bean(ProbeInterface) is service
-            return get_bean(ProbeInterface).describe()
+            assert ApplicationContext.lookup(ProbeInterface) is service
+            return ApplicationContext.lookup(ProbeInterface).describe()
 
         assert (
             client.portal.call(snapshot.application_context.tasks.run, task_probe)

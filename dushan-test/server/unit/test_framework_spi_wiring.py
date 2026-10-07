@@ -10,7 +10,7 @@ from framework.starter_di.definitions.constants.di_error_codes import DiErrorCod
 from framework.starter_di.exception.di_exception import DiException
 from framework.starter_monitor.core.monitor_service import MonitorService
 from framework.starter_monitor.spi.monitor_provider import MonitorProvider
-from server.bootstrap.bootstrapper import BootstrapError
+from server.bootstrap.bootstrap_error import BootstrapError
 
 MONITOR_SOURCE = """
 from contextlib import nullcontext

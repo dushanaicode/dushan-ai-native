@@ -13,7 +13,7 @@ from framework.starter_cache.definitions.enums.cache_lifecycle_phase_enum import
 )
 from framework.starter_cache.exception.cache_exception import CacheException
 from framework.starter_cache.starter.cache_starter import CacheStarter
-from server.starter_server import create_app
+from server.starter_server import StarterServer
 
 pytestmark = requires_redis
 
@@ -77,7 +77,7 @@ async def test_disabled_cache_starts_the_application_without_any_connection(
     baseline = admin_client()
     try:
         before = int((await baseline.info("clients"))["connected_clients"])
-        app = create_app(
+        app = StarterServer.create_app(
             base_dir=config_dir(app_values(redis_values(enabled=False), **module_values)),
             environ={},
         )
@@ -98,7 +98,9 @@ async def test_disabled_cache_starts_the_application_without_any_connection(
 
 async def test_unreachable_redis_fails_startup_with_connection_error(config_dir, module_values):
     values = redis_values(port=6, socket_connect_timeout_seconds=1.0, socket_timeout_seconds=1.0)
-    app = create_app(base_dir=config_dir(app_values(values, **module_values)), environ={})
+    app = StarterServer.create_app(
+        base_dir=config_dir(app_values(values, **module_values)), environ={}
+    )
 
     with pytest.raises(BaseException) as failure:
         async with app.router.lifespan_context(app):
@@ -121,7 +123,9 @@ async def test_connection_loss_during_operation_is_reported_not_swallowed(
 ):
     port, cut = redis_proxy
     values = redis_values(port=port, socket_timeout_seconds=2.0, socket_connect_timeout_seconds=2.0)
-    app = create_app(base_dir=config_dir(app_values(values, **module_values)), environ={})
+    app = StarterServer.create_app(
+        base_dir=config_dir(app_values(values, **module_values)), environ={}
+    )
     async with app.router.lifespan_context(app):
         context = app.state.application_context
         with context.execution():
@@ -144,7 +148,7 @@ async def test_application_shutdown_releases_server_side_connections(
     baseline = admin_client()
     try:
         before = int((await baseline.info("clients"))["connected_clients"])
-        app = create_app(
+        app = StarterServer.create_app(
             base_dir=config_dir(app_values(redis_values(), **module_values)), environ={}
         )
         async with app.router.lifespan_context(app):
@@ -172,7 +176,9 @@ async def test_application_shutdown_releases_server_side_connections(
 async def test_manager_close_is_idempotent_and_blocks_further_client_access(
     config_dir, module_values
 ):
-    app = create_app(base_dir=config_dir(app_values(redis_values(), **module_values)), environ={})
+    app = StarterServer.create_app(
+        base_dir=config_dir(app_values(redis_values(), **module_values)), environ={}
+    )
     async with app.router.lifespan_context(app):
         context = app.state.application_context
         with context.execution():
@@ -187,7 +193,9 @@ async def test_manager_close_is_idempotent_and_blocks_further_client_access(
 async def test_starter_registers_keys_before_opening_connections(
     config_dir, module_values, key_module, cache_prefix
 ):
-    app = create_app(base_dir=config_dir(app_values(redis_values(), **module_values)), environ={})
+    app = StarterServer.create_app(
+        base_dir=config_dir(app_values(redis_values(), **module_values)), environ={}
+    )
     async with app.router.lifespan_context(app):
         context = app.state.application_context
         with context.execution():
@@ -204,7 +212,9 @@ async def test_starter_registers_keys_before_opening_connections(
 async def test_cache_settings_model_is_registered_and_reflects_yaml_defaults(
     config_dir, module_values
 ):
-    app = create_app(base_dir=config_dir(app_values(redis_values(), **module_values)), environ={})
+    app = StarterServer.create_app(
+        base_dir=config_dir(app_values(redis_values(), **module_values)), environ={}
+    )
     async with app.router.lifespan_context(app):
         settings = app.state.application_context.container.configuration.get_config(CacheSettings)
     assert settings.enabled is True
@@ -217,7 +227,9 @@ async def test_concurrency_above_pool_size_queues_instead_of_failing(
 ):
     """连接数是资源上限而不是并发上限：高于池大小的瞬时并发应当排队完成。"""
     values = redis_values(max_connections=2, pool_wait_timeout_seconds=10.0)
-    app = create_app(base_dir=config_dir(app_values(values, **module_values)), environ={})
+    app = StarterServer.create_app(
+        base_dir=config_dir(app_values(values, **module_values)), environ={}
+    )
     async with app.router.lifespan_context(app):
         context = app.state.application_context
         with context.execution():

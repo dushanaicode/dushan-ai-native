@@ -64,5 +64,5 @@ class OAuth2AccessTokenDO(TenantBaseDO):
         Boolean, default=False, nullable=False, comment="是否撤销"
     )
 
-    application_id: Mapped[str] = mapped_column(String(64), nullable=False, comment="????")
-    domain: Mapped[str] = mapped_column(String(64), nullable=False, comment="???")
+    application_id: Mapped[str] = mapped_column(String(64), nullable=False, comment="应用编号")
+    domain: Mapped[str] = mapped_column(String(64), nullable=False, comment="认证域")

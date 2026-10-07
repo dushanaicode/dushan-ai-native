@@ -39,7 +39,7 @@ class DBFileClient(AbstractFileClient):
                     FileContentDO.create_time,
                 ).where(
                     FileContentDO.config_id == self._id,
-                    FileContentDO.path.like(StrUtils.escape_like(prefix) + "%"),
+                    FileContentDO.path.like(StrUtils.escape_like(prefix) + "%", escape="\\"),
                 )
             )
         ).all()

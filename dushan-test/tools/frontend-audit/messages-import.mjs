@@ -89,7 +89,7 @@ export default async function runMessagesImport(api) {
     await ui.dialog().waitFor({ state: 'hidden' });
   });
   await test('站内信：收到通知、详情和标记已读', async () => {
-    await goto('/system/notification/notice-message');
+    await goto('/my-notice-message');
     const title = state.notice.record.title;
     const row = ui.main().locator('tr[rowid]').filter({ hasText: title });
     await row

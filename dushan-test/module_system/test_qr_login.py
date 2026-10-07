@@ -8,7 +8,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from framework.starter_cache.public import CacheHandler
-from module_system.dal.cache.cache_key_constants import SystemCacheKeys
+from module_system.dal.cache.system_cache_key_constants import SystemCacheKeyConstants
 from module_system.definitions.constants.error_code_constants import ErrorCodeConstants
 
 pytestmark = pytest.mark.asyncio(loop_scope="module")
@@ -117,7 +117,7 @@ async def test_qr_cancel_and_expire_cannot_login(system_app, admin_client):
         with application.execution():
             cache = application.container.get(CacheHandler)
             await cache.eval_atomic(
-                SystemCacheKeys.QR_LOGIN,
+                SystemCacheKeyConstants.QR_LOGIN,
                 (hashlib.sha256(ticket["ticket"].encode()).hexdigest(),),
                 "return redis.call('PEXPIRE', KEYS[1], 1)",
             )

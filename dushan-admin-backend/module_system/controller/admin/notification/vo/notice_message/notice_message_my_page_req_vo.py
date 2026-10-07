@@ -1,8 +1,8 @@
-from datetime import datetime
 from typing import Annotated
 
 from pydantic import Field
 
+from framework.common.contracts import DateTimeRangeInput
 from framework.common.page import PageQuery
 
 
@@ -10,7 +10,7 @@ class NoticeMessageMyPageReqVO(PageQuery):
     """管理后台 - 我的站内信分页列表 Request VO"""
 
     read_status: Annotated[bool | None, Field(None, description="是否已读")]
-    create_time: Annotated[list[datetime] | None, Field(None, description="创建时间")]
+    create_time: Annotated[DateTimeRangeInput | None, Field(None, description="创建时间")]
     notice_title: Annotated[str | None, Field(None, description="通知标题")]
     notice_type: Annotated[str | None, Field(None, description="通知类型")]
     model_config = {

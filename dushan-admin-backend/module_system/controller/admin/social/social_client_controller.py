@@ -17,7 +17,7 @@ from module_system.api.social.dto.social_wxa_subscribe_message_send_req_dto impo
     SocialWxaSubscribeMessageSendReqDTO,
 )
 from module_system.api.social.social_client_api import SocialClientApi
-from module_system.controller.admin.auth.vo.auth_social_provider_resp_vo import (
+from module_system.controller.admin.auth.vo.auth.auth_social_provider_resp_vo import (
     AuthSocialProviderRespVO,
 )
 from module_system.controller.admin.social.vo.client.social_client_page_req_vo import (

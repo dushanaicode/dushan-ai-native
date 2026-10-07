@@ -90,7 +90,7 @@ async def test_batch_file_delete_removes_only_requested_content(
             await admin_client.post(
                 "/admin-api/infra/file/upload",
                 files={"file": (uuid4().hex + ".txt", content, "text/plain")},
-                data={"directory": "http-batch"},
+                data={"directory": "http-batch", "visibility": "public"},
             )
         ).json()
         assert uploaded["code"] == 0, uploaded
@@ -104,7 +104,7 @@ async def test_batch_file_delete_removes_only_requested_content(
     await verify_batch(admin_client, infra_app, infra_database[2], "file", "infra_file", ids)
     for path in paths[:2]:
         missing = await admin_client.get(path)
-        assert missing.json()["code"] == 404, missing.text
+        assert missing.json()["code"] == 1001003001, missing.text
     retained = await admin_client.get(paths[2])
     assert retained.status_code == 200 and retained.content == contents[2]
 
@@ -129,6 +129,7 @@ async def test_batch_job_delete_updates_persistent_definitions(
             "job",
             {
                 "name": "Batch " + handler,
+                "fanOut": False,
                 "handlerName": handler,
                 "handlerParam": "{}",
                 "cronExpression": "0 0 1 1 *",

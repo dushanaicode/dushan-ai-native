@@ -9,7 +9,6 @@ from loguru import logger
 from framework.starter_di.context.application_context import ApplicationContext
 from framework.starter_di.context.application_state_enum import ApplicationStateEnum
 from framework.starter_di.context.di_task_runner import DiTaskRunner
-from framework.starter_di.context.get_bean import get_bean
 from framework.starter_di.core.di_container import DiContainer
 from framework.starter_di.decorators.components import service
 from framework.starter_di.decorators.inject import Inject
@@ -94,21 +93,21 @@ async def test_inject_and_lookup_share_app_singletons_and_restore_nested_context
     first.mark_ready()
     second.mark_ready()
     with pytest.raises(DiException) as absent:
-        get_bean(Repository)
+        ApplicationContext.lookup(Repository)
     assert absent.value.error_code == DiErrorCodes.CONTEXT_MISSING
     with first.execution():
-        a = get_bean(Repository)
-        consumer = get_bean(Consumer)
+        a = ApplicationContext.lookup(Repository)
+        consumer = ApplicationContext.lookup(Consumer)
         assert consumer.repository is a
         with second.execution():
-            assert get_bean(Repository) is not a
+            assert ApplicationContext.lookup(Repository) is not a
             with pytest.raises(DiException) as mismatch:
                 _ = consumer.repository
             assert mismatch.value.error_code == DiErrorCodes.CONTEXT_MISMATCH
-        assert get_bean(Repository) is a
+        assert ApplicationContext.lookup(Repository) is a
     await first.shutdown()
     with second.execution():
-        assert get_bean(Repository) is not a
+        assert ApplicationContext.lookup(Repository) is not a
     await second.shutdown()
 
 
@@ -127,7 +126,7 @@ async def test_disabled_lookup_and_metrics_do_not_disable_injection(contexts):
     with current.execution():
         assert current.container.get(Consumer).repository is current.container.get(Repository)
         with pytest.raises(DiException) as disabled:
-            get_bean(Repository)
+            ApplicationContext.lookup(Repository)
         assert disabled.value.error_code == DiErrorCodes.LOOKUP_DISABLED
     assert current.container.get_statistics()["resolutions"] == 0
     await current.shutdown()
@@ -141,7 +140,7 @@ async def test_unmanaged_child_cannot_use_an_expired_parent_execution(contexts):
 
     async def later():
         await release.wait()
-        return get_bean(DiContainer)
+        return ApplicationContext.lookup(DiContainer)
 
     with current.execution():
         task = asyncio.create_task(later())
@@ -167,10 +166,10 @@ async def test_cancelled_shutdown_wait_returns_promptly_and_keeps_resources_unti
     current.mark_ready()
 
     async def business():
-        resource = get_bean(Resource)
+        resource = ApplicationContext.lookup(Resource)
         started.set()
         await release.wait()
-        assert get_bean(Resource) is resource and not closed
+        assert ApplicationContext.lookup(Resource) is resource and not closed
 
     task = current.tasks.create_task(business)
     await started.wait()
@@ -210,7 +209,7 @@ async def test_drain_timeout_cancels_owned_tasks_and_closes_only_after_finally(c
         try:
             await asyncio.Event().wait()
         finally:
-            assert get_bean(Resource) is not None
+            assert ApplicationContext.lookup(Resource) is not None
             finished.append(True)
 
     task = current.tasks.create_task(business)
@@ -229,10 +228,10 @@ async def test_sync_worker_is_admitted_and_is_not_destroyed_by_timeout(contexts)
     current.mark_ready()
 
     def callback():
-        assert get_bean(DiContainer) is current.container
+        assert ApplicationContext.lookup(DiContainer) is current.container
         entered.set()
         assert release.wait(2)
-        assert get_bean(DiContainer) is current.container
+        assert ApplicationContext.lookup(DiContainer) is current.container
 
     worker = asyncio.create_task(asyncio.to_thread(current.tasks.run_sync, callback))
     assert await asyncio.to_thread(entered.wait, 1)
@@ -255,7 +254,7 @@ async def test_startup_tasks_wait_for_resource_ready_and_cancel_before_first_run
 
         async def post_construct(self):
             async def background():
-                events.append(get_bean(Resource))
+                events.append(ApplicationContext.lookup(Resource))
 
             self.task = self.tasks.create_task(background)
 
@@ -302,7 +301,7 @@ async def test_detached_tasks_do_not_inherit_request_contextvars(contexts):
     current.mark_ready()
 
     async def callback():
-        assert get_bean(ApplicationContext) is current
+        assert ApplicationContext.lookup(ApplicationContext) is current
         return principal.get()
 
     token = principal.set("request principal")
@@ -326,7 +325,7 @@ async def test_awaited_lifecycle_children_can_use_ready_injected_dependencies(co
         dependency: Dependency = Inject()
 
         async def check_dependency(self):
-            assert self.dependency is get_bean(Dependency)
+            assert self.dependency is ApplicationContext.lookup(Dependency)
 
         async def post_construct(self):
             await asyncio.gather(self.check_dependency(), self.check_dependency())
@@ -350,7 +349,7 @@ async def test_draining_allows_nested_continuation_but_rejects_new_background_wo
     entered, release = asyncio.Event(), asyncio.Event()
 
     async def continuation():
-        assert get_bean(DiContainer) is current.container
+        assert ApplicationContext.lookup(DiContainer) is current.container
 
     async def business():
         entered.set()

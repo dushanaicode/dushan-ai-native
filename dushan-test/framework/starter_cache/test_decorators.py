@@ -6,7 +6,7 @@ from framework.starter_cache.core.cache_handler import CacheHandler
 from framework.starter_cache.decorators.cache_evict import invalidate
 from framework.starter_cache.decorators.cacheable import cache
 from framework.starter_cache.exception.cache_exception import CacheException
-from server.starter_server import create_app
+from server.starter_server import StarterServer
 
 pytestmark = requires_redis
 
@@ -123,7 +123,7 @@ async def test_decorator_resolves_components_from_the_current_application(
 
     # 第一个应用用完即关闭；装饰器如果把组件缓存在类上，第二个应用会拿到已销毁的实例。
     for round_index in range(2):
-        app = create_app(
+        app = StarterServer.create_app(
             base_dir=config_dir(app_values(redis_values(), **module_values)), environ={}
         )
         async with app.router.lifespan_context(app):

@@ -13,9 +13,11 @@ from framework.common.exception import ServiceException
 from framework.common.page import PageResult
 from module_infra.api.config.dto.config_item_dto import ConfigItemDTO
 from module_infra.controller.admin.config.config_type_controller import ConfigTypeController
-from module_infra.controller.admin.config.vo.data.data_page_req_vo import ConfigDataPageReqVO
-from module_infra.controller.admin.config.vo.type.type_module_req_vo import ConfigTypeModuleReqVO
-from module_infra.dal.dataobject.config.config_type_do import InfraConfigTypeDO
+from module_infra.controller.admin.config.vo.data.config_data_page_req_vo import ConfigDataPageReqVO
+from module_infra.controller.admin.config.vo.type.config_type_module_req_vo import (
+    ConfigTypeModuleReqVO,
+)
+from module_infra.dal.dataobject.config.infra_config_type_do import InfraConfigTypeDO
 from module_infra.dal.dataobject.file.file_config_do import FileConfigDO
 from module_infra.dal.dataobject.mq.mq_do import MqDO
 from module_infra.dal.mapper.config.config_type_mapper import ConfigTypeMapper
@@ -36,7 +38,7 @@ pytestmark = pytest.mark.unit
 @pytest.mark.parametrize("sort", [0, -1, 7])
 def test_configuration_sort_is_an_integer_not_an_identifier(sort):
     item = ConfigItemDTO(id=101, name="测试配置", config_key="key", sort=sort)
-    assert item.id == "101"
+    assert item.id == 101
     assert item.sort == sort
     assert type(item.model_dump(mode="json")["sort"]) is int
 
@@ -206,11 +208,6 @@ async def test_post_business_filter_preserves_ids_and_status(mapper_session):
             "module_system.framework.sms.client.sms_client.SmsClient",
             "module_system.framework.sms.client.providers.huawei_sms_client.HuaweiSmsClient",
             ("parse_sms_receive_status",),
-        ),
-        (
-            "module_system.service.tenant.handler.tenant_menu_handler.TenantMenuHandler",
-            "module_system.service.tenant.handler.menu_filter_handler.MenuListFilterHandler",
-            ("handle",),
         ),
     ],
 )

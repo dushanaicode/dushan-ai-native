@@ -5,7 +5,7 @@ from framework.starter_cache.public import BaseCacheDAO
 from framework.starter_di.public import (
     dao,
 )
-from module_system.dal.cache.cache_key_constants import SystemCacheKeys
+from module_system.dal.cache.system_cache_key_constants import SystemCacheKeyConstants
 from module_system.dal.dataobject.oauth2.oauth2_access_token_do import OAuth2AccessTokenDO
 
 
@@ -14,7 +14,7 @@ class OAuth2AccessTokenRedisDAO(BaseCacheDAO):
     """仅缓存摘要到记录编号的定位结果；有效性必须重新读取主库。"""
 
     def __init__(self):
-        super().__init__(SystemCacheKeys.OAUTH2_ACCESS_TOKEN)
+        super().__init__(SystemCacheKeyConstants.OAUTH2_ACCESS_TOKEN)
 
     @staticmethod
     def identifier(tenant_id: str, token_digest: str) -> str:

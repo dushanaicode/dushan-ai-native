@@ -14,10 +14,14 @@ from framework.starter_web.public import (
     Result,
     RoutePolicy,
 )
-from module_system.controller.admin.sms.vo.channel.channel_page_req_vo import SmsChannelPageReqVO
-from module_system.controller.admin.sms.vo.channel.channel_resp_vo import SmsChannelRespVO
-from module_system.controller.admin.sms.vo.channel.channel_save_req_vo import SmsChannelSaveReqVO
-from module_system.controller.admin.sms.vo.channel.channel_simple_resp_vo import (
+from module_system.controller.admin.sms.vo.channel.sms_channel_page_req_vo import (
+    SmsChannelPageReqVO,
+)
+from module_system.controller.admin.sms.vo.channel.sms_channel_resp_vo import SmsChannelRespVO
+from module_system.controller.admin.sms.vo.channel.sms_channel_save_req_vo import (
+    SmsChannelSaveReqVO,
+)
+from module_system.controller.admin.sms.vo.channel.sms_channel_simple_resp_vo import (
     SmsChannelSimpleRespVO,
 )
 from module_system.dal.dataobject.sms.sms_channel_do import SmsChannelDO
@@ -30,7 +34,7 @@ class SmsChannelController:
     @staticmethod
     @sms_channel_controller.get("/callback-url", summary="获取本租户短信通道的回执地址")
     @RoutePolicy(
-        permissions=("system:sms:channel:query",), tenant_required=True, realm=SecurityRealm.TENANT
+        permissions=("system:sms:channel:update",), tenant_required=True, realm=SecurityRealm.TENANT
     )
     @AccessLogPolicy(enabled=False)
     async def get_callback_url(

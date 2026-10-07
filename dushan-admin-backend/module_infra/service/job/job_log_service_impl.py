@@ -12,37 +12,50 @@ from framework.starter_di.public import (
 from framework.starter_job.public import (
     JobState,
 )
-from module_infra.controller.admin.job.vo.log.log_page_req_vo import JobLogPageReqVO
+from framework.starter_tenant.public import TenantContext, TenantSettings
+from module_infra.controller.admin.job.vo.log.job_log_page_req_vo import JobLogPageReqVO
 from module_infra.dal.dataobject.job.job_log_do import JobLogDO
 from module_infra.dal.mapper.job.job_log_mapper import JobLogMapper
+from module_infra.dal.mapper.job.tenant_job_target_mapper import TenantJobTargetMapper
 from module_infra.service.job.job_log_service import JobLogService
 
 
 @service(interface=JobLogService)
 class JobLogServiceImpl(JobLogService):
     job_log_mapper: JobLogMapper = Inject()
+    tenant_job_target_mapper: TenantJobTargetMapper = Inject()
+    tenant: TenantContext = Inject()
+    tenant_settings: TenantSettings = Inject()
     date_utils: DateUtils = Inject()
 
     @override
     async def clean_job_log(self, exceed_day: int, delete_limit: int) -> int:
-        count = 0
+        """清理到期任务日志；默认租户另清理至多一批终结任务台账。"""
         expire_date = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=exceed_day)
-        while True:
-            delete_count = await self.job_log_mapper.delete_by_create_time_lt(
+        count = await self.job_log_mapper.delete_by_create_time_lt(expire_date, delete_limit)
+        if self.tenant.get_required_tenant_id() == self.tenant_settings.default_tenant_id:
+            count += await self.tenant_job_target_mapper.delete_finished_before(
                 expire_date, delete_limit
             )
-            count += delete_count
-            if delete_count < delete_limit:
-                break
         return count
 
     @override
     async def get_job_log(self, log_id: int) -> JobLogDO | None:
-        return await self.job_log_mapper.select_by_id(log_id)
+        tenant_id = self.tenant.get_required_tenant_id()
+        return await self.job_log_mapper.select_visible_by_id(
+            log_id,
+            tenant_id=tenant_id,
+            include_global=tenant_id == self.tenant_settings.default_tenant_id,
+        )
 
     @override
     async def get_job_log_page(self, page_req_vo: JobLogPageReqVO) -> PageResult[JobLogDO]:
-        return await self.job_log_mapper.select_page(page_req_vo)
+        tenant_id = self.tenant.get_required_tenant_id()
+        return await self.job_log_mapper.select_page(
+            page_req_vo,
+            tenant_id=tenant_id,
+            include_global=tenant_id == self.tenant_settings.default_tenant_id,
+        )
 
     async def record(self, record):
         await self.job_log_mapper.insert(

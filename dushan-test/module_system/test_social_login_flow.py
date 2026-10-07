@@ -69,7 +69,7 @@ async def providers(system_app, admin_client):
 
 
 async def begin(client, kind):
-    response = await client.get(
+    response = await client.post(
         "/admin-api/system/auth/social-auth-redirect",
         params={"type": kind, "redirectUri": CALLBACK},
         headers={"X-Tenant-Id": "1"},
@@ -243,33 +243,31 @@ async def test_catalog_uses_selected_tenant_and_excludes_disabled_and_non_admin_
         assert (await client.get("/admin-api/system/auth/social-providers")).json()["code"] != 0
 
 
-@pytest.mark.parametrize("method", ["get", "post"])
-async def test_vendor_callback_relay_supports_query_and_form_without_trusting_redirect_input(
-    system_app, admin_client, providers, method
+async def test_vendor_callback_relay_accepts_form_and_query_without_trusting_redirect_input(
+    system_app, admin_client, providers
 ):
-    if method == "get":
-        response = await admin_client.post(
-            "/admin-api/system/social/client/create",
-            json={
-                "name": "DingTalk V2",
-                "socialType": 46,
-                "userType": 2,
-                "clientId": "test-v2",
-                "clientSecret": "test-v2-secret",
-                "status": 1,
-                "authConfig": {
-                    "redirect_uri": "https://api.example.test/admin-api/system/auth/social-callback",
-                    "frontend_redirect_uri": CALLBACK,
-                    "scopes": ["openid"],
-                },
+    response = await admin_client.post(
+        "/admin-api/system/social/client/create",
+        json={
+            "name": "DingTalk V2",
+            "socialType": 46,
+            "userType": 2,
+            "clientId": "test-v2",
+            "clientSecret": "test-v2-secret",
+            "status": 1,
+            "authConfig": {
+                "redirect_uri": "https://api.example.test/admin-api/system/auth/social-callback",
+                "frontend_redirect_uri": CALLBACK,
+                "scopes": ["openid"],
             },
-        )
-        assert response.json()["code"] == 0, response.json()
+        },
+    )
+    assert response.json()["code"] == 0, response.json()
     async with AsyncClient(
         transport=ASGITransport(app=system_app), base_url="http://testserver"
     ) as client:
         result = (
-            await client.get(
+            await client.post(
                 "/admin-api/system/auth/social-auth-redirect",
                 params={"type": 46, "redirectUri": CALLBACK},
                 headers={"X-Tenant-Id": "1"},
@@ -282,15 +280,35 @@ async def test_vendor_callback_relay_supports_query_and_form_without_trusting_re
         async with AsyncClient(
             transport=ASGITransport(app=system_app), base_url="http://testserver"
         ) as vendor:
-            options = {"params": values} if method == "get" else {"data": values}
-            response = await vendor.request(
-                method, "/admin-api/system/auth/social-callback", **options
-            )
+            response = await vendor.post("/admin-api/system/auth/social-callback", data=values)
             assert response.status_code == 303, response.text
             location = urlparse(response.headers["location"])
             assert location.scheme + "://" + location.netloc + location.path == CALLBACK
             assert parse_qs(location.query) == {"state": [state], "authCode": ["code-relay"]}
             assert response.headers["cache-control"] == "no-store"
             assert (
-                await vendor.request(method, "/admin-api/system/auth/social-callback", **options)
+                await vendor.post("/admin-api/system/auth/social-callback", data=values)
+            ).status_code != 303
+
+        # 第三方按 OAuth 默认的查询参数方式 GET 重定向到后端回调，同样只转交一次。
+        result = (
+            await client.post(
+                "/admin-api/system/auth/social-auth-redirect",
+                params={"type": 46, "redirectUri": CALLBACK},
+                headers={"X-Tenant-Id": "1"},
+            )
+        ).json()
+        assert result["code"] == 0, result
+        state = parse_qs(urlparse(result["data"]).query)["state"][0]
+        values = {"state": state, "authCode": "code-query"}
+        async with AsyncClient(
+            transport=ASGITransport(app=system_app), base_url="http://testserver"
+        ) as vendor:
+            response = await vendor.get("/admin-api/system/auth/social-callback", params=values)
+            assert response.status_code == 303, response.text
+            location = urlparse(response.headers["location"])
+            assert location.scheme + "://" + location.netloc + location.path == CALLBACK
+            assert parse_qs(location.query) == {"state": [state], "authCode": ["code-query"]}
+            assert (
+                await vendor.get("/admin-api/system/auth/social-callback", params=values)
             ).status_code != 303

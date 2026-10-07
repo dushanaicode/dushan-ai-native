@@ -1,10 +1,10 @@
 from typing import Any
 
-from sqlalchemy import JSON, Computed, Index, SmallInteger, String, Text, UniqueConstraint
+from sqlalchemy import JSON, Index, SmallInteger, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy.sql import expression
 
 from framework.common.enums import StatusEnum
+from framework.starter_database.model.empty_json_object import EmptyJsonObject
 from framework.starter_tenant.public import (
     TenantBaseDO,
 )
@@ -37,7 +37,7 @@ class SocialClientDO(TenantBaseDO):
     )
     agent_id: Mapped[str | None] = mapped_column(String(255), nullable=True, comment="代理编号")
     auth_config: Mapped[dict[str, Any]] = mapped_column(
-        JSON, server_default=expression.text("('{}')"), comment="认证配置，JSON格式"
+        JSON, default=dict, server_default=EmptyJsonObject(), comment="认证配置，JSON格式"
     )
     status: Mapped[int] = mapped_column(
         SmallInteger, default=StatusEnum.ENABLE.code, comment="开启状态（1-启用，0-禁用）"
@@ -45,6 +45,6 @@ class SocialClientDO(TenantBaseDO):
 
     active_key: Mapped[int | None] = mapped_column(
         SmallInteger,
-        Computed("CASE WHEN deleted = 0 THEN 1 ELSE NULL END"),
+        TenantBaseDO.active_key_computed(),
         comment="仅有效记录参与业务唯一约束",
     )

@@ -10,7 +10,7 @@ from framework.starter_database.public import (
 from framework.starter_di.public import (
     mapper,
 )
-from module_system.controller.admin.sms.vo.log.log_page_req_vo import SmsLogPageReqVO
+from module_system.controller.admin.sms.vo.log.sms_log_page_req_vo import SmsLogPageReqVO
 from module_system.dal.dataobject.sms.sms_log_do import SmsLogDO
 
 
@@ -27,16 +27,16 @@ class SmsLogMapper(BaseMapper[SmsLogDO]):
             stmt = stmt.where(SmsLogDO.template_id == req_vo.template_id)
         if req_vo.mobile:
             escaped = StrUtils.escape_like(req_vo.mobile)
-            stmt = stmt.where(SmsLogDO.mobile.ilike(f"%{escaped}%"))
+            stmt = stmt.where(SmsLogDO.mobile.ilike(f"%{escaped}%", escape="\\"))
         if req_vo.send_status is not None:
             stmt = stmt.where(SmsLogDO.send_status == req_vo.send_status)
-        if req_vo.send_time and len(req_vo.send_time) == 2:
-            stmt = stmt.where(SmsLogDO.send_time.between(req_vo.send_time[0], req_vo.send_time[1]))
+        if req_vo.send_time is not None:
+            start_time, end_time = req_vo.send_time
+            stmt = stmt.where(SmsLogDO.send_time.between(start_time, end_time))
         if req_vo.receive_status is not None:
             stmt = stmt.where(SmsLogDO.receive_status == req_vo.receive_status)
-        if req_vo.receive_time and len(req_vo.receive_time) == 2:
-            stmt = stmt.where(
-                SmsLogDO.receive_time.between(req_vo.receive_time[0], req_vo.receive_time[1])
-            )
+        if req_vo.receive_time is not None:
+            start_time, end_time = req_vo.receive_time
+            stmt = stmt.where(SmsLogDO.receive_time.between(start_time, end_time))
         stmt = stmt.order_by(SmsLogDO.id.desc())
         return await self.paginate_query(stmt, req_vo)

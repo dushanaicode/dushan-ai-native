@@ -118,6 +118,40 @@ def test_native_responses_keep_protocol_and_background_tasks(config_dir, tmp_pat
     assert events == ["background"]
 
 
+@pytest.mark.parametrize("entry", ["from_bytes", "stream_bytes"])
+def test_memory_file_conditional_request_preserves_cache_and_security_headers(config_dir, entry):
+    """内存文件经过完整中间件链后，条件请求仍保留缓存与安全头且不发送正文。"""
+    app = create_uvicorn_app(base_dir=config_dir(), environ={})
+    files = FileResult(app.state.bootstrap.response_settings)
+    content = b"image-content"
+
+    @app.get("/memory-file")
+    async def memory_file():
+        """按当前请求的实体标签返回内存图片。"""
+        return getattr(files, entry)(
+            content,
+            "image.png",
+            media_type="image/png",
+            disposition="inline",
+            cache="public",
+            max_age=60,
+            immutable=True,
+        )
+
+    with TestClient(app) as client:
+        response = client.get("/memory-file")
+        cached = client.get("/memory-file", headers={"If-None-Match": response.headers["etag"]})
+
+    assert response.status_code == 200 and response.content == content
+    assert response.headers["content-disposition"].startswith("inline;")
+    assert response.headers["cache-control"] == "public, max-age=60, immutable"
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert response.headers["content-security-policy"] == "sandbox; default-src 'none'"
+    assert cached.status_code == 304 and cached.content == b""
+    for header in ("cache-control", "x-content-type-options", "content-security-policy", "etag"):
+        assert cached.headers[header] == response.headers[header]
+
+
 @pytest.mark.parametrize(
     "method,status", [("HEAD", 200), ("HEAD", 400), ("GET", 204), ("GET", 304)]
 )

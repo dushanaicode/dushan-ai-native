@@ -1,14 +1,12 @@
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 
-from framework.common.page import PageResult, PageSettings
+from framework.common.page import PageResult
 from framework.common.utils import ConversionUtils
 from framework.starter_di.public import (
     DiDependency,
 )
 from framework.starter_excel.public import (
-    DictDataProvider,
-    ExcelProviders,
     ExcelWriter,
 )
 from framework.starter_security.public import (
@@ -19,19 +17,17 @@ from framework.starter_web.public import (
     Result,
     RoutePolicy,
 )
-from module_system.controller.admin.logger.vo.operatelog.operatelog_operate_log_export_req_vo import (
+from module_system.controller.admin.logger.vo.operate_log.operate_log_export_req_vo import (
     OperateLogExportReqVO,
 )
-from module_system.controller.admin.logger.vo.operatelog.operatelog_operate_log_page_req_vo import (
+from module_system.controller.admin.logger.vo.operate_log.operate_log_page_req_vo import (
     OperateLogPageReqVO,
 )
-from module_system.controller.admin.logger.vo.operatelog.operatelog_operate_log_resp_vo import (
+from module_system.controller.admin.logger.vo.operate_log.operate_log_resp_vo import (
     OperateLogRespVO,
 )
 from module_system.dal.dataobject.logger.operate_log_do import OperateLogDO
 from module_system.service.logger.operate_log_service import OperateLogService
-from module_system.spi.dept.dept_info_provider_adapter import DeptInfoProviderAdapter
-from module_system.spi.dept.post_info_provider_adapter import PostInfoProviderAdapter
 
 operate_log_controller = APIRouter(prefix="/logger/operate-log", tags=["System - 操作日志管理"])
 
@@ -79,17 +75,8 @@ class OperateLogController:
         operate_log_service: OperateLogService = Depends(DiDependency(OperateLogService)),
         excel_writer: ExcelWriter = Depends(DiDependency(ExcelWriter)),
         files: FileResult = Depends(DiDependency(FileResult)),
-        dictionaries: DictDataProvider = Depends(DiDependency(DictDataProvider)),
-        departments: DeptInfoProviderAdapter = Depends(DiDependency(DeptInfoProviderAdapter)),
-        posts: PostInfoProviderAdapter = Depends(DiDependency(PostInfoProviderAdapter)),
-        page_settings: PageSettings = Depends(DiDependency(PageSettings)),
     ) -> StreamingResponse:
-        excel_providers = ExcelProviders(
-            dictionaries=dictionaries, departments=departments, posts=posts
-        )
-        page_req_vo.enable_fetch_all(
-            max_rows=min(excel_writer.settings.max_export_rows, page_settings.fetch_all_max_rows)
-        )
+        excel_writer.prepare_export_query(page_req_vo)
         page_result: PageResult[OperateLogDO] = await operate_log_service.get_operate_log_page_vo(
             page_req_vo
         )
@@ -101,7 +88,6 @@ class OperateLogController:
             "数据",
             OperateLogRespVO,
             excel_list,
-            providers=excel_providers,
             fields=page_req_vo.fields,
         )
         return files.excel_stream(file_data, file_name=f"{filename}.xlsx")

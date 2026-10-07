@@ -10,7 +10,7 @@ from framework.starter_config.provider.bootstrap_config_error import BootstrapCo
 from framework.starter_di.decorators.di_dependency import DiDependency
 from framework.starter_di.definitions.constants.di_error_codes import DiErrorCodes
 from framework.starter_di.definitions.enums.container_state_enum import ContainerStateEnum
-from server.bootstrap.bootstrapper import BootstrapError
+from server.bootstrap.bootstrap_error import BootstrapError
 
 pytestmark = pytest.mark.unit
 
@@ -19,7 +19,7 @@ def module_files(*, fail_start=False):
     return {
         "definitions/config/feature_settings.py": (
             "from framework.starter_config.config.config_model import ConfigModel\n"
-            "from framework.starter_config.decorator.config_decorator import config_model\n"
+            "from framework.starter_config.decorators.config_decorator import config_model\n"
             "from pydantic import Field\n"
             "@config_model('feature', env_prefix='FEATURE_')\n"
             "class FeatureSettings(ConfigModel):\n"

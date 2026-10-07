@@ -2,7 +2,6 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Form, Query, Request
 
-from framework.common.dates import DateUtils
 from framework.common.enums import UserTypeEnum
 from framework.common.exception import (
     GlobalErrorCodeConstants,
@@ -29,20 +28,25 @@ from framework.starter_web.public import (
 )
 from module_system.api.oauth2.dto.oauth2_access_token_resp_dto import OAuth2AccessTokenRespDTO
 from module_system.api.oauth2.dto.oauth2_client_dto import OAuth2ClientDTO
-from module_system.controller.admin.oauth2.vo.open.open_access_token_resp_vo import (
-    OAuth2OpenAccessTokenRespVO,
-)
-from module_system.controller.admin.oauth2.vo.open.open_authorize_info_req_vo import (
+from module_system.controller.admin.oauth2.vo.open.oauth2_authorize_info_req_vo import (
     OAuth2AuthorizeInfoReqVO,
 )
-from module_system.controller.admin.oauth2.vo.open.open_authorize_req_vo import OAuth2AuthorizeReqVO
-from module_system.controller.admin.oauth2.vo.open.open_check_token_resp_vo import (
+from module_system.controller.admin.oauth2.vo.open.oauth2_authorize_req_vo import (
+    OAuth2AuthorizeReqVO,
+)
+from module_system.controller.admin.oauth2.vo.open.oauth2_open_access_token_resp_vo import (
+    OAuth2OpenAccessTokenRespVO,
+)
+from module_system.controller.admin.oauth2.vo.open.oauth2_open_authorize_info_resp_vo import (
+    OAuth2OpenAuthorizeInfoRespVO,
+)
+from module_system.controller.admin.oauth2.vo.open.oauth2_open_check_token_resp_vo import (
     OAuth2OpenCheckTokenRespVO,
 )
-from module_system.controller.admin.oauth2.vo.open.open_token_query_req_vo import (
+from module_system.controller.admin.oauth2.vo.open.oauth2_token_query_req_vo import (
     OAuth2TokenQueryReqVO,
 )
-from module_system.controller.admin.oauth2.vo.open.open_token_req_vo import OAuth2TokenReqVO
+from module_system.controller.admin.oauth2.vo.open.oauth2_token_req_vo import OAuth2TokenReqVO
 from module_system.convert.oauth2.oauth2_open_convert import OAuth2OpenConvert
 from module_system.definitions.enums.oauth2.oauth2_grant_type_enum import OAuth2GrantTypeEnum
 from module_system.service.oauth2.oauth2_approve_service import OAuth2ApproveService
@@ -68,13 +72,11 @@ class Oauth2OpenController:
         token_req: Annotated[OAuth2TokenReqVO, Form()],
         oauth2_grant_service: OAuth2GrantService = Depends(DiDependency(OAuth2GrantService)),
         oauth2_client_service: OAuth2ClientService = Depends(DiDependency(OAuth2ClientService)),
-        oauth2_utils: OAuth2Utils = Depends(DiDependency(OAuth2Utils)),
-        date_utils: DateUtils = Depends(DiDependency(DateUtils)),
         workloads: SystemWorkloadService = Depends(DiDependency(SystemWorkloadService)),
         tenant_settings: TenantSettings = Depends(DiDependency(TenantSettings)),
     ) -> Result[OAuth2OpenAccessTokenRespVO]:
         async with workloads.scope("system.auth", tenant_settings.default_tenant_id):
-            scopes = await oauth2_utils.build_scopes(token_req.scope)
+            scopes = OAuth2Utils.build_scopes(token_req.scope)
             grant_type_enum = OAuth2GrantTypeEnum.get_by_grant_type(token_req.grant_type)
             if not grant_type_enum:
                 raise ServiceException(
@@ -114,7 +116,7 @@ class Oauth2OpenController:
                 raise IllegalArgumentException(msg=f"未知授权类型: {token_req.grant_type}")
             if not access_token:
                 raise IllegalArgumentException(msg="访问令牌不能为空!")
-            return Result.success(data=OAuth2OpenConvert.convert(access_token, date_utils))
+            return Result.success(data=OAuth2OpenConvert.convert(access_token))
 
     @staticmethod
     @oauth2_open_controller.delete(
@@ -151,7 +153,6 @@ class Oauth2OpenController:
         req_vo: OAuth2TokenQueryReqVO = Query(),
         oauth2_token_service: OAuth2TokenService = Depends(DiDependency(OAuth2TokenService)),
         oauth2_client_service: OAuth2ClientService = Depends(DiDependency(OAuth2ClientService)),
-        date_utils: DateUtils = Depends(DiDependency(DateUtils)),
         workloads: SystemWorkloadService = Depends(DiDependency(SystemWorkloadService)),
         tenant_settings: TenantSettings = Depends(DiDependency(TenantSettings)),
     ) -> Result[OAuth2OpenCheckTokenRespVO]:
@@ -181,7 +182,7 @@ class Oauth2OpenController:
         oauth2_client_service: OAuth2ClientService = Depends(DiDependency(OAuth2ClientService)),
         oauth2_approve_service: OAuth2ApproveService = Depends(DiDependency(OAuth2ApproveService)),
         security: SecurityContext = Depends(DiDependency(SecurityContext)),
-    ) -> Result:
+    ) -> Result[OAuth2OpenAuthorizeInfoRespVO]:
         client_id = req_vo.client_id
         client_dto: OAuth2ClientDTO = await oauth2_client_service.validate_client(client_id)
         approves = await oauth2_approve_service.get_approve_list(
@@ -201,7 +202,6 @@ class Oauth2OpenController:
         oauth2_grant_service: OAuth2GrantService = Depends(DiDependency(OAuth2GrantService)),
         oauth2_client_service: OAuth2ClientService = Depends(DiDependency(OAuth2ClientService)),
         oauth2_approve_service: OAuth2ApproveService = Depends(DiDependency(OAuth2ApproveService)),
-        oauth2_utils: OAuth2Utils = Depends(DiDependency(OAuth2Utils)),
         security: SecurityContext = Depends(DiDependency(SecurityContext)),
     ) -> Result[str | None]:
         redirect_uri = req_vo.redirect_uri
@@ -230,7 +230,7 @@ class Oauth2OpenController:
             login_user_id, user_type, client_id, scopes
         ):
             return Result.success(
-                data=await oauth2_utils.build_unsuccessful_redirect(
+                data=OAuth2Utils.build_unsuccessful_redirect(
                     redirect_uri, response_type, state, "access_denied", "User denied access"
                 )
             )
@@ -240,7 +240,7 @@ class Oauth2OpenController:
                 login_user_id, user_type, client_do.client_id, approve_scopes, redirect_uri, state
             )
             return Result.success(
-                data=await oauth2_utils.build_authorization_code_redirect_uri(
+                data=OAuth2Utils.build_authorization_code_redirect_uri(
                     redirect_uri, authorization_code, state
                 )
             )
@@ -248,7 +248,7 @@ class Oauth2OpenController:
             login_user_id, user_type, client_do.client_id, approve_scopes
         )
         return Result.success(
-            data=await oauth2_utils.build_implicit_redirect_uri(
+            data=OAuth2Utils.build_implicit_redirect_uri(
                 redirect_uri,
                 access_token.access_token,
                 state,

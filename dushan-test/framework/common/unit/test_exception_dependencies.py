@@ -14,10 +14,11 @@ from framework.common.exception.core.error_code import ErrorCode
 from framework.common.exception.exceptions.base_business_exception import BaseBusinessException
 from framework.common.exception.exceptions.configuration_exception import ConfigurationException
 from framework.common.exception.exceptions.rate_limit_exception import RateLimitException
+from framework.starter_web.context.error_log_record import ErrorLogRecord
 from framework.starter_web.exception.error_log_recorder import ErrorLogRecorder
-from framework.starter_web.exception.exception_handler import GlobalExceptionHandler
 from framework.starter_web.exception.exception_logger import ExceptionLogger
-from framework.starter_web.exception.response_builder import ExceptionResponseBuilder
+from framework.starter_web.exception.exception_response_builder import ExceptionResponseBuilder
+from framework.starter_web.exception.global_exception_handler import GlobalExceptionHandler
 
 pytestmark = pytest.mark.unit
 
@@ -78,18 +79,26 @@ def test_unclassified_system_exception_keeps_error_level_and_safe_trace() -> Non
 
 
 async def test_error_log_recorder_uses_injected_writer() -> None:
-    """实例记录器把原异常与公开信息交给注入的写入函数。"""
-    records: list[tuple[object, Exception, ErrorCode, str]] = []
+    """实例记录器只把规范化的请求与异常事实交给注入的写入函数。"""
+    records: list[ErrorLogRecord] = []
 
-    async def write(request, exc, error_code, msg) -> None:
-        """记录四个位置参数，供断言依赖边界。"""
-        records.append((request, exc, error_code, msg))
+    async def write(record) -> None:
+        """记录安全事实，供断言依赖边界。"""
+        records.append(record)
 
-    request = Request({"type": "http"})
+    request = Request({"type": "http", "method": "GET", "path": "/failure", "headers": []})
     original = RuntimeError("failed")
     definition = GlobalErrorCodeConstants.INTERNAL_SERVER_ERROR
     await ErrorLogRecorder(write).record(request, original, definition, "系统异常")
-    assert records == [(request, original, definition, "系统异常")]
+    (record,) = records
+    assert record.route == "/failure"
+    assert record.method == "GET"
+    assert record.exception_name == "RuntimeError"
+    assert record.exception_stack_trace == "RuntimeError: failed\n"
+    assert record.result_code == definition.code
+    assert record.exception_message == "系统异常"
+    assert record.exception_file_name == record.exception_method_name == ""
+    assert record.exception_line_number == 0
 
 
 def test_exception_response_builder_sanitizes_debug_payload() -> None:
@@ -132,12 +141,12 @@ async def test_error_log_recorder_ignores_write_failure_and_preserves_cancellati
             """保存写入时触发的异常。"""
             self.failure = failure
 
-        async def write(self, request, exc, error_code, msg) -> None:
+        async def write(self, record) -> None:
             """触发模拟写入故障。"""
             raise self.failure
 
     arguments = (
-        Request({"type": "http"}),
+        Request({"type": "http", "method": "GET", "path": "/failure", "headers": []}),
         RuntimeError("original"),
         GlobalErrorCodeConstants.INTERNAL_SERVER_ERROR,
         "系统异常",
@@ -273,14 +282,12 @@ async def test_error_persistence_policy_for_system_failures_and_explicit_record_
             """收集本实例的诊断记录。"""
             self.records: list[dict[str, Any]] = []
 
-        async def log_error(self, request, exc, error_code, msg) -> None:
-            """接收实例记录器传入的位置参数。"""
+        async def log_error(self, record) -> None:
+            """接收实例记录器传入的安全事实。"""
             self.records.append(
                 {
-                    "request": request,
-                    "exception": exc,
-                    "result_code": error_code.code,
-                    "result_msg": msg,
+                    "result_code": record.result_code,
+                    "result_msg": record.exception_message,
                 }
             )
 
@@ -414,7 +421,7 @@ async def test_apps_keep_debug_translation_recording_and_tracing_independent(fir
             """分别记录本应用的翻译、写入和追踪调用。"""
             self.name = name
             self.translations: list[tuple[str, str | None]] = []
-            self.records: list[tuple[Request, Exception, ErrorCode, str]] = []
+            self.records: list[ErrorLogRecord] = []
             self.traces: list[Exception] = []
 
         def translate_any_scope(self, key, accept_language, *, default=None, args=None) -> str:
@@ -422,9 +429,9 @@ async def test_apps_keep_debug_translation_recording_and_tracing_independent(fir
             self.translations.append((key, accept_language))
             return f"{self.name}:{default}"
 
-        async def write(self, request, exc, error_code, msg) -> None:
-            """保存当前应用收到的原异常与公开提示。"""
-            self.records.append((request, exc, error_code, msg))
+        async def write(self, record) -> None:
+            """保存当前应用收到的安全异常事实。"""
+            self.records.append(record)
 
         def on_error(self, exc: Exception) -> None:
             """保存本应用收到的追踪事件。"""
@@ -484,11 +491,12 @@ async def test_apps_keep_debug_translation_recording_and_tracing_independent(fir
         spy = spies[name]
         assert spy.translations == [("exception.error_configuration", "en-US")] * count
         assert len(spy.records) == len(spy.traces) == count
-        for (request, exc, error_code, msg), trace in zip(spy.records, spy.traces, strict=True):
-            assert request.app is apps[name]
-            assert exc is trace
-            assert error_code is GlobalErrorCodeConstants.ERROR_CONFIGURATION
-            assert msg.startswith(f"{name}:")
+        for record, trace in zip(spy.records, spy.traces, strict=True):
+            assert record.route == "/failure"
+            assert record.exception_name == type(trace).__name__
+            assert record.result_code == GlobalErrorCodeConstants.ERROR_CONFIGURATION.code
+            assert record.exception_message.startswith(f"{name}:")
+            assert "private-cause" not in record.exception_stack_trace
 
 
 async def test_405_logs_route_template_without_secret_path_segments() -> None:
@@ -530,7 +538,7 @@ async def test_dependency_failures_preserve_the_business_response() -> None:
             """模拟追踪服务故障。"""
             raise RuntimeError("password=private-trace")
 
-        async def write(self, request, exc, error_code, msg) -> None:
+        async def write(self, record) -> None:
             """模拟记录服务故障。"""
             raise OSError("password=private-recorder")
 

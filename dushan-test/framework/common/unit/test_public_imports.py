@@ -116,6 +116,33 @@ def test_public_exports_preserve_original_objects(name):
         assert getattr(public, alias) is original
 
 
+@pytest.mark.parametrize("public_first", [True, False])
+def test_di_context_public_import_order_preserves_identity(public_first):
+    public_name = "framework.starter_di.public"
+    definition_name = "framework.starter_di.context.application_context"
+    names = (public_name, definition_name) if public_first else (definition_name, public_name)
+    check = (
+        COLD_IMPORT
+        + """
+public = sys.modules['framework.starter_di.public']
+definition = sys.modules['framework.starter_di.context.application_context']
+assert public.ApplicationContext is definition.ApplicationContext
+assert public.ApplicationContext.__module__ == definition.__name__
+assert 'ApplicationContext' in public.__all__
+assert 'get_bean' not in public.__all__
+assert not hasattr(public, 'get_bean')
+"""
+    )
+    result = subprocess.run(
+        [sys.executable, "-B", "-c", check, str(BACKEND), *names],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=30,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
 def test_cache_public_keeps_original_scanner_and_dependency_contracts(module_package):
     """公共类型能用于真实模块注解，但组件登记仍要求原始定义模块。"""
     from fixtures.config_factory import ConfigFactory

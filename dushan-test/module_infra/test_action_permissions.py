@@ -43,14 +43,16 @@ async def test_initial_menu_data_has_current_action_permissions(infra_database):
         assert cursor.fetchone() == ("infra:websocket:send", "action", 1, 10000000100801)
 
 
-async def test_release_seed_has_three_linked_users(infra_database):
+async def test_release_seed_has_four_linked_users(infra_database):
     assert not (ROOT / "dushan-admin-backend/sql/mysql" / "upgrade").exists()
-    ids = (10100000010001, 10100000010002, 10100000010003)
+    ids = (10100000010001, 10100000010002, 10100000010003, 10100000010004)
     with infra_database[2].cursor() as cursor:
         cursor.execute("SELECT id,username FROM system_users ORDER BY id")
-        assert cursor.fetchall() == tuple(zip(ids, ("admin", "dushan", "zhangsan")))
-        for table in ("system_user_profiles", "system_user_role", "system_user_post"):
+        assert cursor.fetchall() == tuple(zip(ids, ("admin", "dushan", "zhangsan", "demo")))
+        for table in ("system_user_profiles", "system_user_role"):
             cursor.execute(f"SELECT user_id FROM {table} ORDER BY user_id")
             assert cursor.fetchall() == tuple((identifier,) for identifier in ids)
+        cursor.execute("SELECT user_id FROM system_user_post ORDER BY user_id")
+        assert cursor.fetchall() == tuple((identifier,) for identifier in ids[:3])
         cursor.execute("SELECT name FROM system_dept WHERE parent_id=0")
         assert cursor.fetchall() == (("渡山无界",),)

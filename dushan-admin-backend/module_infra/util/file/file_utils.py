@@ -1,8 +1,8 @@
-"""文件模块工具类"""
-
 import hashlib
-import mimetypes
 import os
+import time
+
+from module_infra.framework.file.core.utils.file_type_utils import FileTypeUtils
 
 
 class FileUtils:
@@ -15,8 +15,6 @@ class FileUtils:
         timestamp_suffix: bool = True,
     ) -> str:
         """生成文件存储路径"""
-        import time
-
         current_name = original_name
         if timestamp_suffix:
             main_name, ext_name = os.path.splitext(current_name)
@@ -37,30 +35,18 @@ class FileUtils:
         """
         if not name:
             base_name = hashlib.sha256(content).hexdigest()
-            extension = FileUtils.get_extension_from_mime(file_type)
+            extension = FileTypeUtils.get_extension(file_type)
             return f"{base_name}{extension}" if extension else base_name
-        if not os.path.splitext(name)[1] and file_type:
-            extension = FileUtils.get_extension_from_mime(file_type)
+        _, existing_extension = os.path.splitext(name)
+        if not existing_extension and file_type:
+            extension = FileTypeUtils.get_extension(file_type)
             if extension:
                 return f"{name}{extension}"
         return name
 
     @staticmethod
-    def get_extension_from_mime(mime_type: str | None) -> str | None:
-        """根据 MIME 类型获得文件后缀"""
-        if not mime_type:
-            return None
-        extension = mimetypes.guess_extension(mime_type.lower(), strict=False)
-        if extension == ".jpe":
-            return ".jpg"
-        if extension == ".htm":
-            return ".html"
-        return extension
-
-    @staticmethod
-    def get_mime_type_from_name(name: str) -> str | None:
-        """根据文件名猜测 MIME 类型"""
-        if not name:
-            return None
-        mime_type, _ = mimetypes.guess_type(name, strict=True)
-        return mime_type
+    def rename_storage_key(old_key: str, new_name: str) -> str:
+        """替换存储键名称，保留父路径和目录尾斜杠，由存储客户端校验最终键。"""
+        parent, separator, _ = old_key.rstrip("/").rpartition("/")
+        suffix = "/" if old_key.endswith("/") else ""
+        return f"{parent}{separator}{new_name}{suffix}"

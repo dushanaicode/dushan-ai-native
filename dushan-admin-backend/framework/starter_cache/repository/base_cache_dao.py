@@ -22,7 +22,7 @@ class BaseCacheDAO:
         @dao
         class UserCacheDAO(BaseCacheDAO):
             def __init__(self) -> None:
-                super().__init__(SystemCacheKeys.USER)
+                super().__init__(SystemCacheKeyConstants.USER)
     """
 
     _cache_handler: CacheHandler = Inject()

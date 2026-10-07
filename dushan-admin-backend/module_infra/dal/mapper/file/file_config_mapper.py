@@ -25,15 +25,14 @@ class FileConfigMapper(BaseMapper[FileConfigDO]):
         stmt = select(FileConfigDO)
         if req_vo.name:
             escaped = StrUtils.escape_like(req_vo.name)
-            stmt = stmt.where(FileConfigDO.name.ilike(f"%{escaped}%"))
+            stmt = stmt.where(FileConfigDO.name.ilike(f"%{escaped}%", escape="\\"))
         if req_vo.storage is not None:
             stmt = stmt.where(FileConfigDO.storage == req_vo.storage)
         if req_vo.status is not None:
             stmt = stmt.where(FileConfigDO.status == req_vo.status)
-        if req_vo.create_time and len(req_vo.create_time) >= 2:
-            stmt = stmt.where(
-                FileConfigDO.create_time.between(req_vo.create_time[0], req_vo.create_time[1])
-            )
+        if req_vo.create_time is not None:
+            start_time, end_time = req_vo.create_time
+            stmt = stmt.where(FileConfigDO.create_time.between(start_time, end_time))
         stmt = stmt.order_by(FileConfigDO.id.desc())
         return await self.paginate_query(stmt, req_vo)
 

@@ -4,16 +4,16 @@ from typing import Annotated
 from pydantic import Field
 
 from framework.common.contracts import (
-    SnowflakeIdInput,
+    SnowflakeIdStr,
 )
-from framework.common.schemas import BaseRequestVO
+from framework.common.schemas import BaseVO
 
 
-class NoticeLogMessageVO(BaseRequestVO):
+class NoticeLogMessageVO(BaseVO):
     """管理后台 - 推送日志消息明细 VO"""
 
-    id: Annotated[SnowflakeIdInput, Field(..., description="消息ID")]
-    user_id: Annotated[SnowflakeIdInput, Field(..., description="用户编号")]
+    id: Annotated[SnowflakeIdStr, Field(..., description="消息ID")]
+    user_id: Annotated[SnowflakeIdStr, Field(..., description="用户编号")]
     username: Annotated[str | None, Field(None, description="用户名")]
     nickname: Annotated[str | None, Field(None, description="用户昵称")]
     user_type: Annotated[int, Field(..., description="用户类型")]

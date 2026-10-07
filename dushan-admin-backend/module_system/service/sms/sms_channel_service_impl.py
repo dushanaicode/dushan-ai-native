@@ -12,8 +12,12 @@ from framework.starter_di.public import (
     service,
 )
 from module_system.config.system_settings import SystemSettings
-from module_system.controller.admin.sms.vo.channel.channel_page_req_vo import SmsChannelPageReqVO
-from module_system.controller.admin.sms.vo.channel.channel_save_req_vo import SmsChannelSaveReqVO
+from module_system.controller.admin.sms.vo.channel.sms_channel_page_req_vo import (
+    SmsChannelPageReqVO,
+)
+from module_system.controller.admin.sms.vo.channel.sms_channel_save_req_vo import (
+    SmsChannelSaveReqVO,
+)
 from module_system.dal.dataobject.sms.sms_channel_do import SmsChannelDO
 from module_system.dal.mapper.sms.sms_channel_mapper import SmsChannelMapper
 from module_system.dal.mapper.sms.sms_template_mapper import SmsTemplateMapper
@@ -39,7 +43,21 @@ class SmsChannelServiceImpl(SmsChannelService):
     async def create_sms_channel(self, create_req_vo: SmsChannelSaveReqVO) -> int:
         if create_req_vo.id is not None:
             raise IllegalArgumentException(msg="新增短信渠道不能指定编号")
-        channel = SmsChannelDO(**create_req_vo.model_dump(by_alias=False))
+        channel = SmsChannelDO(
+            **create_req_vo.to_write_dict(
+                fields={
+                    "id",
+                    "signature",
+                    "code",
+                    "status",
+                    "remark",
+                    "api_key",
+                    "api_secret",
+                    "callback_url",
+                },
+                exclude_unset=False,
+            )
+        )
         await self.sms_channel_mapper.insert(channel)
         return channel.id
 
@@ -49,7 +67,19 @@ class SmsChannelServiceImpl(SmsChannelService):
         channel = await self._validate_sms_channel_exists(update_req_vo.id)
         if channel.code != update_req_vo.code:
             raise ServiceException(ErrorCodeConstants.SMS_CHANNEL_CODE_IMMUTABLE)
-        values = update_req_vo.model_dump(by_alias=False)
+        values = update_req_vo.to_write_dict(
+            fields={
+                "id",
+                "signature",
+                "code",
+                "status",
+                "remark",
+                "api_key",
+                "api_secret",
+                "callback_url",
+            },
+            exclude_unset=False,
+        )
         for field in ("api_key", "api_secret"):
             if values[field] is None:
                 values.pop(field)

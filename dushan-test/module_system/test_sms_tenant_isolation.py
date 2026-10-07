@@ -9,7 +9,7 @@ from httpx import URL, ASGITransport, AsyncClient
 from framework.starter_cache.public import CacheHandler
 from framework.starter_security.public import SecurityRealm, SecurityService
 from framework.starter_web.public import RoutePolicy
-from module_system.dal.cache.cache_key_constants import SystemCacheKeys
+from module_system.dal.cache.system_cache_key_constants import SystemCacheKeyConstants
 from module_system.definitions.constants.error_code_constants import ErrorCodeConstants
 from module_system.framework.sms.client.providers.aliyun_sms_client import AliyunSmsClient
 from module_system.framework.sms.enums.sms_template_audit_status_enum import (
@@ -123,11 +123,11 @@ async def cached(system_app, row, *, marker=None):
         ):
             cache = application.container.get(CacheHandler)
             if marker is not None:
-                await cache.set(SystemCacheKeys.SMS_TEMPLATE, "marker", marker)
+                await cache.set(SystemCacheKeyConstants.SMS_TEMPLATE, "marker", marker)
             template = await application.container.get(
                 SmsTemplateService
             ).get_sms_template_by_code_from_cache("admin-reset-password")
-            return template, await cache.get(SystemCacheKeys.SMS_TEMPLATE, "marker")
+            return template, await cache.get(SystemCacheKeyConstants.SMS_TEMPLATE, "marker")
 
 
 async def test_template_crud_and_constraints_are_tenant_scoped(system_database, tenants):

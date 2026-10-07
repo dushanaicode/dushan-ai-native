@@ -3,8 +3,8 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from framework.common.page import PageResult
-from module_system.controller.admin.dict.vo.type.type_page_req_vo import DictTypePageReqVO
-from module_system.controller.admin.dict.vo.type.type_save_req_vo import DictTypeSaveReqVO
+from module_system.controller.admin.dict.vo.type.dict_type_page_req_vo import DictTypePageReqVO
+from module_system.controller.admin.dict.vo.type.dict_type_save_req_vo import DictTypeSaveReqVO
 from module_system.dal.dataobject.dict.dict_type_do import DictTypeDO
 
 

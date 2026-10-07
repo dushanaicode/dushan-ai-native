@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 from framework.common.enums.component_type_enum import ComponentTypeEnum
 from framework.starter_web.starter.web_starter import WebStarter
+from server.routing.module_router_loader import ModuleRouterLoader
 
 
 class WebStep:
@@ -19,6 +20,7 @@ class WebStep:
                 ),
                 application=definitions.application_context,
                 configuration=definitions.configuration,
+                routers=ModuleRouterLoader.registrations(definitions.modules),
             )
             yield
         finally:

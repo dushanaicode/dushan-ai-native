@@ -161,7 +161,9 @@ async def test_cache_corruption_distinguished(captcha, corruption):
 
 async def test_cache_failure_propagates_without_success(captcha, monkeypatch):
     async def broken(*args, **kwargs):
-        raise CacheException(CacheErrorCodes.OPERATION_FAILED, msg="private-answer-and-verification")
+        raise CacheException(
+            CacheErrorCodes.OPERATION_FAILED, msg="private-answer-and-verification"
+        )
 
     monkeypatch.setattr(CacheHandler, "eval_atomic", broken)
     with pytest.raises(CaptchaException) as error:
@@ -171,7 +173,8 @@ async def test_cache_failure_propagates_without_success(captcha, monkeypatch):
 
 
 async def test_global_generation_counter_atomic(captcha_app):
-    app = await captcha_app(generation_limit=3, generation_window_seconds=1)
+    # 窗口须覆盖 50 个并发预留的完成时间，否则负载较高时窗口过期会让计数重置。
+    app = await captcha_app(generation_limit=3, generation_window_seconds=10)
     with app.state.application_context.execution():
         store = app.state.captcha.store
         results = await asyncio.gather(
@@ -181,7 +184,7 @@ async def test_global_generation_counter_atomic(captcha_app):
         key = store.cache.build_full_key(store.key, "generation")
         client = store.cache.get_client(store.key)
         assert await client.get(key) == "3"
-        assert 0 < await client.pttl(key) <= 1000
+        assert 0 < await client.pttl(key) <= 10000
         await client.pexpire(key, 20)
         await asyncio.sleep(0.05)
         await store.reserve_generation()

@@ -1,6 +1,6 @@
 from framework.starter_web.banner.banner_application_runner import BannerApplicationRunner
 from framework.starter_web.banner.banner_runtime_info import BannerRuntimeInfo
-from server.bootstrap.context import AppBootstrapContext
+from server.bootstrap.app_bootstrap_context import AppBootstrapContext
 
 
 class BannerStep:

@@ -12,8 +12,8 @@ from framework.starter_di.public import (
     Inject,
     service,
 )
-from module_system.controller.admin.dict.vo.type.type_page_req_vo import DictTypePageReqVO
-from module_system.controller.admin.dict.vo.type.type_save_req_vo import DictTypeSaveReqVO
+from module_system.controller.admin.dict.vo.type.dict_type_page_req_vo import DictTypePageReqVO
+from module_system.controller.admin.dict.vo.type.dict_type_save_req_vo import DictTypeSaveReqVO
 from module_system.dal.dataobject.dict.dict_type_do import DictTypeDO
 from module_system.dal.mapper.dict.dict_data_mapper import DictDataMapper
 from module_system.dal.mapper.dict.dict_type_mapper import DictTypeMapper
@@ -45,7 +45,11 @@ class DictTypeServiceImpl(DictTypeService):
     async def create_dict_type(self, create_req_vo: DictTypeSaveReqVO) -> int:
         await self._validate_name_unique(None, create_req_vo.name)
         await self._validate_type_unique(None, create_req_vo.type)
-        dict_type = DictTypeDO(**create_req_vo.model_dump(by_alias=False))
+        dict_type = DictTypeDO(
+            **create_req_vo.to_write_dict(
+                fields={"id", "name", "type", "status", "remark"}, exclude_unset=False
+            )
+        )
         await self.dict_type_mapper.insert(dict_type)
         return dict_type.id
 
@@ -55,7 +59,11 @@ class DictTypeServiceImpl(DictTypeService):
         await self._validate_exists(update_req_vo.id)
         await self._validate_name_unique(update_req_vo.id, update_req_vo.name)
         await self._validate_type_unique(update_req_vo.id, update_req_vo.type)
-        update_obj = DictTypeDO(**update_req_vo.model_dump(by_alias=False))
+        update_obj = DictTypeDO(
+            **update_req_vo.to_write_dict(
+                fields={"id", "name", "type", "status", "remark"}, exclude_unset=False
+            )
+        )
         await self.dict_type_mapper.update_by_id(update_obj)
 
     @override
@@ -113,10 +121,8 @@ class DictTypeServiceImpl(DictTypeService):
         if id is None or dict_type.id != id:
             raise ServiceException(ErrorCodeConstants.DICT_TYPE_TYPE_DUPLICATE)
 
-    async def _validate_exists(self, id: int | None) -> DictTypeDO | None:
+    async def _validate_exists(self, id: int) -> DictTypeDO:
         """校验字典类型是否存在，存在时返回"""
-        if id is None:
-            return None
         dict_type = await self.dict_type_mapper.select_by_id(id)
         if dict_type is None:
             raise ServiceException(ErrorCodeConstants.DICT_TYPE_NOT_EXISTS)

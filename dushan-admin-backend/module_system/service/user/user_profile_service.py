@@ -9,7 +9,7 @@ from framework.starter_security.public import (
 from module_system.controller.admin.user.vo.profile.profile_online_device_vo import (
     ProfileOnlineDeviceVO,
 )
-from module_system.controller.admin.user.vo.profile.profile_update_req_vo import (
+from module_system.controller.admin.user.vo.profile.user_profile_update_req_vo import (
     UserProfileUpdateReqVO,
 )
 from module_system.dal.dataobject.user.admin_user_profile_do import AdminUserProfileDO

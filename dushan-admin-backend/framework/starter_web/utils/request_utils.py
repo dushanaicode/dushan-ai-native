@@ -1,10 +1,9 @@
 from collections.abc import Mapping
-from types import UnionType
-from typing import TypeVar, Union, get_args, get_origin
+from typing import TypeVar
 
 from fastapi import Request
 from fastapi.exceptions import RequestValidationError
-from pydantic import AliasChoices, BaseModel, ValidationError
+from pydantic import BaseModel, ValidationError
 
 Model = TypeVar("Model", bound=BaseModel)
 type QueryParams = dict[str, str | list[str]]
@@ -53,37 +52,6 @@ class RequestUtils:
         """校验显式索引映射后的模型并保留查询参数位置。"""
         return RequestUtils._validate(
             RequestUtils.process_multi_params(request, param_mapping), model_class
-        )
-
-    @classmethod
-    def validate_with_auto_list_params(cls, request: Request, model_class: type[Model]) -> Model:
-        """将列表字段的单个查询值也包装成列表；字段别名以模型声明为准。"""
-        params = cls.get_query_params(request)
-        for name, field in model_class.model_fields.items():
-            if not cls._annotation_contains_list(field.annotation):
-                continue
-            aliases = []
-            alias = field.validation_alias
-            if isinstance(alias, str):
-                aliases.append(alias)
-            elif isinstance(alias, AliasChoices):
-                aliases.extend(choice for choice in alias.choices if isinstance(choice, str))
-            if alias is None or model_class.model_config.get("validate_by_name", False):
-                aliases.append(name)
-            for accepted_name in aliases:
-                if accepted_name in params and isinstance(params[accepted_name], str):
-                    params[accepted_name] = [params[accepted_name]]
-        return cls._validate(params, model_class)
-
-    @staticmethod
-    def _annotation_contains_list(annotation: object) -> bool:
-        """识别直接列表以及显式联合类型中的列表成员。"""
-        origin = get_origin(annotation)
-        return (
-            annotation is list
-            or origin is list
-            or origin in (UnionType, Union)
-            and any(get_origin(member) is list or member is list for member in get_args(annotation))
         )
 
     @staticmethod

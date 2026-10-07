@@ -1,8 +1,11 @@
+from typing import override
+
 from framework.starter_di.public import (
     Inject,
     service,
 )
 from framework.starter_security.public import (
+    WorkloadIdentity,
     WorkloadProvider,
 )
 from module_system.service.workload.system_workload_service import SystemWorkloadService
@@ -12,6 +15,7 @@ from module_system.service.workload.system_workload_service import SystemWorkloa
 class SystemWorkloadProvider(WorkloadProvider):
     delegate: SystemWorkloadService = Inject()
 
+    @override
     async def authenticate(
         self,
         source: str,
@@ -20,7 +24,7 @@ class SystemWorkloadProvider(WorkloadProvider):
         domain: str,
         capability: str,
         tenant_id: str | None,
-    ):
+    ) -> WorkloadIdentity:
         return await self.delegate.authenticate(
             source,
             application_id=application_id,

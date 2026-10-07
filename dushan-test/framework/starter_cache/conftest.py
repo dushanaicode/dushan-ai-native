@@ -48,9 +48,11 @@ def module_values(key_module):
 @pytest.fixture
 async def cache_app(config_dir, module_values, key_module):
     """启动一个接入真实 Redis 的完整应用。"""
-    from server.starter_server import create_app
+    from server.starter_server import StarterServer
 
-    app = create_app(base_dir=config_dir(app_values(redis_values(), **module_values)), environ={})
+    app = StarterServer.create_app(
+        base_dir=config_dir(app_values(redis_values(), **module_values)), environ={}
+    )
     async with app.router.lifespan_context(app):
         yield app, key_module
 

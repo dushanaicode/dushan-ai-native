@@ -1,10 +1,12 @@
 param(
     [Parameter(Mandatory = $true)][string]$TargetsFile,
-    [string]$Python = (Join-Path $PSScriptRoot '.venv/Scripts/python.exe')
+    [string]$Python,
+    [string]$TempRoot = (Join-Path (Get-Location).Path 'Temp\database-tests')
 )
 
 $ErrorActionPreference = 'Stop'
-$runRoot = Join-Path (Get-Location).Path ('Temp\database-tests\' + (Get-Date -Format 'yyyyMMdd-HHmmssfff'))
+if (-not $Python) { $Python = Join-Path $PSScriptRoot '.venv/Scripts/python.exe' }
+$runRoot = Join-Path ([System.IO.Path]::GetFullPath($TempRoot)) (Get-Date -Format 'yyyyMMdd-HHmmssfff')
 New-Item -ItemType Directory -Path $runRoot -Force | Out-Null
 $targets = [System.IO.File]::ReadAllText((Resolve-Path -LiteralPath $TargetsFile).Path)
 $null = ConvertFrom-Json -InputObject $targets

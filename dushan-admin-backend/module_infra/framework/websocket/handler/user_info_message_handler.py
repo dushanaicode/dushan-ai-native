@@ -1,4 +1,3 @@
-from framework.common.utils import StrUtils
 from framework.starter_di.public import (
     Inject,
 )
@@ -16,6 +15,7 @@ from framework.starter_websocket.public import (
 from module_infra.framework.websocket.handler.system_message_handler_base import (
     SystemMessageHandlerBase,
 )
+from module_infra.framework.websocket.handler.user_info_resp_vo import UserInfoRespVO
 from module_infra.framework.websocket.infra_socket_request import InfraSocketRequest
 from module_system.api.user.admin_user_api import AdminUserApi
 
@@ -34,9 +34,6 @@ class UserInfoMessageHandler(SystemMessageHandlerBase):
     response_type = "get-user-info-response"
 
     async def process_message(self):
+        """读取当前用户并按消息响应模型输出。"""
         user = await self.service.get_user(int(self.security.require().account_id))
-        values = user.model_dump(mode="json", by_alias=False)
-        values["id"] = str(user.id)
-        values["dept_id"] = None if user.dept_id is None else str(user.dept_id)
-        values["post_ids"] = [str(identifier) for identifier in user.post_ids]
-        return StrUtils.deep_transform_keys(values, StrUtils.to_camel_case)
+        return UserInfoRespVO.model_validate(user).to_response()

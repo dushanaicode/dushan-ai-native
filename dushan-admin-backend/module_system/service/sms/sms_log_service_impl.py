@@ -13,7 +13,7 @@ from framework.starter_di.public import (
     service,
 )
 from framework.starter_security.public import SecurityErrorCodes, SecurityException
-from module_system.controller.admin.sms.vo.log.log_page_req_vo import SmsLogPageReqVO
+from module_system.controller.admin.sms.vo.log.sms_log_page_req_vo import SmsLogPageReqVO
 from module_system.dal.dataobject.sms.sms_log_do import SmsLogDO
 from module_system.dal.mapper.sms.sms_log_mapper import SmsLogMapper
 from module_system.definitions.enums.sms.sms_receive_status_enum import SmsReceiveStatusEnum

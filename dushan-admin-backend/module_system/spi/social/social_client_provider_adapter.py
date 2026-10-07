@@ -1,4 +1,5 @@
 from datetime import timezone
+from typing import override
 
 from pydantic import SecretStr, ValidationError
 
@@ -31,7 +32,8 @@ class SocialClientProviderAdapter(AuthClientProvider):
     mapper: SocialClientMapper = Inject()
     settings: SecuritySettings = Inject()
 
-    async def get_client(self, application_id: str, source: str):
+    @override
+    async def get_client(self, application_id: str, source: str) -> AuthClientConfig | None:
         applications = {
             f"{self.settings.application_id}-admin": UserTypeEnum.ADMIN.code,
             f"{self.settings.application_id}-member": UserTypeEnum.MEMBER.code,

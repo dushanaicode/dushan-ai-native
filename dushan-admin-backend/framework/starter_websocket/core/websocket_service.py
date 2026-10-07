@@ -27,15 +27,14 @@ class WebSocketService:
             raise WebSocketException(WebSocketErrorCodes.CLOSED)
         return self.runtime
 
-    async def _authorize(self, target):
+    async def _authorize(self, target, *, sending: bool):
         runtime = self.require_runtime()
         audience = runtime.registry.audience(target.audience)
         identity = runtime.security.context.current()
         workload = runtime.security.context.current_workload()
         if identity is not None:
-            if "send" not in await runtime.security.allowed_policies(
-                {"send": audience.send_policy}
-            ):
+            policy = audience.send_policy if sending else audience.policy
+            if "access" not in await runtime.security.allowed_policies({"access": policy}):
                 raise WebSocketException(WebSocketErrorCodes.POLICY)
             if target.kind is SocketTargetKind.AUDIENCE or target.tenant_id != identity.tenant_id:
                 raise WebSocketException(WebSocketErrorCodes.POLICY)
@@ -55,7 +54,7 @@ class WebSocketService:
         return runtime, identity
 
     async def send(self, target, message):
-        runtime, identity = await self._authorize(target)
+        runtime, identity = await self._authorize(target, sending=True)
         value = runtime.registry.event_payload(target.audience, message.type, message.payload)
         sender = None if identity is None else identity.membership_id
         if message.sender_id is not None and message.sender_id != sender:
@@ -88,7 +87,7 @@ class WebSocketService:
         return SocketReceipt("redis", await runtime.transport.publish(envelope))
 
     async def online(self, target):
-        runtime, _ = await self._authorize(target)
+        runtime, _ = await self._authorize(target, sending=False)
         if runtime.online is None:
             return tuple(
                 connection.information

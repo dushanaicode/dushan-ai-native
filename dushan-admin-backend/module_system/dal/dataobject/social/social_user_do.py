@@ -1,4 +1,4 @@
-from sqlalchemy import Computed, Index, SmallInteger, String, Text, UniqueConstraint
+from sqlalchemy import Index, SmallInteger, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from framework.starter_tenant.public import (
@@ -54,7 +54,7 @@ class SocialUserDO(TenantBaseDO):
 
     active_key: Mapped[int | None] = mapped_column(
         SmallInteger,
-        Computed("CASE WHEN deleted = 0 THEN 1 ELSE NULL END"),
+        TenantBaseDO.active_key_computed(),
         comment="仅有效记录参与业务唯一约束",
     )
 

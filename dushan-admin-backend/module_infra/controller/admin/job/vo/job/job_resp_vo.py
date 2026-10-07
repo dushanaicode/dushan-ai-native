@@ -36,6 +36,7 @@ class JobRespVO(BaseVO):
         str, Field(..., description="CRON 表达式"), ExcelColumn(title="CRON 表达式")
     ]
     retry_count: Annotated[int, Field(..., description="重试次数")]
+    fan_out: Annotated[bool, Field(..., description="是否对每个有效租户分别执行")]
     retry_interval: Annotated[int, Field(..., description="重试间隔")]
     monitor_timeout: Annotated[
         int | None,
@@ -54,6 +55,7 @@ class JobRespVO(BaseVO):
                     "status": 0,
                     "handlerName": "sysUserSessionTimeoutJob",
                     "handlerParam": "dushan",
+                    "fanOut": False,
                     "cronExpression": "0/10 * * * * *",
                     "retryCount": 3,
                     "retryInterval": 1000,

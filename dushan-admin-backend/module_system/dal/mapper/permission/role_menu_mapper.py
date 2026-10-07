@@ -33,12 +33,16 @@ class RoleMenuMapper(BaseMapper[RoleMenuDO]):
         result = await self.read(stmt)
         return list(result.scalars().all())
 
-    async def delete_list_by_role_id_and_menu_ids(
-        self, role_id: int, menu_ids: Collection[int]
-    ) -> None:
-        await self.soft_delete_by_condition(
-            RoleMenuDO.role_id == role_id, RoleMenuDO.menu_id.in_(menu_ids)
+    async def sync_menu_ids(self, role_id: int, current: set[int], wanted: set[int]) -> bool:
+        """在调用方事务内按差量同步角色菜单，返回关系是否变化。"""
+        if removed := current - wanted:
+            await self.soft_delete_by_condition(
+                RoleMenuDO.role_id == role_id, RoleMenuDO.menu_id.in_(removed)
+            )
+        await self.insert_batch(
+            [RoleMenuDO(role_id=role_id, menu_id=menu_id) for menu_id in wanted - current]
         )
+        return current != wanted
 
     async def delete_list_by_menu_id(self, menu_id: int) -> None:
         await self.soft_delete_by_condition(RoleMenuDO.menu_id == menu_id)

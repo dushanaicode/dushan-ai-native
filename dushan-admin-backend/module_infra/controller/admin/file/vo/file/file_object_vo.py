@@ -2,10 +2,11 @@ from typing import Annotated
 
 from pydantic import Field
 
-from framework.common.schemas import BaseRequestVO
+from framework.common.schemas import BaseVO
+from module_infra.definitions.enums.file.file_visibility_enum import FileVisibilityEnum
 
 
-class FileObjectVO(BaseRequestVO):
+class FileObjectVO(BaseVO):
     """文件/目录对象信息"""
 
     key: Annotated[str, Field(..., description="完整路径 key")]
@@ -15,3 +16,7 @@ class FileObjectVO(BaseRequestVO):
     type: Annotated[str | None, Field(default=None, description="MIME 类型")]
     is_directory: Annotated[bool, Field(default=False, description="是否为目录")]
     url: Annotated[str | None, Field(default=None, description="访问地址（文件才有）")]
+    visibility: Annotated[
+        FileVisibilityEnum | None,
+        Field(default=None, description="可见性（目录和未登记对象为 None）"),
+    ]

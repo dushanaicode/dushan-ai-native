@@ -3,10 +3,10 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from framework.common.page import PageResult
-from module_system.controller.admin.tenant.vo.packages.packages_package_page_req_vo import (
+from module_system.controller.admin.tenant.vo.package.tenant_package_page_req_vo import (
     TenantPackagePageReqVO,
 )
-from module_system.controller.admin.tenant.vo.packages.packages_package_save_req_vo import (
+from module_system.controller.admin.tenant.vo.package.tenant_package_save_req_vo import (
     TenantPackageSaveReqVO,
 )
 from module_system.dal.cache.tenant.dto.tenant_package_cache_dto import TenantPackageCacheDTO

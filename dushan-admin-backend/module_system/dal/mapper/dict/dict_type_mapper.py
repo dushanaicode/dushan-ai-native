@@ -14,7 +14,7 @@ from framework.starter_database.public import (
 from framework.starter_di.public import (
     mapper,
 )
-from module_system.controller.admin.dict.vo.type.type_page_req_vo import DictTypePageReqVO
+from module_system.controller.admin.dict.vo.type.dict_type_page_req_vo import DictTypePageReqVO
 from module_system.dal.dataobject.dict.dict_type_do import DictTypeDO
 
 
@@ -27,16 +27,15 @@ class DictTypeMapper(BaseMapper[DictTypeDO]):
         stmt = select(DictTypeDO)
         if req_vo.name:
             escaped = StrUtils.escape_like(req_vo.name)
-            stmt = stmt.where(DictTypeDO.name.ilike(f"%{escaped}%"))
+            stmt = stmt.where(DictTypeDO.name.ilike(f"%{escaped}%", escape="\\"))
         if req_vo.type:
             escaped_type = StrUtils.escape_like(req_vo.type)
-            stmt = stmt.where(DictTypeDO.type.ilike(f"%{escaped_type}%"))
+            stmt = stmt.where(DictTypeDO.type.ilike(f"%{escaped_type}%", escape="\\"))
         if req_vo.status is not None:
             stmt = stmt.where(DictTypeDO.status == req_vo.status)
-        if req_vo.create_time and len(req_vo.create_time) >= 2:
-            stmt = stmt.where(
-                DictTypeDO.create_time.between(req_vo.create_time[0], req_vo.create_time[1])
-            )
+        if req_vo.create_time is not None:
+            start_time, end_time = req_vo.create_time
+            stmt = stmt.where(DictTypeDO.create_time.between(start_time, end_time))
         stmt = stmt.order_by(DictTypeDO.id.desc())
         return await self.paginate_query(stmt, req_vo)
 

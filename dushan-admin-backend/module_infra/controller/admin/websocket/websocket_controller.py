@@ -19,7 +19,7 @@ from module_infra.controller.admin.websocket.vo.websocket_send_to_user_req_vo im
 )
 from module_infra.service.websocket.websocket_service import WebSocketService
 
-websocket_controller_router = APIRouter(prefix="/websocket")
+websocket_controller_router = APIRouter(prefix="/websocket", tags=["Infra - WebSocket 管理"])
 
 
 class WebsocketController:

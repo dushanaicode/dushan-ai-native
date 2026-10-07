@@ -12,7 +12,7 @@ from framework.common.exception.constants.global_error_code_constants import (
 from framework.common.exception.core.error_code import ErrorCode
 from framework.common.exception.core.error_details import ErrorDetails
 from framework.common.exception.core.exception_translator import ExceptionTranslator
-from framework.starter_web.exception.response_builder import ExceptionResponseBuilder
+from framework.starter_web.exception.exception_response_builder import ExceptionResponseBuilder
 from framework.starter_web.response.response_headers import ResponseHeaders
 
 
@@ -78,9 +78,8 @@ class MiddlewareResult:
             GlobalErrorCodeConstants.INTERNAL_SERVER_ERROR if error_code is None else error_code
         )
         response_headers = ResponseHeaders.with_language(
-            headers, translated=self.translator is not None
+            ResponseHeaders.with_no_store(headers), translated=self.translator is not None
         )
-        response_headers["cache-control"] = "no-store"
         return JSONResponse(
             status_code=200,
             content=self.build_error_content(

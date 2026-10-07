@@ -3,7 +3,6 @@ from datetime import datetime
 from sqlalchemy import (
     JSON,
     Boolean,
-    Computed,
     DateTime,
     Float,
     Integer,
@@ -48,7 +47,7 @@ class JobDO(GlobalControlDO):
 
     active_key: Mapped[int | None] = mapped_column(
         SmallInteger,
-        Computed("CASE WHEN deleted = 0 THEN 1 ELSE NULL END"),
+        GlobalControlDO.active_key_computed(),
         comment="仅有效记录参与业务唯一约束",
     )
 

@@ -3,8 +3,8 @@ from __future__ import annotations
 from botocore.client import BaseClient
 
 from module_infra.framework.file.core.client.s3.aliyun.aliyun_oss_helper import AliyunOssHelper
-from module_infra.framework.file.core.client.s3.hwclouds.hwclouds_obs_helper import HuaweiObsHelper
-from module_infra.framework.file.core.client.s3.myqcloud.myqcloud_cos_helper import TencentCosHelper
+from module_infra.framework.file.core.client.s3.hwclouds.huawei_obs_helper import HuaweiObsHelper
+from module_infra.framework.file.core.client.s3.myqcloud.tencent_cos_helper import TencentCosHelper
 from module_infra.framework.file.core.client.s3.s3_file_client_config import (
     ENDPOINT_ALIYUN,
     ENDPOINT_HUAWEI,
@@ -14,8 +14,8 @@ from module_infra.framework.file.core.client.s3.s3_file_client_config import (
     ENDPOINT_VOLCES,
     S3FileClientConfig,
 )
-from module_infra.framework.file.core.client.s3.s3_standard_s3_helper import StandardS3Helper
-from module_infra.framework.file.core.client.s3.volces.volces_tos_helper import VolcanoTosHelper
+from module_infra.framework.file.core.client.s3.standard_s3_helper import StandardS3Helper
+from module_infra.framework.file.core.client.s3.volces.volcano_tos_helper import VolcanoTosHelper
 
 
 class S3ServiceFactory:

@@ -67,6 +67,36 @@ def test_timestamp_precision_and_maximum_calendar_boundary():
         assert ranges[-1][1] == end
 
 
+@pytest.mark.parametrize(
+    "microseconds", [-62_135_596_800_000_000, -1, 0, 1, 253_402_300_799_999_999]
+)
+def test_microsecond_timestamp_roundtrip_keeps_full_calendar_precision(microseconds):
+    """整数微秒在纪元两侧及日期边界往返时不经过浮点舍入。"""
+    helper = dates(timezone="UTC")
+    restored = helper.from_timestamp_micros(microseconds)
+    assert helper.to_timestamp_micros(restored) == microseconds
+
+
+def test_microsecond_timestamp_uses_the_configured_timezone_for_naive_input():
+    """相同瞬间的 UTC、带偏移与本地无时区表示得到相同微秒数。"""
+    helper = dates(timezone="Asia/Shanghai")
+    local = datetime(1969, 12, 31, 23, 59, 59, 999999)
+    utc = datetime(1969, 12, 31, 15, 59, 59, 999999, tzinfo=UTC)
+    expected = -28_800_000_001
+    assert helper.to_timestamp_micros(local) == expected
+    assert helper.to_timestamp_micros(helper.localize(local)) == expected
+    assert helper.to_timestamp_micros(utc) == expected
+    assert helper.from_timestamp_micros(expected) == helper.localize(local)
+    assert helper.from_timestamp_micros(expected).tzinfo is helper.get_timezone()
+
+
+@pytest.mark.parametrize("value", [True, 1.0, "1"])
+def test_microsecond_timestamp_rejects_noninteger_input(value):
+    """微秒输入保持与毫秒入口一致的整数边界。"""
+    with pytest.raises(TypeError, match="整数"):
+        dates(timezone="UTC").from_timestamp_micros(value)
+
+
 @pytest.mark.parametrize("value", [datetime(2024, 3, 10, 2, 30), datetime(2024, 11, 3, 1, 30)])
 def test_dst_naive_gaps_and_ambiguity_require_explicit_offset(value):
     with pytest.raises(ValueError, match="DST"):

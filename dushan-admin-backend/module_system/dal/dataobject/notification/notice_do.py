@@ -31,10 +31,10 @@ class NoticeDO(TenantBaseDO):
     channels: Mapped[list] = mapped_column(
         JSON, nullable=False, comment="通知渠道,参见 NotificationChannelEnum"
     )
-    sms_template_code: Mapped[str] = mapped_column(
+    sms_template_code: Mapped[str | None] = mapped_column(
         String(63), nullable=True, default=None, comment="短信模板编码,选择SMS渠道时必填"
     )
-    mail_account_id: Mapped[int] = mapped_column(
+    mail_account_id: Mapped[int | None] = mapped_column(
         BigInteger, nullable=True, default=None, comment="邮箱账号编号,选择MAIL渠道时必填"
     )
     publisher: Mapped[str] = mapped_column(String(64), nullable=False, comment="发布人")

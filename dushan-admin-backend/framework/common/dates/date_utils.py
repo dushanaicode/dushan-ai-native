@@ -195,6 +195,19 @@ class DateUtils:
         """将时间转换为配置时区的日历日期。"""
         return None if value is None else self.to_timezone(value).date()
 
+    def to_timestamp_micros(self, value: datetime) -> int:
+        """精确转换为 Unix 整数微秒，naive 输入按配置时区解释。"""
+        delta = self.to_utc(value) - datetime(1970, 1, 1, tzinfo=UTC)
+        return (delta.days * 86_400 + delta.seconds) * 1_000_000 + delta.microseconds
+
+    def from_timestamp_micros(self, value: int) -> datetime:
+        """将整数微秒时间戳精确还原为配置时区的时间。"""
+        if type(value) is not int:
+            raise TypeError("微秒时间戳必须是整数")
+        return (datetime(1970, 1, 1, tzinfo=UTC) + timedelta(microseconds=value)).astimezone(
+            self._timezone
+        )
+
     def to_timestamp_millis(self, value: datetime | None) -> int | None:
         """转换为 Unix 毫秒，naive 输入按配置时区解释。"""
         if value is None:

@@ -14,10 +14,14 @@ from framework.starter_data_permission.exception.data_permission_exception impor
 )
 from framework.starter_security.exception.security_exception import SecurityException
 from framework.starter_security.model.workload_identity import WorkloadIdentity
-from server.starter_server import create_app
+from server.starter_server import StarterServer
 
 
 class Exemptions:
+    async def workload_resources(self, identity, capability):
+        """当前替身仅支持显式维护豁免。"""
+        return {}
+
     async def authorize(self, identity, resource, operation, reason):
         return reason == "approved-maintenance" and identity.tenant_id == "t1"
 
@@ -61,7 +65,9 @@ async def test_parallel_subjects_applications_and_stale_tasks(permission_case, c
             return await case.ids()
 
     assert await asyncio.gather(*(read(token) for token in credentials)) == [[1], [2], [5]]
-    other = create_app(base_dir=config_dir({"banner": {"enabled": False}}), environ={})
+    other = StarterServer.create_app(
+        base_dir=config_dir({"banner": {"enabled": False}}), environ={}
+    )
     async with other.router.lifespan_context(other):
         async with case.enter():
             with other.state.application_context.execution():

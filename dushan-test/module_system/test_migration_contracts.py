@@ -598,7 +598,7 @@ MODELS = [
         "PostDO",
         ["code", "name", "sort", "status", "remark"],
     ),
-    ("module_system.dal.dataobject.dept.dept_user_post_do", "UserPostDO", ["user_id", "post_id"]),
+    ("module_system.dal.dataobject.dept.user_post_do", "UserPostDO", ["user_id", "post_id"]),
     (
         "module_system.dal.dataobject.dict.dict_data_do",
         "DictDataDO",
@@ -862,7 +862,7 @@ MODELS = [
         ["role_id", "menu_id"],
     ),
     (
-        "module_system.dal.dataobject.permission.permission_user_role_do",
+        "module_system.dal.dataobject.permission.user_role_do",
         "UserRoleDO",
         ["user_id", "role_id"],
     ),

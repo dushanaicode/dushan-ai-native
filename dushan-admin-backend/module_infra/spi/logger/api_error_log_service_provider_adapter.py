@@ -1,54 +1,47 @@
-import traceback
-from datetime import datetime, timezone
+from typing import override
 
-from framework.common.diagnostics.exception_trace_formatter import ExceptionTraceFormatter
-from framework.common.security import Sanitizer
 from framework.starter_di.public import (
     DiTaskRunner,
     Inject,
-    framework,
-)
-from framework.starter_logging.public import (
-    LogContext,
+    service,
 )
 from framework.starter_security.public import (
     SecuritySettings,
 )
+from framework.starter_web.context.error_log_record import ErrorLogRecord
+from framework.starter_web.spi.error_log_provider import ErrorLogProvider
 from module_infra.service.logger.api_error_log_service import ApiErrorLogService
 from module_infra.spi.logger.dto.api_error_log_create_req_dto import ApiErrorLogCreateReqDTO
 
 
-@framework
-class ApiErrorLogServiceProviderAdapter:
+@service(interface=ErrorLogProvider)
+class ApiErrorLogServiceProviderAdapter(ErrorLogProvider):
     service: ApiErrorLogService = Inject()
     settings: SecuritySettings = Inject()
     tasks: DiTaskRunner = Inject()
 
-    async def write(self, request, error, code, message):
-        context = LogContext.current()
-        frames = traceback.extract_tb(error.__traceback__)
-        frame = frames[-1] if frames else None
+    @override
+    async def write(self, record: ErrorLogRecord) -> None:
+        """将框架错误事实映射为业务日志，并在独立执行域内持久化。"""
         dto = ApiErrorLogCreateReqDTO(
-            user_id=int(context.account_id) if context.account_id is not None else None,
-            user_type=2 if context.account_id is not None else 0,
-            tenant_id=context.tenant_id,
+            user_id=int(record.account_id) if record.account_id is not None else None,
+            user_type=2 if record.account_id is not None else 0,
+            tenant_id=record.tenant_id,
             application_name=self.settings.application_id,
-            request_method=request.method,
-            request_url=request.scope.get("state", {}).get("web_route_template", request.url.path)[
-                :255
-            ],
+            request_method=record.method,
+            request_url=record.route,
             request_params={},
-            user_ip=context.client_ip or "",
-            user_agent=request.headers.get("user-agent", "")[:200],
-            exception_time=datetime.now(timezone.utc).replace(tzinfo=None),
-            exception_name=type(error).__name__,
-            exception_message=Sanitizer.sanitize_text(message)[:512],
+            user_ip=record.client_ip,
+            user_agent=record.user_agent,
+            exception_time=record.exception_time,
+            exception_name=record.exception_name,
+            exception_message=record.exception_message,
             exception_root_cause_message="",
-            exception_stack_trace="".join(ExceptionTraceFormatter.format(error)),
-            exception_class_name=type(error).__module__,
-            exception_file_name=frame.filename[-255:] if frame else "",
-            exception_method_name=frame.name[:255] if frame else "",
-            exception_line_number=frame.lineno if frame else 0,
-            trace_id=context.trace_id or context.request_id or "",
+            exception_stack_trace=record.exception_stack_trace,
+            exception_class_name=record.exception_class_name,
+            exception_file_name=record.exception_file_name,
+            exception_method_name=record.exception_method_name,
+            exception_line_number=record.exception_line_number,
+            trace_id=record.trace_id,
         )
         await self.tasks.run_isolated(self.service.create_api_error_log, dto)

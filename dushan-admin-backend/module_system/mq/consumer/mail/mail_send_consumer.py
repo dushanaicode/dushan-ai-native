@@ -20,7 +20,7 @@ from module_system.service.mail.mail_send_service import MailSendService
 @consumer(
     ConsumerDefinition(
         key="system.mail.send",
-        destination="mail:send",
+        destination=MailSendMessage.stream_key,
         mode=MessageMode.STREAM,
         message=MailSendMessage,
         group="mail-consumers",

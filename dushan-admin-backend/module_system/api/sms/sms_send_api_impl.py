@@ -6,7 +6,7 @@ from framework.starter_di.public import (
     Inject,
     service,
 )
-from module_system.api.sms.dto.send.send_sms_send_single_to_user_req_dto import (
+from module_system.api.sms.dto.send.sms_send_single_to_user_req_dto import (
     SmsSendSingleToUserReqDTO,
 )
 from module_system.api.sms.sms_send_api import SmsSendApi

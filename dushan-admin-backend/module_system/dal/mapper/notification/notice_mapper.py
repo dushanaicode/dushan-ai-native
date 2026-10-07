@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import or_, select
 
 from framework.common.page import PageResult
-from framework.common.utils import StrUtils
+from framework.starter_database.model.json_array_contains import JsonArrayContains
 from framework.starter_database.public import (
     BaseMapper,
 )
@@ -22,27 +22,24 @@ class NoticeMapper(BaseMapper[NoticeDO]):
     async def select_page(self, req_vo: NoticePageReqVO) -> PageResult[NoticeDO]:
         stmt = select(NoticeDO)
         if req_vo.title:
-            escaped = StrUtils.escape_like(req_vo.title)
-            stmt = stmt.where(NoticeDO.title.ilike(f"%{escaped}%"))
+            stmt = stmt.where(NoticeDO.title.icontains(req_vo.title, autoescape=True, escape="\\"))
         if req_vo.type is not None:
             stmt = stmt.where(NoticeDO.type == req_vo.type)
         if req_vo.status is not None:
             stmt = stmt.where(NoticeDO.status == req_vo.status)
         if req_vo.publisher is not None:
-            escaped_pub = StrUtils.escape_like(req_vo.publisher)
-            stmt = stmt.where(NoticeDO.publisher.ilike(f"%{escaped_pub}%"))
-        if req_vo.create_time and len(req_vo.create_time) >= 2:
             stmt = stmt.where(
-                NoticeDO.create_time.between(req_vo.create_time[0], req_vo.create_time[1])
+                NoticeDO.publisher.icontains(req_vo.publisher, autoescape=True, escape="\\")
             )
+        if req_vo.create_time is not None:
+            start_time, end_time = req_vo.create_time
+            stmt = stmt.where(NoticeDO.create_time.between(start_time, end_time))
         if req_vo.user_type is not None:
             stmt = stmt.where(NoticeDO.user_type == req_vo.user_type)
         if req_vo.channels:
-            json_conditions = [
-                func.JSON_CONTAINS(NoticeDO.channels, f'"{ch}"') for ch in req_vo.channels
-            ]
-            if json_conditions:
-                stmt = stmt.where(or_(*json_conditions))
+            stmt = stmt.where(
+                or_(*(JsonArrayContains(NoticeDO.channels, ch) for ch in req_vo.channels))
+            )
         stmt = stmt.order_by(NoticeDO.id.desc())
         return await self.paginate_query(stmt, req_vo)
 

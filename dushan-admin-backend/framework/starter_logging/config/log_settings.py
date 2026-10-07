@@ -1,6 +1,4 @@
-import json
-
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field
 
 from framework.common.enums.log_level_enum import LogLevelEnum
 from framework.starter_logging.definitions.enums.log_file_type_enum import LogFileTypeEnum
@@ -35,19 +33,6 @@ class LogSettings(BaseModel):
     retention_error: str = Field(min_length=1, description="Error 日志保留时间")
 
     model_config = ConfigDict(extra="forbid", frozen=True)
-
-    @field_validator("file_active_types", mode="before")
-    @classmethod
-    def parse_file_active_types(cls, value):
-        """支持 LOG_FILE_ACTIVE_TYPES 的 JSON 数组，例如 ["warning", "error"]。"""
-        if isinstance(value, str):
-            try:
-                value = json.loads(value)
-            except json.JSONDecodeError:
-                raise ValueError("文件日志类型必须是 JSON 数组") from None
-            if not isinstance(value, list):
-                raise ValueError("文件日志类型必须是 JSON 数组")
-        return value
 
     def get_effective_console_level(self) -> LogLevelEnum:
         """获取生效的控制台日志级别。"""

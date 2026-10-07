@@ -7,8 +7,8 @@ import pytest
 from fixtures.public_web_app import create_public_app
 from framework.starter_di.context.application_state_enum import ApplicationStateEnum
 from framework.starter_web.banner.banner_application_runner import BannerApplicationRunner
-from server.bootstrap.bootstrapper import BootstrapError
-from server.bootstrap.step_registry import APP_BOOTSTRAP_STEPS, BootstrapStepSpec
+from server.bootstrap.bootstrap_error import BootstrapError
+from server.bootstrap.bootstrap_step_spec import APP_BOOTSTRAP_STEPS, BootstrapStepSpec
 
 
 async def test_activation_blocks_readiness_banner_and_lifespan_completion(config_dir, monkeypatch):

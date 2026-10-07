@@ -7,8 +7,8 @@ from types import SimpleNamespace
 import pytest
 from loguru import logger
 
-from framework.starter_web.banner import cat_mascot
-from framework.starter_web.banner.cat_mascot import CatMascotTUI
+from framework.starter_web.banner import cat_mascot_tui
+from framework.starter_web.banner.cat_mascot_tui import CatMascotTUI
 
 pytestmark = pytest.mark.unit
 
@@ -29,13 +29,15 @@ class TerminalOutput(io.StringIO):
 def terminal(monkeypatch):
     output = TerminalOutput()
     monkeypatch.setattr(
-        cat_mascot,
+        cat_mascot_tui,
         "sys",
         SimpleNamespace(
-            stdout=output, stdin=cat_mascot.sys.stdin, platform=cat_mascot.sys.platform
+            stdout=output, stdin=cat_mascot_tui.sys.stdin, platform=cat_mascot_tui.sys.platform
         ),
     )
-    monkeypatch.setattr(cat_mascot.shutil, "get_terminal_size", lambda: os.terminal_size((100, 50)))
+    monkeypatch.setattr(
+        cat_mascot_tui.shutil, "get_terminal_size", lambda: os.terminal_size((100, 50))
+    )
     for name in ("PYTEST_CURRENT_TEST", "CI", "NO_COLOR", "TERM"):
         monkeypatch.delenv(name, raising=False)
     return output
@@ -43,7 +45,7 @@ def terminal(monkeypatch):
 
 def test_round_cat_actions_share_a_canvas_and_keep_small_greeting():
     cat = CatMascotTUI()
-    frames = [cat.render_header_frame(action) for action in cat_mascot._SPRITES]
+    frames = [cat.render_header_frame(action) for action in cat_mascot_tui._SPRITES]
     assert {len(frame.splitlines()) for frame in frames} == {12}
     assert {cat.visual_len(line) for frame in frames for line in frame.splitlines()} == {68}
     for frame in frames:
@@ -86,7 +88,7 @@ async def test_complete_card_is_flushed_before_wait_and_redraw_never_touches_it(
     waits = []
     clock = [0.0]
     real_sleep = asyncio.sleep
-    monkeypatch.setattr(cat_mascot, "time", SimpleNamespace(monotonic=lambda: clock[0]))
+    monkeypatch.setattr(cat_mascot_tui, "time", SimpleNamespace(monotonic=lambda: clock[0]))
 
     async def wait(delay):
         assert all(value in terminal.frames[0] for value in content if value != "---")
@@ -94,7 +96,7 @@ async def test_complete_card_is_flushed_before_wait_and_redraw_never_touches_it(
         clock[0] += delay
         await real_sleep(0)
 
-    monkeypatch.setattr(cat_mascot.asyncio, "sleep", wait)
+    monkeypatch.setattr(cat_mascot_tui.asyncio, "sleep", wait)
     await cat.play_and_render_completion(content)
     output = terminal.getvalue()
     assert len(waits) == 100
@@ -152,8 +154,10 @@ async def test_static_modes_do_not_wait_or_move_cursor(terminal, monkeypatch, mo
         monkeypatch.setenv("NO_COLOR", "1")
     elif mode in ("narrow", "short"):
         size = (40, 50) if mode == "narrow" else (100, 15)
-        monkeypatch.setattr(cat_mascot.shutil, "get_terminal_size", lambda: os.terminal_size(size))
-    monkeypatch.setattr(cat_mascot.asyncio, "sleep", lambda _: pytest.fail("静态输出不应等待"))
+        monkeypatch.setattr(
+            cat_mascot_tui.shutil, "get_terminal_size", lambda: os.terminal_size(size)
+        )
+    monkeypatch.setattr(cat_mascot_tui.asyncio, "sleep", lambda _: pytest.fail("静态输出不应等待"))
     await CatMascotTUI().play_and_render_completion(
         ["Swagger：http://localhost/docs"], show_mascot=mode != "hidden"
     )
@@ -170,7 +174,7 @@ async def test_animation_restores_cursor_and_propagates_cancellation(terminal, m
     async def cancel(_):
         raise asyncio.CancelledError
 
-    monkeypatch.setattr(cat_mascot.asyncio, "sleep", cancel)
+    monkeypatch.setattr(cat_mascot_tui.asyncio, "sleep", cancel)
     with pytest.raises(asyncio.CancelledError):
         await CatMascotTUI().play_and_render_completion(["Swagger：http://localhost/docs"])
     assert terminal.getvalue().endswith("\033[u\033[?25h")
@@ -181,10 +185,10 @@ async def test_resize_stops_redrawing_without_losing_the_card(terminal, monkeypa
 
     async def resize(_):
         monkeypatch.setattr(
-            cat_mascot.shutil, "get_terminal_size", lambda: os.terminal_size((40, 12))
+            cat_mascot_tui.shutil, "get_terminal_size", lambda: os.terminal_size((40, 12))
         )
 
-    monkeypatch.setattr(cat_mascot.asyncio, "sleep", resize)
+    monkeypatch.setattr(cat_mascot_tui.asyncio, "sleep", resize)
     await CatMascotTUI().play_and_render_completion(["Swagger：http://localhost/docs"])
     assert terminal.getvalue().count("Swagger：http://localhost/docs") == 1
     assert terminal.getvalue().count("\033[s") == 1
@@ -211,7 +215,7 @@ async def test_animation_yields_to_other_tasks(terminal, monkeypatch):
     real_sleep = asyncio.sleep
     clock = [0.0]
     heartbeat = []
-    monkeypatch.setattr(cat_mascot, "time", SimpleNamespace(monotonic=lambda: clock[0]))
+    monkeypatch.setattr(cat_mascot_tui, "time", SimpleNamespace(monotonic=lambda: clock[0]))
 
     async def tick():
         for _ in range(100):
@@ -222,7 +226,7 @@ async def test_animation_yields_to_other_tasks(terminal, monkeypatch):
         clock[0] += delay
         await real_sleep(0)
 
-    monkeypatch.setattr(cat_mascot.asyncio, "sleep", wait)
+    monkeypatch.setattr(cat_mascot_tui.asyncio, "sleep", wait)
     task = asyncio.create_task(tick())
     try:
         await CatMascotTUI().play_and_render_completion(["Swagger：http://localhost/docs"])
@@ -237,7 +241,7 @@ async def test_background_log_stops_animation_before_it_can_overwrite_output(ter
     async def wait(_):
         logger.info("后台任务状态更新")
 
-    monkeypatch.setattr(cat_mascot.asyncio, "sleep", wait)
+    monkeypatch.setattr(cat_mascot_tui.asyncio, "sleep", wait)
     await CatMascotTUI().play_and_render_completion(["Swagger：http://localhost/docs"])
     assert terminal.getvalue().count("\033[s") == 1
     assert terminal.getvalue().count("Swagger：http://localhost/docs") == 1

@@ -5,7 +5,7 @@ from typing import Protocol, runtime_checkable
 from framework.common.page import PageResult
 from module_system.api.logger.dto.operate_log_create_req_dto import OperateLogCreateReqDTO
 from module_system.api.logger.dto.operate_log_page_req_dto import OperateLogPageReqDTO
-from module_system.controller.admin.logger.vo.operatelog.operatelog_operate_log_page_req_vo import (
+from module_system.controller.admin.logger.vo.operate_log.operate_log_page_req_vo import (
     OperateLogPageReqVO,
 )
 from module_system.dal.dataobject.logger.operate_log_do import OperateLogDO

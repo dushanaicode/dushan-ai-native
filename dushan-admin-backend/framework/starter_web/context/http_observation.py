@@ -3,10 +3,12 @@ from typing import ClassVar
 
 from starlette.types import Scope
 
+from framework.starter_logging.context.log_context import LogContext
+
 
 @dataclass(slots=True)
 class HttpObservation:
-    """本次 HTTP 执行的安全计数，不保存正文、头或原始异常。"""
+    """本次 HTTP 的安全计数与日志身份投影，不保存正文、头或原始异常。"""
 
     KEY: ClassVar[str] = "dushan.http_observation"
     status: int | None = None
@@ -17,6 +19,7 @@ class HttpObservation:
     cancelled: bool = False
     failed: bool = False
     failure_recorded: bool = False
+    log_context: LogContext | None = None
 
     @classmethod
     def find(cls, scope: Scope) -> "HttpObservation | None":

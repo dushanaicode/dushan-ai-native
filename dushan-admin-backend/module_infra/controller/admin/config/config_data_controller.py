@@ -1,16 +1,14 @@
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query
 from starlette.responses import StreamingResponse
 
 from framework.common.contracts import SnowflakeIdStr
 from framework.common.exception import ServiceException
-from framework.common.page import PageResult, PageSettings
+from framework.common.page import PageResult
 from framework.common.schemas.request import IdListReqVO, IdReqVO
 from framework.starter_di.public import (
     DiDependency,
 )
 from framework.starter_excel.public import (
-    DictDataProvider,
-    ExcelProviders,
     ExcelWriter,
 )
 from framework.starter_security.public import (
@@ -18,14 +16,16 @@ from framework.starter_security.public import (
 )
 from framework.starter_web.public import (
     FileResult,
-    RequestUtils,
     Result,
     RoutePolicy,
 )
-from module_infra.controller.admin.config.vo.data.data_key_req_vo import ConfigDataKeyReqVO
-from module_infra.controller.admin.config.vo.data.data_page_req_vo import ConfigDataPageReqVO
-from module_infra.controller.admin.config.vo.data.data_resp_vo import ConfigDataRespVO
-from module_infra.controller.admin.config.vo.data.data_save_req_vo import ConfigDataSaveReqVO
+from module_infra.controller.admin.config.vo.data.config_data_export_req_vo import (
+    ConfigDataExportReqVO,
+)
+from module_infra.controller.admin.config.vo.data.config_data_key_req_vo import ConfigDataKeyReqVO
+from module_infra.controller.admin.config.vo.data.config_data_page_req_vo import ConfigDataPageReqVO
+from module_infra.controller.admin.config.vo.data.config_data_resp_vo import ConfigDataRespVO
+from module_infra.controller.admin.config.vo.data.config_data_save_req_vo import ConfigDataSaveReqVO
 from module_infra.definitions.constants.error_code_constants import ErrorCodeConstants
 from module_infra.service.config.config_data_service import ConfigDataService
 
@@ -117,10 +117,9 @@ class ConfigDataController:
         permissions=("infra:config:query",), tenant_required=True, realm=SecurityRealm.TENANT
     )
     async def get_config_page(
-        request: Request,
+        page_req_vo: ConfigDataPageReqVO = Query(),
         config_data_service: ConfigDataService = Depends(DiDependency(ConfigDataService)),
     ) -> Result[PageResult[ConfigDataRespVO]]:
-        page_req_vo = RequestUtils.validate_with_auto_list_params(request, ConfigDataPageReqVO)
         page_result = await config_data_service.get_config_page_with_type_name(page_req_vo)
         return Result.success(data=page_result)
 
@@ -141,25 +140,18 @@ class ConfigDataController:
         permissions=("infra:config:export",), tenant_required=True, realm=SecurityRealm.TENANT
     )
     async def export_config(
-        request: Request,
+        page_req_vo: ConfigDataExportReqVO = Query(),
         config_data_service: ConfigDataService = Depends(DiDependency(ConfigDataService)),
         excel_writer: ExcelWriter = Depends(DiDependency(ExcelWriter)),
-        page_settings: PageSettings = Depends(DiDependency(PageSettings)),
         files: FileResult = Depends(DiDependency(FileResult)),
-        dictionaries: DictDataProvider = Depends(DiDependency(DictDataProvider)),
     ) -> StreamingResponse:
-        excel_providers = ExcelProviders(dictionaries=dictionaries)
-        page_req_vo = RequestUtils.validate_with_auto_list_params(request, ConfigDataPageReqVO)
-        page_req_vo.enable_fetch_all(
-            max_rows=min(excel_writer.settings.max_export_rows, page_settings.fetch_all_max_rows)
-        )
+        excel_writer.prepare_export_query(page_req_vo)
         excel_list = await config_data_service.get_config_list_with_type_name(page_req_vo)
         filename = "参数配置"
         file_data = await excel_writer.write(
             "数据",
             ConfigDataRespVO,
             excel_list,
-            providers=excel_providers,
             fields=page_req_vo.fields,
         )
         return files.excel_stream(file_data, file_name=f"{filename}.xlsx")

@@ -15,8 +15,8 @@ from framework.starter_database.public import (
 from framework.starter_di.public import (
     mapper,
 )
-from module_infra.controller.admin.config.vo.type.type_page_req_vo import ConfigTypePageReqVO
-from module_infra.dal.dataobject.config.config_type_do import InfraConfigTypeDO
+from module_infra.controller.admin.config.vo.type.config_type_page_req_vo import ConfigTypePageReqVO
+from module_infra.dal.dataobject.config.infra_config_type_do import InfraConfigTypeDO
 
 
 @mapper()
@@ -31,16 +31,15 @@ class ConfigTypeMapper(BaseMapper[InfraConfigTypeDO]):
             stmt = stmt.where(InfraConfigTypeDO.module == req_vo.module)
         if req_vo.name:
             escaped = StrUtils.escape_like(req_vo.name)
-            stmt = stmt.where(InfraConfigTypeDO.name.ilike(f"%{escaped}%"))
+            stmt = stmt.where(InfraConfigTypeDO.name.ilike(f"%{escaped}%", escape="\\"))
         if req_vo.code:
             escaped_code = StrUtils.escape_like(req_vo.code)
-            stmt = stmt.where(InfraConfigTypeDO.code.ilike(f"%{escaped_code}%"))
+            stmt = stmt.where(InfraConfigTypeDO.code.ilike(f"%{escaped_code}%", escape="\\"))
         if req_vo.status is not None:
             stmt = stmt.where(InfraConfigTypeDO.status == req_vo.status)
-        if req_vo.create_time and len(req_vo.create_time) >= 2:
-            stmt = stmt.where(
-                InfraConfigTypeDO.create_time.between(req_vo.create_time[0], req_vo.create_time[1])
-            )
+        if req_vo.create_time is not None:
+            start_time, end_time = req_vo.create_time
+            stmt = stmt.where(InfraConfigTypeDO.create_time.between(start_time, end_time))
         return await self.paginate_query(stmt, req_vo)
 
     async def select_by_code(self, code: str) -> InfraConfigTypeDO | None:

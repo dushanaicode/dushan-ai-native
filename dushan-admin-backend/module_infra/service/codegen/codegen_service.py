@@ -6,12 +6,12 @@ from framework.common.page import PageResult
 from module_infra.controller.admin.codegen.vo.codegen_create_list_req_vo import (
     CodegenCreateListReqVO,
 )
-from module_infra.controller.admin.codegen.vo.codegen_database_table_resp_vo import (
-    DatabaseTableRespVO,
-)
 from module_infra.controller.admin.codegen.vo.codegen_preview_resp_vo import CodegenPreviewRespVO
 from module_infra.controller.admin.codegen.vo.codegen_table_page_req_vo import CodegenTablePageReqVO
 from module_infra.controller.admin.codegen.vo.codegen_update_req_vo import CodegenUpdateReqVO
+from module_infra.controller.admin.codegen.vo.database_table_resp_vo import (
+    DatabaseTableRespVO,
+)
 from module_infra.dal.dataobject.codegen.codegen_table_do import CodegenTableDO
 
 
@@ -31,8 +31,8 @@ class CodegenService(Protocol):
         """删除代码生成表"""
         ...
 
-    async def delete_codegen_table_list(self, table_ids: list[int]) -> None:
-        """批量删除代码生成表"""
+    async def delete_codegen_table_list(self, table_ids: list[int]) -> int:
+        """批量删除命中的代码生成表及其列，返回实际删除的表数。"""
         ...
 
     async def get_codegen_table_page(

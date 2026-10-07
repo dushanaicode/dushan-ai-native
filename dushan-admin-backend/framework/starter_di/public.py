@@ -1,5 +1,5 @@
+from framework.starter_di.context.application_context import ApplicationContext
 from framework.starter_di.context.di_task_runner import DiTaskRunner
-from framework.starter_di.context.get_bean import get_bean
 from framework.starter_di.decorators.components import (
     aggregate_mapper,
     component,
@@ -20,6 +20,7 @@ from framework.starter_di.definitions.enums.component_scope_enum import Componen
 from framework.starter_di.exception.di_exception import DiException
 
 __all__ = [
+    "ApplicationContext",
     "ComponentScopeEnum",
     "DiDependency",
     "DiErrorCodes",
@@ -31,7 +32,6 @@ __all__ = [
     "conditional",
     "dao",
     "framework",
-    "get_bean",
     "mapper",
     "post_construct_hook",
     "pre_destroy_hook",

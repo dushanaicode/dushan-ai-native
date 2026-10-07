@@ -1,9 +1,9 @@
 FILES = {
     "__init__.py": "",
-    "module.toml": 'name = "probe"\npackage = "foundation_probe"\nscan_roots = ["."]\ndefinitions = ["probe_settings:ProbeSettings", "probe_service:ProbeService"]\nrequires = ["framework"]\nrequired_message_keys = []\nresource_roots = []\n',
+    "module.toml": 'name = "probe"\npackage = "foundation_probe"\nscan_roots = ["."]\ndefinitions = ["probe_settings:ProbeSettings", "probe_service:ProbeService"]\nrouters = []\nrequires = ["framework"]\nrequired_message_keys = []\nresource_roots = []\n',
     "probe_settings.py": (
         "from framework.starter_config.config.config_model import ConfigModel\n"
-        "from framework.starter_config.decorator.config_decorator import config_model\n"
+        "from framework.starter_config.decorators.config_decorator import config_model\n"
         "@config_model('probe', env_prefix='PROBE_')\n"
         "class ProbeSettings(ConfigModel):\n    label: str\n    values: list[str]\n"
     ),

@@ -1,8 +1,7 @@
 from typing import Protocol, runtime_checkable
 
-from module_infra.api.file.dto.file_create_req_dto import FileCreateReqDTO
-from module_infra.api.file.dto.file_presigned_url_resp_dto import FilePresignedUrlRespDTO
 from module_infra.api.file.dto.file_upload_resp_dto import FileUploadRespDTO
+from module_infra.definitions.enums.file.file_visibility_enum import FileVisibilityEnum
 
 
 @runtime_checkable
@@ -12,6 +11,7 @@ class FileApi(Protocol):
     async def create_file(
         self,
         content: bytes,
+        visibility: FileVisibilityEnum,
         name: str | None = None,
         directory: str | None = None,
         type: str | None = None,
@@ -21,16 +21,6 @@ class FileApi(Protocol):
 
     async def presign_get_url(self, url: str, expiration_seconds: int | None = None) -> str:
         """生成文件预签名地址，用于读取"""
-        ...
-
-    async def get_presigned_upload_url(
-        self, name: str, directory: str | None = None
-    ) -> FilePresignedUrlRespDTO:
-        """获取文件上传的预签名信息"""
-        ...
-
-    async def create_file_record(self, req: FileCreateReqDTO) -> int:
-        """创建文件记录"""
         ...
 
     async def delete_file(self, file_id: int) -> None:
@@ -44,6 +34,7 @@ class FileApi(Protocol):
     async def create_file_with_id(
         self,
         content: bytes,
+        visibility: FileVisibilityEnum,
         name: str | None = None,
         directory: str | None = None,
         type: str | None = None,
@@ -54,6 +45,7 @@ class FileApi(Protocol):
     async def create_file_with_config(
         self,
         content: bytes,
+        visibility: FileVisibilityEnum,
         config_id: int,
         name: str | None = None,
         directory: str | None = None,
@@ -65,6 +57,7 @@ class FileApi(Protocol):
     async def upload_file(
         self,
         content: bytes,
+        visibility: FileVisibilityEnum,
         name: str | None = None,
         directory: str | None = None,
         type: str | None = None,

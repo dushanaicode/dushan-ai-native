@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from framework.common.page import PageResult
-from module_infra.controller.admin.job.vo.log.log_page_req_vo import JobLogPageReqVO
+from module_infra.controller.admin.job.vo.log.job_log_page_req_vo import JobLogPageReqVO
 from module_infra.dal.dataobject.job.job_log_do import JobLogDO
 
 
@@ -20,7 +20,7 @@ class JobLogService(Protocol):
         ...
 
     async def clean_job_log(self, exceed_day: int, delete_limit: int) -> int:
-        """清理指定天数之前的任务日志"""
+        """清理过期任务日志及一批已终结的逐租户台账，返回总删除数。"""
         ...
 
     async def record(self, record): ...

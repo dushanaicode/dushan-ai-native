@@ -2,4 +2,4 @@ from framework.common.schemas import BaseBO
 
 
 class SystemJobParameters(BaseBO):
-    parameter: str | None = None
+    """公告和权限同步任务只接受空参数。"""

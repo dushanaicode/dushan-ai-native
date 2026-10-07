@@ -18,16 +18,20 @@ from framework.starter_security.public import (
 from framework.starter_tenant.public import TenantContext
 from framework.starter_web.public import RequestContext, RoutePolicy
 from module_system.config.qr_login_settings import QrLoginSettings
-from module_system.controller.admin.auth.vo.auth_login_resp_vo import AuthLoginRespVO
-from module_system.controller.admin.auth.vo.auth_qr_create_resp_vo import AuthQrCreateRespVO
-from module_system.controller.admin.auth.vo.auth_qr_scan_resp_vo import AuthQrScanRespVO
-from module_system.controller.admin.auth.vo.auth_qr_status_resp_vo import AuthQrStatusRespVO
-from module_system.dal.cache.cache_key_constants import SystemCacheKeys
+from module_system.controller.admin.auth.vo.auth.auth_login_resp_vo import AuthLoginRespVO
+from module_system.controller.admin.auth.vo.qr_login.auth_qr_create_resp_vo import (
+    AuthQrCreateRespVO,
+)
+from module_system.controller.admin.auth.vo.qr_login.auth_qr_scan_resp_vo import AuthQrScanRespVO
+from module_system.controller.admin.auth.vo.qr_login.auth_qr_status_resp_vo import (
+    AuthQrStatusRespVO,
+)
+from module_system.dal.cache.system_cache_key_constants import SystemCacheKeyConstants
 from module_system.definitions.constants.error_code_constants import ErrorCodeConstants
-from module_system.definitions.constants.qr_login_scripts import QrLoginScripts
-from module_system.definitions.enums.auth.qr_login_status import QrLoginStatus
+from module_system.definitions.constants.qr_login_script_constants import QrLoginScriptConstants
+from module_system.definitions.enums.auth.qr_login_status_enum import QrLoginStatusEnum
 from module_system.service.auth.auth_admin_auth_service import AuthAdminAuthService
-from module_system.service.auth.bo.qr_login_state import QrLoginState
+from module_system.service.auth.bo.qr_login_state_bo import QrLoginStateBO
 from module_system.service.auth.qr_login_service import QrLoginService
 
 
@@ -52,22 +56,22 @@ class QrLoginServiceImpl(QrLoginService):
         self.require_enabled()
         token = secrets.token_urlsafe(32)
         request = RequestContext.current()
-        agent = parse_user_agent(request.connection.headers.get("user-agent", "")[:512])
-        state = QrLoginState(
-            status=QrLoginStatus.WAITING,
+        agent = parse_user_agent(request.user_agent[:512])
+        state = QrLoginStateBO(
+            status=QrLoginStatusEnum.WAITING,
             tenant_id=self.tenant.get_required_tenant_id(),
             binding_digest=self.digest(binding),
             origin=origin,
             code=f"{secrets.randbelow(1000000):06d}",
             browser=f"{agent.browser.family} {agent.browser.version_string} · {agent.os.family}".strip(),
-            ip=request.client_ip or "",
+            ip=request.client_ip_text,
             expires_at=int(time.time() * 1000) + self.settings.expire_seconds * 1000,
             approver=None,
         )
         result = await self.cache.eval_atomic(
-            SystemCacheKeys.QR_LOGIN,
+            SystemCacheKeyConstants.QR_LOGIN,
             (self.digest(token),),
-            QrLoginScripts.CREATE,
+            QrLoginScriptConstants.CREATE,
             (state.model_dump_json(), self.settings.expire_seconds),
         )
         if result != "OK":
@@ -83,13 +87,13 @@ class QrLoginServiceImpl(QrLoginService):
     async def _read(self, token: str):
         self.require_enabled()
         raw = await self.cache.eval_atomic(
-            SystemCacheKeys.QR_LOGIN,
+            SystemCacheKeyConstants.QR_LOGIN,
             (self.digest(token),),
-            QrLoginScripts.READ,
+            QrLoginScriptConstants.READ,
         )
         if raw is None:
             return None
-        return raw, QrLoginState.model_validate_json(raw)
+        return raw, QrLoginStateBO.model_validate_json(raw)
 
     async def _require(self, token: str):
         value = await self._read(token)
@@ -97,14 +101,14 @@ class QrLoginServiceImpl(QrLoginService):
             raise ServiceException(ErrorCodeConstants.AUTH_QR_EXPIRED)
         return value
 
-    def _browser(self, state: QrLoginState, binding: str, origin: str):
+    def _browser(self, state: QrLoginStateBO, binding: str, origin: str):
         if (
             not hmac.compare_digest(state.binding_digest, self.digest(binding))
             or state.origin != origin
         ):
             raise ServiceException(ErrorCodeConstants.AUTH_QR_BROWSER)
 
-    def _phone(self, state: QrLoginState) -> LoginSession:
+    def _phone(self, state: QrLoginStateBO) -> LoginSession:
         identity = self.identity.require()
         if identity.realm is not SecurityRealm.TENANT or identity.tenant_id != state.tenant_id:
             raise ServiceException(ErrorCodeConstants.AUTH_QR_TENANT)
@@ -115,11 +119,11 @@ class QrLoginServiceImpl(QrLoginService):
             raise ServiceException(ErrorCodeConstants.AUTH_QR_CHANGED)
         return identity
 
-    async def _transition(self, token: str, raw: str, state: QrLoginState | None):
+    async def _transition(self, token: str, raw: str, state: QrLoginStateBO | None):
         result = await self.cache.eval_atomic(
-            SystemCacheKeys.QR_LOGIN,
+            SystemCacheKeyConstants.QR_LOGIN,
             (self.digest(token),),
-            QrLoginScripts.TRANSITION,
+            QrLoginScriptConstants.TRANSITION,
             (raw, "consume" if state is None else state.model_dump_json()),
         )
         if result == "expired":
@@ -130,7 +134,7 @@ class QrLoginServiceImpl(QrLoginService):
     async def poll(self, token: str, binding: str, origin: str) -> AuthQrStatusRespVO:
         found = await self._read(token)
         if found is None:
-            return AuthQrStatusRespVO(status=QrLoginStatus.EXPIRED)
+            return AuthQrStatusRespVO(status=QrLoginStatusEnum.EXPIRED)
         _, state = found
         self._browser(state, binding, origin)
         return AuthQrStatusRespVO(status=state.status)
@@ -138,11 +142,11 @@ class QrLoginServiceImpl(QrLoginService):
     async def scan(self, token: str) -> AuthQrScanRespVO:
         raw, state = await self._require(token)
         identity = self._phone(state)
-        if state.status is QrLoginStatus.WAITING:
-            state.status = QrLoginStatus.SCANNED
+        if state.status is QrLoginStatusEnum.WAITING:
+            state.status = QrLoginStatusEnum.SCANNED
             state.approver = identity
             await self._transition(token, raw, state)
-        elif state.status is not QrLoginStatus.SCANNED:
+        elif state.status is not QrLoginStatusEnum.SCANNED:
             raise ServiceException(ErrorCodeConstants.AUTH_QR_CHANGED)
         return AuthQrScanRespVO(
             status=state.status,
@@ -156,9 +160,9 @@ class QrLoginServiceImpl(QrLoginService):
     async def confirm(self, token: str, approve: bool) -> None:
         raw, state = await self._require(token)
         identity = self._phone(state)
-        if state.status is not QrLoginStatus.SCANNED:
+        if state.status is not QrLoginStatusEnum.SCANNED:
             raise ServiceException(ErrorCodeConstants.AUTH_QR_CHANGED)
-        state.status = QrLoginStatus.APPROVED if approve else QrLoginStatus.CANCELLED
+        state.status = QrLoginStatusEnum.APPROVED if approve else QrLoginStatusEnum.CANCELLED
         state.approver = identity
         await self._transition(token, raw, state)
 
@@ -168,15 +172,15 @@ class QrLoginServiceImpl(QrLoginService):
             return
         raw, state = found
         self._browser(state, binding, origin)
-        if state.status is QrLoginStatus.CANCELLED:
+        if state.status is QrLoginStatusEnum.CANCELLED:
             return
-        state.status = QrLoginStatus.CANCELLED
+        state.status = QrLoginStatusEnum.CANCELLED
         await self._transition(token, raw, state)
 
     async def consume(self, token: str, binding: str, origin: str) -> AuthLoginRespVO:
         raw, state = await self._require(token)
         self._browser(state, binding, origin)
-        if state.status is not QrLoginStatus.APPROVED or state.approver is None:
+        if state.status is not QrLoginStatusEnum.APPROVED or state.approver is None:
             raise ServiceException(ErrorCodeConstants.AUTH_QR_CHANGED)
         # 先原子消费，签发中断时要求重新扫码，不能并发签发多个电脑会话。
         await self._transition(token, raw, None)

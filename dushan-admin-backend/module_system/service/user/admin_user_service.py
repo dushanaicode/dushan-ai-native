@@ -3,8 +3,8 @@ from __future__ import annotations
 from typing import Collection, Protocol, runtime_checkable
 
 from framework.common.page import PageResult
-from module_system.controller.admin.auth.vo.auth_register_req_vo import AuthRegisterReqVO
-from module_system.controller.admin.user.vo.profile.profile_update_req_vo import (
+from module_system.controller.admin.auth.vo.auth.auth_register_req_vo import AuthRegisterReqVO
+from module_system.controller.admin.user.vo.profile.user_profile_update_req_vo import (
     UserProfileUpdateReqVO,
 )
 from module_system.controller.admin.user.vo.user.user_import_excel_vo import UserImportExcelVO
@@ -40,6 +40,10 @@ class AdminUserService(Protocol):
     async def get_user_page(self, req_vo: UserPageReqVO) -> PageResult[AdminUserDO]: ...
 
     async def get_user(self, id: int) -> AdminUserDO | None: ...
+
+    async def get_user_list_by_subordinate(self, id: int) -> list[AdminUserDO]:
+        """查询所负责部门及子部门的用户，并排除本人。"""
+        ...
 
     async def get_user_list_by_dept_ids(self, dept_ids: Collection[int]) -> list[AdminUserDO]: ...
 

@@ -1,16 +1,14 @@
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query
 from starlette.responses import StreamingResponse
 
-from framework.common.exception import NotFoundException
-from framework.common.page import PageResult, PageSettings
+from framework.common.exception import ServiceException
+from framework.common.page import PageResult
 from framework.common.schemas.request import IdReqVO
 from framework.common.utils import ConversionUtils
 from framework.starter_di.public import (
     DiDependency,
 )
 from framework.starter_excel.public import (
-    DictDataProvider,
-    ExcelProviders,
     ExcelWriter,
 )
 from framework.starter_security.public import (
@@ -18,13 +16,14 @@ from framework.starter_security.public import (
 )
 from framework.starter_web.public import (
     FileResult,
-    RequestUtils,
     Result,
     RoutePolicy,
 )
-from module_infra.controller.admin.job.vo.log.log_page_req_vo import JobLogPageReqVO
-from module_infra.controller.admin.job.vo.log.log_resp_vo import JobLogRespVO
+from module_infra.controller.admin.job.vo.log.job_log_export_req_vo import JobLogExportReqVO
+from module_infra.controller.admin.job.vo.log.job_log_page_req_vo import JobLogPageReqVO
+from module_infra.controller.admin.job.vo.log.job_log_resp_vo import JobLogRespVO
 from module_infra.dal.dataobject.job.job_log_do import JobLogDO
+from module_infra.definitions.constants.error_code_constants import ErrorCodeConstants
 from module_infra.service.job.job_log_service import JobLogService
 
 job_log_controller = APIRouter(prefix="/job/log", tags=["Infra - 定时任务日志管理"])
@@ -40,7 +39,7 @@ class JobLogController:
     ) -> Result[JobLogRespVO]:
         job_log = await job_log_service.get_job_log(req_vo.id)
         if job_log is None:
-            raise NotFoundException(msg="定时任务日志不存在")
+            raise ServiceException(ErrorCodeConstants.JOB_LOG_NOT_EXISTS)
         job_log_resp = JobLogRespVO.model_validate(job_log)
         return Result.success(data=job_log_resp)
 
@@ -48,9 +47,9 @@ class JobLogController:
     @job_log_controller.get("/page", summary="获得定时任务日志分页")
     @RoutePolicy(permissions=("infra:job:query",), tenant_required=True, realm=SecurityRealm.TENANT)
     async def get_job_log_page(
-        request: Request, job_log_service: JobLogService = Depends(DiDependency(JobLogService))
+        page_req_vo: JobLogPageReqVO = Query(),
+        job_log_service: JobLogService = Depends(DiDependency(JobLogService)),
     ) -> Result[PageResult[JobLogRespVO]]:
-        page_req_vo = RequestUtils.validate_with_auto_list_params(request, JobLogPageReqVO)
         page_result: PageResult[JobLogDO] = await job_log_service.get_job_log_page(page_req_vo)
         resp_vo: PageResult[JobLogRespVO] = page_result.convert(JobLogRespVO)
         return Result.success(data=resp_vo)
@@ -72,25 +71,18 @@ class JobLogController:
         permissions=("infra:job:export",), tenant_required=True, realm=SecurityRealm.TENANT
     )
     async def export_job_log_excel(
-        request: Request,
+        page_req_vo: JobLogExportReqVO = Query(),
         job_log_service: JobLogService = Depends(DiDependency(JobLogService)),
-        fields: list[str] = Query(None, description="导出的字段列表"),
         excel_writer: ExcelWriter = Depends(DiDependency(ExcelWriter)),
-        page_settings: PageSettings = Depends(DiDependency(PageSettings)),
         files: FileResult = Depends(DiDependency(FileResult)),
-        dictionaries: DictDataProvider = Depends(DiDependency(DictDataProvider)),
     ) -> StreamingResponse:
-        excel_providers = ExcelProviders(dictionaries=dictionaries)
-        page_req_vo = RequestUtils.validate_with_auto_list_params(request, JobLogPageReqVO)
-        page_req_vo.enable_fetch_all(
-            max_rows=min(excel_writer.settings.max_export_rows, page_settings.fetch_all_max_rows)
-        )
+        excel_writer.prepare_export_query(page_req_vo)
         page_result: PageResult[JobLogDO] = await job_log_service.get_job_log_page(page_req_vo)
         excel_list: list[JobLogRespVO] = ConversionUtils.list_to_vo_list(
             page_result.items, JobLogRespVO
         )
         filename = "任务日志"
         file_data = await excel_writer.write(
-            "数据", JobLogRespVO, excel_list, providers=excel_providers, fields=fields
+            "数据", JobLogRespVO, excel_list, fields=page_req_vo.fields
         )
         return files.excel_stream(file_data, file_name=f"{filename}.xlsx")

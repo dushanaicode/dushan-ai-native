@@ -1,4 +1,5 @@
 from framework.starter_mq.core.mq_service import MQService
+from framework.starter_mq.core.outbox_service import OutboxService
 from framework.starter_mq.decorators.consumer import consumer
 from framework.starter_mq.decorators.message_interceptor import message_interceptor
 from framework.starter_mq.definitions.constants.mq_error_codes import MQErrorCodes
@@ -48,6 +49,7 @@ __all__ = [
     "MessageState",
     "OutboxProvider",
     "OutboxRecord",
+    "OutboxService",
     "OutboxState",
     "PreparedMessage",
     "PublishCommand",

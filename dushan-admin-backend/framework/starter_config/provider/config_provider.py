@@ -1,5 +1,4 @@
 import inspect
-import json
 from collections.abc import Awaitable, Callable, Iterable, Mapping
 from contextvars import ContextVar
 from copy import deepcopy
@@ -12,8 +11,8 @@ from pydantic import BaseModel, PydanticUndefinedAnnotation, ValidationError
 
 from framework.common.security.sanitizer import Sanitizer
 from framework.starter_config.config.config_settings import ConfigSettings
-from framework.starter_config.decorator.config_model_metadata import ConfigModelMetadata
 from framework.starter_config.definitions.enums.config_source_enum import ConfigSourceEnum
+from framework.starter_config.model.config_model_metadata import ConfigModelMetadata
 from framework.starter_config.provider.bootstrap_config_error import BootstrapConfigError
 from framework.starter_config.provider.bootstrap_config_provider import BootstrapConfigProvider
 from framework.starter_config.provider.config_change import ConfigChange
@@ -82,6 +81,9 @@ class ConfigProvider:
             self._metadata[model] = metadata
         logger.info("【ConfigStarter】模型声明校验完成：{} 个，开始合并配置源", len(self._metadata))
         yaml_values, yaml_sources = bootstrap.get_yaml_snapshot()
+        bound_values, bound_sources = bootstrap.get_bound_snapshot()
+        self._mapped_bootstrap_values = ConfigValues.merge(yaml_values, bound_values)
+        self._mapped_bootstrap_sources = yaml_sources | bound_sources
         self._layers = {source: ({}, {}) for source in ConfigSourceEnum}
         self._layers[ConfigSourceEnum.YAML] = (self._flatten(yaml_values), yaml_sources)
         self._layers[ConfigSourceEnum.FILE] = self._read_files()
@@ -206,6 +208,8 @@ class ConfigProvider:
             self._layers.clear()
             self._environment_layers.clear()
             self._environment_trees.clear()
+            self._mapped_bootstrap_values.clear()
+            self._mapped_bootstrap_sources.clear()
 
     def _commit(
         self,
@@ -281,10 +285,14 @@ class ConfigProvider:
                 key = metadata.field_keys.get(field, f"{prefix}.{field}")
                 for source in reversed(metadata.field_sources.get(field, order)):
                     _, source_names = active[source]
-                    present, raw_value = ConfigValues.read(trees[source], key)
+                    if field in metadata.field_keys and source is ConfigSourceEnum.YAML:
+                        present, raw_value = ConfigValues.read(self._mapped_bootstrap_values, key)
+                        source_names = self._mapped_bootstrap_sources
+                    else:
+                        present, raw_value = ConfigValues.read(trees[source], key)
                     if not present:
                         continue
-                    value = self._parse_collection(raw_value, info.annotation, field)
+                    value = ConfigValues.parse_collection(raw_value, info.annotation, field)
                     is_model = self._is_model(info.annotation)
                     if (
                         field in values
@@ -397,7 +405,12 @@ class ConfigProvider:
         cls, base: dict, override: dict, annotation: object, origins: dict[str, str], path: str
     ) -> dict:
         """按确定的嵌套模型字段合并，普通字典整体替换并清除旧子项来源。"""
+        if get_origin(annotation) in {Union, UnionType}:
+            alternatives = tuple(item for item in get_args(annotation) if item is not type(None))
+            if len(alternatives) == 1:
+                (annotation,) = alternatives
         if not isinstance(annotation, type) or not issubclass(annotation, BaseModel):
+            # 多候选联合类型不推断模型分支，保留其映射合并语义。
             return ConfigValues.merge(base, override)
         result = deepcopy(base)
         for name, value in override.items():
@@ -414,37 +427,6 @@ class ConfigProvider:
                     if key == field_path or key.startswith(field_path + "."):
                         del origins[key]
         return result
-
-    @classmethod
-    def _parse_collection(cls, value: object, annotation: object, field: str) -> object:
-        if (
-            isinstance(annotation, type)
-            and issubclass(annotation, BaseModel)
-            and isinstance(value, dict)
-        ):
-            return {
-                name: cls._parse_collection(
-                    item, annotation.model_fields[name].annotation, f"{field}.{name}"
-                )
-                if name in annotation.model_fields
-                else item
-                for name, item in value.items()
-            }
-        alternatives = get_args(annotation) if get_origin(annotation) in {Union, UnionType} else ()
-        if value == "null" and type(None) in alternatives and str not in alternatives:
-            return None
-        containers = {list, tuple, set, frozenset, dict}
-        collection = get_origin(annotation) in containers or any(
-            get_origin(item) in containers
-            or (isinstance(item, type) and issubclass(item, BaseModel))
-            for item in alternatives
-        )
-        if isinstance(value, str) and collection and str not in alternatives:
-            try:
-                return json.loads(value)
-            except json.JSONDecodeError as error:
-                raise BootstrapConfigError(f"配置集合字段必须使用 JSON：{field}") from error
-        return value
 
     @classmethod
     def _validate_model(cls, model: type[BaseModel], seen: set[type]) -> None:

@@ -6,7 +6,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from framework.common.exception import ServiceException
-from module_system.controller.admin.auth.vo.auth_register_req_vo import AuthRegisterReqVO
+from module_system.controller.admin.auth.vo.auth.auth_register_req_vo import AuthRegisterReqVO
 from module_system.dal.dataobject.user.admin_user_do import AdminUserDO
 from module_system.definitions.constants.error_code_constants import ErrorCodeConstants
 from module_system.service.auth.auth_admin_auth_service_impl import AuthAdminAuthServiceImpl

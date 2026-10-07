@@ -1,7 +1,5 @@
 class LogRecordConstants:
-    """
-    日志记录常量 (使用简洁模板语法和 _DIFF 函数)
-    """
+    """日志记录常量，使用模板变量 {{ diff }} 展示变更差异。"""
 
     # ======================= SYSTEM_USER 用户 =======================
     SYSTEM_USER_TYPE = "SYSTEM 用户"

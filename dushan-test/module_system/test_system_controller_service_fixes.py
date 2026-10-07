@@ -143,7 +143,8 @@ async def test_user_cache_comparison_keeps_snapshot_when_mapper_mutates_entity()
     service.tenant = SimpleNamespace(get_required_tenant_id=lambda: "1")
     service.revisions = SimpleNamespace(advance=AsyncMock())
     service.security_settings = SimpleNamespace(bizlog_enabled=False)
-    service._validate_user_for_create_or_update = AsyncMock(return_value=user)
+    service._validate_user_exists = AsyncMock(return_value=user)
+    service._validate_user_for_create_or_update = AsyncMock()
     service.permission_cache = SimpleNamespace(invalidate_user_caches=AsyncMock())
 
     async def update(request):
@@ -402,8 +403,7 @@ async def test_notice_partial_channel_failure_keeps_messages_and_reports_failure
 
 
 def test_representative_id_examples_match_input_and_output_contracts():
-    from module_infra.controller.admin.file.vo.file.file_create_req_vo import FileCreateReqVO
-    from module_system.controller.admin.auth.vo.auth_permission_info_resp_vo import (
+    from module_system.controller.admin.auth.vo.auth.auth_permission_info_resp_vo import (
         AuthPermissionInfoRespVO,
     )
     from module_system.controller.admin.permission.vo.menu.menu_save_vo import MenuSaveVO
@@ -413,7 +413,6 @@ def test_representative_id_examples_match_input_and_output_contracts():
     for model in (
         UserSaveReqVO,
         OAuth2ClientSaveReqVO,
-        FileCreateReqVO,
         AuthPermissionInfoRespVO,
         UserRespVO,
     ):

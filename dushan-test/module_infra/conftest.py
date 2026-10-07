@@ -37,7 +37,7 @@ def infra_database():
         charset="utf8mb4",
         client_flag=CLIENT.MULTI_STATEMENTS,
     )
-    name = "infra_" + uuid4().hex
+    name = os.environ.get("DUSHAN_TEST_DATABASE_PREFIX", "infra_") + uuid4().hex
     try:
         with connection.cursor() as cursor:
             cursor.execute("SELECT @@datadir, @@port")
@@ -68,7 +68,7 @@ def infra_database():
 
 @pytest_asyncio.fixture(scope="module", loop_scope="module")
 async def infra_app(infra_database, tmp_path_factory):
-    from server.starter_server import create_app
+    from server.starter_server import StarterServer
 
     resources, name, _ = infra_database
     values = ConfigFactory.values()
@@ -126,7 +126,7 @@ async def infra_app(infra_database, tmp_path_factory):
     (folder / "application.yaml").write_text(
         yaml.safe_dump(values, allow_unicode=True), encoding="utf-8"
     )
-    app = create_app(base_dir=folder, app_env="dev", environ={})
+    app = StarterServer.create_app(base_dir=folder, app_env="dev", environ={})
     app.add_middleware(HttpRouteCoverage)
     async with app.router.lifespan_context(app):
         HttpRouteCoverage.register(app)

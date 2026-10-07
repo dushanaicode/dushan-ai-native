@@ -31,9 +31,14 @@ async def test_data_source_crud_probe_and_named_routing(admin_client, infra_data
         ).json()["data"]
         assert "url" not in found
         tested = (
-            await admin_client.post("/admin-api/infra/data-source/test", params={"id": identifier})
+            await admin_client.post(
+                "/admin-api/infra/data-source/test",
+                params={"id": identifier},
+                headers={"Accept-Language": "en-US"},
+            )
         ).json()
         assert tested["code"] == 0 and tested["data"]["success"] is True, tested
+        assert tested["data"]["message"] == "Connection successful", tested
         database = infra_app.state.database
         with infra_app.state.application_context.execution(), database.scope():
             async with database.read_session(source=f"infra_{identifier}") as session:

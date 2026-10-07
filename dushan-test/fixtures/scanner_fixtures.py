@@ -17,6 +17,7 @@ def module_package(tmp_path, monkeypatch):
         files=None,
         scan_roots=(".",),
         definitions=(),
+        routers=(),
         requires=(),
         messages=None,
         required_keys=(),
@@ -42,6 +43,7 @@ def module_package(tmp_path, monkeypatch):
             f"package = {json.dumps(package)}\n"
             f"scan_roots = {json.dumps(scan_roots)}\n"
             f"definitions = {json.dumps(definitions)}\n"
+            f"routers = {json.dumps(routers)}\n"
             f"requires = {json.dumps(requires)}\n"
             f"required_message_keys = {json.dumps(required_keys)}\n"
         )

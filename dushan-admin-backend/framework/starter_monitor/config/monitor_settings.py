@@ -6,7 +6,7 @@ from pydantic import Field, SecretStr, model_validator
 
 from framework.common.security.sanitizer import Sanitizer
 from framework.starter_config.config.config_model import ConfigModel
-from framework.starter_config.decorator.config_decorator import config_model
+from framework.starter_config.decorators.config_decorator import config_model
 from framework.starter_config.definitions.enums.config_source_enum import ConfigSourceEnum
 
 
@@ -17,7 +17,7 @@ from framework.starter_config.definitions.enums.config_source_enum import Config
     field_keys={"service_name": "server.name", "service_version": "server.version"},
 )
 class MonitorSettings(ConfigModel):
-    """应用独立的追踪启动快照；默认值由公共 YAML 提供。"""
+    """应用独立的追踪快照；服务信息映射最终启动配置，其他默认值由公共 YAML 提供。"""
 
     enabled: bool
     service_name: str = Field(min_length=1, max_length=128)

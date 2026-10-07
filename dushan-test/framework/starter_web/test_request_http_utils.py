@@ -1,13 +1,9 @@
 import base64
 
 import pytest
-from fastapi import FastAPI, Request
+from fastapi import Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.testclient import TestClient
-from pydantic import AliasChoices, BaseModel, Field
 
-from framework.common.schemas.base_request_vo import BaseRequestVO
-from framework.starter_web.exception.exception_handler import GlobalExceptionHandler
 from framework.starter_web.utils.http_utils import HttpUtils
 from framework.starter_web.utils.request_utils import RequestUtils
 
@@ -20,34 +16,12 @@ def request(query=b"", headers=()):
     )
 
 
-class Query(BaseRequestVO):
-    tag_ids: list[int]
-    keyword: str = ""
-
-
-class ExplicitAlias(BaseModel):
-    tags: list[str] = Field(validation_alias=AliasChoices("labels", "values"))
-
-
-def test_query_lists_preserve_duplicates_single_values_and_aliases():
+def test_query_params_preserve_single_values_duplicates_and_empty_values():
+    assert RequestUtils.get_query_params(request(b"tagIds=1")) == {"tagIds": "1"}
     assert RequestUtils.get_query_params(request(b"tagIds=1&tagIds=2&keyword=")) == {
         "tagIds": ["1", "2"],
         "keyword": "",
     }
-    assert RequestUtils.validate_with_auto_list_params(request(b"tagIds=1"), Query).tag_ids == [1]
-    assert RequestUtils.validate_with_auto_list_params(
-        request(b"tagIds=1&tagIds=1"), Query
-    ).tag_ids == [1, 1]
-    assert RequestUtils.validate_with_auto_list_params(
-        request(b"labels=one"), ExplicitAlias
-    ).tags == ["one"]
-    assert RequestUtils.validate_with_auto_list_params(
-        request(b"values=one"), ExplicitAlias
-    ).tags == ["one"]
-    with pytest.raises(RequestValidationError):
-        RequestUtils.validate_with_auto_list_params(request(b"tagIds=bad"), Query)
-    with pytest.raises(RequestValidationError):
-        RequestUtils.validate_with_auto_list_params(request(b"tagIds=1&keyword=a&keyword=b"), Query)
 
 
 def test_indexed_arrays_sort_and_keep_empty_entries():
@@ -112,18 +86,3 @@ def test_oauth_basic_credentials_decode_form_components():
         )
         is None
     )
-
-
-def test_query_validation_uses_existing_business_response_contract():
-    app = FastAPI()
-    GlobalExceptionHandler(debug=False).register(app)
-
-    @app.get("/search")
-    def search(req: Request):
-        return RequestUtils.validate_with_auto_list_params(req, Query).model_dump()
-
-    with TestClient(app) as client:
-        response = client.get("/search?tagIds=bad")
-    assert response.status_code == 200
-    assert response.json()["error"]["fields"][0]["field"] == "tagIds[0]"
-    assert response.json()["code"] != 0

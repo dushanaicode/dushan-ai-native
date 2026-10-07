@@ -24,7 +24,7 @@ from module_system.controller.admin.oauth2.vo.client.oauth2_client_page_req_vo i
 from module_system.controller.admin.oauth2.vo.client.oauth2_client_save_req_vo import (
     OAuth2ClientSaveReqVO,
 )
-from module_system.dal.cache.cache_key_constants import SystemCacheKeys
+from module_system.dal.cache.system_cache_key_constants import SystemCacheKeyConstants
 from module_system.dal.dataobject.oauth2.oauth2_client_do import OAuth2ClientDO
 from module_system.dal.mapper.oauth2.oauth2_client_mapper import OAuth2ClientMapper
 from module_system.definitions.constants.error_code_constants import ErrorCodeConstants
@@ -45,7 +45,30 @@ class OAuth2ClientServiceImpl(OAuth2ClientService):
         if create_vo.id is not None:
             raise IllegalArgumentException(msg="新增 OAuth2 客户端不能指定编号")
         await self._validate_client_id_unique(None, create_vo.client_id)
-        client = OAuth2ClientDO(**create_vo.model_dump(by_alias=False))
+        client = OAuth2ClientDO(
+            **create_vo.to_write_dict(
+                fields={
+                    "id",
+                    "client_id",
+                    "secret",
+                    "name",
+                    "logo",
+                    "description",
+                    "status",
+                    "user_type",
+                    "access_token_validity_seconds",
+                    "refresh_token_validity_seconds",
+                    "redirect_uris",
+                    "authorized_grant_types",
+                    "scopes",
+                    "auto_approve_scopes",
+                    "authorities",
+                    "resource_ids",
+                    "additional_information",
+                },
+                exclude_unset=False,
+            )
+        )
         await self.oauth2_client_mapper.insert(client)
         return client.id
 
@@ -53,14 +76,36 @@ class OAuth2ClientServiceImpl(OAuth2ClientService):
     @transactional
     async def update_oauth2_client(self, update_vo: OAuth2ClientSaveReqVO) -> None:
         self.database.after_commit(
-            lambda: self.cache_handler.delete_all(SystemCacheKeys.OAUTH_CLIENT),
+            lambda: self.cache_handler.delete_all(SystemCacheKeyConstants.OAUTH_CLIENT),
             required=True,
             name="system-cache",
         )
-        await self._validate_exists(update_vo.id)
+        client_in_db = await self._validate_exists(update_vo.id)
         await self._validate_client_id_unique(update_vo.id, update_vo.client_id)
-        client_in_db = await self.oauth2_client_mapper.select_by_id(update_vo.id)
-        update_obj = OAuth2ClientDO(**update_vo.model_dump(by_alias=False))
+        update_obj = OAuth2ClientDO(
+            **update_vo.to_write_dict(
+                fields={
+                    "id",
+                    "client_id",
+                    "secret",
+                    "name",
+                    "logo",
+                    "description",
+                    "status",
+                    "user_type",
+                    "access_token_validity_seconds",
+                    "refresh_token_validity_seconds",
+                    "redirect_uris",
+                    "authorized_grant_types",
+                    "scopes",
+                    "auto_approve_scopes",
+                    "authorities",
+                    "resource_ids",
+                    "additional_information",
+                },
+                exclude_unset=False,
+            )
+        )
         if not update_vo.secret:
             update_obj.secret = client_in_db.secret
         await self.oauth2_client_mapper.update_by_id(update_obj)
@@ -85,7 +130,7 @@ class OAuth2ClientServiceImpl(OAuth2ClientService):
     @transactional
     async def delete_oauth2_client(self, client_id: int) -> None:
         self.database.after_commit(
-            lambda: self.cache_handler.delete_all(SystemCacheKeys.OAUTH_CLIENT),
+            lambda: self.cache_handler.delete_all(SystemCacheKeyConstants.OAUTH_CLIENT),
             required=True,
             name="system-cache",
         )
@@ -96,7 +141,7 @@ class OAuth2ClientServiceImpl(OAuth2ClientService):
     @transactional
     async def delete_oauth2_client_batch(self, ids: list[int]) -> int:
         self.database.after_commit(
-            lambda: self.cache_handler.delete_all(SystemCacheKeys.OAUTH_CLIENT),
+            lambda: self.cache_handler.delete_all(SystemCacheKeyConstants.OAUTH_CLIENT),
             required=True,
             name="system-cache",
         )
@@ -109,13 +154,13 @@ class OAuth2ClientServiceImpl(OAuth2ClientService):
     async def get_oauth2_client(self, id: int) -> OAuth2ClientDO | None:
         return await self.oauth2_client_mapper.select_by_id(id)
 
+    @override
     @cache(
-        SystemCacheKeys.OAUTH_CLIENT,
+        SystemCacheKeyConstants.OAUTH_CLIENT,
         key="client:{{client_id}}",
         ttl_seconds=default_ttl,
         unless=lambda result, *_, **__: not result is not None,
     )
-    @override
     async def get_oauth2_client_from_cache(self, client_id: str) -> OAuth2ClientDTO | None:
         return await self.oauth2_client_mapper.select_details_dto_by_client_id(client_id)
 
@@ -158,10 +203,12 @@ class OAuth2ClientServiceImpl(OAuth2ClientService):
             )
         return client_dto
 
-    async def _validate_exists(self, client_id: int) -> None:
+    async def _validate_exists(self, client_id: int) -> OAuth2ClientDO:
         """校验客户端是否存在"""
-        if not await self.oauth2_client_mapper.select_by_id(client_id):
+        client = await self.oauth2_client_mapper.select_by_id(client_id)
+        if client is None:
             raise ServiceException(ErrorCodeConstants.OAUTH2_CLIENT_NOT_EXISTS)
+        return client
 
     async def _validate_client_id_unique(self, id_: int | None, client_id: str) -> None:
         """校验 Client ID 是否被占用"""

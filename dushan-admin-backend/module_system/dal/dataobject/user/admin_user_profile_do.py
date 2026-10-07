@@ -1,7 +1,6 @@
 from sqlalchemy import (
     JSON,
     BigInteger,
-    Computed,
     ForeignKeyConstraint,
     Index,
     SmallInteger,
@@ -48,6 +47,6 @@ class AdminUserProfileDO(TenantBaseDO):
 
     active_key: Mapped[int | None] = mapped_column(
         SmallInteger,
-        Computed("CASE WHEN deleted = 0 THEN 1 ELSE NULL END"),
+        TenantBaseDO.active_key_computed(),
         comment="仅有效记录参与业务唯一约束",
     )

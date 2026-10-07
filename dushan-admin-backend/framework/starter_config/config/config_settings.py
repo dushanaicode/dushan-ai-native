@@ -1,4 +1,3 @@
-import json
 from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -24,17 +23,6 @@ class ConfigSettings(BaseModel):
     def reject_boolean_limit(cls, value: object) -> object:
         if isinstance(value, bool):
             raise ValueError("配置容量不能是布尔值")
-        return value
-
-    @field_validator("source_order", "files", mode="before")
-    @classmethod
-    def parse_json(cls, value: object) -> object:
-        """环境变量中的集合使用 JSON，字段模型随后检查具体形状。"""
-        if isinstance(value, str):
-            try:
-                return json.loads(value)
-            except json.JSONDecodeError:
-                raise ValueError("集合配置必须使用 JSON") from None
         return value
 
     @field_validator("source_order")

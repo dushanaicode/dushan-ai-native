@@ -114,7 +114,7 @@ async def test_database_file_upload_download_and_delete(admin_client, infra_app)
         await admin_client.post(
             "/admin-api/infra/file/upload",
             files={"file": ("test.txt", content, "text/plain")},
-            data={"directory": "integration"},
+            data={"directory": "integration", "visibility": "public"},
         )
     ).json()
     assert response["code"] == 0, response
@@ -316,12 +316,26 @@ async def test_data_source_and_generated_code(admin_client, infra_database):
             "/admin-api/infra/codegen/delete-list", params=[("ids", value) for value in ids[:2]]
         )
     ).json()
-    assert deleted["code"] == 0 and deleted["data"] is True, deleted
+    assert deleted["code"] == 0 and deleted["data"] == 2, deleted
     with infra_database[2].cursor() as cursor:
         cursor.execute(
             "SELECT id FROM infra_codegen_table WHERE id IN (%s,%s,%s) AND deleted=0", ids
         )
         assert [str(row[0]) for row in cursor.fetchall()] == ids[2:]
+
+    repeated = (
+        await admin_client.delete(
+            "/admin-api/infra/codegen/delete-list",
+            params=[("ids", ids[0]), ("ids", ids[0]), ("ids", "999999999999999999")],
+        )
+    ).json()
+    assert repeated["code"] == 0 and repeated["data"] == 0, repeated
+    with infra_database[2].cursor() as cursor:
+        cursor.execute(
+            "SELECT COUNT(*) FROM infra_codegen_column WHERE table_id IN (%s,%s) AND deleted=0",
+            ids[:2],
+        )
+        assert cursor.fetchone() == (0,)
 
 
 async def test_job_trigger_is_durable_and_records_result(admin_client, infra_database):
@@ -542,6 +556,7 @@ async def test_job_definition_crud_notifies_runtime(admin_client):
     ).json()["code"] == 0
     request = {
         "name": "Backup test",
+        "fanOut": False,
         "handlerName": "infra.database.backup",
         "handlerParam": "{}",
         "cronExpression": "0 0 1 1 *",
@@ -558,6 +573,18 @@ async def test_job_definition_crud_notifies_runtime(admin_client):
         )
     ).json()
     assert changed["code"] == 0, changed
+    for fan_out in (True, False):
+        changed = (
+            await admin_client.put(
+                "/admin-api/infra/job/update",
+                json={**request, "id": identifier, "fanOut": fan_out},
+            )
+        ).json()
+        assert changed["code"] == 0, changed
+        stored = (
+            await admin_client.get("/admin-api/infra/job/get", params={"id": identifier})
+        ).json()
+        assert stored["data"]["fanOut"] is fan_out
     stopped = (
         await admin_client.put(
             "/admin-api/infra/job/update-status", params={"id": identifier, "status": 2}

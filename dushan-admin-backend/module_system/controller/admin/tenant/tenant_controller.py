@@ -3,15 +3,13 @@ from fastapi.responses import StreamingResponse
 
 from framework.common.contracts import SnowflakeIdStr
 from framework.common.enums import StatusEnum
-from framework.common.page import PageResult, PageSettings
+from framework.common.page import PageResult
 from framework.common.schemas.request import IdListReqVO, IdReqVO, UpdateStatusReqVO
 from framework.common.utils import ConversionUtils
 from framework.starter_di.public import (
     DiDependency,
 )
 from framework.starter_excel.public import (
-    DictDataProvider,
-    ExcelProviders,
     ExcelWriter,
 )
 from framework.starter_security.public import (
@@ -33,8 +31,6 @@ from module_system.controller.admin.tenant.vo.tenant.tenant_update_req_vo import
 from module_system.controller.admin.tenant.vo.tenant.tenant_website_req_vo import TenantWebsiteReqVO
 from module_system.dal.dataobject.tenant.tenant_do import TenantDO
 from module_system.service.tenant.tenant_service import TenantService
-from module_system.spi.dept.dept_info_provider_adapter import DeptInfoProviderAdapter
-from module_system.spi.dept.post_info_provider_adapter import PostInfoProviderAdapter
 
 tenant_controller = APIRouter(prefix="/tenant", tags=["System - 租户管理"])
 
@@ -42,8 +38,8 @@ tenant_controller = APIRouter(prefix="/tenant", tags=["System - 租户管理"])
 class TenantController:
     @staticmethod
     @tenant_controller.get("/get-id-by-name", summary="使用租户名，获得租户编号")
-    @AccessLogPolicy(enabled=False)
     @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT, roles=("super_admin",))
+    @AccessLogPolicy(enabled=False)
     async def get_tenant_id_by_name(
         req_vo: TenantNameReqVO = Query(),
         tenant_service: TenantService = Depends(DiDependency(TenantService)),
@@ -58,8 +54,8 @@ class TenantController:
         summary="获取租户精简信息列表",
         description="只包含被开启的租户，用于【首页】功能的选择租户选项",
     )
-    @AccessLogPolicy(enabled=False)
     @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT, roles=("super_admin",))
+    @AccessLogPolicy(enabled=False)
     async def get_tenant_simple_list(
         tenant_service: TenantService = Depends(DiDependency(TenantService)),
     ) -> Result[list[TenantSimpleRespVO]]:
@@ -71,8 +67,8 @@ class TenantController:
 
     @staticmethod
     @tenant_controller.get("/get-by-website", summary="获取租户")
-    @AccessLogPolicy(enabled=False)
     @RoutePolicy(tenant_required=True, realm=SecurityRealm.TENANT, roles=("super_admin",))
+    @AccessLogPolicy(enabled=False)
     async def get_tenant_by_website(
         req_vo: TenantWebsiteReqVO = Query(),
         tenant_service: TenantService = Depends(DiDependency(TenantService)),
@@ -209,23 +205,14 @@ class TenantController:
         tenant_service: TenantService = Depends(DiDependency(TenantService)),
         excel_writer: ExcelWriter = Depends(DiDependency(ExcelWriter)),
         files: FileResult = Depends(DiDependency(FileResult)),
-        dictionaries: DictDataProvider = Depends(DiDependency(DictDataProvider)),
-        departments: DeptInfoProviderAdapter = Depends(DiDependency(DeptInfoProviderAdapter)),
-        posts: PostInfoProviderAdapter = Depends(DiDependency(PostInfoProviderAdapter)),
-        page_settings: PageSettings = Depends(DiDependency(PageSettings)),
     ) -> StreamingResponse:
-        excel_providers = ExcelProviders(
-            dictionaries=dictionaries, departments=departments, posts=posts
-        )
-        page_req_vo.enable_fetch_all(
-            max_rows=min(excel_writer.settings.max_export_rows, page_settings.fetch_all_max_rows)
-        )
+        excel_writer.prepare_export_query(page_req_vo)
         page_result: PageResult[TenantDO] = await tenant_service.get_tenant_page(page_req_vo)
         excel_list: list[TenantRespVO] = ConversionUtils.list_to_vo_list(
             page_result.items, TenantRespVO
         )
         filename = "租户数据"
         file_data = await excel_writer.write(
-            "数据", TenantRespVO, excel_list, providers=excel_providers, fields=page_req_vo.fields
+            "数据", TenantRespVO, excel_list, fields=page_req_vo.fields
         )
         return files.excel_stream(file_data, file_name=f"{filename}.xlsx")

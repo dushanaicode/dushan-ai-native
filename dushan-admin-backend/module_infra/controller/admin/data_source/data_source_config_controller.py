@@ -1,15 +1,13 @@
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 
 from framework.common.contracts import SnowflakeIdStr
-from framework.common.page import PageResult, PageSettings
+from framework.common.page import PageResult
 from framework.common.schemas.request import IdReqVO, UpdateStatusReqVO
 from framework.starter_di.public import (
     DiDependency,
 )
 from framework.starter_excel.public import (
-    DictDataProvider,
-    ExcelProviders,
     ExcelWriter,
 )
 from framework.starter_security.public import (
@@ -17,7 +15,6 @@ from framework.starter_security.public import (
 )
 from framework.starter_web.public import (
     FileResult,
-    RequestUtils,
     Result,
     RoutePolicy,
 )
@@ -156,14 +153,11 @@ class DataSourceConfigController:
         realm=SecurityRealm.TENANT,
     )
     async def get_data_source_config_page(
-        request: Request,
+        page_req_vo: DataSourceConfigPageReqVO = Query(),
         data_source_config_service: DataSourceConfigService = Depends(
             DiDependency(DataSourceConfigService)
         ),
     ) -> Result[PageResult[DataSourceConfigRespVO]]:
-        page_req_vo = RequestUtils.validate_with_auto_list_params(
-            request, DataSourceConfigPageReqVO
-        )
         page_result: PageResult[
             DataSourceConfigDO
         ] = await data_source_config_service.get_data_source_config_page(page_req_vo)
@@ -173,7 +167,8 @@ class DataSourceConfigController:
     @staticmethod
     @data_source_config_controller.get("/list-by-status", summary="根据状态获得数据源配置列表")
     @RoutePolicy(
-        permissions=("infra:data-source:query",),
+        permissions=("infra:data-source:query", "infra:codegen:query"),
+        permission_mode="any",
         tenant_required=True,
         realm=SecurityRealm.TENANT,
     )
@@ -234,14 +229,9 @@ class DataSourceConfigController:
             DiDependency(DataSourceConfigService)
         ),
         excel_writer: ExcelWriter = Depends(DiDependency(ExcelWriter)),
-        page_settings: PageSettings = Depends(DiDependency(PageSettings)),
         files: FileResult = Depends(DiDependency(FileResult)),
-        dictionaries: DictDataProvider = Depends(DiDependency(DictDataProvider)),
     ) -> StreamingResponse:
-        excel_providers = ExcelProviders(dictionaries=dictionaries)
-        page_req_vo.enable_fetch_all(
-            max_rows=min(excel_writer.settings.max_export_rows, page_settings.fetch_all_max_rows)
-        )
+        excel_writer.prepare_export_query(page_req_vo)
         page_result: PageResult[
             DataSourceConfigDO
         ] = await data_source_config_service.get_data_source_config_page(page_req_vo)
@@ -254,7 +244,6 @@ class DataSourceConfigController:
             "数据",
             DataSourceConfigRespVO,
             data_source_config_resp_list,
-            providers=excel_providers,
             fields=page_req_vo.fields,
         )
         return files.excel_stream(file_data, file_name=f"{filename}.xlsx")

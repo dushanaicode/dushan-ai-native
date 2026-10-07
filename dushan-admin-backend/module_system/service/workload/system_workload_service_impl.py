@@ -1,15 +1,12 @@
 from __future__ import annotations
 
 import hashlib
-from contextlib import AsyncExitStack, asynccontextmanager
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 
-from framework.starter_data_permission.public import (
-    DataPermissionService,
-)
 from framework.starter_di.public import (
+    ApplicationContext,
     Inject,
-    get_bean,
     service,
 )
 from framework.starter_security.public import (
@@ -19,6 +16,7 @@ from framework.starter_security.public import (
     SecuritySettings,
     WorkloadIdentity,
 )
+from framework.starter_tenant.public import TenantResourceGrant
 from module_system.config.system_settings import SystemSettings
 from module_system.definitions.constants.workload_constants import WorkloadConstants
 from module_system.service.workload.system_workload_service import SystemWorkloadService
@@ -28,9 +26,27 @@ from module_system.service.workload.system_workload_service import SystemWorkloa
 class SystemWorkloadServiceImpl(SystemWorkloadService):
     settings: SystemSettings = Inject()
     security_settings: SecuritySettings = Inject()
-    permissions: DataPermissionService = Inject()
+
+    def __init__(self):
+        """校验能力声明，并从本地来源及额外来源构建授权索引。"""
+        sources: dict[str, set[str]] = {}
+        for capability, definition in WorkloadConstants.CAPABILITIES.items():
+            source = definition["source"]
+            additional_sources = definition["additional_sources"]
+            if not capability or not source or source in additional_sources:
+                raise ValueError(f"工作负载能力来源声明无效：{capability}")
+            for allowed_source in (source, *additional_sources):
+                if not allowed_source:
+                    raise ValueError(f"工作负载能力来源为空：{capability}")
+                sources.setdefault(allowed_source, set()).add(capability)
+            for resource, actions in definition["resources"].items():
+                TenantResourceGrant(resource=resource, actions=actions)
+        self._capabilities_by_source = {
+            source: frozenset(capabilities) for source, capabilities in sources.items()
+        }
 
     async def authenticate(self, source, *, application_id, domain, capability, tenant_id):
+        """按服务端登记的来源、能力和租户认证后台身份。"""
         credential = self.settings.workload_credential
         if credential is None or len(credential.get_secret_value()) < 32:
             raise SecurityException(SecurityErrorCodes.CONFIGURATION)
@@ -39,14 +55,17 @@ class SystemWorkloadServiceImpl(SystemWorkloadService):
             or domain not in self.security_settings.domains
         ):
             raise SecurityException(SecurityErrorCodes.INVALID)
-        if source not in WorkloadConstants.SOURCES:
+        if source not in self._capabilities_by_source:
             raise SecurityException(SecurityErrorCodes.DENIED, detail=f"未登记的来源：{source}")
-        if capability not in WorkloadConstants.SOURCES[source]:
+        if capability not in self._capabilities_by_source[source]:
             raise SecurityException(
                 SecurityErrorCodes.DENIED, detail=f"来源 {source} 不支持该能力：{capability}"
             )
         if tenant_id is None:
-            raise SecurityException(SecurityErrorCodes.DENIED, detail="缺少租户上下文")
+            raise SecurityException(
+                SecurityErrorCodes.DENIED,
+                detail="后台任务和消息必须属于某个租户，不开放跨租户特权身份；覆盖全部租户请使用按租户逐个执行的任务",
+            )
         service_id = hashlib.sha256(credential.get_secret_value().encode()).hexdigest()
         return WorkloadIdentity(
             application_id=application_id,
@@ -54,7 +73,7 @@ class SystemWorkloadServiceImpl(SystemWorkloadService):
             service_id=service_id,
             tenant_id=tenant_id,
             audience=source,
-            capabilities=WorkloadConstants.SOURCES[source],
+            capabilities=self._capabilities_by_source[source],
             expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
         )
 
@@ -63,17 +82,11 @@ class SystemWorkloadServiceImpl(SystemWorkloadService):
         """SecurityService 只在运行期查找：它的构造依赖 TokenProvider → OAuth2TokenServiceImpl →
         本服务，改为 Inject 会让 DI 启动时成环，因此要求 di.lookup_enabled 保持开启。
         """
-        security = get_bean(SecurityService)
+        security = ApplicationContext.lookup(SecurityService)
+        definition = WorkloadConstants.CAPABILITIES[capability]
         async with security.authorized_workload(
-            WorkloadConstants.SOURCE_BY_CAPABILITY[capability],
+            definition["source"],
             capability=capability,
             tenant_id=tenant_id,
         ):
-            async with AsyncExitStack() as stack:
-                for resource, actions in WorkloadConstants.RESOURCES[capability].items():
-                    if resource in WorkloadConstants.PROTECTED:
-                        for action in actions:
-                            await stack.enter_async_context(
-                                self.permissions.exempt(resource, action, reason=capability)
-                            )
-                yield
+            yield

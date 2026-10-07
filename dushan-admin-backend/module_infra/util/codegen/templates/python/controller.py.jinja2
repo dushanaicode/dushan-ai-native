@@ -1,0 +1,110 @@
+from fastapi import APIRouter,Depends,Query
+from framework.common.contracts import SnowflakeIdInput,SnowflakeIdStr
+from framework.common.schemas.request import IdListReqVO
+{% if enable_export and is_tree %}
+from framework.common.schemas.request import ExportFieldsReqVO
+{% endif %}
+from framework.common.page import PageResult
+from framework.starter_di.public import DiDependency
+from framework.starter_security.public import SecurityRealm
+from framework.starter_web.public import RoutePolicy
+from framework.starter_web.public import Result
+{% if enable_export %}
+from fastapi.responses import StreamingResponse
+from framework.starter_web.public import FileResult
+from framework.starter_excel.public import ExcelWriter
+{% if export_dict_columns %}
+from framework.starter_excel.public import ExcelProviders, DictDataProvider
+{% endif %}
+{% endif %}
+from {{ package_name }}.service.{{ business_name }}.{{ class_file_name }}_service import {{ class_name }}Service
+from {{ vo_package }}.{{ class_file_name }}_save_req_vo import {{ class_name }}SaveReqVO
+from {{ vo_package }}.{{ class_file_name }}_resp_vo import {{ class_name }}RespVO
+{% if not is_tree %}
+from {{ vo_package }}.{{ class_file_name }}_page_req_vo import {{ class_name }}PageReqVO
+{% if enable_export %}
+from {{ vo_package }}.{{ class_file_name }}_export_req_vo import {{ class_name }}ExportReqVO
+{% endif %}
+{% endif %}
+{% for sub in sub_tables %}
+from {{ package_name }}.controller.admin.{{ business_name }}.{{ sub.class_file_name }}_controller import {{ sub.table.business_name }}_controller
+{% endfor %}
+
+{{ business_name }}_controller=APIRouter(prefix="/{{ business_name | replace('_','-') }}")
+{% for sub in sub_tables %}
+{{ business_name }}_controller.include_router({{ sub.table.business_name }}_controller)
+{% endfor %}
+
+class {{ class_name }}Controller:
+    @staticmethod
+    @{{ business_name }}_controller.post("/create")
+    @RoutePolicy(permissions=("{{ module_name }}:{{ business_name }}:create",),tenant_required=True,realm=SecurityRealm.TENANT)
+    async def create(request:{{ class_name }}SaveReqVO,service:{{ class_name }}Service=Depends(DiDependency({{ class_name }}Service)))->Result[SnowflakeIdStr]:
+        return Result.success(await service.create_{{ business_name }}(request))
+
+    @staticmethod
+    @{{ business_name }}_controller.put("/update")
+    @RoutePolicy(permissions=("{{ module_name }}:{{ business_name }}:update",),tenant_required=True,realm=SecurityRealm.TENANT)
+    async def update(request:{{ class_name }}SaveReqVO,service:{{ class_name }}Service=Depends(DiDependency({{ class_name }}Service)))->Result[bool]:
+        await service.update_{{ business_name }}(request)
+        return Result.success(True)
+
+    @staticmethod
+    @{{ business_name }}_controller.delete("/delete")
+    @RoutePolicy(permissions=("{{ module_name }}:{{ business_name }}:delete",),tenant_required=True,realm=SecurityRealm.TENANT)
+    async def delete(id:SnowflakeIdInput=Query(...),service:{{ class_name }}Service=Depends(DiDependency({{ class_name }}Service)))->Result[bool]:
+        await service.delete_{{ business_name }}(id)
+        return Result.success(True)
+
+    @staticmethod
+    @{{ business_name }}_controller.delete("/delete-list")
+    @RoutePolicy(permissions=("{{ module_name }}:{{ business_name }}:delete",),tenant_required=True,realm=SecurityRealm.TENANT)
+    async def delete_list(req_vo:IdListReqVO=Query(),service:{{ class_name }}Service=Depends(DiDependency({{ class_name }}Service)))->Result[int]:
+        return Result.success(await service.delete_{{ business_name }}_batch(req_vo.ids))
+
+    @staticmethod
+    @{{ business_name }}_controller.get("/get")
+    @RoutePolicy(permissions=("{{ module_name }}:{{ business_name }}:query",),tenant_required=True,realm=SecurityRealm.TENANT)
+    async def get(id:SnowflakeIdInput=Query(...),service:{{ class_name }}Service=Depends(DiDependency({{ class_name }}Service)))->Result[{{ class_name }}RespVO]:
+        row=await service.get_{{ business_name }}(id)
+        return Result.success(None if row is None else {{ class_name }}RespVO.model_validate(row))
+
+{% if is_tree %}
+    @staticmethod
+    @{{ business_name }}_controller.get("/list")
+    @RoutePolicy(permissions=("{{ module_name }}:{{ business_name }}:query",),tenant_required=True,realm=SecurityRealm.TENANT)
+    async def get_list(service:{{ class_name }}Service=Depends(DiDependency({{ class_name }}Service)))->Result[list[{{ class_name }}RespVO]]:
+        return Result.success([{{ class_name }}RespVO.model_validate(row) for row in await service.get_{{ business_name }}_list()])
+
+    @staticmethod
+    @{{ business_name }}_controller.get("/simple-list")
+    @RoutePolicy(tenant_required=True,realm=SecurityRealm.TENANT)
+    async def simple_list(service:{{ class_name }}Service=Depends(DiDependency({{ class_name }}Service)))->Result[list[{{ class_name }}RespVO]]:
+        return Result.success([{{ class_name }}RespVO.model_validate(row) for row in await service.get_{{ business_name }}_list()])
+{% else %}
+    @staticmethod
+    @{{ business_name }}_controller.get("/page")
+    @RoutePolicy(permissions=("{{ module_name }}:{{ business_name }}:query",),tenant_required=True,realm=SecurityRealm.TENANT)
+    async def page(page_req_vo:{{ class_name }}PageReqVO=Query(),service:{{ class_name }}Service=Depends(DiDependency({{ class_name }}Service)))->Result[PageResult[{{ class_name }}RespVO]]:
+        return Result.success((await service.get_{{ business_name }}_page(page_req_vo)).convert({{ class_name }}RespVO))
+{% endif %}
+{% if enable_export %}
+    @staticmethod
+    @{{ business_name }}_controller.get("/export-fields")
+    @RoutePolicy(permissions=("{{ module_name }}:{{ business_name }}:export",),tenant_required=True,realm=SecurityRealm.TENANT)
+    async def export_fields()->Result[list[dict[str,str]]]:
+        return Result.success(ExcelWriter.export_fields({{ class_name }}RespVO))
+
+    @staticmethod
+    @{{ business_name }}_controller.get("/export-excel", response_class=StreamingResponse)
+    @RoutePolicy(permissions=("{{ module_name }}:{{ business_name }}:export",),tenant_required=True,realm=SecurityRealm.TENANT)
+    async def export(page_req_vo:{{ 'ExportFieldsReqVO' if is_tree else class_name + 'ExportReqVO' }}=Query(),service:{{ class_name }}Service=Depends(DiDependency({{ class_name }}Service)),writer:ExcelWriter=Depends(DiDependency(ExcelWriter)),files:FileResult=Depends(DiDependency(FileResult)){% if export_dict_columns %},dictionaries:DictDataProvider=Depends(DiDependency(DictDataProvider)){% endif %})->StreamingResponse:
+{% if is_tree %}
+        rows=await service.get_{{ business_name }}_list()
+{% else %}
+        writer.prepare_export_query(page_req_vo)
+        rows=(await service.get_{{ business_name }}_page(page_req_vo)).items
+{% endif %}
+        data=await writer.write("数据",{{ class_name }}RespVO,[{{ class_name }}RespVO.model_validate(row) for row in rows],fields=page_req_vo.fields{% if export_dict_columns %},providers=ExcelProviders(dictionaries=dictionaries){% endif %})
+        return files.excel_stream(data,file_name="{{ business_name }}.xlsx")
+{% endif %}

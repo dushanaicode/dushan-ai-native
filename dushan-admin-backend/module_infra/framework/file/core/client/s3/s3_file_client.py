@@ -5,9 +5,6 @@ from botocore.exceptions import ClientError
 
 from framework.common.utils import AsyncioUtils
 from module_infra.framework.file.core.client.abstract_file_client import AbstractFileClient
-from module_infra.framework.file.core.client.s3.s3_file_presigned_url_resp_dto import (
-    FilePresignedUrlRespDTO,
-)
 from module_infra.framework.file.core.client.s3.s3_service_factory import S3ServiceFactory
 
 
@@ -52,19 +49,6 @@ class S3FileClient(AbstractFileClient):
             return response["Body"].read()
         finally:
             response["Body"].close()
-
-    async def get_presigned_object_url(self, path):
-        path = self.key(path)
-        url = await self._call(
-            self.sync_client.generate_presigned_url,
-            "put_object",
-            Params={"Bucket": self.config.bucket, "Key": path},
-            ExpiresIn=86400,
-            HttpMethod="PUT",
-        )
-        return FilePresignedUrlRespDTO(
-            upload_url=url, url=self.domain + "/" + quote(path, safe="/")
-        )
 
     async def presign_get_url(self, path, expiration_seconds=None):
         return await self._call(

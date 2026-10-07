@@ -45,7 +45,12 @@ async def test_member_message_restores_tenant_and_data_permission(mq_sql_case):
 
     async def publish():
         return await case.service.publish(
-            PublishCommand("events", case.module.definition.mode, case.module.Payload(value=1))
+            PublishCommand(
+                "events",
+                case.module.definition.mode,
+                case.module.Payload(value=1),
+                workload_capability="mq:test",
+            )
         )
 
     await case.app.state.security.run(
@@ -71,6 +76,7 @@ async def test_member_revision_is_rechecked_on_retry(mq_sql_case):
                 "events",
                 case.module.definition.mode,
                 case.module.Payload(value=1, behavior="retry"),
+                workload_capability="mq:test",
             )
         ),
     )

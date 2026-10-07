@@ -27,6 +27,10 @@ class NoticeMessageService(Protocol):
 
     async def get_notice_message(self, id: int) -> NoticeMessageDO | None: ...
 
+    async def get_my_notice_message(
+        self, id: int, user_id: int, user_type: int
+    ) -> NoticeMessageDO | None: ...
+
     async def get_unread_notice_message_list(
         self, user_id: int, user_type: int, size: int
     ) -> list[NoticeMessageDO]: ...

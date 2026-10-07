@@ -23,7 +23,7 @@ from framework.starter_job.public import (
 from module_infra.dal.dataobject.job.job_request_do import JobRequestDO
 from module_infra.dal.dataobject.job.job_schedule_do import JobScheduleDO
 from module_infra.dal.dataobject.job.job_signal_do import JobSignalDO
-from module_infra.service.job.job_request_store import JobRequestStore
+from module_infra.service.job.job_request_service_impl import JobRequestServiceImpl
 
 
 @pytest.fixture
@@ -46,7 +46,7 @@ async def request_store(tmp_path):
     await database.open()
     try:
         with database.scope():
-            store = JobRequestStore()
+            store = JobRequestServiceImpl()
             store.database = database
             yield store
     finally:

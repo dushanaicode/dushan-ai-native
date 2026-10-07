@@ -93,6 +93,7 @@ definitions = [
   "starter_tenant.definitions.constants.tenant_error_codes:TenantErrorCodes",
   "starter_websocket.definitions.constants.websocket_error_codes:WebSocketErrorCodes",
 ]
+routers = []
 requires = []
 required_message_keys = []
 

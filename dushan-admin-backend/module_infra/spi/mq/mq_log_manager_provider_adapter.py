@@ -1,8 +1,11 @@
+from typing import override
+
 from framework.starter_di.public import (
     Inject,
     service,
 )
 from framework.starter_mq.public import (
+    ConsumeRecord,
     ConsumeRecordProvider,
 )
 from module_infra.service.mq.mq_log_service import MqLogService
@@ -12,5 +15,6 @@ from module_infra.service.mq.mq_log_service import MqLogService
 class MqLogManagerProviderAdapter(ConsumeRecordProvider):
     store: MqLogService = Inject()
 
-    async def append(self, record):
+    @override
+    async def append(self, record: ConsumeRecord) -> None:
         return await self.store.record(record)

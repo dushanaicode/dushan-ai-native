@@ -37,7 +37,7 @@ def system_database():
         charset="utf8mb4",
         client_flag=CLIENT.MULTI_STATEMENTS,
     )
-    name = "system_" + uuid4().hex
+    name = os.environ.get("DUSHAN_TEST_DATABASE_PREFIX", "system_") + uuid4().hex
     try:
         with connection.cursor() as cursor:
             cursor.execute("SELECT @@datadir, @@port")
@@ -116,7 +116,7 @@ async def system_app(
     auth_enabled,
     qr_login_enabled,
 ):
-    from server.starter_server import create_app
+    from server.starter_server import StarterServer
 
     resources, name, _ = system_database
     values = ConfigFactory.values()
@@ -164,7 +164,9 @@ async def system_app(
     (folder / "application.yaml").write_text(
         yaml.safe_dump(values, allow_unicode=True), encoding="utf-8"
     )
-    app = create_app(base_dir=folder, app_env="dev", environ={}, routers=system_routers)
+    app = StarterServer.create_app(
+        base_dir=folder, app_env="dev", environ={}, routers=system_routers
+    )
     app.add_middleware(HttpRouteCoverage)
     async with app.router.lifespan_context(app):
         HttpRouteCoverage.register(app)

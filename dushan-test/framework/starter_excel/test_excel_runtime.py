@@ -18,6 +18,7 @@ from openpyxl import Workbook
 from pydantic import BaseModel, field_validator
 
 from fixtures.config_factory import ConfigFactory
+from framework.common.page.config.page_settings import PageSettings
 from framework.starter_excel.config.excel_settings import ExcelSettings
 from framework.starter_excel.core.excel_schema import ExcelSchema
 from framework.starter_excel.definitions.constants.excel_error_codes import ExcelErrorCodes
@@ -367,7 +368,9 @@ async def test_business_converter_and_model_callbacks_stay_on_application_thread
 
     source = upload()
     rows = await ExcelReader(settings()).read(source, Row)
-    with await ExcelWriter(settings()).write("数据", Row, rows) as output:
+    with await ExcelWriter(settings(), ConfigFactory.build(PageSettings, "page")).write(
+        "数据", Row, rows
+    ) as output:
         assert output.getbuffer().nbytes > 0
     assert callbacks == ["import", "model", "export"]
     source.file.close()
@@ -402,7 +405,11 @@ async def test_save_cancellation_waits_before_closing_workbook_and_output(
 
     monkeypatch.setattr(Workbook, "save", save)
     monkeypatch.setattr(Workbook, "close", close)
-    task = asyncio.create_task(ExcelWriter(settings()).write("数据", TextRow, [TextRow(text="x")]))
+    task = asyncio.create_task(
+        ExcelWriter(settings(), ConfigFactory.build(PageSettings, "page")).write(
+            "数据", TextRow, [TextRow(text="x")]
+        )
+    )
     try:
         await wait_event(started)
         await cancel_twice(task)
@@ -453,7 +460,16 @@ def test_vba_resource_and_physical_encryption_flags_are_rejected():
 def test_every_excel_module_and_plain_roundtrip_work_when_ip_import_is_blocked(tmp_path):
     root = Path(__file__).resolve().parents[3]
     config = tmp_path / "settings.json"
-    config.write_text(json.dumps(settings().model_dump(), ensure_ascii=False), encoding="utf-8")
+    config.write_text(
+        json.dumps(
+            {
+                "excel": settings().model_dump(),
+                "page": ConfigFactory.build(PageSettings, "page").model_dump(),
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
     script = tmp_path / "without_ip.py"
     script.write_text(
         """import asyncio
@@ -477,6 +493,7 @@ import framework.starter_excel
 for info in pkgutil.walk_packages(framework.starter_excel.__path__, 'framework.starter_excel.'):
     __import__(info.name)
 from pydantic import BaseModel
+from framework.common.page.config.page_settings import PageSettings
 from framework.starter_excel.config.excel_settings import ExcelSettings
 from framework.starter_excel.model.excel_column import ExcelColumn
 from framework.starter_excel.reader.excel_reader import ExcelReader
@@ -484,8 +501,10 @@ from framework.starter_excel.writer.excel_writer import ExcelWriter
 class Row(BaseModel):
     text: Annotated[str, ExcelColumn('text')]
 async def main():
-    settings = ExcelSettings.model_validate(json.loads(Path(sys.argv[2]).read_text(encoding='utf-8')))
-    with await ExcelWriter(settings).write('data', Row, [Row(text='standalone')]) as stream:
+    values = json.loads(Path(sys.argv[2]).read_text(encoding='utf-8'))
+    settings = ExcelSettings.model_validate(values['excel'])
+    pages = PageSettings.model_validate(values['page'])
+    with await ExcelWriter(settings, pages).write('data', Row, [Row(text='standalone')]) as stream:
         upload = SimpleNamespace(file=stream, filename='file.xlsx', content_type=None)
         assert await ExcelReader(settings).read(upload, Row) == [Row(text='standalone')]
     assert not any(name.startswith('framework.starter_ip') for name in sys.modules)

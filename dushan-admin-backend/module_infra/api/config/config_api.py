@@ -1,8 +1,9 @@
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 from module_infra.api.config.dto.config_group_dto import ConfigGroupDTO
 
 
+@runtime_checkable
 class ConfigApi(Protocol):
     async def get_value(self, module: str, key: str) -> str | None: ...
 

@@ -109,7 +109,7 @@ class GlobalErrorCodeConstants:
     )
     DEMO_DENY = ErrorCode(
         code=901,
-        description="演示模式，禁止写操作",
+        description="演示账号只能查看，不能修改",
         message_key="exception.demo_deny",
     )
     SIGNATURE_MISMATCH = ErrorCode(

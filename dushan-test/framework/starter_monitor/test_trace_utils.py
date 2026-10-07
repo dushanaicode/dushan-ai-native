@@ -6,8 +6,8 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from opentelemetry.trace import NonRecordingSpan, SpanContext, TraceFlags
 
 from framework.starter_monitor.core.monitor_service import MonitorService
-from framework.starter_monitor.util.trace_context_utils import TraceContextUtils
-from framework.starter_monitor.util.tracer_utils import TracerUtils
+from framework.starter_monitor.utils.trace_context_utils import TraceContextUtils
+from framework.starter_monitor.utils.tracer_utils import TracerUtils
 
 pytestmark = pytest.mark.unit
 

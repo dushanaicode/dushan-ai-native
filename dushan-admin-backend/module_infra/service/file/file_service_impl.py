@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import hashlib
 import os
-import time
 from typing import override
 from urllib.parse import quote
 
@@ -15,29 +13,25 @@ from framework.starter_di.public import (
     Inject,
     service,
 )
-from module_infra.controller.admin.file.vo.file.file_create_req_vo import FileCreateReqVO
 from module_infra.controller.admin.file.vo.file.file_list_objects_resp_vo import (
     FileListObjectsRespVO,
 )
 from module_infra.controller.admin.file.vo.file.file_object_vo import FileObjectVO
 from module_infra.controller.admin.file.vo.file.file_page_req_vo import FilePageReqVO
-from module_infra.controller.admin.file.vo.file.file_presigned_url_resp_vo import (
-    FilePresignedUrlRespVO,
-)
 from module_infra.controller.admin.file.vo.file.file_resp_vo import FileRespVO
 from module_infra.controller.admin.file.vo.file.file_search_req_vo import FileSearchReqVO
 from module_infra.dal.dataobject.file.file_do import FileDO
 from module_infra.dal.mapper.file.file_mapper import FileMapper
 from module_infra.definitions.constants.error_code_constants import ErrorCodeConstants
+from module_infra.definitions.enums.file.file_upload_usage_enum import FileUploadUsageEnum
+from module_infra.definitions.enums.file.file_visibility_enum import FileVisibilityEnum
 from module_infra.framework.file.core.client.abstract_file_client import AbstractFileClient
 from module_infra.framework.file.core.client.file_client import FileClient
-from module_infra.framework.file.core.client.s3.s3_file_client import S3FileClient
-from module_infra.framework.file.core.client.s3.s3_file_presigned_url_resp_dto import (
-    FilePresignedUrlRespDTO,
-)
 from module_infra.framework.file.core.utils.file_type_utils import FileTypeUtils
+from module_infra.service.file.bo.file_content_bo import FileContentBO
 from module_infra.service.file.file_config_service import FileConfigService
 from module_infra.service.file.file_service import FileService
+from module_infra.util.file.file_utils import FileUtils
 
 
 @service(interface=FileService)
@@ -54,6 +48,7 @@ class FileServiceImpl(FileService):
     async def create_file(
         self,
         content: bytes,
+        visibility: FileVisibilityEnum,
         name: str | None = None,
         directory: str | None = None,
         type_hint: str | None = None,
@@ -63,6 +58,7 @@ class FileServiceImpl(FileService):
         """保存文件并返回访问 URL。config_id 不传则使用 master 配置"""
         _, url = await self.create_file_with_id(
             content=content,
+            visibility=visibility,
             name=name,
             directory=directory,
             type_hint=type_hint,
@@ -72,26 +68,24 @@ class FileServiceImpl(FileService):
         return url
 
     @override
-    async def create_file_record(self, create_req_vo: FileCreateReqVO) -> int:
-        """通过请求 VO 创建文件记录"""
-        req = create_req_vo.model_dump(by_alias=False)
-        await self._get_file_client(create_req_vo.config_id)
-        AbstractFileClient.key(create_req_vo.path)
-        storage_path: str = req.get("path", "") or ""
-        path_only: str = os.path.basename(storage_path) if storage_path else ""
-        original_name: str = req.get("name") or path_only
-        file_obj = FileDO(
-            config_id=req["config_id"],
-            name=req.get("name") or path_only,
-            original_name=original_name,
-            path=path_only,
-            storage_path=storage_path,
-            url=req["url"],
-            type=req.get("type") or "application/octet-stream",
-            size=req["size"],
+    async def create_business_file(
+        self, content: bytes, name: str | None, usage: FileUploadUsageEnum
+    ) -> str:
+        """按服务端检测的内容类型和用途限制上传。"""
+        if not content:
+            raise ServiceException(ErrorCodeConstants.FILE_IS_EMPTY)
+        if len(content) > usage.max_size:
+            raise ServiceException(ErrorCodeConstants.FILE_UPLOAD_SIZE_EXCEEDED)
+        mime_type = FileTypeUtils.get_mime_type(content)
+        if not usage.allows_mime_type(mime_type):
+            raise ServiceException(ErrorCodeConstants.FILE_UPLOAD_TYPE_NOT_ALLOWED)
+        return await self.create_file(
+            content=content,
+            visibility=usage.visibility,
+            name=name,
+            directory=f"usage/{usage.code}",
+            type_hint=mime_type,
         )
-        await self.file_mapper.insert(file_obj)
-        return file_obj.id
 
     async def delete_file(self, file_id):
         row = await self._validate_file_exists(file_id)
@@ -119,31 +113,21 @@ class FileServiceImpl(FileService):
         return True
 
     @override
-    async def get_file_content(self, config_id: int, path: str) -> bytes:
-        """获得文件内容"""
+    async def find_file(
+        self, config_id: int, path: str, *, public_only: bool
+    ) -> FileContentBO | None:
+        """先校验当前租户的记录与可见性，再读取内容；缺失时返回 None。"""
+        file_obj = await self.file_mapper.select_by_storage_path(config_id, path)
+        if file_obj is None or (
+            public_only and file_obj.visibility != FileVisibilityEnum.PUBLIC.code
+        ):
+            return None
         file_client = await self._get_file_client(config_id)
-        return await file_client.get_content(path)
-
-    @override
-    async def get_file_presigned_url(
-        self, name: str, directory: str | None = None
-    ) -> FilePresignedUrlRespVO:
-        """获取文件预签名上传地址"""
-        actual_storage_path = self._generate_upload_path(name, directory)
-        file_client = await self._get_master_file_client()
-        presigned_dto: FilePresignedUrlRespDTO = await file_client.get_presigned_object_url(
-            actual_storage_path
-        )
-        return FilePresignedUrlRespVO(
-            config_id=file_client.get_id(),
-            upload_url=presigned_dto.upload_url,
-            url=presigned_dto.url,
-            path=actual_storage_path,
-        )
-
-    @override
-    async def create_file_by_vo(self, create_req_vo: FileCreateReqVO) -> int:
-        return await self.create_file_record(create_req_vo)
+        try:
+            content = await file_client.get_content(path)
+        except FileNotFoundError:
+            return None
+        return FileContentBO(name=file_obj.name, type=file_obj.type, content=content)
 
     @override
     async def get_file_count_by_config_id(self, config_id: int) -> int:
@@ -153,6 +137,7 @@ class FileServiceImpl(FileService):
     async def create_file_with_id(
         self,
         content: bytes,
+        visibility: FileVisibilityEnum,
         name: str | None = None,
         directory: str | None = None,
         type_hint: str | None = None,
@@ -162,6 +147,7 @@ class FileServiceImpl(FileService):
         """创建文件并返回文件ID和访问URL"""
         file_id, url, _, _ = await self.create_file_full(
             content=content,
+            visibility=visibility,
             name=name,
             directory=directory,
             type_hint=type_hint,
@@ -174,6 +160,7 @@ class FileServiceImpl(FileService):
     async def create_file_full(
         self,
         content: bytes,
+        visibility: FileVisibilityEnum,
         name: str | None = None,
         directory: str | None = None,
         type_hint: str | None = None,
@@ -181,10 +168,16 @@ class FileServiceImpl(FileService):
         config_id: int | None = None,
     ) -> tuple[int, str, int, str]:
         """核心文件创建逻辑：计算类型、生成路径、上传、保存记录，返回完整信息"""
+        if not content:
+            raise ServiceException(ErrorCodeConstants.FILE_IS_EMPTY)
         actual_file_type = type_hint or FileTypeUtils.get_mime_type(content, name)
-        base_name_for_db = self._resolve_file_name(name, content, actual_file_type)
+        base_name_for_db = FileUtils.resolve_file_name(name, content, actual_file_type)
         actual_storage_path = AbstractFileClient.key(
-            path if path else self._generate_upload_path(base_name_for_db, directory)
+            path
+            if path
+            else FileUtils.generate_storage_path(
+                base_name_for_db, directory, self.PATH_SUFFIX_TIMESTAMP_ENABLE
+            )
         )
         if config_id is not None:
             file_client = await self._get_file_client(config_id)
@@ -193,6 +186,8 @@ class FileServiceImpl(FileService):
         url: str = await file_client.upload(
             path=actual_storage_path, content=content, file_type=actual_file_type
         )
+        if visibility is FileVisibilityEnum.PRIVATE:
+            url = self._build_private_file_url(file_client.get_id(), actual_storage_path)
         file_obj = FileDO(
             config_id=file_client.get_id(),
             name=base_name_for_db,
@@ -200,7 +195,8 @@ class FileServiceImpl(FileService):
             path=os.path.basename(actual_storage_path),
             storage_path=actual_storage_path,
             url=url,
-            type=actual_file_type or "application/octet-stream",
+            visibility=visibility.code,
+            type=actual_file_type,
             size=len(content),
         )
         await self.file_mapper.insert(file_obj)
@@ -214,6 +210,8 @@ class FileServiceImpl(FileService):
         file_obj = await self.file_mapper.select_by_url(url)
         if file_obj is None:
             raise ServiceException(ErrorCodeConstants.FILE_NOT_EXISTS, msg=f"文件不存在: {url}")
+        if file_obj.visibility == FileVisibilityEnum.PRIVATE.code:
+            return file_obj.url
         file_client = await self._get_file_client(file_obj.config_id)
         return await file_client.presign_get_url(file_obj.storage_path, expiration_seconds)
 
@@ -236,7 +234,13 @@ class FileServiceImpl(FileService):
             file_type = (
                 db_file.type if db_file else FileTypeUtils.get_mime_type_from_name(file_name)
             )
-            file_url = await file_client.presign_get_url(file_key)
+            file_url = None
+            if db_file is not None:
+                file_url = (
+                    db_file.url
+                    if db_file.visibility == FileVisibilityEnum.PRIVATE.code
+                    else await file_client.presign_get_url(file_key)
+                )
             objects.append(
                 FileObjectVO(
                     key=file_key,
@@ -246,6 +250,7 @@ class FileServiceImpl(FileService):
                     type=file_type,
                     is_directory=False,
                     url=file_url,
+                    visibility=db_file.visibility if db_file is not None else None,
                 )
             )
         return FileListObjectsRespVO(
@@ -281,7 +286,8 @@ class FileServiceImpl(FileService):
         result = page.convert(FileRespVO)
         file_client = await self._get_file_client(req_vo.config_id)
         for item in result.items:
-            item.url = await file_client.presign_get_url(item.path)
+            if item.visibility is FileVisibilityEnum.PUBLIC:
+                item.url = await file_client.presign_get_url(item.path)
         return result
 
     @override
@@ -310,13 +316,7 @@ class FileServiceImpl(FileService):
         """重命名文件或目录"""
         file_client = await self._get_file_client(config_id)
         is_dir = old_key.endswith("/")
-        if is_dir:
-            trimmed = old_key.rstrip("/")
-            parent = trimmed.rsplit("/", 1)[0] + "/" if "/" in trimmed else ""
-            new_key = f"{parent}{new_name}/"
-        else:
-            parent = old_key.rsplit("/", 1)[0] + "/" if "/" in old_key else ""
-            new_key = f"{parent}{new_name}"
+        new_key = FileUtils.rename_storage_key(old_key, new_name)
         if old_key == new_key:
             return
         if is_dir:
@@ -324,8 +324,7 @@ class FileServiceImpl(FileService):
             await file_client.rename(old_key, new_key)
             for db_file in db_files:
                 new_storage_path = new_key + db_file.storage_path[len(old_key) :]
-                if db_file.url:
-                    db_file.url = db_file.url.replace(db_file.storage_path, new_storage_path)
+                db_file.url = self._renamed_file_url(db_file, new_storage_path)
                 db_file.storage_path = new_storage_path
                 db_file.path = os.path.basename(new_storage_path.rstrip("/"))
                 await self.file_mapper.update_by_id(db_file)
@@ -333,8 +332,7 @@ class FileServiceImpl(FileService):
             db_file = await self.file_mapper.select_by_storage_path(config_id, old_key)
             await file_client.rename(old_key, new_key)
             if db_file is not None:
-                if db_file.url:
-                    db_file.url = db_file.url.replace(old_key, new_key)
+                db_file.url = self._renamed_file_url(db_file, new_key)
                 db_file.storage_path = new_key
                 db_file.path = os.path.basename(new_key)
                 db_file.name = new_name
@@ -380,32 +378,13 @@ class FileServiceImpl(FileService):
         await file_client.delete(prefix)
 
     @staticmethod
-    def _resolve_file_name(name: str | None, content: bytes, file_type: str | None) -> str:
-        """根据原始文件名、内容和MIME类型，生成最终的逻辑文件名"""
-        if not name:
-            base_name = hashlib.sha256(content).hexdigest()
-            extension = FileTypeUtils.get_extension(file_type)
-            return f"{base_name}{extension}" if extension else base_name
-        if not os.path.splitext(name)[1] and file_type:
-            extension = FileTypeUtils.get_extension(file_type)
-            if extension:
-                return f"{name}{extension}"
-        return name
+    def _build_private_file_url(config_id: int, storage_path: str) -> str:
+        return f"/admin-api/infra/file/private/{config_id}/{quote(storage_path, safe='/')}"
 
-    def _generate_upload_path(self, original_name: str, directory: str | None) -> str:
-        """根据配置和输入生成文件上传的完整路径"""
-        current_name = original_name
-        if self.PATH_SUFFIX_TIMESTAMP_ENABLE:
-            main_name, ext_name = os.path.splitext(current_name)
-            current_name = f"{main_name}_{int(time.time() * 1000)}{ext_name}"
-        path_parts = []
-        if directory:
-            path_parts.append(directory.rstrip("/"))
-        path_parts.append(current_name)
-        return "/".join(path_parts)
-
-    @staticmethod
-    def _build_file_url(file_client, key):
-        if isinstance(file_client, S3FileClient):
-            return file_client.domain + "/" + quote(key, safe="/")
-        return file_client.format_file_url(file_client.config.domain, key)
+    @classmethod
+    def _renamed_file_url(cls, file_obj: FileDO, storage_path: str) -> str:
+        if file_obj.visibility == FileVisibilityEnum.PRIVATE.code:
+            return cls._build_private_file_url(file_obj.config_id, storage_path)
+        return file_obj.url.replace(
+            quote(file_obj.storage_path, safe="/"), quote(storage_path, safe="/")
+        )

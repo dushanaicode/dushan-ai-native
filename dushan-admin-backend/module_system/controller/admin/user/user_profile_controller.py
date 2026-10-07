@@ -18,17 +18,17 @@ from module_system.controller.admin.user.vo.profile.online_device_req_vo import 
 from module_system.controller.admin.user.vo.profile.profile_online_device_vo import (
     ProfileOnlineDeviceVO,
 )
-from module_system.controller.admin.user.vo.profile.profile_resp_vo import UserProfileRespVO
-from module_system.controller.admin.user.vo.profile.profile_update_password_req_vo import (
+from module_system.controller.admin.user.vo.profile.user_profile_resp_vo import UserProfileRespVO
+from module_system.controller.admin.user.vo.profile.user_profile_update_password_req_vo import (
     UserProfileUpdatePasswordReqVO,
 )
-from module_system.controller.admin.user.vo.profile.profile_update_req_vo import (
+from module_system.controller.admin.user.vo.profile.user_profile_update_req_vo import (
     UserProfileUpdateReqVO,
 )
 from module_system.convert.user.user_convert import UserConvert
+from module_system.dal.cache.permission.dto.role_cache_dto import RoleCacheDTO
 from module_system.dal.dataobject.dept.dept_do import DeptDO
 from module_system.dal.dataobject.dept.post_do import PostDO
-from module_system.dal.dataobject.permission.role_do import RoleDO
 from module_system.dal.dataobject.user.admin_user_do import AdminUserDO
 from module_system.dal.dataobject.user.admin_user_profile_do import AdminUserProfileDO
 from module_system.service.dept.dept_service import DeptService
@@ -54,15 +54,19 @@ class UserProfileController:
         profile_service: UserProfileService = Depends(DiDependency(UserProfileService)),
         security: SecurityContext = Depends(DiDependency(SecurityContext)),
     ) -> Result[UserProfileRespVO]:
+        """汇总当前用户资料，未分配岗位时返回空列表。"""
         current_user_id: int | None = int(security.require().account_id)
         if current_user_id is None:
             raise SecurityException(SecurityErrorCodes.MISSING)
         user: AdminUserDO | None = await user_service.get_user(current_user_id)
         user_role_ids = await permission_service.get_user_role_id_list_by_user_id(user.id)
-        user_roles: list[RoleDO] = await role_service.get_role_list_from_cache(user_role_ids)
+        user_roles = [
+            RoleCacheDTO.model_validate(role)
+            for role in await role_service.get_role_list_by_ids(user_role_ids)
+        ]
         dept: DeptDO | None = await dept_service.get_dept(user.dept_id) if user.dept_id else None
-        posts: list[PostDO] | None = (
-            await post_service.get_post_list(list(user.post_ids)) if user.post_ids else None
+        posts: list[PostDO] = (
+            await post_service.get_post_list(user.post_ids) if user.post_ids else []
         )
         user_profile: AdminUserProfileDO | None = await profile_service.get_user_profile(user.id)
         user_profile_resp_vo: UserProfileRespVO = UserConvert.convert_profile(

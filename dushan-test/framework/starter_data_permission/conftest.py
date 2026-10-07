@@ -46,7 +46,7 @@ from framework.starter_security.exception.security_exception import SecurityExce
 from framework.starter_security.model.login_session import LoginSession
 from framework.starter_security.model.permission_snapshot import PermissionSnapshot
 from framework.starter_web.routing.route_policy import RoutePolicy
-from server.starter_server import create_app
+from server.starter_server import StarterServer
 
 
 class Tokens:
@@ -357,7 +357,7 @@ async def permission_case(permission_target, config_dir, tmp_path, request):
         if caching
         else {"enabled": False}
     )
-    app = create_app(
+    app = StarterServer.create_app(
         steps=StarterSteps.without_tenant(),
         base_dir=config_dir(
             {

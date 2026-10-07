@@ -26,13 +26,12 @@ class OAuth2ClientMapper(BaseMapper[OAuth2ClientDO]):
         stmt = select(OAuth2ClientDO)
         if req_vo.name:
             escaped = StrUtils.escape_like(req_vo.name)
-            stmt = stmt.where(OAuth2ClientDO.name.ilike(f"%{escaped}%"))
+            stmt = stmt.where(OAuth2ClientDO.name.ilike(f"%{escaped}%", escape="\\"))
         if req_vo.status is not None:
             stmt = stmt.where(OAuth2ClientDO.status == req_vo.status)
-        if req_vo.create_time and len(req_vo.create_time) >= 2:
-            stmt = stmt.where(
-                OAuth2ClientDO.create_time.between(req_vo.create_time[0], req_vo.create_time[1])
-            )
+        if req_vo.create_time is not None:
+            start_time, end_time = req_vo.create_time
+            stmt = stmt.where(OAuth2ClientDO.create_time.between(start_time, end_time))
         stmt = stmt.order_by(OAuth2ClientDO.id.desc())
         return await self.paginate_query(stmt, req_vo)
 

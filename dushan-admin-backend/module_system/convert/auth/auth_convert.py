@@ -1,13 +1,12 @@
 from collections import defaultdict
 from datetime import timezone
 
-from framework.common.dates import DateUtils
-from module_system.controller.admin.auth.vo.auth_login_resp_vo import AuthLoginRespVO
-from module_system.controller.admin.auth.vo.auth_permission_info_resp_vo import (
+from module_system.controller.admin.auth.vo.auth.auth_login_resp_vo import AuthLoginRespVO
+from module_system.controller.admin.auth.vo.auth.auth_permission_info_resp_vo import (
     AuthPermissionInfoRespVO,
 )
-from module_system.controller.admin.auth.vo.menu_vo import MenuVO
-from module_system.controller.admin.auth.vo.user_vo import UserVO
+from module_system.controller.admin.auth.vo.auth.menu_vo import MenuVO
+from module_system.controller.admin.auth.vo.auth.user_vo import UserVO
 from module_system.dal.dataobject.permission.menu_do import MenuDO
 from module_system.dal.dataobject.permission.role_do import RoleDO
 from module_system.dal.dataobject.user.admin_user_do import AdminUserDO
@@ -17,7 +16,7 @@ class AuthConvert:
     """系统认证转换器"""
 
     @staticmethod
-    def convert_oauth_to_auth_login_resp(access_token, date_utils: DateUtils) -> AuthLoginRespVO:
+    def convert_oauth_to_auth_login_resp(access_token) -> AuthLoginRespVO:
         """将 OAuth2AccessTokenDO 转换为 AuthLoginRespVO"""
         expires_time_millis = int(
             access_token.expires_time.replace(tzinfo=timezone.utc).timestamp() * 1000

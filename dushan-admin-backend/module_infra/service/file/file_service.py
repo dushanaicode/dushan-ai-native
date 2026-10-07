@@ -3,17 +3,16 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from framework.common.page import PageResult
-from module_infra.controller.admin.file.vo.file.file_create_req_vo import FileCreateReqVO
 from module_infra.controller.admin.file.vo.file.file_list_objects_resp_vo import (
     FileListObjectsRespVO,
 )
 from module_infra.controller.admin.file.vo.file.file_page_req_vo import FilePageReqVO
-from module_infra.controller.admin.file.vo.file.file_presigned_url_resp_vo import (
-    FilePresignedUrlRespVO,
-)
 from module_infra.controller.admin.file.vo.file.file_resp_vo import FileRespVO
 from module_infra.controller.admin.file.vo.file.file_search_req_vo import FileSearchReqVO
 from module_infra.dal.dataobject.file.file_do import FileDO
+from module_infra.definitions.enums.file.file_upload_usage_enum import FileUploadUsageEnum
+from module_infra.definitions.enums.file.file_visibility_enum import FileVisibilityEnum
+from module_infra.service.file.bo.file_content_bo import FileContentBO
 
 
 @runtime_checkable
@@ -27,6 +26,7 @@ class FileService(Protocol):
     async def create_file(
         self,
         content: bytes,
+        visibility: FileVisibilityEnum,
         name: str | None = None,
         directory: str | None = None,
         type_hint: str | None = None,
@@ -36,8 +36,10 @@ class FileService(Protocol):
         """创建文件（上传文件内容），返回文件访问URL。config_id 不传则使用 master 配置"""
         ...
 
-    async def create_file_record(self, create_req_vo: FileCreateReqVO) -> int:
-        """创建文件记录"""
+    async def create_business_file(
+        self, content: bytes, name: str | None, usage: FileUploadUsageEnum
+    ) -> str:
+        """按用途校验文件并使用主配置上传。"""
         ...
 
     async def delete_file(self, file_id: int) -> None:
@@ -48,18 +50,10 @@ class FileService(Protocol):
         """删除指定配置与路径的已登记文件，无元数据时返回 False。"""
         ...
 
-    async def get_file_content(self, config_id: int, path: str) -> bytes:
-        """获取文件内容"""
-        ...
-
-    async def get_file_presigned_url(
-        self, name: str, directory: str | None = None
-    ) -> FilePresignedUrlRespVO:
-        """获取文件预签名URL"""
-        ...
-
-    async def create_file_by_vo(self, create_req_vo: FileCreateReqVO) -> int:
-        """通过VO创建文件"""
+    async def find_file(
+        self, config_id: int, path: str, *, public_only: bool
+    ) -> FileContentBO | None:
+        """读取当前租户的文件及元数据；不存在或不可见时返回 None。"""
         ...
 
     async def get_file_count_by_config_id(self, config_id: int) -> int:
@@ -73,6 +67,7 @@ class FileService(Protocol):
     async def create_file_with_id(
         self,
         content: bytes,
+        visibility: FileVisibilityEnum,
         name: str | None = None,
         directory: str | None = None,
         type_hint: str | None = None,
@@ -85,6 +80,7 @@ class FileService(Protocol):
     async def create_file_full(
         self,
         content: bytes,
+        visibility: FileVisibilityEnum,
         name: str | None = None,
         directory: str | None = None,
         type_hint: str | None = None,

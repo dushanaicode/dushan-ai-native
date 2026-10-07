@@ -1,4 +1,4 @@
-from sqlalchemy import BigInteger, Boolean, Computed, SmallInteger, String, UniqueConstraint
+from sqlalchemy import BigInteger, Boolean, SmallInteger, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from framework.starter_tenant.public import (
@@ -64,6 +64,6 @@ class CodegenTableDO(GlobalControlDO):
 
     active_key: Mapped[int | None] = mapped_column(
         SmallInteger,
-        Computed("CASE WHEN deleted = 0 THEN 1 ELSE NULL END"),
+        GlobalControlDO.active_key_computed(),
         comment="仅有效记录参与业务唯一约束",
     )

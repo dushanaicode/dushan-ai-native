@@ -20,7 +20,7 @@ from framework.starter_mq.core.mq_service import MQService
 from framework.starter_mq.core.outbox_service import OutboxService
 from framework.starter_mq.model.publish_command import PublishCommand
 from framework.starter_mq.spi.outbox_provider import OutboxProvider
-from server.starter_server import create_app
+from server.starter_server import StarterServer
 
 SOURCE = """
 import asyncio
@@ -156,7 +156,7 @@ class Permissions(PermissionProvider):
 class Workloads(WorkloadProvider):
     def __init__(self,probe: Probe): self.probe=probe
     async def authenticate(self,source,*,application_id,domain,capability,tenant_id):
-        if self.probe.revoked or (source,capability) not in (("mq-test","mq:test"),("mq.outbox","mq:dispatch")):
+        if self.probe.revoked or (source,capability) not in (("mq-test","mq:test"),("mq.outbox","mq.outbox.dispatch")):
             raise SecurityException(SecurityErrorCodes.DENIED)
         return WorkloadIdentity(application_id=application_id,domain=domain,service_id=source,
             tenant_id=tenant_id,audience=source,capabilities=frozenset((capability,)),
@@ -219,7 +219,7 @@ class MQCase(SimpleNamespace):
                         self.module.definition.mode,
                         self.module.Payload(value=value, behavior=behavior, secret=secret),
                         message_id=message_id,
-                        capability="mq:test",
+                        workload_capability="mq:test",
                     )
                 )
             finally:
@@ -238,7 +238,7 @@ class MQCase(SimpleNamespace):
                     self.module.definition.mode,
                     self.module.Payload(value=value, behavior=behavior),
                     message_id=message_id,
-                    capability="mq:test",
+                    workload_capability="mq:test",
                 )
             ),
             capability="mq:test",
@@ -342,7 +342,7 @@ class Secondary(Controlled):
     async with AsyncExitStack() as stack:
 
         async def open_app(base):
-            app = create_app(base_dir=base, environ={})
+            app = StarterServer.create_app(base_dir=base, environ={})
             await stack.enter_async_context(app.router.lifespan_context(app))
             await app.state.mq.wait_ready()
             with app.state.application_context.execution():
@@ -463,9 +463,9 @@ async def mq_sql_case(mq_sql_target, mq_sql_options, config_dir, module_package,
     if tenant_module is not None:
         query = f"""from {tenant_package}.components import Record
         from sqlalchemy import select
-        from framework.starter_di.context.get_bean import get_bean
+        from framework.starter_di.context.application_context import ApplicationContext
         from framework.starter_database.session.session_provider import SessionProvider
-        database=get_bean(SessionProvider)
+        database=ApplicationContext.lookup(SessionProvider)
         async with database.read_session() as session:
             visible=list((await session.scalars(select(Record.__table__.c.tenant_id).where(Record.value>0))).all())
         self.probe.visible.append((context.tenant_id,visible))"""
@@ -606,7 +606,7 @@ async def mq_sql_case(mq_sql_target, mq_sql_options, config_dir, module_package,
             },
         }
         path = config_dir(configuration)
-        app = create_app(base_dir=path, environ={})
+        app = StarterServer.create_app(base_dir=path, environ={})
         async with app.router.lifespan_context(app):
             await app.state.mq.wait_ready()
             with app.state.application_context.execution():

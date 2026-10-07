@@ -12,7 +12,7 @@ from framework.common.page.core.data_paginator import DataPaginator
 from framework.starter_database.decorators.transactional import transactional
 from framework.starter_database.pagination.sql_paginator import SqlPaginator
 from framework.starter_database.session.session_provider import SessionProvider
-from framework.starter_di.context.get_bean import get_bean
+from framework.starter_di.context.application_context import ApplicationContext
 from framework.starter_di.decorators.di_dependency import DiDependency
 from framework.starter_di.definitions.enums.container_state_enum import ContainerStateEnum
 
@@ -69,7 +69,7 @@ async def test_transaction_decorator_uses_current_application(database_settings,
 
     @transactional
     async def operation():
-        database = get_bean(SessionProvider)
+        database = ApplicationContext.lookup(SessionProvider)
         async with database.read_session() as session:
             return await session.scalar(select(literal(8)))
 

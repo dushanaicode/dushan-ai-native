@@ -1,8 +1,8 @@
-from datetime import datetime
 from typing import Annotated
 
 from pydantic import Field
 
+from framework.common.contracts import DateTimeRangeInput
 from framework.common.page import PageQuery
 
 
@@ -20,7 +20,7 @@ class TenantPageReqVO(PageQuery):
             json_schema_extra={"enum_info": {"type": "StatusEnum", "format": "label"}},
         ),
     ]
-    create_time: Annotated[list[datetime] | None, Field(None, description="创建时间")]
+    create_time: Annotated[DateTimeRangeInput | None, Field(None, description="创建时间")]
     model_config = {
         "json_schema_extra": {
             "examples": [

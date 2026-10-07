@@ -12,18 +12,15 @@ from framework.starter_di.public import (
     Inject,
     service,
 )
-from framework.starter_mq.public import (
-    MessageResultUnknown,
-)
 from module_system.dal.dataobject.mail.mail_account_do import MailAccountDO
 from module_system.dal.dataobject.mail.mail_template_do import MailTemplateDO
 from module_system.dal.dataobject.user.admin_user_do import AdminUserDO
 from module_system.definitions.constants.error_code_constants import ErrorCodeConstants
+from module_system.definitions.enums.mail.mail_send_status_enum import MailSendStatusEnum
 from module_system.framework.mail.client.smtp_mail_client import SmtpMailClient
 from module_system.framework.mail.model.mail_account import MailAccount
-from module_system.framework.notification.delivery.delivery_cancelled import DeliveryCancelled
-from module_system.framework.notification.delivery.delivery_definite_failure import (
-    DeliveryDefiniteFailure,
+from module_system.framework.notification.delivery.delivery_attempt import (
+    DeliveryRequestStartedCallback,
 )
 from module_system.mq.message.mail.mail_send_message import MailSendMessage
 from module_system.mq.producer.mail.mail_producer_protocol import MailProducerProtocol
@@ -33,7 +30,6 @@ from module_system.service.mail.bo.mail_batch_send_bo import MailBatchSendBO
 from module_system.service.mail.bo.mail_dispatch_bo import MailDispatchBO
 from module_system.service.mail.bo.mail_log_create_bo import MailLogCreateBO
 from module_system.service.mail.bo.mail_send_bo import MailSendBO
-from module_system.service.mail.bo.mail_send_result_bo import MailSendResultBO
 from module_system.service.mail.mail_account_service import MailAccountService
 from module_system.service.mail.mail_log_service import MailLogService
 from module_system.service.mail.mail_send_service import MailSendService
@@ -126,8 +122,8 @@ class MailSendServiceImpl(MailSendService):
             )
         )
 
-    @transactional
     @override
+    @transactional
     async def send_single_mail(self, req: MailDispatchBO) -> int:
         template = await self._validate_template(req.template_code)
         account = await self._validate_account(template.account_id)
@@ -155,35 +151,29 @@ class MailSendServiceImpl(MailSendService):
             )
         )
         if is_send:
-            try:
-                message_id = uuid4().hex
-                await self.mail_producer.send_mail_message(
-                    MailSendMessage(
-                        message_id=message_id,
-                        log_id=send_log_id,
-                        to_mails=[req.mail],
-                        account_id=account.id,
-                        nickname=template.nickname,
-                        title=title,
-                        content=content,
-                    )
+            message_id = uuid4().hex
+            await self.mail_producer.send_mail_message(
+                MailSendMessage(
+                    message_id=message_id,
+                    log_id=send_log_id,
+                    to_mails=[req.mail],
+                    account_id=account.id,
+                    nickname=template.nickname,
+                    title=title,
+                    content=content,
                 )
-            except Exception as e:
-                await self.mail_log_service.update_mail_send_result(
-                    MailSendResultBO(log_id=send_log_id, message_id=None, exception=e)
-                )
-                raise
+            )
         return send_log_id
 
-    @transactional
     @override
+    @transactional
     async def send_multiple_mail(self, req: MailBatchDispatchBO) -> int:
         template = await self._validate_template(req.template_code)
         account = await self._validate_account(template.account_id)
         return await self._send_multiple_mail(req, template, account)
 
-    @transactional
     @override
+    @transactional
     async def send_multiple_mail_from_account(
         self, req: MailBatchDispatchBO, account_id: int | None
     ) -> int:
@@ -229,26 +219,20 @@ class MailSendServiceImpl(MailSendService):
             )
         )
         if is_send:
-            try:
-                message_id = uuid4().hex
-                await self.mail_producer.send_mail_message(
-                    MailSendMessage(
-                        message_id=message_id,
-                        log_id=send_log_id,
-                        to_mails=req.to_mails,
-                        cc_mails=req.cc_mails,
-                        bcc_mails=req.bcc_mails,
-                        account_id=account.id,
-                        nickname=template.nickname,
-                        title=title,
-                        content=content,
-                    )
+            message_id = uuid4().hex
+            await self.mail_producer.send_mail_message(
+                MailSendMessage(
+                    message_id=message_id,
+                    log_id=send_log_id,
+                    to_mails=req.to_mails,
+                    cc_mails=req.cc_mails,
+                    bcc_mails=req.bcc_mails,
+                    account_id=account.id,
+                    nickname=template.nickname,
+                    title=title,
+                    content=content,
                 )
-            except Exception as e:
-                await self.mail_log_service.update_mail_send_result(
-                    MailSendResultBO(log_id=send_log_id, message_id=None, exception=e)
-                )
-                raise
+            )
         return send_log_id
 
     async def _validate_template(self, template_code: str) -> MailTemplateDO:
@@ -283,13 +267,11 @@ class MailSendServiceImpl(MailSendService):
                 raise ServiceException(ErrorCodeConstants.MAIL_SEND_TEMPLATE_PARAM_MISS, key)
 
     @staticmethod
-    def _build_mail_account(account: Any, nickname: str | None) -> MailAccount:
+    def _build_mail_account(account: MailAccountDO, nickname: str | None) -> MailAccount:
         """构建 MailAccount 实例"""
-        from_address = (
-            f"{nickname} <{account.mail}>" if nickname and nickname.strip() else account.mail
-        )
         return MailAccount(
-            from_address=from_address,
+            from_address=account.mail,
+            display_name=nickname,
             auth=True,
             user=account.username,
             password=account.password,
@@ -302,12 +284,12 @@ class MailSendServiceImpl(MailSendService):
     delivery: NotificationDeliveryService = Inject()
 
     async def do_send_mail(self, message: MailSendMessage) -> None:
+        """提供邮件外发和回执映射，投递状态由共享服务管理。"""
         account = await self._validate_account(message.account_id)
-        attempt = await self.delivery.claim("mail", message.log_id)
-        if attempt is None:
-            return
-        try:
-            identifier = await SmtpMailClient.send_multiple(
+
+        async def send_mail(on_request_started: DeliveryRequestStartedCallback) -> str | None:
+            """调用 SMTP 客户端并沿用请求开始回调。"""
+            return await SmtpMailClient.send_multiple(
                 self._build_mail_account(account, message.nickname),
                 message.to_mails,
                 message.cc_mails,
@@ -315,21 +297,15 @@ class MailSendServiceImpl(MailSendService):
                 message.title,
                 message.content,
                 True,
-                on_request_started=lambda: self.delivery.started("mail", message.log_id, attempt),
+                on_request_started=on_request_started,
             )
-        except DeliveryCancelled:
-            await self.delivery.finish("mail", message.log_id, attempt, send_status=40)
-            return
-        except DeliveryDefiniteFailure as error:
-            await self.delivery.finish(
-                "mail", message.log_id, attempt, send_status=20, send_exception=type(error).__name__
-            )
-            raise
-        except Exception as error:
-            await self.delivery.finish(
-                "mail", message.log_id, attempt, send_status=5, send_exception=type(error).__name__
-            )
-            raise MessageResultUnknown("邮件发送结果未知") from error
-        await self.delivery.finish(
-            "mail", message.log_id, attempt, send_status=10, send_message_id=identifier
+
+        await self.delivery.execute(
+            "mail",
+            message.log_id,
+            send=send_mail,
+            result_values=lambda identifier: {
+                "send_status": MailSendStatusEnum.SUCCESS.code,
+                "send_message_id": identifier,
+            },
         )

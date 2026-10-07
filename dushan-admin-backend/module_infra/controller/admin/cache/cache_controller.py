@@ -1,5 +1,3 @@
-from typing import Any
-
 from fastapi import APIRouter, Depends
 
 from framework.starter_di.public import (
@@ -28,7 +26,6 @@ class CacheController:
     )
     async def get_cache_monitor_info(
         cache_service: CacheService = Depends(DiDependency(CacheService)),
-    ) -> Result[dict[str, Any]]:
+    ) -> Result[MonitorRespVO]:
         result_obj: MonitorRespVO = await cache_service.get_cache_monitor_info()
-        result_dict = result_obj.model_dump(mode="json")
-        return Result.success(data=result_dict)
+        return Result.success(data=result_obj)

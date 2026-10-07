@@ -113,7 +113,7 @@ async def test_scanned_provider_extension(config_dir, module_package):
         "auth_extension",
         files={
             "provider.py": """
-from framework.starter_scanner.annotation.scanner_decorator import scanner
+from framework.starter_scanner.decorators.scanner_decorator import scanner
 from framework.starter_auth.provider.oauth_provider import OAuthProvider
 from framework.starter_auth.model.provider_capability import ProviderCapability
 
@@ -154,7 +154,7 @@ class ExtensionProvider(OAuthProvider):
 
 
 async def test_di_decorator_is_not_a_provider_registration(config_dir, module_package):
-    from server.bootstrap.bootstrapper import BootstrapError
+    from server.bootstrap.bootstrap_error import BootstrapError
 
     module_package(
         "auth_wrong_decoration",

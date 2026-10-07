@@ -14,6 +14,7 @@ from framework.starter_security.spi.message_security_provider import MessageSecu
 from framework.starter_security.spi.public_request_context_provider import (
     PublicRequestContextProvider,
 )
+from framework.starter_security.spi.request_access_provider import RequestAccessProvider
 from framework.starter_security.spi.tenant_access_provider import TenantAccessProvider
 from framework.starter_security.spi.workload_provider import WorkloadProvider
 
@@ -46,14 +47,16 @@ class SecurityStarter:
             raise ValueError("Security 与宿主授权提供者声明冲突")
         container = self.application.container
         self.service = container.get(SecurityService)
+        request_access = container.get_optional(RequestAccessProvider)
         await self.service.open(
             tenant=container.get_optional(TenantAccessProvider),
             messages=container.get_optional(MessageSecurityProvider),
             workloads=container.get_optional(WorkloadProvider),
             data_access=container.get_optional(DataAccessProvider),
+            request_access=request_access,
         )
         public_contexts = container.get_optional(PublicRequestContextProvider)
-        access = SecurityAccess(public_contexts, self.service)
+        access = SecurityAccess(public_contexts, self.service, request_access)
         routes.access_provider = access
         routes.policy_validator = access.validate_policy
         routes.public_context_parameters = (

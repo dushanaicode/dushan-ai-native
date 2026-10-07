@@ -11,7 +11,7 @@ from framework.starter_di.public import (
     mapper,
 )
 from module_system.api.logger.dto.operate_log_page_req_dto import OperateLogPageReqDTO
-from module_system.controller.admin.logger.vo.operatelog.operatelog_operate_log_page_req_vo import (
+from module_system.controller.admin.logger.vo.operate_log.operate_log_page_req_vo import (
     OperateLogPageReqVO,
 )
 from module_system.dal.dataobject.logger.operate_log_do import OperateLogDO
@@ -30,17 +30,16 @@ class OperateLogMapper(BaseMapper[OperateLogDO]):
             stmt = stmt.where(OperateLogDO.biz_id == req_vo.biz_id)
         if req_vo.type:
             escaped_type = StrUtils.escape_like(req_vo.type)
-            stmt = stmt.where(OperateLogDO.type.ilike(f"%{escaped_type}%"))
+            stmt = stmt.where(OperateLogDO.type.ilike(f"%{escaped_type}%", escape="\\"))
         if req_vo.sub_type:
             escaped_sub = StrUtils.escape_like(req_vo.sub_type)
-            stmt = stmt.where(OperateLogDO.sub_type.ilike(f"%{escaped_sub}%"))
+            stmt = stmt.where(OperateLogDO.sub_type.ilike(f"%{escaped_sub}%", escape="\\"))
         if req_vo.action:
             escaped_action = StrUtils.escape_like(req_vo.action)
-            stmt = stmt.where(OperateLogDO.action.ilike(f"%{escaped_action}%"))
-        if req_vo.create_time and len(req_vo.create_time) >= 2:
-            stmt = stmt.where(
-                OperateLogDO.create_time.between(req_vo.create_time[0], req_vo.create_time[1])
-            )
+            stmt = stmt.where(OperateLogDO.action.ilike(f"%{escaped_action}%", escape="\\"))
+        if req_vo.create_time is not None:
+            start_time, end_time = req_vo.create_time
+            stmt = stmt.where(OperateLogDO.create_time.between(start_time, end_time))
         stmt = stmt.order_by(OperateLogDO.id.desc())
         return await self.paginate_query(stmt, req_vo)
 
